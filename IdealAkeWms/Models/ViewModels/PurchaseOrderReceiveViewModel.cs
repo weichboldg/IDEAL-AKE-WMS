@@ -51,6 +51,11 @@ public class PurchaseOrderReceiveRow
         : null;
     public PurchaseOrderReceiveInput Eingabe { get; set; } = new();
     public string? Fehler { get; set; }
+    /// <summary>v1.99.52 (F3): Ziel-Platz ist mit dem Hauptlagerplatz des Artikels vorbelegt (Sage-Platz der Position nicht auswaehlbar).</summary>
+    public bool ZielVorschlagHauptlagerplatz { get; set; }
+    /// <summary>v1.99.52 (F3): warum kein Vorschlag moeglich war (Hauptlagerplatz nicht buchbar / ohne Sage-Buchung, Position ohne Sage-Platz);
+    /// null = nichts zu melden. Zusaetzlich zu den bestehenden Sage-Platz-Hinweisen.</summary>
+    public string? ZielHinweis { get; set; }
     /// <summary>v1.99.22 (Freigabe-Nachtrag 3): offene Lagerbestellungen zum Artikel (nur mit LagerbestellungAktiv) – nur Hinweis mit Link.</summary>
     public List<IdealAkeWms.Data.Repositories.OffenerBedarf> OffeneLagerbestellungen { get; set; } = new();
     /// <summary>v1.99.22: offene Bedarfsmeldungen zum Artikel (nur mit BestellungenAktiv) – nur Hinweis mit Link, kein Erfüllen.</summary>

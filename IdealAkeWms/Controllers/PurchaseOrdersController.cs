@@ -27,11 +27,14 @@ public partial class PurchaseOrdersController : Controller
     private readonly IServiceSettingRepository _serviceSettings;
     private readonly IPurchaseProposalRepository _bedarfe; // v1.99.22 offene Bedarfe im Wareneingang (Abfragen der Bestellvorschlaege)
     private readonly IUserViewPreferenceRepository _prefs;  // v1.99.31 F4.5 Checkbox „Überfällige anzeigen“ je Benutzer und Ansicht
+    private readonly IArticleRepository _articles;          // v1.99.52 F3 Hauptlagerplatz als Ziel-Vorschlag im Wareneingang
 
     public PurchaseOrdersController(ISagePurchaseOrderLineRepository lines, IStorageLocationRepository locations, IAppSettingRepository settings,
         ICurrentUserService user, IPurchaseOrderReceiptRepository receipts, IStockMovementRepository movements,
-        IServiceSettingRepository serviceSettings, IPurchaseProposalRepository bedarfe, IUserViewPreferenceRepository prefs)
+        IServiceSettingRepository serviceSettings, IPurchaseProposalRepository bedarfe, IUserViewPreferenceRepository prefs,
+        IArticleRepository articles)
     {
+        _articles = articles;
         _prefs = prefs;
         _bedarfe = bedarfe;
         _serviceSettings = serviceSettings;

@@ -796,6 +796,32 @@ public static class ColumnDefinitions
         ]
     };
 
+    /// <summary>
+    /// PurchaseOrders/Receive.cshtml — Positionstabelle „Wareneingang zu Bestellung“ (v1.99.52, Spec 2026-11-23 F2b): nur ein-/ausblenden und
+    /// Breite. Gesperrt sind alle Spalten, die zum Buchen oder Melden noetig sind (Pflichteingaben, Rest/Einheit, Status mit Fehlertext);
+    /// ausblendbar nur bestellt, offen (Sage), im WMS erfasst, Positionsmemo. Kein Umsortieren (Formular-Zellen).
+    /// </summary>
+    public static readonly ViewConfig PurchaseOrderReceive = new(
+        "PurchaseOrderReceive", "Wareneingang zu Bestellung – Positionen",
+        SupportsReorder: false, SupportsSortDefault: false)
+    {
+        Columns =
+        [
+            new ColumnDef("pos",            "Pos.",            Locked: true),
+            new ColumnDef("artikel",        "Artikel",         Locked: true),
+            new ColumnDef("bestellt",       "bestellt",        Locked: false),
+            new ColumnDef("offen",          "offen (Sage)",    Locked: false),
+            new ColumnDef("erfasst",        "im WMS erfasst",  Locked: false),
+            new ColumnDef("rest",           "Rest",            Locked: true),
+            new ColumnDef("einheit",        "Einheit",         Locked: true),
+            new ColumnDef("lagerplatz",     "Ziel-Lagerplatz", Locked: true),
+            new ColumnDef("menge",          "Ist-Menge",       Locked: true),
+            new ColumnDef("ueberlieferung", "Überlieferung",   Locked: true),
+            new ColumnDef("memo",           "Positionsmemo",   Locked: false),
+            new ColumnDef("status",         "Status",          Locked: true),
+        ]
+    };
+
     /// <summary>PurchaseProposals/Index.cshtml — Einkauf → Bestellvorschläge (v1.99.20, Spec 2026-11-08-einkauf-bestellvorschlaege F8).</summary>
     public static readonly ViewConfig PurchaseProposals = new(
         "PurchaseProposals", "Bestellvorschläge",
@@ -865,6 +891,7 @@ public static class ColumnDefinitions
         "Creditors"                      => Creditors,
         "Debitors"                       => Debitors,
         "PurchaseOrders"                 => PurchaseOrders,
+        "PurchaseOrderReceive"           => PurchaseOrderReceive,
         _                  => null
     };
 }

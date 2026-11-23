@@ -46,4 +46,29 @@ public class ViewKeyDriftGuardTests
         html.Should().Contain("data-table-toolbar");
         ViewsMitViewConfig().Select(o => (string)o[0]).Should().Contain(Path.Combine("PurchaseOrders", "Index.cshtml"));
     }
+
+    /// <summary>v1.99.52 (Spec 2026-11-23 F2/F2b): Positionstabelle Wareneingang – drei Quellen gleich, Toolbar-Host, kein Filter/CSV, genau die
+    /// acht Pflichtspalten gesperrt; Streifen/Hover/Fokus-Klasse; die Fokus-Regeln setzen keine eigene Hintergrundfarbe (table-danger bleibt).</summary>
+    [Fact]
+    public void WareneingangPositionen_DreiQuellenGleich_Gesperrt_FokusZeile()
+    {
+        var html = File.ReadAllText(Path.Combine(ViewsDir().FullName, "PurchaseOrders", "Receive.cshtml"));
+        var cfg = ColumnDefinitions.PurchaseOrderReceive;
+        var katalog = cfg.Columns.Select(c => c.Key).ToList();
+        KommissionierSpaltenKonsistenzTests.ExtractThDataColKeys(html).Should().Equal(katalog);
+        KommissionierSpaltenKonsistenzTests.ExtractColumnConfigKeys(html).Should().Equal(katalog);
+        ColumnDefinitions.GetByViewKey("PurchaseOrderReceive").Should().BeSameAs(cfg);
+        cfg.Columns.Where(c => c.Locked).Select(c => c.Key).Should()
+            .Equal("pos", "artikel", "rest", "einheit", "lagerplatz", "menge", "ueberlieferung", "status");
+        (cfg.SupportsReorder, cfg.SupportsSortDefault).Should().Be((false, false));
+        html.Should().Contain("data-table-toolbar").And.Contain("column-preferences.js").And.NotContain("filterable-table")
+            .And.Contain("class=\"table table-sm table-striped table-hover align-middle we-positionen\" data-view-key=\"PurchaseOrderReceive\"");
+
+        var css = File.ReadAllText(Path.Combine(ViewsDir().Parent!.FullName, "wwwroot", "css", "site.css"));
+        var regeln = Regex.Matches(css, @"\.we-positionen[^{]*\{([^}]*)\}").Select(m => m.Groups[1].Value).ToList();
+        regeln.Should().HaveCount(2);
+        regeln.Should().OnlyContain(r => !r.Contains("background"));
+        regeln[0].Should().Contain("--bs-table-bg-state: var(--bs-table-active-bg)");
+        regeln[1].Should().Contain("inset 4px 0 0").And.Contain("var(--bs-table-bg-state, var(--bs-table-bg-type");
+    }
 }

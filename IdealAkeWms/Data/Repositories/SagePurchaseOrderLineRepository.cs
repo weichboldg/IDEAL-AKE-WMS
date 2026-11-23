@@ -13,8 +13,9 @@ public interface ISagePurchaseOrderLineRepository
     /// <summary>Alle Positionen (ca. 1.000 am AKE-Test), ohne Tracking.</summary>
     Task<List<SagePurchaseOrderLine>> GetAllAsync();
     Task<List<SagePurchaseOrderLine>> GetByBelIdAsync(int belId);
-    /// <summary>Distinct <c>BelId</c> zu einer Belegnummer (exakt, getrimmt) – mehrere = sichtbare Meldung beim Aufrufer.</summary>
-    Task<List<int>> GetBelIdsByBelegnummerAsync(string belegnummer);
+    /// <summary>Distinct <c>BelId</c> (mit Belegnummer) zu einer Eingabe, getrimmt: nur Ziffern = Endung „-&lt;Eingabe&gt;“ (Bestellnummer ohne
+    /// Belegjahr, v1.99.52), sonst exakt. Mehrere = sichtbare Meldung beim Aufrufer, nie still die erste.</summary>
+    Task<List<(int BelId, string Belegnummer)>> GetBelIdsByBelegnummerAsync(string belegnummer);
     /// <summary>Zeitpunkt des letzten erfolgreichen Abgleichs (max <c>SyncedAt</c>); null = Cache leer.</summary>
     Task<DateTime?> GetStandAsync();
 }
@@ -30,10 +31,15 @@ public class SagePurchaseOrderLineRepository : ISagePurchaseOrderLineRepository
     public Task<List<SagePurchaseOrderLine>> GetByBelIdAsync(int belId) =>
         _db.SagePurchaseOrderLines.AsNoTracking().Where(l => l.BelId == belId).OrderBy(l => l.BelPosId).ToListAsync();
 
-    public Task<List<int>> GetBelIdsByBelegnummerAsync(string belegnummer)
+    public async Task<List<(int BelId, string Belegnummer)>> GetBelIdsByBelegnummerAsync(string belegnummer)
     {
         var key = belegnummer.Trim();
-        return _db.SagePurchaseOrderLines.AsNoTracking().Where(l => l.Belegnummer == key).Select(l => l.BelId).Distinct().ToListAsync();
+        // v1.99.52 (Spec 2026-11-23 F1): Belegjahr = Sage-Geschaeftsjahr, im WMS unbekannt -> kein Jahr ergaenzen, sondern Endung suchen.
+        var endung = "-" + key;
+        var q = _db.SagePurchaseOrderLines.AsNoTracking();
+        q = key.Length > 0 && key.All(char.IsAsciiDigit) ? q.Where(l => l.Belegnummer.EndsWith(endung)) : q.Where(l => l.Belegnummer == key);
+        var treffer = await q.Select(l => new { l.BelId, l.Belegnummer }).Distinct().ToListAsync();
+        return treffer.GroupBy(t => t.BelId).Select(g => (g.Key, g.First().Belegnummer)).OrderBy(t => t.Belegnummer).ThenBy(t => t.Key).ToList();
     }
 
     public async Task<DateTime?> GetStandAsync() =>

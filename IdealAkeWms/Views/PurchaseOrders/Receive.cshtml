@@ -25,8 +25,8 @@
     <div class="card-body p-2">
         <form method="get" asp-action="Receive" class="d-flex gap-2 align-items-end flex-wrap">
             <div>
-                <label for="belegnummer" class="form-label small mb-0">Bestellnummer eingeben oder scannen</label>
-                <input type="text" id="belegnummer" name="belegnummer" class="form-control" style="min-height:44px" placeholder="z. B. 2027-168975"
+                <label for="belegnummer" class="form-label small mb-0">Bestellnummer (mit oder ohne Jahr) eingeben oder scannen</label>
+                <input type="text" id="belegnummer" name="belegnummer" class="form-control" style="min-height:44px" placeholder="z. B. 168975 oder 2027-168975"
                        value="@(Model.BelId == null ? Model.Belegnummer : null)" autocomplete="off" data-hw-scan-ziel @(Model.BelId == null ? "autofocus" : "") />
             </div>
             <button type="submit" class="btn btn-primary" style="min-height:44px">Öffnen</button>
@@ -111,22 +111,25 @@
             </div>
         }
         </div>
+        @* v1.99.52 (Spec 2026-11-23 F2b): Toolbar-Host fuer das Zahnrad (Katalog ColumnDefinitions.PurchaseOrderReceive). Ausgeblendete
+           Zellen bleiben im DOM und werden mitgesendet; der Server ordnet ueber BelPosId zu. F2: Streifen/Hover + Fokus-Zeile (site.css). *@
+        <div class="d-flex justify-content-end mb-1" data-table-toolbar></div>
         <div class="table-responsive">
-            <table class="table table-sm align-middle">
+            <table class="table table-sm table-striped table-hover align-middle we-positionen" data-view-key="PurchaseOrderReceive">
                 <thead>
                     <tr>
-                        <th>Pos.</th>
-                        <th>Artikel</th>
-                        <th class="text-end">bestellt</th>
-                        <th class="text-end">offen (Sage)</th>
-                        <th class="text-end">im WMS erfasst</th>
-                        <th class="text-end">Rest</th>
-                        <th>Einheit</th>
-                        <th>Ziel-Lagerplatz</th>
-                        <th style="min-width: 8rem;">Ist-Menge</th>
-                        <th class="text-center">Überlieferung</th>
-                        <th style="min-width: 12rem;">Positionsmemo</th>
-                        <th>Status</th>
+                        <th data-col-key="pos">Pos.</th>
+                        <th data-col-key="artikel">Artikel</th>
+                        <th data-col-key="bestellt" class="text-end">bestellt</th>
+                        <th data-col-key="offen" class="text-end">offen (Sage)</th>
+                        <th data-col-key="erfasst" class="text-end">im WMS erfasst</th>
+                        <th data-col-key="rest" class="text-end">Rest</th>
+                        <th data-col-key="einheit">Einheit</th>
+                        <th data-col-key="lagerplatz">Ziel-Lagerplatz</th>
+                        <th data-col-key="menge" style="min-width: 8rem;">Ist-Menge</th>
+                        <th data-col-key="ueberlieferung" class="text-center">Überlieferung</th>
+                        <th data-col-key="memo" style="min-width: 12rem;">Positionsmemo</th>
+                        <th data-col-key="status">Status</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -195,6 +198,15 @@
                                         @* v1.86.0 (Nachbesserung): Sage-Platz ist einem nicht buchbaren/inaktiven WMS-Platz zugeordnet – melden statt still leer. *@
                                         <div class="small text-body-secondary">Sage-Platz @z.Row.ZielLagerplatz ist im WMS nicht buchbar – bitte Ziel wählen</div>
                                     }
+                                    @* v1.99.52 (F3): Herkunft des Vorschlags bzw. warum keiner moeglich war – Text, nie nur Farbe *@
+                                    @if (z.ZielVorschlagHauptlagerplatz)
+                                    {
+                                        <div class="small text-body-secondary">Vorschlag: Hauptlagerplatz des Artikels</div>
+                                    }
+                                    @if (z.ZielHinweis != null)
+                                    {
+                                        <div class="small text-body-secondary">@z.ZielHinweis</div>
+                                    }
                                 }
                             </td>
                             <td>
@@ -252,9 +264,33 @@
         }
         <button type="submit" class="btn btn-primary mb-4" style="min-height:44px">Einbuchen</button>
     </form>
+
+    <script type="application/json" id="view-config">
+    { "viewKey": "PurchaseOrderReceive", "supportsReorder": false, "supportsSortDefault": false }
+    </script>
+    <script type="application/json" id="column-config">
+    [
+        { "key": "pos", "label": "Pos.", "locked": true, "defaultWidth": null },
+        { "key": "artikel", "label": "Artikel", "locked": true, "defaultWidth": null },
+        { "key": "bestellt", "label": "bestellt", "locked": false, "defaultWidth": null },
+        { "key": "offen", "label": "offen (Sage)", "locked": false, "defaultWidth": null },
+        { "key": "erfasst", "label": "im WMS erfasst", "locked": false, "defaultWidth": null },
+        { "key": "rest", "label": "Rest", "locked": true, "defaultWidth": null },
+        { "key": "einheit", "label": "Einheit", "locked": true, "defaultWidth": null },
+        { "key": "lagerplatz", "label": "Ziel-Lagerplatz", "locked": true, "defaultWidth": null },
+        { "key": "menge", "label": "Ist-Menge", "locked": true, "defaultWidth": null },
+        { "key": "ueberlieferung", "label": "Überlieferung", "locked": true, "defaultWidth": null },
+        { "key": "memo", "label": "Positionsmemo", "locked": false, "defaultWidth": null },
+        { "key": "status", "label": "Status", "locked": true, "defaultWidth": null }
+    ]
+    </script>
 }
 
 @section Scripts {
+    @if (Model.BelId != null)
+    {
+        <script src="~/js/column-preferences.js" asp-append-version="true"></script>
+    }
     @if (Model.BelId != null && Model.BarcodeAktiv && Model.SageWeAktiv)
     {
         @* v1.99.11: Kamera/Hardware-Scanner ins Barcode-Feld, roh ('raw': keine Artikel-QR-, EAN- oder Matchcode-Auswertung). *@

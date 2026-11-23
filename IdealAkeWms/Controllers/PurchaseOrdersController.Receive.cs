@@ -17,10 +17,13 @@ public partial class PurchaseOrdersController
         if (belId == null && !string.IsNullOrWhiteSpace(belegnummer))
         {
             var ids = await _lines.GetBelIdsByBelegnummerAsync(belegnummer);
-            if (ids.Count == 1) return RedirectToAction(nameof(Receive), new { belId = ids[0] });
+            if (ids.Count == 1) return RedirectToAction(nameof(Receive), new { belId = ids[0].BelId });
+            // v1.99.52 (F1): mehrere Treffer = alle Belegnummern nennen; verschiedene Nummern (Endungssuche) -> mit Jahr eingeben,
+            // gleiche Nummer an mehreren Belegen -> ueber die Liste waehlen.
             TempData["WarningMessage"] = ids.Count == 0
                 ? $"Bestellung „{belegnummer.Trim()}“ nicht gefunden (nur offene Bestellungen und Rahmenabrufe aus Sage, Stand des letzten Abgleichs)."
-                : $"Belegnummer „{belegnummer.Trim()}“ gehört zu {ids.Count} Bestellungen – bitte über „Offene Bestellungen“ wählen.";
+                : $"„{belegnummer.Trim()}“ passt zu {ids.Count} Bestellungen: {string.Join(", ", ids.Select(i => i.Belegnummer))} – "
+                  + (ids.Select(i => i.Belegnummer).Distinct().Count() > 1 ? "bitte mit Jahr eingeben." : "bitte über „Offene Bestellungen“ wählen.");
             return RedirectToAction(nameof(Receive));
         }
         if (belId == null) return View(new PurchaseOrderReceiveViewModel());
@@ -206,6 +209,9 @@ public partial class PurchaseOrdersController
         var k = rows[0].Line;
         var schalterAn = SageWareneingang.IstAn(await _serviceSettings.GetValueAsync(SageWareneingang.ToggleKey));
         var (lager, meldungen) = await OffeneBedarfeAsync(rows.Select(r => r.Line.Artikelnummer));
+        var lagerplaetze = await _locations.GetActiveOrderedExcludingPickingTransportAsync() ?? new();
+        var sageWeAktiv = SageWareneingang.GiltFuer(schalterAn, k);
+        var ziele = await ZielVorschlaegeAsync(rows, lagerplaetze, sageWeAktiv);
         return new PurchaseOrderReceiveViewModel
         {
             BelId = belId,
@@ -214,10 +220,10 @@ public partial class PurchaseOrdersController
             LieferantGesperrt = rows.Any(r => r.Line.LieferantGesperrt),
             Liefertermin = rows.Min(r => r.Line.Liefertermin),
             AbNummer = k.AbNummer, Kommission = k.Kommission,   // v1.99.33 Teil B: Kopfwert, an jeder Position gleich
-            Lagerplaetze = await _locations.GetActiveOrderedExcludingPickingTransportAsync() ?? new(),
+            Lagerplaetze = lagerplaetze,
             // v1.99.15 (Teil 3, F4): alle Zeilen einer Maske haben dieselbe BelId, also dieselbe Belegart - Platzregel, Status beim Buchen
             // und Barcode-Sperre folgen daraus ohne weitere Aenderung.
-            SageWeAktiv = SageWareneingang.GiltFuer(schalterAn, k),
+            SageWeAktiv = sageWeAktiv,
             SageWeSchalterAn = schalterAn,
             Rahmenabruf = k.IstRahmenabruf,
             LieferscheinPflicht = string.Equals((await _settings.GetValueAsync(AppSettingKeys.WareneingangLieferscheinPflicht))?.Trim(), "true",
@@ -228,11 +234,46 @@ public partial class PurchaseOrdersController
             {
                 Row = r,
                 Eingabe = eingabe.TryGetValue(r.Line.BelPosId, out var e) ? e
-                    : new PurchaseOrderReceiveInput { BelPosId = r.Line.BelPosId, StorageLocationId = r.Line.StorageLocationId },
+                    : new PurchaseOrderReceiveInput { BelPosId = r.Line.BelPosId, StorageLocationId = ziele[r.Line.BelPosId].Platz },
+                // v1.99.52 (F3): „Vorschlag“ nur, wenn die Vorbelegung wirklich aus dem Hauptlagerplatz kommt (GET), nie nach einem POST
+                ZielVorschlagHauptlagerplatz = eingaben == null && ziele[r.Line.BelPosId].AusHauptlagerplatz,
+                ZielHinweis = ziele[r.Line.BelPosId].Hinweis,
                 OffeneLagerbestellungen = lager[Schluessel(r.Line.Artikelnummer)].ToList(),
                 OffeneBedarfsmeldungen = meldungen[Schluessel(r.Line.Artikelnummer)].ToList(),
             }).ToList(),
         };
+    }
+
+    /// <summary>v1.99.52 (Spec 2026-11-23 F3): Vorbelegung des Ziel-Platzes je Position. 1. Sage-Platz der Position, wenn auswaehlbar
+    /// (unveraendert); 2. sonst Hauptlagerplatz des Artikels (<c>Article.PrimaryStorageLocationId</c>, OHNE Bestandsbedingung – nicht die
+    /// Kommissionier-Regel <c>QuellVorschlag</c>), wenn auswaehlbar und bei Sage-WE ein Sage-Platz mit Sage-Buchung; 3. sonst leer.
+    /// Hinweis = warum kein Vorschlag moeglich war (Code des Hauptlagerplatzes) bzw. Position ganz ohne Sage-Platz – melden statt still leer.</summary>
+    private async Task<Dictionary<int, (int? Platz, bool AusHauptlagerplatz, string? Hinweis)>> ZielVorschlaegeAsync(
+        List<PurchaseOrderLineRow> rows, List<StorageLocation> lagerplaetze, bool sageWeAktiv)
+    {
+        var waehlbar = lagerplaetze.ToDictionary(p => p.Id);
+        var offen = rows.Where(r => r.Line.ArticleId != null && !(r.Line.StorageLocationId is { } sid && waehlbar.ContainsKey(sid))).ToList();
+        var haupt = offen.Count == 0 ? new Dictionary<int, int>()
+            : await _articles.GetPrimaryStorageLocationIdsAsync(offen.Select(r => r.Line.ArticleId!.Value).Distinct().ToList()) ?? new();
+        var codes = haupt.Count == 0 ? new Dictionary<int, string>()
+            : (await _locations.GetAllOrderedAsync() ?? new()).ToDictionary(p => p.Id, p => p.Code);
+        var ergebnis = rows.ToDictionary(r => r.Line.BelPosId, r => (Platz: r.Line.StorageLocationId, AusHauptlagerplatz: false, Hinweis: (string?)null));
+        foreach (var r in offen)
+        {
+            var keinSagePlatz = r.Line.SagePlatzId == null && r.Line.StorageLocationId == null;
+            if (!haupt.TryGetValue(r.Line.ArticleId!.Value, out var hid))
+            {
+                if (keinSagePlatz) ergebnis[r.Line.BelPosId] = (null, false, "Kein Sage-Platz an der Position – bitte Ziel wählen");
+                continue;
+            }
+            var code = codes.GetValueOrDefault(hid, $"#{hid}");
+            ergebnis[r.Line.BelPosId] = !waehlbar.TryGetValue(hid, out var platz)
+                    ? (null, false, $"Hauptlagerplatz {code} ist im WMS nicht buchbar – bitte Ziel wählen")
+                : sageWeAktiv && !SageWareneingang.IstSageWePlatz(platz)
+                    ? (null, false, $"Hauptlagerplatz {code} hat keine Sage-Buchung – bitte Sage-Platz wählen")
+                : (hid, true, null);
+        }
+        return ergebnis;
     }
 
     private static string Schluessel(string? artikelnummer) => (artikelnummer ?? "").Trim().ToUpperInvariant();

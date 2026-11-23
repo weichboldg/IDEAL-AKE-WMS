@@ -48,7 +48,8 @@ public partial class PurchaseOrdersControllerTests
         receipts.Setup(r => r.GetErfasstJeBelPosAsync(It.IsAny<IReadOnlyCollection<int>>())).ReturnsAsync(erfasst ?? new Dictionary<int, ErfasstJeBelPos>());
         var ctrl = new PurchaseOrdersController(lines.Object, locations.Object, settings.Object, user.Object, receipts.Object,
             Mock.Of<IStockMovementRepository>(), Mock.Of<IServiceSettingRepository>(), Mock.Of<IPurchaseProposalRepository>(),
-            new UserViewPreferenceRepository(db ?? TestDbContextFactory.Create()))
+            new UserViewPreferenceRepository(db ?? TestDbContextFactory.Create()),
+            Mock.Of<IArticleRepository>())   // v1.99.52 BEWUSST GEAENDERT: Ctor mit IArticleRepository
         {
             ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() }
         };

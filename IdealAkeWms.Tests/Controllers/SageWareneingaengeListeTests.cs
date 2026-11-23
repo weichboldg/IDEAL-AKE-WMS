@@ -46,7 +46,8 @@ public class SageWareneingaengeListeTests
         user.Setup(u => u.GetWindowsUserName()).Returns("AKE\\tester");
         user.Setup(u => u.CanTransferStockAsync()).ReturnsAsync(true);
         var ctrl = new PurchaseOrdersController(new SagePurchaseOrderLineRepository(db), new StorageLocationRepository(db), Mock.Of<IAppSettingRepository>(),
-            user.Object, new PurchaseOrderReceiptRepository(db), new StockMovementRepository(db), new ServiceSettingRepository(db), new PurchaseProposalRepository(db), new UserViewPreferenceRepository(db))
+            user.Object, new PurchaseOrderReceiptRepository(db), new StockMovementRepository(db), new ServiceSettingRepository(db), new PurchaseProposalRepository(db), new UserViewPreferenceRepository(db),
+            new ArticleRepository(db))   // v1.99.52 BEWUSST GEAENDERT: Ctor mit IArticleRepository
         {
             ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() }
         };

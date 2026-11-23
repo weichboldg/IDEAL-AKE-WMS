@@ -1501,3 +1501,18 @@ th:hover .col-resize-handle {
 
 /* v1.87.0 (QA A5 Q-2): FA-Link in einer Alert-Karte (FA-Kopf der Bestandsuebersicht) mit der dunklen Alert-Linkfarbe – sonst ~4,1:1 auf Gelb. */
 .alert a.fa-link { color: var(--bs-alert-link-color); font-weight: 600; }
+
+/* v1.99.52 (Spec 2026-11-23-wareneingang-zu-bestellung-bedienung F2): Wareneingang zu Bestellung – Zeile mit dem Eingabefokus markieren,
+   nur CSS (:focus-within), nur diese Tabelle. Zwei Teile, Farbe nie allein:
+   1 Hintergrund im Aktiv-Ton der Zeile ueber Bootstraps Zustandsvariable (table-danger behaelt seinen Rotton #dfc2c4, sonst Grau #e6e6e6);
+   2 4-px-Balken links an der gesperrten Spalte Pos. (nie ausgeblendet) in --bs-primary-text-emphasis (#052c65: ca. 8:1 auf #dfc2c4,
+     ca. 11:1 auf #e6e6e6; das hellere --bs-primary laege auf Rot bei ca. 2,7:1). Der Balken ersetzt den Hintergrund-Schatten der Zelle,
+     daher steht Bootstraps Hintergrund-Schatten als zweiter Schatten dahinter (sonst verschwaenden Streifen und Rot). */
+.we-positionen > tbody > tr:focus-within > * {
+    --bs-table-bg-state: var(--bs-table-active-bg);
+    --bs-table-color-state: var(--bs-table-active-color);
+}
+.we-positionen > tbody > tr:focus-within > td:first-child {
+    box-shadow: inset 4px 0 0 var(--bs-primary-text-emphasis),
+                inset 0 0 0 9999px var(--bs-table-bg-state, var(--bs-table-bg-type, var(--bs-table-accent-bg)));
+}

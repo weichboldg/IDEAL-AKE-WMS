@@ -16,7 +16,7 @@ using Moq;
 namespace IdealAkeWms.Tests.Controllers;
 
 /// <summary>Spec 2026-11-08-wareneingang-aus-sage-bestellungen E3 (AK 12, 13, 15-17) mit echten Repositories (InMemory).</summary>
-public class PurchaseOrdersReceiveTests
+public partial class PurchaseOrdersReceiveTests
 {
     private static async Task<(PurchaseOrdersController ctrl, ApplicationDbContext db)> BuildAsync(bool lieferscheinPflicht = false, bool sageWe = false, bool barcode = false,
         string? lagerbestellungAktiv = null, string? bestellungenAktiv = null)
@@ -54,7 +54,8 @@ public class PurchaseOrdersReceiveTests
         settings.Setup(x => x.GetValueAsync(AppSettingKeys.LagerbestellungAktiv)).ReturnsAsync(lagerbestellungAktiv);
         settings.Setup(x => x.GetValueAsync(AppSettingKeys.BestellungenAktiv)).ReturnsAsync(bestellungenAktiv);
         var ctrl = new PurchaseOrdersController(new SagePurchaseOrderLineRepository(db), new StorageLocationRepository(db),
-            settings.Object, user.Object, new PurchaseOrderReceiptRepository(db), new StockMovementRepository(db), new ServiceSettingRepository(db), new PurchaseProposalRepository(db), new UserViewPreferenceRepository(db))
+            settings.Object, user.Object, new PurchaseOrderReceiptRepository(db), new StockMovementRepository(db), new ServiceSettingRepository(db), new PurchaseProposalRepository(db), new UserViewPreferenceRepository(db),
+            new ArticleRepository(db))   // v1.99.52 BEWUSST GEAENDERT: Ctor mit IArticleRepository (F3 Hauptlagerplatz-Vorschlag)
         {
             ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() }
         };
@@ -80,8 +81,9 @@ public class PurchaseOrdersReceiveTests
         ctrl.TempData["WarningMessage"].Should().Be("Bestellung „2026-999“ nicht gefunden (nur offene Bestellungen und Rahmenabrufe aus Sage, Stand des letzten Abgleichs).");
         ((RedirectToActionResult)await ctrl.Receive(null, "2026-400")).RouteValues!["belId"].Should().Be(400, "Abruf per Belegnummer (AK 8)");
 
+        // v1.99.52 BEWUSST GEAENDERT (Spec 2026-11-23 F1): Meldung nennt alle Belegnummern (bisher „gehört zu 2 Bestellungen“)
         await ctrl.Receive(null, "2026-200");
-        ctrl.TempData["WarningMessage"]!.ToString().Should().Contain("gehört zu 2 Bestellungen");
+        ctrl.TempData["WarningMessage"].Should().Be("„2026-200“ passt zu 2 Bestellungen: 2026-200, 2026-200 – bitte über „Offene Bestellungen“ wählen.");
     }
 
     [Fact]

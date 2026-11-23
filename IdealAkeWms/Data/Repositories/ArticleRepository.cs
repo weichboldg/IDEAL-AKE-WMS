@@ -123,6 +123,14 @@ public class ArticleRepository : Repository<Article>, IArticleRepository
     /// eine Abfrage statt N. Fehlende Artikelnummer ⇒ NICHT im Dict (⇒ Fehltreffer); vorhandener,
     /// aber leerer Matchcode ⇒ Value null. Keys case-insensitiv (ArticleNumber ist UNIQUE, aber
     /// Groß/Klein soll nicht am Treffer entscheiden).</summary>
+    public async Task<Dictionary<int, int>> GetPrimaryStorageLocationIdsAsync(IReadOnlyCollection<int> articleIds)
+    {
+        if (articleIds.Count == 0) return new Dictionary<int, int>();
+        var ids = articleIds.Distinct().ToList();
+        return await _dbSet.AsNoTracking().Where(a => ids.Contains(a.Id) && a.PrimaryStorageLocationId != null)
+            .ToDictionaryAsync(a => a.Id, a => a.PrimaryStorageLocationId!.Value);
+    }
+
     public async Task<Dictionary<string, string?>> GetMatchcodesByArticleNumbersAsync(IReadOnlyCollection<string> articleNumbers)
     {
         var wanted = articleNumbers.Where(n => !string.IsNullOrEmpty(n)).Distinct().ToList();

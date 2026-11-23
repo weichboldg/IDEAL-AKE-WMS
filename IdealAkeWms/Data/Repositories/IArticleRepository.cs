@@ -11,6 +11,8 @@ public interface IArticleRepository : IRepository<Article>
         int page, int pageSize, string? search,
         IReadOnlyDictionary<string, string>? columnFilters = null);
     Task<Dictionary<string, string?>> GetMatchcodesByArticleNumbersAsync(IReadOnlyCollection<string> articleNumbers);
+    /// <summary>v1.99.52: Hauptlagerplatz (<c>PrimaryStorageLocationId</c>) je ArticleId, nur Artikel mit gesetztem FK – eine Abfrage.</summary>
+    Task<Dictionary<int, int>> GetPrimaryStorageLocationIdsAsync(IReadOnlyCollection<int> articleIds);
     /// <summary>Exakt, getrimmt, ohne Gross/Klein; DUMMY ausgeschlossen. Bis zu <paramref name="limit"/> Treffer nach Artikelnummer -
     /// der Aufrufer unterscheidet keins/eindeutig/mehrdeutig (Matchcode ist nicht eindeutig, nie still den ersten nehmen).</summary>
     Task<List<Article>> GetByMatchcodeExactAsync(string matchcode, int limit);
