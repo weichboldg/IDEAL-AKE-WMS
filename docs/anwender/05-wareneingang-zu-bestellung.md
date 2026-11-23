@@ -1,6 +1,6 @@
 # 05 – Wareneingang zu Bestellung
 
-Stand: Version 1.99.29 · Standort AKE (IDEAL siehe unten) · Bilder aus dem AKE-Testsystem
+Stand: Version 1.99.52 · Standort AKE (IDEAL siehe unten) · Bilder aus dem AKE-Testsystem
 
 ## Zweck
 
@@ -32,10 +32,15 @@ Schalter: Lieferschein-Nr. als Pflichtfeld, Feld „Barcode (Lieferschein)“, u
 
 Menü **Lager → Wareneingang zu Bestellung** – oder in **Lager → Offene Bestellungen** in der Zeile auf **Wareneingang**.
 
-![Feld „Bestellnummer eingeben oder scannen“](bilder/05-01-bestellnummer-scannen.jpg)
+![Feld „Bestellnummer (mit oder ohne Jahr) eingeben oder scannen“](bilder/05-01-bestellnummer-scannen.jpg)
 
-1. Bestellnummer vom Lieferschein scannen (Handscanner) oder eintippen, z. B. `2027-168530`. Leerzeichen vorne/hinten stören nicht.
+1. Bestellnummer vom Lieferschein scannen (Handscanner) oder eintippen, z. B. `2027-168530` – oder **ohne Jahr** `168530` (seit 1.99.52).
+   Leerzeichen vorne/hinten stören nicht.
 2. **Öffnen**.
+
+Ohne Jahr sucht das WMS alle offenen Bestellungen, deren Nummer auf `-168530` endet. Nur die ganze Nummer zählt: `1685` findet `2027-168530`
+nicht. Passt die Nummer zu mehreren offenen Bestellungen (z. B. `2026-168530` und `2027-168530`), öffnet sich keine, sondern eine Meldung nennt
+alle: „„168530“ passt zu 2 Bestellungen: 2026-168530, 2027-168530 – bitte mit Jahr eingeben.“ Dann die Nummer mit Jahr eingeben.
 
 Unbekannte Nummer: „Bestellung „…“ nicht gefunden (nur offene Bestellungen und Rahmenabrufe aus Sage, Stand des letzten Abgleichs).“ Dann ist
 die Bestellung in Sage schon erledigt, noch nicht abgeglichen oder die Nummer falsch.
@@ -53,6 +58,12 @@ die Bestellung in Sage schon erledigt, noch nicht abgeglichen oder die Nummer fa
 - Je Position: **bestellt**, **offen (Sage)**, **im WMS erfasst**, **Rest** (= was noch fehlt), **Einheit** (Basiseinheit).
 - **Ziel-Lagerplatz:** vorbelegt mit dem Sage-Platz der Bestellposition. Ist dieser Platz im WMS nicht buchbar, steht darunter „Sage-Platz …
   ist im WMS nicht buchbar – bitte Ziel wählen“ – dann einen Platz auswählen.
+- **Hauptlagerplatz als Vorschlag** (seit 1.99.52): Hat die Position keinen wählbaren Sage-Platz (kein Sage-Platz, Sage-Platz nicht im WMS
+  oder im WMS nicht buchbar), ist der **Hauptlagerplatz des Artikels** vorbelegt. Darunter steht „Vorschlag: Hauptlagerplatz des Artikels“ –
+  bitte prüfen, ob die Ware dorthin gehört. Geht kein Vorschlag, steht dort warum:
+  - „Hauptlagerplatz … ist im WMS nicht buchbar – bitte Ziel wählen“,
+  - „Hauptlagerplatz … hat keine Sage-Buchung – bitte Sage-Platz wählen“ (nur bei eingeschaltetem Sage-Wareneingang),
+  - „Kein Sage-Platz an der Position – bitte Ziel wählen“ (Artikel ohne Hauptlagerplatz).
 
 **Hinweis „Offener Bedarf zu diesem Artikel“** (gelber Rand links): Es gibt zu diesem Artikel
 
@@ -64,6 +75,14 @@ Das ist nur ein Hinweis: Beim Einbuchen wird nichts erfüllt oder abgeschlossen.
 ### 3. Ist-Mengen, Überlieferung, Positionsmemo
 
 Die Tabelle ist breit – nach rechts scrollen bis **Ist-Menge**, **Überlieferung**, **Positionsmemo** und **Status**.
+
+Seit 1.99.52 sind die Zeilen abwechselnd hinterlegt. Die Zeile, in der Sie gerade tippen, ist **grau mit einem dunkelblauen Balken links**
+markiert – so sieht man auch in der breiten Tabelle, zu welcher Position Menge und Platz gehören. Mit **Tab** springt man zum nächsten Feld.
+
+**Spalten anpassen (Zahnrad rechts über der Tabelle, seit 1.99.52):** **bestellt**, **offen (Sage)**, **im WMS erfasst** und **Positionsmemo**
+lassen sich ausblenden, die Breite jeder Spalte lässt sich am rechten Rand der Überschrift ziehen. Das gilt für Sie auf jeder Bestellung, bis
+Sie im Zahnrad **Zurücksetzen** wählen. Pos., Artikel, Rest, Einheit, Ziel-Lagerplatz, Ist-Menge, Überlieferung und Status sind gesperrt – sie
+werden zum Buchen gebraucht. Ein schon eingetragenes Memo wird auch bei ausgeblendeter Spalte mitgebucht.
 
 ![Ist-Menge 3 = Teillieferung mit Positionsmemo; Ist-Menge 13 bei Rest 12 = Überlieferung](bilder/05-03-ist-menge-ueberlieferung-memo.jpg)
 

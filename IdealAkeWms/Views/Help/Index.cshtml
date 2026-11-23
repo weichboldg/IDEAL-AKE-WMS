@@ -93,10 +93,28 @@
                                 Aktivitäts-Protokoll warnt. <strong>Seit v1.99.40</strong> kommen die Sage-Feldnamen aus den Service-Einstellungen
                                 (Kategorie &bdquo;Sage-Benutzerfelder: Offene Bestellungen&ldquo;); leer gesetzt = nicht gelesen.</li>
                             <li>Knopf <em>Wareneingang</em> an der Zeile oder <em>Lager &rarr; Wareneingang zu Bestellung</em>: Bestellnummer
-                                (z. B. <code>2027-168975</code>) eingeben oder mit dem Handscanner scannen.</li>
-                            <li>Je Position Ziel-Lagerplatz prüfen (vorbelegt mit dem Sage-Platz) und Ist-Menge eingeben (Komma oder Punkt); leer = nicht buchen.
+                                (z. B. <code>2027-168975</code>) eingeben oder mit dem Handscanner scannen. <strong>Seit v1.99.52</strong> geht es auch
+                                ohne Jahr: <code>168975</code> sucht alle offenen Bestellungen, deren Nummer auf <code>-168975</code> endet (nur reine Ziffern;
+                                mit Bindestrich wird exakt gesucht, <code>1689</code> findet <code>2027-168975</code> nicht). Genau ein Treffer öffnet die
+                                Bestellung; mehrere melden &bdquo;&hellip; passt zu 2 Bestellungen: 2026-168975, 2027-168975 &ndash; bitte mit Jahr
+                                eingeben.&ldquo; Das WMS ergänzt kein Jahr, weil Sages Belegjahr das Geschäftsjahr ist (im November schon 2027).</li>
+                            <li>Je Position Ziel-Lagerplatz prüfen und Ist-Menge eingeben (Komma oder Punkt); leer = nicht buchen.
+                                Vorbelegt ist der Sage-Platz der Position. <strong>Seit v1.99.52</strong>: Ist dieser nicht wählbar (Position ohne Sage-Platz,
+                                Sage-Platz nicht im WMS oder im WMS nicht buchbar/inaktiv), ist der <em>Hauptlagerplatz</em> des Artikels
+                                (Artikel-Stammdaten, Bestand egal) vorbelegt mit dem Hinweis &bdquo;Vorschlag: Hauptlagerplatz des Artikels&ldquo;; bestehende
+                                Hinweise zum Sage-Platz bleiben stehen. Bei eingeschaltetem Sage-Wareneingang nur, wenn der Hauptlagerplatz ein Sage-Platz mit
+                                Sage-Buchung ist. Kein Vorschlag möglich: &bdquo;Hauptlagerplatz &hellip; ist im WMS nicht buchbar &ndash; bitte Ziel wählen&ldquo;,
+                                &bdquo;Hauptlagerplatz &hellip; hat keine Sage-Buchung &ndash; bitte Sage-Platz wählen&ldquo; bzw. &bdquo;Kein Sage-Platz an der
+                                Position &ndash; bitte Ziel wählen&ldquo;. Der Vorschlag ist nur Vorbelegung, geprüft wird beim Einbuchen wie bisher.
                                 Die Zeile zeigt &bdquo;vollständig&ldquo;, &bdquo;Teillieferung&ldquo; oder &bdquo;Überlieferung&ldquo;; eine Überlieferung
                                 braucht das Häkchen in der Spalte &bdquo;Überlieferung&ldquo; (seit v1.99.22 eigene Spalte neben der Ist-Menge).</li>
+                            <li><strong>Seit v1.99.52</strong> ist die Positionstabelle gestreift, die Zeile unter der Maus hervorgehoben und die Zeile mit
+                                dem Eingabefokus (Ist-Menge, Platz, Überlieferung, Memo) grau hinterlegt mit dunkelblauem Balken links an &bdquo;Pos.&ldquo;
+                                (rote Fehlerzeilen bleiben rot). Das <strong>Zahnrad</strong> rechts über der Tabelle blendet <em>bestellt</em>,
+                                <em>offen (Sage)</em>, <em>im WMS erfasst</em> und <em>Positionsmemo</em> aus und lässt die Spaltenbreiten ziehen
+                                (je Benutzer gespeichert, Ansicht &bdquo;Wareneingang zu Bestellung &ndash; Positionen&ldquo;, &bdquo;Zurücksetzen&ldquo; im Panel).
+                                Pos., Artikel, Rest, Einheit, Ziel-Lagerplatz, Ist-Menge, Überlieferung und Status sind gesperrt. Ein schon eingetragenes,
+                                danach ausgeblendetes Memo wird trotzdem gebucht.</li>
                             <li>Seit v1.99.22 steht unter dem Artikel ein Hinweis, wenn es dazu <strong>offene Lagerbestellungen</strong> (abgesendet oder
                                 teilgeliefert mit Rest &bdquo;wird nachgeliefert&ldquo;; nur mit eingeschalteten Lagerbestellungen) oder <strong>offene
                                 Bedarfsmeldungen</strong> (nur mit <code>BestellungenAktiv</code>) gibt &ndash; mit Menge, Werkbank bzw. FA, Besteller und Link.
