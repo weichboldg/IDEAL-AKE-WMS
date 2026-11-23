@@ -114,6 +114,9 @@ Alle Filter stehen in der Adresszeile des Browsers. Zurück-Knopf, Lesezeichen u
 - Haken setzen oder entfernen = Spalte ein- oder ausblenden. **Pflichtspalten** lassen sich nicht ausblenden.
 - In FA-Liste, Kommissionierliste und seit 1.99.55 auch in Artikel, Lagerplätze, Kreditoren, Debitoren, Offene Bestellungen,
   Wareneingang zu Bestellung und Bestellvorschläge lassen sich Spalten mit dem Griff links verschieben.
+
+![Fenster „Spalten konfigurieren“ der Artikelliste mit Griffen links zum Verschieben](bilder/10-06-spalten-verschieben.jpg)
+
 - Optional eine **Standard-Sortierung** wählen.
 - Spaltenbreite: am rechten Rand des Spaltenkopfs ziehen; Doppelklick setzt sie zurück.
 - **Auf Standard zurücksetzen** stellt die ursprünglichen Spalten wieder her.

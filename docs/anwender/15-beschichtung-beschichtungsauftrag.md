@@ -76,6 +76,8 @@ eigenes **Speichern** davor ist nicht mehr nötig. Lehnt der Status ab (z. B. no
 Meldung „Gespeichert.“ plus gelbe Warnung. **Drucken** und **PDF** fragen bei ungespeicherten Positionen nach, weil der Druck den
 gespeicherten Stand zeigt.
 
+![Entwurf mit Statusknöpfen; „Auf Übergeben setzen“ speichert die Positionen, die Warnung nennt den fehlenden Dienstleister](bilder/15-07-entwurf-status-knoepfe.jpg)
+
 ### 6. Übergeben, drucken, versenden, erledigen
 
 Oben im Auftrag zeigt der **Statusverlauf** jeden Schritt mit Zeit und Benutzer. Darunter steht der Knopf für den nächsten Schritt.

@@ -133,8 +133,7 @@ Oben stehen FA, Artikel und der Kasten **Kommissionierauftrag KO-… · Bereich 
 3. **Quell-Lagerplatz** prüfen (Spalte ganz rechts). Vorgeschlagen wird der Hauptlagerplatz, sonst der buchbare Platz mit der
    größten Menge, sonst `NAN` (Platz für Negativbuchungen, wenn kein Bestand gebucht ist).
 
-![Drei Zeilen angehakt, bei einer Zeile Ist-Menge 10 statt 16](bilder/01-09-zeilen-anhaken-ist-menge.jpg)
-*Foto noch vom Stand vor 1.99.58 (Ist-Menge unter der Soll-Menge); seit 1.99.58 steht sie in der eigenen Spalte „Menge IST“.*
+![Auftragsseite: Zeile angehakt, Ist-Menge 0,5 in der Spalte „Menge IST“, Ziel Wagen 2](bilder/01-09-zeilen-anhaken-ist-menge.jpg)
 
 ### 6. Auf den Kommissionierwagen umbuchen
 
