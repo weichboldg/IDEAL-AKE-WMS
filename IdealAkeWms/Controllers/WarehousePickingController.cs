@@ -160,6 +160,17 @@ public class WarehousePickingController : Controller
     internal static bool EntnahmeErlaubt(StorageLocation l, bool sageLagerbuchungAktiv) =>
         l.Source != StorageLocationSource.Sage || (sageLagerbuchungAktiv && SageWareneingang.IstSageWePlatz(l));
 
+    /// <summary>Auswahl je Zeile: nur waehlbare Plaetze mit Bestand des Artikels plus NAN. Ein Platz ohne Bestand wird beim Abschliessen
+    /// ohnehin abgewiesen bzw. vom Ausweichplatz gebucht (<see cref="AusbuchungBestandsregel"/>). Vorher stand JEDER waehlbare Platz in
+    /// JEDER Zeile – mit Sage-Lagerbuchung an (AKE ~3300 Plaetze) wurde die Seite dadurch mehrere MB gross und extrem langsam.
+    /// Bleibt nichts uebrig (kein Bestand, NAN nicht waehlbar), volle Liste wie bisher.</summary>
+    internal static List<StorageLocation> EntnahmeOptionen(List<StorageLocation> plaetze, IEnumerable<StockLocationInfo> bestand, int? nanId)
+    {
+        var mitBestand = bestand.Where(b => b.Quantity > 0).Select(b => b.StorageLocationId).ToHashSet();
+        var optionen = plaetze.Where(p => p.Id == nanId || mitBestand.Contains(p.Id)).ToList();
+        return optionen.Count > 0 ? optionen : plaetze;
+    }
+
     /// <summary>Hinweis zum Vorschlag, aus dem Ergebnis von <see cref="QuellLagerplatzVorschlag.Waehle"/> abgeleitet (Regel unveraendert).</summary>
     internal static string VorschlagHinweis(int? vorschlagId, IEnumerable<StockLocationInfo> bestand, string? nanCode)
     {
@@ -201,15 +212,17 @@ public class WarehousePickingController : Controller
             var istLagerartikel = !aktiv || await LagerartikelIdAsync(i.ArticleNumber) != null;
             int? vorschlag = null;
             string? hinweis = null;
+            List<StorageLocation>? optionen = null;
             if (mitAuswahl && istLagerartikel)
             {
                 vorschlag = QuellLagerplatzVorschlag.Waehle(bestand, erlaubteIds, nanId);
                 hinweis = VorschlagHinweis(vorschlag, bestand, nan?.Code);
+                optionen = EntnahmeOptionen(plaetze, bestand, nanId);
             }
             detailItems.Add(new WarehouseRequisitionDetailItemViewModel(
                 i.Id, i.Position, i.ArticleNumber, i.ArticleDescription, i.Unit,
                 i.QuantityRequested, i.QuantityPicked, StockLocationInfo.LagerplatzText(bestand), i.Note, i.ShortageStatus, i.NoteEinkauf,
-                istLagerartikel, vorschlag, hinweis, gebucht.GetValueOrDefault(i.Id)));
+                istLagerartikel, vorschlag, hinweis, gebucht.GetValueOrDefault(i.Id), optionen));
         }
 
         var vm = new WarehouseRequisitionDetailViewModel
@@ -226,8 +239,7 @@ public class WarehousePickingController : Controller
             Type = r.Type,
             RowVersion = r.RowVersion,
             Items = detailItems,
-            VerbrauchsbuchungAktiv = aktiv,
-            EntnahmePlaetze = plaetze
+            VerbrauchsbuchungAktiv = aktiv
         };
         return View(vm);
     }

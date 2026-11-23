@@ -115,7 +115,7 @@
                                 <select name="storageLocationIds" id="sl_@(i.Id)" class="form-select form-select-sm entnahme-select"
                                         aria-describedby="slh_@(i.Id)">
                                     <option value="">— wählen —</option>
-                                    @foreach (var p in Model.EntnahmePlaetze)
+                                    @foreach (var p in i.EntnahmeOptionen ?? [])
                                     {
                                         <option value="@p.Id" selected="@(p.Id == i.EntnahmeVorschlagId)">@p.Code</option>
                                     }

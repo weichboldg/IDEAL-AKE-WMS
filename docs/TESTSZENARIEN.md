@@ -13637,6 +13637,7 @@ Migration SQL/166 (additiv), nur Web. Querverweis: Kapitel 18/22/32 (Lagerbestel
 | 178.9 | „Drucken und Abschliessen“: erst mit einem Fehlerfall (kein Platz), dann korrigiert | Fehler: Meldung im Fenster, kein Druck, nichts gebucht; Gutfall: Druck öffnet, danach in der Liste die Erfolgsmeldung mit den gebuchten Positionen (AK 17). |
 | 178.10 | Glasbestellung (Reiter Glas) abschließen | Gleiches Verhalten; Notiz „Glasbestellung #<Nr> Pos n – <Werkbank>“ (AK 20). |
 | 178.11 | IDEAL-DEV: Schalter an, Abschließen (ServiceSetting `SageLagerbuchungAktiv` wie dort eingestellt) | WMS-Ausbuchung; Queue-Eintrag genau dann, wenn `SageLagerbuchungAktiv` an und der Platz Sage-buchbar ist – keine IDEAL-Sonderlogik (Antwort 9). |
+| 178.12 | Nachbesserung Laufzeit: AKE mit `SageLagerbuchungAktiv` an und vielen Sage-Plätzen mit „Sage-Buchung erlaubt“, offene Liste mit vielen Positionen öffnen | Seite lädt zügig. „Entnahme aus“ je Zeile zeigt nur Plätze mit Bestand dieses Artikels plus NAN (nicht mehr alle wählbaren Plätze); Vorschlag unverändert. Artikel ohne Bestand: nur NAN. Seitenquelltext: keine Platzliste mit Tausenden Optionen je Zeile. |
 
 **Weitere Negativfälle:** erledigte/stornierte Liste per altem Browser-Tab abschließen → „Liste #… ist erledigt – nichts gebucht.“ bzw.
 „storniert“, keine Bewegung (AK 9/F4). Seite vor dem Einschalten geöffnet, nach dem Einschalten abschließen → „Die Entnahme-Plätze fehlen

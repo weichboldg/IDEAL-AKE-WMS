@@ -18,7 +18,9 @@ public record WarehouseRequisitionDetailItemViewModel(
     bool IstLagerartikel = true,
     int? EntnahmeVorschlagId = null,
     string? EntnahmeHinweis = null,
-    decimal BereitsAusgebucht = 0);
+    decimal BereitsAusgebucht = 0,
+    // Auswahl der Entnahme-Plaetze dieser Zeile (Plaetze mit Bestand + NAN), siehe WarehousePickingController.EntnahmeOptionen.
+    IReadOnlyList<StorageLocation>? EntnahmeOptionen = null);
 
 public class WarehouseRequisitionDetailViewModel
 {
@@ -37,7 +39,4 @@ public class WarehouseRequisitionDetailViewModel
 
     /// <summary>v1.99.53: Schalter <c>LagerbestellungVerbrauchsbuchungAktiv</c>; aus = Seite wie bisher.</summary>
     public bool VerbrauchsbuchungAktiv { get; set; }
-
-    /// <summary>v1.99.53: waehlbare Entnahme-Plaetze (buchbar, ohne Sage-Plaetze ohne Sage-Uebergabe); nur im Bearbeitungsmodus gefuellt.</summary>
-    public List<StorageLocation> EntnahmePlaetze { get; set; } = new();
 }

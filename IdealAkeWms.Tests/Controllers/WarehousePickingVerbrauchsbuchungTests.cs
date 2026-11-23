@@ -224,7 +224,7 @@ public class WarehousePickingVerbrauchsbuchungTests
         var (r, ids) = Liste(db, "ART-1");
 
         var vm = ((await c.Details(r.Id) as ViewResult)!.Model as WarehouseRequisitionDetailViewModel)!;
-        vm.EntnahmePlaetze.Select(p => p.Code).Should().Contain("HR 2").And.NotContain("HR 1").And.NotContain("GESPERRT");
+        vm.Items[0].EntnahmeOptionen!.Select(p => p.Code).Should().Contain("HR 2").And.NotContain("HR 1").And.NotContain("GESPERRT");
         vm.Items[0].EntnahmeVorschlagId.Should().Be(SagePlatzMit);
 
         await Close(c, r, ids, new int?[] { 5 }, new int?[] { SagePlatzMit }, new[] { 0 });
@@ -240,6 +240,18 @@ public class WarehousePickingVerbrauchsbuchungTests
         var sage = new StorageLocation { Code = "HR", Source = StorageLocationSource.Sage, SageBuchungErlaubt = platzFlag, SageLagerkennung = "HR;1", SageLagerplatzId = 1 };
         WarehousePickingController.EntnahmeErlaubt(sage, serviceAn).Should().Be(erwartet);
         WarehousePickingController.EntnahmeErlaubt(new StorageLocation { Code = "W", Source = StorageLocationSource.Manual }, false).Should().BeTrue();
+    }
+
+    [Fact]
+    public void EntnahmeOptionen_NurPlaetzeMitBestandPlusNan_SonstVolleListe()
+    {
+        var plaetze = new List<StorageLocation> { new() { Id = 1, Code = "A" }, new() { Id = 2, Code = "B" }, new() { Id = 3, Code = "C" }, new() { Id = 9, Code = "NAN" } };
+        var bestand = new[] { new StockLocationInfo { StorageLocationId = 2, Quantity = 5 }, new StockLocationInfo { StorageLocationId = 3, Quantity = 0 },
+                              new StockLocationInfo { StorageLocationId = 77, Quantity = 4 } };   // 77 = nicht waehlbar
+
+        WarehousePickingController.EntnahmeOptionen(plaetze, bestand, nanId: 9).Select(p => p.Code).Should().Equal("B", "NAN");
+        WarehousePickingController.EntnahmeOptionen(plaetze, Array.Empty<StockLocationInfo>(), nanId: 9).Select(p => p.Code).Should().Equal("NAN");
+        WarehousePickingController.EntnahmeOptionen(plaetze, Array.Empty<StockLocationInfo>(), nanId: null).Should().HaveCount(4);   // Rueckfall
     }
 
     [Fact]
