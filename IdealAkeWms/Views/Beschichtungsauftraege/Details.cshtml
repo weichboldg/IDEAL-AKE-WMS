@@ -102,6 +102,13 @@
     <div class="d-flex flex-wrap gap-2 mb-3">
         @foreach (var ziel in Model.ErlaubteZiele)
         {
+            @* v1.99.56: Bei bearbeitbarem Auftrag sendet der Status-Knopf entwurf-form mit (Eingaben werden zuerst gespeichert).
+               Stornieren bleibt eigene Anfrage mit Bestaetigung. *@
+            if (bearbeitbar && ziel != BeschichtungsauftragStatus.Storniert)
+            {
+                <button type="submit" form="entwurf-form" name="ziel" value="@ziel" class="btn btn-sm btn-primary" data-bemerkung-pruefen>Auf „@BeschichtungsauftragWorkflow.Anzeige(ziel)“ setzen</button>
+                continue;
+            }
             <form method="post" asp-action="Status" asp-route-id="@a.Id" class="d-inline">
                 <input type="hidden" name="ziel" value="@ziel" />
                 <input type="hidden" name="rowVersion" value="@Model.RowVersion" />

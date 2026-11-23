@@ -569,4 +569,70 @@ public class BeschichtungsauftraegeControllerTests
         actions.Where(m => m.Name is "Index" or "Details" or "Print" or "Pdf")
             .Should().OnlyContain(m => m.GetCustomAttribute<RequireBeschichtungsauftragWriteAccessAttribute>() == null);
     }
+
+    // ===================== v1.99.56 (TS-181): Status-Knopf speichert die Eingaben mit =====================
+
+    [Fact]
+    public async Task Bearbeiten_MitZiel_SpeichertUndWechseltStatus()
+    {
+        var a = await Anlegen();
+        var c = Ctrl();
+
+        await c.Bearbeiten(a.Id, "Neu AG", "RAL 9016", null, null, null, null, Rv(a), ziel: BeschichtungsauftragStatus.Uebergeben);
+
+        Warnung(c).Should().BeNull();
+        c.TempData["SuccessMessage"].Should().Be("Gespeichert, Status auf „Übergeben“ gesetzt.");
+        var nach = Laden(a.Id);
+        (nach.Dienstleister, nach.Ral, nach.Status).Should().Be(("Neu AG", "RAL 9016", BeschichtungsauftragStatus.Uebergeben));
+    }
+
+    [Fact]
+    public async Task Bearbeiten_MitZiel_StatusAbgelehnt_GespeichertUndWarnung()
+    {
+        var a = await Anlegen();
+        var c = Ctrl();
+
+        await c.Bearbeiten(a.Id, "", "RAL 7016", null, null, null, null, Rv(a), ziel: BeschichtungsauftragStatus.Uebergeben);
+
+        c.TempData["SuccessMessage"].Should().Be("Gespeichert.");
+        Warnung(c).Should().Contain("Dienstleister fehlt");
+        var nach = Laden(a.Id);
+        (nach.Dienstleister, nach.Ral, nach.Status).Should().Be(((string?)null, "RAL 7016", BeschichtungsauftragStatus.Entwurf));
+    }
+
+    [Fact]
+    public async Task Bearbeiten_MitZiel_SpeichernAbgelehnt_KeinStatuswechsel()
+    {
+        var a = await Anlegen();
+        var c = Ctrl();
+
+        await c.Bearbeiten(a.Id, "Neu AG", null, null, null, new Dictionary<int, string> { [a.Positionen.First().Id] = "abc" }, null, Rv(a),
+            ziel: BeschichtungsauftragStatus.Uebergeben);
+
+        Warnung(c).Should().Contain("abc");
+        c.TempData.ContainsKey("SuccessMessage").Should().BeFalse();
+        var nach = Laden(a.Id);
+        (nach.Dienstleister, nach.Status).Should().Be(("Huber GmbH", BeschichtungsauftragStatus.Entwurf));
+    }
+
+    [Fact]
+    public async Task Bearbeiten_Uebergeben_HakenMitZielVersendet()
+    {
+        var a = await Status(await Anlegen(), BeschichtungsauftragStatus.Uebergeben);
+        var ids = a.Positionen.Select(p => p.Id).ToArray();
+
+        var c1 = Ctrl();
+        await c1.Bearbeiten(a.Id, null, null, null, null, null, null, Rv(a), nurPositionen: true, hakenGesendet: true,
+            verpackt: ids.Skip(1).ToArray(), ziel: BeschichtungsauftragStatus.Versendet);
+        c1.TempData["SuccessMessage"].Should().Be("Gespeichert.");
+        Warnung(c1).Should().Contain("nicht verpackt (1)");
+        a = Laden(a.Id);
+        (a.Status, a.Positionen.Count(p => p.Verpackt)).Should().Be((BeschichtungsauftragStatus.Uebergeben, ids.Length - 1));
+
+        var c2 = Ctrl();
+        await c2.Bearbeiten(a.Id, null, null, null, null, null, null, Rv(a), nurPositionen: true, hakenGesendet: true,
+            verpackt: ids, ziel: BeschichtungsauftragStatus.Versendet);
+        Warnung(c2).Should().BeNull();
+        Laden(a.Id).Status.Should().Be(BeschichtungsauftragStatus.Versendet);
+    }
 }

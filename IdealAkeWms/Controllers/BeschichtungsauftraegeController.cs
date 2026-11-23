@@ -185,7 +185,7 @@ public class BeschichtungsauftraegeController : Controller
     public async Task<IActionResult> Bearbeiten(int id, string? dienstleister, string? ral, DateTime? startBeschichtung,
         DateTime? beschichtenRetour, Dictionary<int, string>? mengen, int[]? entfernen, string? rowVersion,
         bool nurPositionen = false, bool hakenGesendet = false, int[]? verpackt = null, string[]? schluessel = null,
-        string?[]? freiArtikelId = null, string?[]? freiMenge = null, int? creditorId = null)
+        string?[]? freiArtikelId = null, string?[]? freiMenge = null, int? creditorId = null, BeschichtungsauftragStatus? ziel = null)
     {
         if (!ModelState.IsValid)
             return Warnung(id, "Eingabe nicht gespeichert: ungültiger Wert in " +
@@ -212,7 +212,18 @@ public class BeschichtungsauftraegeController : Controller
         var r = await _workflow.BearbeitenAsync(id, kopf, mengenWerte, entfernen ?? Array.Empty<int>(), rv,
             hakenGesendet ? verpackt ?? Array.Empty<int>() : null, keys, frei, kreditorNachtragen: nurPositionen ? creditorId : null);
         var neu = keys.Distinct().Count() + frei.Count;
-        return Ergebnis(id, r, neu > 0 ? $"Gespeichert, {neu} Position(en) hinzugefügt." : "Gespeichert.");
+        var gespeichert = neu > 0 ? $"Gespeichert, {neu} Position(en) hinzugefügt." : "Gespeichert.";
+        if (ziel is null || !r.Erfolg) return Ergebnis(id, r, gespeichert);
+
+        // v1.99.56: Status-Knopf sendet entwurf-form mit – erst speichern, dann Statuswechsel auf dem gespeicherten Stand
+        // (neue RowVersion nach SaveChanges). Scheitert nur der Wechsel: „Gespeichert.“ + Warnung, nie still.
+        var st = await _workflow.StatusWechselnAsync(id, ziel.Value, r.Auftrag?.RowVersion ?? rv);
+        TempData["SuccessMessage"] = st.Erfolg
+            ? gespeichert.TrimEnd('.') + $", Status auf „{BeschichtungsauftragWorkflow.Anzeige(ziel.Value)}“ gesetzt."
+            : gespeichert;
+        var warnungen = r.Hinweise.Concat(st.Fehler).Concat(st.Hinweise).ToList();
+        if (warnungen.Count > 0) TempData["WarningMessage"] = string.Join(" ", warnungen);
+        return RedirectToAction(nameof(Details), new { id });
     }
 
     /// <summary>Freie Positionen aus dem Formular (A4/A7): Zeilen paarweise; ganz leere Zeilen (kein Artikel, keine Menge) werden
