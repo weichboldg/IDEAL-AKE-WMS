@@ -242,6 +242,26 @@ public class WarehousePickingVerbrauchsbuchungTests
         WarehousePickingController.EntnahmeErlaubt(new StorageLocation { Code = "W", Source = StorageLocationSource.Manual }, false).Should().BeTrue();
     }
 
+    /// <summary>v1.99.57 (TS-182, AK 1–4, 6): Bestand nur auf nicht waehlbaren Plaetzen wird genannt (hoechstens drei, Rest +n),
+    /// ohne Bestand bleibt „Kein Bestand“, waehlbarer Platz wie bisher.</summary>
+    [Fact]
+    public void VorschlagHinweis_BestandNurAufGesperrtenPlaetzen_NenntPlaetze()
+    {
+        StockLocationInfo B(int id, string code, decimal q, bool haupt = false) =>
+            new() { StorageLocationId = id, Code = code, Quantity = q, IsPrimaryStorageLocation = haupt };
+        var erlaubt = new HashSet<int> { 1, 9 };
+
+        WarehousePickingController.VorschlagHinweis(9, new[] { B(5, "LL;1;4;0", 12), B(6, "LL;1;5;0", 3) }, "NAN", erlaubt)
+            .Should().Be("Bestand nur auf nicht wählbaren Plätzen (LL;1;4;0: 12, LL;1;5;0: 3) – Vorschlag NAN. " +
+                         "Sage-Plätze sind nur mit Sage-Lagerbuchung wählbar (Schalter aus bzw. am Platz nicht erlaubt).");
+        WarehousePickingController.VorschlagHinweis(9, new[] { B(5, "A", 4), B(6, "B", 3), B(7, "C", 2), B(8, "D", 1), B(10, "E", 1) }, "NAN", erlaubt)
+            .Should().Contain("(A: 4, B: 3, C: 2 +2)");
+        WarehousePickingController.VorschlagHinweis(9, new[] { B(5, "LL;1;4;0", 0) }, "NAN", erlaubt).Should().Be("Kein Bestand – Vorschlag NAN");
+        WarehousePickingController.VorschlagHinweis(9, Array.Empty<StockLocationInfo>(), "NAN", erlaubt).Should().Be("Kein Bestand – Vorschlag NAN");
+        WarehousePickingController.VorschlagHinweis(1, new[] { B(1, "W1", 5, haupt: true), B(5, "LL;1;4;0", 12) }, "NAN", erlaubt)
+            .Should().Be("Vorschlag: Hauptlagerplatz");
+    }
+
     [Fact]
     public void EntnahmeOptionen_NurPlaetzeMitBestandPlusNan_SonstVolleListe()
     {

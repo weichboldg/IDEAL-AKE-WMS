@@ -2321,7 +2321,10 @@
                 <ul>
                     <li><strong>&bdquo;Entnahme aus&ldquo;:</strong> Jede Position hat in der Spalte Lagerplatz eine Auswahl. Vorgeschlagen wird wie in der
                         Kommissionierung der Hauptlagerplatz mit Bestand, sonst der Platz mit dem meisten Bestand, ohne Bestand der Platz <code>NAN</code>
-                        (sofern waehlbar). Der Hinweis unter der Auswahl sagt, woher der Vorschlag kommt. Die Auswahl wird nicht gespeichert.</li>
+                        (sofern waehlbar). Der Hinweis unter der Auswahl sagt, woher der Vorschlag kommt. Die Auswahl wird nicht gespeichert.
+                        Seit v1.99.53 (Nachbesserung) stehen je Position nur Plaetze mit Bestand des Artikels plus <code>NAN</code> zur Auswahl.
+                        Liegt Bestand nur auf nicht waehlbaren Plaetzen (z.&nbsp;B. Sage-Plaetze ohne Sage-Buchung), nennt der Hinweis diese Plaetze
+                        mit Menge statt &bdquo;Kein Bestand&ldquo; (seit v1.99.57).</li>
                     <li><strong>Waehlbar</strong> sind buchbare Plaetze ohne Kommissionierwagen. Sage-Plaetze nur, wenn die Entnahme an Sage geht
                         (Sage-Lagerbuchung im Dienst an, am Platz &bdquo;Sage-Buchung erlaubt&ldquo; und Sage-Referenz) &ndash; sonst wuerde der
                         Lagerbestand-Abgleich die Entnahme zurueckbuchen.</li>

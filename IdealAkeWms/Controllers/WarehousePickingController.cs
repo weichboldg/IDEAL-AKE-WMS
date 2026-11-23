@@ -172,11 +172,22 @@ public class WarehousePickingController : Controller
     }
 
     /// <summary>Hinweis zum Vorschlag, aus dem Ergebnis von <see cref="QuellLagerplatzVorschlag.Waehle"/> abgeleitet (Regel unveraendert).</summary>
-    internal static string VorschlagHinweis(int? vorschlagId, IEnumerable<StockLocationInfo> bestand, string? nanCode)
+    /// <remarks>v1.99.57 (Spec 2026-11-23 Teil 4, Variante c): Liegt Bestand nur auf nicht waehlbaren Plaetzen (v. a. Sage-Plaetze ohne
+    /// Sage-Buchung), nennt der Hinweis diese Plaetze statt „Kein Bestand“ – die Lagerplatz-Spalte derselben Zeile zeigt den Bestand ja.</remarks>
+    internal static string VorschlagHinweis(int? vorschlagId, IEnumerable<StockLocationInfo> bestand, string? nanCode, ISet<int>? erlaubteIds = null)
     {
         if (vorschlagId == null) return "Kein Vorschlag – bitte Platz wählen";
         var platz = bestand.FirstOrDefault(b => b.StorageLocationId == vorschlagId && b.Quantity > 0);
-        if (platz == null) return $"Kein Bestand – Vorschlag {nanCode}";
+        if (platz == null)
+        {
+            var gesperrt = bestand.Where(b => b.Quantity > 0 && erlaubteIds != null && !erlaubteIds.Contains(b.StorageLocationId))
+                .OrderByDescending(b => b.Quantity).ThenBy(b => b.Code).ToList();
+            if (gesperrt.Count == 0) return $"Kein Bestand – Vorschlag {nanCode}";
+            var liste = string.Join(", ", gesperrt.Take(3).Select(b => $"{b.Code}: {b.Quantity:0.###}")) +
+                        (gesperrt.Count > 3 ? $" +{gesperrt.Count - 3}" : "");
+            return $"Bestand nur auf nicht wählbaren Plätzen ({liste}) – Vorschlag {nanCode}. " +
+                   "Sage-Plätze sind nur mit Sage-Lagerbuchung wählbar (Schalter aus bzw. am Platz nicht erlaubt).";
+        }
         return platz.IsPrimaryStorageLocation ? "Vorschlag: Hauptlagerplatz" : "Vorschlag: Platz mit dem meisten Bestand";
     }
 
@@ -216,7 +227,7 @@ public class WarehousePickingController : Controller
             if (mitAuswahl && istLagerartikel)
             {
                 vorschlag = QuellLagerplatzVorschlag.Waehle(bestand, erlaubteIds, nanId);
-                hinweis = VorschlagHinweis(vorschlag, bestand, nan?.Code);
+                hinweis = VorschlagHinweis(vorschlag, bestand, nan?.Code, erlaubteIds);
                 optionen = EntnahmeOptionen(plaetze, bestand, nanId);
             }
             detailItems.Add(new WarehouseRequisitionDetailItemViewModel(
