@@ -13739,6 +13739,7 @@ Rückmeldung Gerald 2026-11-23 zu TS-177 (graue Hover-Farbe kaum sichtbar). **St
 | 184.2 | In ein Mengenfeld klicken (aktive Zeile, TS-177); Maus auf eine andere Zeile | Aktive Zeile sehr hellblau (#D9F4FF) mit dunkelblauem Balken links; Hover-Zeile kräftiger hellblau – beide unterscheidbar. In einer rot markierten Zeile tippen: Zeile bleibt rot. |
 | 184.3 | Negativ: Maus über eine rot markierte Zeile (`table-danger`) | Zeile bleibt rot (keine Hellblau-Überdeckung). |
 | 184.4 | Negativ: andere Tabelle mit Hover (z. B. Beschichtungsaufträge) | Hover dort unverändert (grau) – Änderung gilt nur in der WE-Positionstabelle. |
+| 184.6 | Position mit offenem Bedarf (Block „Offener Bedarf zu diesem Artikel“ mit Link „Lagerbestellung Nr. …“), Maus darüber und in die Zeile klicken | Link dunkelblau (#052C65), auch auf Hellblau gut lesbar; Knöpfe in der Tabelle unverändert. |
 | 184.5 | Abmelden, Anmeldemaske öffnen (AKE und IDEAL) | Unten in der weißen Karte steht grau „IDEAL-AKE WMS v1.99.59“ – gleiche Nummer wie die Fußzeile nach der Anmeldung; auch in der Kennwort-ändern-Ansicht. |
 
 **Automatisch:** `ViewKeyDriftGuardTests.WareneingangPositionen_DreiQuellenGleich_Gesperrt_FokusZeile` (dritte `.we-positionen`-Regel setzt `--bs-table-hover-bg: var(--ake-light-blue)` und `--bs-table-active-bg: var(--ake-very-light-blue)`).
