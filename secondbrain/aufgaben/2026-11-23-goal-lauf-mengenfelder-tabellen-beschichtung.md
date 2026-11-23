@@ -169,3 +169,52 @@ AKE Exit 0, „HTTP 200, Fusszeile v1.99.59“, DEV-Absicherung gelaufen. IDEAL 
 1. TS-184.5 Kennwort-ändern-Ansicht: Benutzer mit Admin-Kennwort anmelden → Versionszeile unten sichtbar.
 2. Q-1/Q-2 nachziehen (Testindex 184.5, Brain-Changelog, README-Stand-Satz).
 3. Entscheiden, ob Version anonym sichtbar sein darf (QA: vertretbar).
+
+## QA v1.99.59 Linkfarbe + Publish (qa-agent)
+
+Auftrag: Nachbesserung zu QA-Befund B-1 (von Gerald freigegeben), Commit `41f6ee1f` (Diff gegen `b5354e51`), keine eigene Spec.
+Geändert: `IdealAkeWms/wwwroot/css/site.css` (neue Regel `.we-positionen a:not(.btn) { color: var(--bs-primary-text-emphasis); }`),
+`IdealAkeWms.Tests/Views/ViewKeyDriftGuardTests.cs` (4 statt 3 Regeln, Regel 4 prüft die Farbe), `docs/TESTSZENARIEN.md` (TS-184.6), `Views/Help/Changelog.cshtml`.
+
+**1 Build + Tests** (Worktree, HEAD `41f6ee1f`): `dotnet build IdealAkeWms.slnx` 0 Fehler (30 Warnungen, bekannt).
+`dotnet test`: IdealAkeWms.Tests 3480 bestanden / 1 übersprungen / 0 Fehler; IDEALAKEWMSService.Tests 790 / 0 / 0.
+
+**6a/b DEV-Deploy** (`dev-deploy.ps1 -Quelle <Bündel-Worktree> -OhneDienst`, Dienste wie zuvor nicht gestartet):
+AKE „HTTP 200, Fusszeile v1.99.59 … Fertig: AKE v1.99.59 auf http://localhost:8081/“, Exit 0; IDEAL dito auf 8082, Exit 0.
+
+**2 Review** (`b5354e51..41f6ee1f`):
+- Spezifität `.we-positionen a:not(.btn)` = (0,2,1) schlägt Bootstraps `a { color: rgba(var(--bs-link-color-rgb),…) }` (0,0,1); `a:hover` setzt in Bootstrap
+  nur die Variable `--bs-link-color-rgb`, die Regel hier eine feste Farbe → beim Überfahren kein Farbwechsel, Unterstreichung bleibt (Bedeutung nicht nur über Farbe). Unkritisch.
+- `.btn` ausgenommen; `.link-*`-Hilfsklassen (0,1,0 mit `!important`) würden weiter gewinnen – in der Tabelle keine verwendet. `.dropdown-item` (0,1,0) würde überstimmt,
+  die WE-Tabelle hat aber weder Spaltenfilter noch Dropdowns; kein JS fügt `<a>` in diese Tabelle ein (nur `csv-export.js`/`print-visible-columns.js` erzeugen Anker, außerhalb).
+- Betroffene Links: genau die zwei im Block „Offener Bedarf zu diesem Artikel“ (`Receive.cshtml` Z.162 Lagerbestellung, Z.167 Bedarfsmeldung). Beide gewollt; kein weiteres `<a>` in `tbody`/`thead` (Laufzeit: einziger Link in der Tabelle „Nr. 41“).
+- Kontrast #052C65 (WCAG-Formel nachgerechnet): Weiß 13,51:1 · Streifen #F2F2F2 12,07:1 · Hover #A1D9F7 8,87:1 · Fokus #D9F4FF 11,79:1 ·
+  table-danger #F8D7DA 10,11:1 / Streifen #ECCCCF 9,07:1 / Hover #E5C7CA 8,59:1 / Aktiv #DFC2C4 8,14:1. Vorher #0D6EFD auf #A1D9F7 2,95:1.
+- Kein Dark-Mode im Projekt (`data-bs-theme` nirgends in Views) → Variable bleibt #052C65.
+- Wächter-Test: Regel 4 prüft die Farbe; `OnlyContain(!background)` gilt weiter.
+- **Befunde: keine.** (Untersucht: CSS-Diff, Receive.cshtml Tabelle Z.118–262, Bootstrap-Linkregeln, JS-Anker-Erzeuger, Wächter-Test.)
+
+**3 Nachweisart:** Farbregel per Wächter-Test (statisch, CSS-Text); tatsächliche Darstellung nur Manual/Browser (unten).
+
+**4 Geänderte Bestandstests:** `ViewKeyDriftGuardTests` (WE-CSS-Regeln) – Anzahl 3→4 und neue Prüfung Regel 4: Verhalten absichtlich geändert (B-1). Kein Fixture angepasst.
+
+**6c TS-184.6 auf DEV AKE** (eigener Tab, nichts gebucht; Fokus nur ins Positionsmemo gesetzt, nichts abgeschickt):
+Daten per SQL gefunden: `SagePurchaseOrderLines` × `WarehouseRequisitionItems` → BelId 363134 (Bestellung 2027-168939, Pos. 1 EK005782, Lagerbestellung Nr. 41).
+Kein JS-Werkzeug im Browser verfügbar → statt `getComputedStyle` Pixelmessung in den gespeicherten Zoom-Screenshots (PNG, häufigste dunkle Farbe im Bereich „Nr. 41“):
+| Nr | Zustand | Link-Pixel | Hintergrund | Screenshot | Status |
+|---|---|---|---|---|---|
+| 184.6a | ruhend (Streifenzeile) | #052C65 | #F2F2F2 | `C:\Users\GERALD~1.WEI\AppData\Local\Temp\claude-chrome-screenshots-ZoOUCf\screenshot-1795459924054-12.png` | OK |
+| 184.6b | Hover | #052C65 | #A1D9F7 | `…\screenshot-1795459926205-13.png` | OK |
+| 184.6c | Fokus-Zeile (focus-within) | #052C65 | #D9F4FF | `…\screenshot-1795459946790-14.png` | OK |
+| 184.6d | table-danger-Zeile mit Link | nicht hergestellt (bräuchte Fehlbuchung) – nur rechnerisch 8,14–10,11:1 | – | – | NICHT MOEGLICH |
+| 184.6 IDEAL | 8082 nicht im Browser geprüft (gleiches CSS, Deploy v1.99.59 belegt) | – | – | – | NICHT MOEGLICH |
+
+**7 Publish:** `<worktree>\publish\IDEALAKEWMSWeb` + `IDEALAKEWMSWebService` geleert und neu (`dotnet publish -c Release`, beide Exit 0; Regel im publizierten `site.css` vorhanden),
+`SQL\` + `scripts\deploy\` kopiert, `publish-info.txt` Version 1.99.59 / Commit `41f6ee1f5345a8096436b36ebeea404279f7224b` / Erstellt 2026-11-23 19:53.
+Paket `publish\paket15-v1.99.59.zip`: 595 Dateien (gleiche Struktur wie Paket 14: 346 Web, 93 Dienst, 150 SQL, 5 deploy, publish-info.txt),
+**237 037 743 Bytes, SHA-256 `DB053BCD0747D8B7986E13685A867EE2DFAB9914501389ECDD55BC6D5F4C6858`**. Shares nicht angefasst (Hauptagent).
+Deploy-Umfang: nur Web nötig (CSS + Changelog-View), keine Migration, kein Nachlauf-Schritt.
+
+**Manuell offen (Mensch):**
+1. TS-184.6 an einer `table-danger`-Zeile mit offenem Bedarf (z. B. „abc“ als Ist-Menge) – Link dunkelblau lesbar.
+2. TS-184.6 auf IDEAL 8082 bzw. Testsystem, am Fertigungsterminal ansehen.
