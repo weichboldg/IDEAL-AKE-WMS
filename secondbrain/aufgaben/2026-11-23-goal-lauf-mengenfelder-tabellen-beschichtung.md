@@ -84,6 +84,50 @@ Grenzen: nichts an Sage schreiben, keine Einstellungen auf Prod, kein Merge, kei
   - TS-179.1/179.2 ✔ 2,5 + Pfeil → 3,5; `step` im Fokus `any`, danach `0.001`; `1,0005` → stepMismatch (Browser weist ab). 179.4 ✔ Stückliste Dialog Lagerbestellung: Pfeil 1 → 2, Mausrad ohne Wirkung, Fokus weg. 179.5 ✔ Lagerbestellung #70 Ganzzahlfeld Pfeil ±1 (`step=1`), keine Konsolenfehler (Lagerbestellung, Startseite, Stückliste).
   - Nicht live: TS-179.4 BDE-Terminal-Gruppenmeldung, TS-182.3 manipulierter POST (Unit-Test `PlatzAusserhalbDerListe_UndSagePlatzOhneSageBuchung_WerdenAbgewiesen_AK4`). IDEAL 8082 nur lesend (v1.99.59, Seiten 200, Hover-Regel, Reorder Artikel).
   - v1.99.59 ohne `qa-agent`-Lauf (CSS-Zweizeiler auf Zuruf); Paket 14 enthält v1.99.59 **nicht** – neues Paket erst auf Anforderung.
+    → nachgeholt, siehe „QA v1.99.59 (qa-agent)“.
+
+## QA v1.99.59 (qa-agent)
+
+2026-11-23, Worktree `feature/2026-08-07-ideal-teile-1-5`, Commits `b139ff5b` + `c9624562` (Diff gegen `36a6f518`). Keine Spec, kein Statuswechsel.
+
+**1 Build/Tests:** `dotnet build IdealAkeWms.slnx` 0 Fehler (30 Warnungen, Bestand). `dotnet test`: IdealAkeWms.Tests 3480 bestanden / 1 übersprungen / 0 Fehler (3481);
+IDEALAKEWMSService.Tests 790 / 0 / 0.
+
+**DEV-Deploy** (`dev-deploy.ps1 -Quelle <Bündel-Worktree> -OhneDienst`, erhöhte Shell): AKE Exit 0, „HTTP 200, Fusszeile v1.99.59“ (8081);
+IDEAL Exit 0, „HTTP 200, Fusszeile v1.99.59“ (8082). Dienst bewusst nicht (nur CSS; `-OhneDienst` laut Auftrag).
+
+**2 Review** (site.css-Regel, Wächter, Version, Changelog, Doku):
+- Spezifität: `.table.we-positionen` (0,2,0) schlägt Bootstraps `.table` (0,1,0) unabhängig von der Ladereihenfolge. `table-danger` (5.3.3) setzt
+  `--bs-table-hover-bg`/`--bs-table-active-bg` am `tr` → Zellen erben vom näheren Vorfahren, Rot bleibt (gemessen, s. u.). Hover auf der Fokus-Zeile selbst
+  zeigt die Fokus-Farbe (`tr:focus-within`-Regel gleich spezifisch wie `.table-hover … tr:hover`, steht später) – gewollt, Balken bleibt.
+- Kontrast (WCAG, berechnet): Fließtext #212529 auf #A1D9F7 **10,1:1**, auf #D9F4FF **13,5:1**; `text-body-secondary` (rgba(33,37,41,.75) gemischt) 5,3:1 bzw. 6,3:1;
+  Fokus-Balken #052C65 8,9:1 bzw. 11,8:1. Alles ≥ 4,5:1.
+- **Befund B-1 (niedrig, nicht behoben, gemeldet):** Links im Block „Offener Bedarf zu diesem Artikel“ (`Receive.cshtml`, Bootstrap-Linkfarbe #0D6EFD) liegen auf
+  Hover-Hellblau bei **2,95:1**, auf der Fokus-Zeile bei 3,93:1 (vorher Grau-Hover 3,81:1, Weiß 4,5:1) – unter AA. Tritt nur in Zeilen mit offenem Bedarf auf;
+  Hover ist flüchtig, die Fokus-Zeile nicht. Vorschlag (Entscheid Gerald): `.we-positionen a { color: var(--bs-primary-text-emphasis); }` (#052C65, 8,9:1).
+- **Befund B-2 (Doku, niedrig):** Bildunterschrift 05-06 in `docs/anwender/05-wareneingang-zu-bestellung.md` sagt noch „grau“; Foto stammt aus 1.99.53. Foto neu gegen DEV.
+- Wächter `ViewKeyDriftGuardTests.WareneingangPositionen_…`: nur Erwartung erweitert (2 → 3 Regeln, dritte prüft beide Variablen) – Verhaltensänderung gewollt (TS-184), kein Fixture-Biegen.
+- Sonst keine Befunde: keine Script-/`hidden`-/Binder-/Fallback-Themen berührt; keine Migration, keine Einstellung (ADR 0020 n/a), keine SQL; Version in beiden `AppVersion.cs`,
+  Anwender-Changelog-Karte, Brain-Changelog `[[2026-11-23-v1-99-59-wareneingang-hover-hellblau]]`, TS-184 in `docs/TESTSZENARIEN.md` + Testindex Zeile 184 vorhanden.
+
+**3 Nachweisart:** Regel-Existenz automatisch (Wächter-Test); Farbwirkung, Spezifität, `table-danger` = Manual-UAT (Browser, hier auf DEV AKE erbracht).
+
+**6c TS-184 auf DEV AKE** (BelID 363221, Pixel aus gespeicherten Screenshots gemessen, `C:\Users\GERALD~1.WEI\AppData\Local\Temp\claude-chrome-screenshots-ZoOUCf\`):
+| Nr | Ergebnis | Status |
+|---|---|---|
+| 184.1 | Hover Zeile 3 #A1D9F7; ohne Hover weiß #FFFFFF / gestreift #F2F2F2 unverändert (`…-4.png`) | OK |
+| 184.2 | Fokus Zeile 2 (Ist-Menge) #D9F4FF mit Balken links, gleichzeitig Hover Zeile 4 #A1D9F7 – unterscheidbar (`…-5.png`); Fokus in roter Zeile (Memo) #DFC2C4 = rot, Balken da, Hover Zeile 3 #A1D9F7 (`…-7.png`) | OK |
+| 184.3 | „abc“ + Einbuchen → „Nichts gebucht …“, Zeile 1 `table-danger`; Hover #E5C7CA (Bootstrap-Rot-Hover), kein Blau (`…-6.png`) | OK |
+| 184.4 | Beschichtungsaufträge (`table-hover`): Hover #ECECEC grau (`…-9.png`). Hinweis: Offene Bestellungen und Artikel haben gar kein `table-hover` – TS-184.4 nennt besser eine `table-hover`-Liste | OK |
+DEV-Rest: keine Bewegung gebucht (Fehlerzeile). IDEAL 8082: Deploy + Fußzeile geprüft, Browser-Schritte nicht wiederholt (gleiche CSS-Datei; Cookie-Kollision).
+
+**7 Publish:** nicht ausgeführt – laut Protokoll oben neues Paket erst auf Anforderung (Paket 14 = v1.99.58). Offen für den Menschen.
+
+**Manuell offen (Mensch):**
+1. B-1 entscheiden (Linkfarbe in WE-Positionen) – nur relevant mit offenem Bedarf in einer Zeile.
+2. TS-184.1–184.3 einmal am Terminal (Lichtverhältnisse) und auf DEV/Test IDEAL ansehen.
+3. Foto 05-06 neu (B-2), Paket mit v1.99.59 bei Bedarf anfordern.
+
 ## Geänderte Kapitel (für spätere Confluence-Übernahme)
 
 - Anwender: 01 Kommissionierung, 03 Lager-/Glasbestellung, 10 Bestände und Spaltenfilter, 15 Beschichtungsauftrag, 05 Wareneingang zu Bestellung (v1.99.59), README (Stand/Tabelle)
