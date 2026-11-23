@@ -44,7 +44,7 @@ FA-Nummer und einem Bildschirmfoto.
 
 ## Stand und was noch folgt
 
-Stand der Anleitungen: Version **1.99.47** (20.11.2026) für die Kapitel 01 und 09, Version **1.99.53** (23.11.2026) für die Kapitel 05 und 18 (mit Fotos) und Kapitel 03 (Foto zu „Entnahme aus“ folgt nach Einschalten), Version **1.99.45** (19.11.2026) für Kapitel 14, Version **1.99.44** für Kapitel 16, Version **1.99.43** für die Kapitel 01, 11, 13, 15 und 17; die übrigen Kapitel Version **1.99.29**. Seit Version 1.99.22 neu bzw. ergänzt:
+Stand der Anleitungen: Version **1.99.58** (23.11.2026) für die Kapitel 01, 03, 10 und 15 (Text; Fotos siehe Kapitel), Version **1.99.47** (20.11.2026) für Kapitel 09, Version **1.99.53** (23.11.2026) für die Kapitel 05 und 18 (mit Fotos) und Kapitel 03 (Foto zu „Entnahme aus“ folgt nach Einschalten), Version **1.99.45** (19.11.2026) für Kapitel 14, Version **1.99.44** für Kapitel 16, Version **1.99.43** für die Kapitel 01, 11, 13, 15 und 17; die übrigen Kapitel Version **1.99.29**. Seit Version 1.99.22 neu bzw. ergänzt:
 
 | Version | Änderung | Anleitung |
 |---|---|---|
@@ -71,6 +71,11 @@ Stand der Anleitungen: Version **1.99.47** (20.11.2026) für die Kapitel 01 und 
 | 1.99.51 | Startseite: Reiter „Favoriten“, Stern je Kachel | [18](18-startseite-und-menue.md) |
 | 1.99.52 | Wareneingang zu Bestellung: Bestellnummer ohne Jahr, Fokus-Zeile, Zahnrad (Spalten), Hauptlagerplatz als Ziel-Vorschlag | [05](05-wareneingang-zu-bestellung.md) |
 | 1.99.53 | Lager-/Glasbestellung: Lieferung beim Abschließen ausbuchen („Entnahme aus“, Schalter, Standard aus) | [03](03-lagerbestellung-glasbestellung.md) |
+| 1.99.54 | Mengenfelder: Pfeile ±1, Mausrad ändert nichts | [10](10-bestaende-spaltenfilter.md) |
+| 1.99.55 | Spalten verschieben auch in Artikel, Lagerplätze, Kreditoren, Debitoren, Offene Bestellungen, Wareneingang, Bestellvorschläge | [10](10-bestaende-spaltenfilter.md) |
+| 1.99.56 | Beschichtungsauftrag: Statusknopf speichert Mengen/Haken mit; Druck fragt bei Ungespeichertem | [15](15-beschichtung-beschichtungsauftrag.md) |
+| 1.99.57 | Lagerbestellung: Hinweis nennt Bestand auf nicht wählbaren Plätzen | [03](03-lagerbestellung-glasbestellung.md) |
+| 1.99.58 | Kommissionierauftrag: eigene Spalte „Menge IST“ | [01](01-kommissionierung.md) |
 
 Änderungen aus 1.99.30, 1.99.31, 1.99.33 und 1.99.38–1.99.40 (Bestellvorschläge, offene Bestellungen, Wareneingang
 Sammellieferschein, Arbeitsgänge in Sage, Sage-Benutzerfelder) sind in den betroffenen Kapiteln noch nicht nachgezogen.

@@ -1,6 +1,6 @@
 # 00 – Betriebshandbuch IdealAkeWms: Übersicht
 
-**Stand:** v1.99.53, 2026-11-23 (Bündel `feature/2026-08-07-ideal-teile-1-5`, Paket 13; Quelle: `IdealAkeWms/AppVersion.cs:5`; erstellt mit v1.99.23, zuletzt Kapitel 03 und 04 nachgezogen – siehe „Änderungen seit v1.99.23“) ·
+**Stand:** v1.99.58, 2026-11-23 (Bündel `feature/2026-08-07-ideal-teile-1-5`, Paket 14; v1.99.54–58 ohne Betriebsänderung (nur Web, keine Migration, keine Einstellung); Quelle: `IdealAkeWms/AppVersion.cs:5`; erstellt mit v1.99.23, zuletzt Kapitel 03 und 04 nachgezogen – siehe „Änderungen seit v1.99.23“) ·
 **Zielgruppe:** Administratoren und IT-Kollegen ohne Entwicklerwissen · **Zweck:** Betrieb, Update, Überwachung und Fehlersuche des
 Warehouse-, Produktions- und Betriebsdatensystems der Standorte AKE und IDEAL – mit Fundstelle zu jeder Aussage.
 

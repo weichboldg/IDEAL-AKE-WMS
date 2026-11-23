@@ -1,6 +1,6 @@
 # 15 Beschichtung – Vorschlagsliste und Beschichtungsauftrag
 
-Stand: Version 1.99.43 · Standorte AKE und IDEAL · Bilder aus dem IDEAL-Testsystem
+Stand: Version 1.99.56 · Standorte AKE und IDEAL · Bilder aus dem IDEAL-Testsystem
 
 ## Zweck
 
@@ -70,6 +70,11 @@ Im Auftrag oben links den **Kopf** ausfüllen:
 Die **Bemerkung** rechts hat einen eigenen Knopf **Bemerkung speichern**. Ist sie geändert, aber nicht gespeichert, steht
 „⚠ nicht gespeichert“ daneben. Drucken, PDF, Speichern und die Statusknöpfe fragen dann: „Bemerkung ist nicht gespeichert — trotzdem
 fortfahren?“
+
+Seit 1.99.56 **speichern die Statusknöpfe** (außer Stornieren) geänderte Mengen und Haken **mit**, bevor sie den Status setzen – ein
+eigenes **Speichern** davor ist nicht mehr nötig. Lehnt der Status ab (z. B. noch nicht alles verpackt), ist trotzdem gespeichert:
+Meldung „Gespeichert.“ plus gelbe Warnung. **Drucken** und **PDF** fragen bei ungespeicherten Positionen nach, weil der Druck den
+gespeicherten Stand zeigt.
 
 ### 6. Übergeben, drucken, versenden, erledigen
 

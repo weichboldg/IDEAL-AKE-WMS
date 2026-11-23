@@ -1,6 +1,6 @@
 # 03 – Lagerbestellung und Glasbestellung
 
-Stand: Version 1.99.53 (Bilder aus dem AKE-Testsystem, Stand 1.99.29 – Foto zu „Entnahme aus“ folgt nach Einschalten des Schalters) · Standorte AKE und IDEAL
+Stand: Version 1.99.57 (Bilder aus dem AKE-Testsystem, Stand 1.99.29 – Foto zu „Entnahme aus“ folgt nach Einschalten des Schalters) · Standorte AKE und IDEAL
 
 ## Zweck
 
@@ -132,6 +132,9 @@ Menge im WMS vom Lager aus. Oben in der Liste steht dann der blaue Hinweis „Li
 - In der Spalte **Lagerplatz** hat jede Position die Auswahl **Entnahme aus**. Vorgeschlagen ist der Platz, den auch die Kommissionierung
   nimmt: der Hauptlagerplatz, wenn dort Bestand liegt, sonst der Platz mit dem meisten Bestand; ohne Bestand `NAN`. Der Hinweis darunter
   sagt, woher der Vorschlag kommt. Einen anderen Platz wählen geht jederzeit; gespeichert wird die Auswahl nicht.
+- Zur Auswahl stehen nur Plätze, auf denen der Artikel Bestand hat, plus `NAN`. Liegt der Bestand nur auf Plätzen, die hier nicht wählbar
+  sind (Sage-Plätze ohne Sage-Buchung), nennt der Hinweis diese Plätze mit Menge, z. B. „Bestand nur auf nicht wählbaren Plätzen
+  (HR;1;2;13: 61) – Vorschlag NAN“ (seit 1.99.57).
 - **Ausgebucht wird die Ist-Menge.** Wird eine teilgelieferte Liste später erneut abgeschlossen, bucht das WMS nur, was seitdem
   dazugekommen ist. Unter dem Lagerplatz steht „bereits ausgebucht: …“.
 - **DUMMY-Positionen** und Artikel, die es im WMS nicht gibt, haben keine Auswahl („wird nicht gebucht (kein Lagerartikel)“). Die

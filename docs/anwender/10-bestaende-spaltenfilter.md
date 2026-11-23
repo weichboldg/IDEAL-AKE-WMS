@@ -1,6 +1,6 @@
 # 10 – Bestände und Spaltenfilter-Suche
 
-Stand: Version 1.99.29 · Standorte AKE und IDEAL · Bilder aus dem AKE-Testsystem
+Stand: Version 1.99.55 · Standorte AKE und IDEAL · Bilder aus dem AKE-Testsystem
 
 ## Zweck
 
@@ -112,7 +112,8 @@ Alle Filter stehen in der Adresszeile des Browsers. Zurück-Knopf, Lesezeichen u
 ![Fenster „Spalten konfigurieren“ in der FA-Liste mit Haken je Spalte](bilder/10-04-spaltenauswahl-zahnrad.jpg)
 
 - Haken setzen oder entfernen = Spalte ein- oder ausblenden. **Pflichtspalten** lassen sich nicht ausblenden.
-- In FA-Liste und Kommissionierliste lassen sich Spalten mit dem Griff links verschieben.
+- In FA-Liste, Kommissionierliste und seit 1.99.55 auch in Artikel, Lagerplätze, Kreditoren, Debitoren, Offene Bestellungen,
+  Wareneingang zu Bestellung und Bestellvorschläge lassen sich Spalten mit dem Griff links verschieben.
 - Optional eine **Standard-Sortierung** wählen.
 - Spaltenbreite: am rechten Rand des Spaltenkopfs ziehen; Doppelklick setzt sie zurück.
 - **Auf Standard zurücksetzen** stellt die ursprünglichen Spalten wieder her.
@@ -183,3 +184,8 @@ Bearbeiten* zurücksetzen.
 
 **Warum sind in der CSV weniger Zeilen als Treffer?**
 Bei mehr als 5.000 Treffern wird gekappt. Filter eingrenzen und mehrmals exportieren.
+
+## Mengenfelder: Pfeiltasten und Mausrad
+
+Seit 1.99.54 ändern **Pfeil hoch/runter** und die kleinen Pfeile im Feld eine Menge immer um **1** (auch bei Kommastellen, z. B. 2,5 → 3,5).
+Das **Mausrad** ändert keine Menge mehr: Wer über einem Mengenfeld scrollt, scrollt die Seite, das Feld verliert den Fokus.

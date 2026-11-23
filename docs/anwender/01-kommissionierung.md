@@ -1,6 +1,6 @@
 # 01 – Kommissionierung
 
-Stand: Version 1.99.47 · Standorte AKE und IDEAL · Bilder aus dem AKE-Testsystem (IDEAL-Bild extra gekennzeichnet)
+Stand: Version 1.99.58 · Standorte AKE und IDEAL · Bilder aus dem AKE-Testsystem (IDEAL-Bild extra gekennzeichnet)
 
 ## Zweck
 
@@ -128,12 +128,13 @@ Oben stehen FA, Artikel und der Kasten **Kommissionierauftrag KO-… · Bereich 
 ### 5. Zeilen anhaken, Ist-Menge und Quell-Lagerplatz prüfen
 
 1. Bei jedem geholten Teil das Häkchen setzen (oder Artikel scannen). Die Zeile wird grün; noch ist **nichts** gebucht.
-2. **Ist-Menge** prüfen (Feld unter der Soll-Menge). Vorbelegt ist die Soll-Menge. Wurde weniger geholt, die tatsächliche Menge
+2. **Ist-Menge** prüfen (Spalte **„Menge IST“** rechts neben „Menge“, seit 1.99.58). Vorbelegt ist die Soll-Menge. Wurde weniger geholt, die tatsächliche Menge
    eintragen (größer 0, höchstens Soll).
 3. **Quell-Lagerplatz** prüfen (Spalte ganz rechts). Vorgeschlagen wird der Hauptlagerplatz, sonst der buchbare Platz mit der
    größten Menge, sonst `NAN` (Platz für Negativbuchungen, wenn kein Bestand gebucht ist).
 
 ![Drei Zeilen angehakt, bei einer Zeile Ist-Menge 10 statt 16](bilder/01-09-zeilen-anhaken-ist-menge.jpg)
+*Foto noch vom Stand vor 1.99.58 (Ist-Menge unter der Soll-Menge); seit 1.99.58 steht sie in der eigenen Spalte „Menge IST“.*
 
 ### 6. Auf den Kommissionierwagen umbuchen
 
