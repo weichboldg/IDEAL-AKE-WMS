@@ -55,6 +55,7 @@ Grenzen: nichts an Sage schreiben, keine Einstellungen auf Prod, kein Merge, kei
 - 2026-11-23: Paket `publish\paket14-v1.99.58.zip` (Publish-Commit `b79a4b1a`, Doku-Commit danach ändert keine Binärdateien),
   237 041 687 Bytes, SHA-256 `986B3A57D9E205FF52BCA5B606E2895EF326B8A8D4019ACA21D53CB25F5E5DE8`.
   - `\AKENET01.ake.at\Installsourcen`: Größe + SHA-256 gleich ✔
+  - `\IDEALWEB01.ideal.ideal-ake.at\InstallSourcen`: Größe + SHA-256 gleich ✔
 
 ## Geänderte Kapitel (für spätere Confluence-Übernahme)
 
