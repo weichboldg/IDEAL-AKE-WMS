@@ -2,7 +2,7 @@
 type: spec
 title: Sage-Buchungen – eine Seite für Lagerbuchungen und Sage-Wareneingänge
 slug: 2026-11-23-sage-buchungen-gesamtsicht-spec
-status: Entwurf
+status: Freigegeben
 created: 2026-11-23
 updated: 2026-11-24
 source_backlog: "[[2026-11-23-sage-buchungen-gesamtsicht]]"
@@ -52,8 +52,8 @@ deploy:
   service: false
   migration: false
 freigabe_entscheidung: "A"
-freigabe_von: ""
-freigabe_am: ""
+freigabe_von: Gerald
+freigabe_am: 2026-11-24
 ---
 
 ## Ziel / Nutzen (das Warum)
@@ -478,4 +478,4 @@ Antwort Gerald 2026-11-24 zu 1–11: „ok, wie Empfehlungen“.
 9. FA-Arbeitsgänge (IDEAL) nicht dabei. → **ok, wie Empfehlungen (Gerald 2026-11-24)**
 10. Standard-Zeitraum 30 Tage, offene Zeilen (wartet/gesendet/Fehler/klären) immer + Hinweis mit Anzahl älterer offener. → **ok, wie Empfehlungen (Gerald 2026-11-24)**
 11. „nacherfasst“-Zusatz in „Erfasst von“. → **ok, wie Empfehlungen (Gerald 2026-11-24)**
-12. Einkauf ohne Lager-Recht: (a) Sage-Buchungen auch für Einkauf lesbar (nur WE-Zeilen, keine Knöpfe), (b) Einkauf-Ansicht bleibt, (c) Einkauf braucht stock_read? →
+12. Einkauf ohne Lager-Recht: (a) Sage-Buchungen auch für Einkauf lesbar (nur WE-Zeilen, keine Knöpfe), (b) Einkauf-Ansicht bleibt, (c) Einkauf braucht stock_read? → **(a), Gerald 2026-11-24: „12a ja, passt“. Festlegungen des Spec-Agents (Knöpfe an der ersten Zeile des Vorgangs auf der angezeigten Seite; NurInSage in keiner Liste mehr; Umleitung betrifft nur Browser-Lesezeichen) ebenfalls bestätigt.**
