@@ -54,3 +54,11 @@ Wortlaut:
    Ausbuchungs-Masken, gespeichert an der `StockMovement` (neue nullable Spalte → SQL), übertragen in das Feld, das P-1/P-2 ergeben
    (`Referenz`/`Memo` oder DPS-Erweiterung). Wenn Sage es nicht aufnehmen kann: im WMS trotzdem speichern und melden.
 3. Anzeige von Benutzer und Abteilung in der Gesamtsicht „Sage-Buchungen“ ([[2026-11-23-sage-buchungen-gesamtsicht-spec]]).
+
+## Entscheidung Gerald 2026-11-24
+
+- Vorschlag 1 **ja**: Benutzer zumindest in die **Referenz**. Die **Abteilung kommt vorerst ebenfalls in die Referenz** (nicht in
+  `DPSMDELagerbuchung`; P-1 ist damit für den ersten Schritt nicht nötig).
+- Format kurz, Beispiel Gerald: `WMS: WE#…# Gerald.Weichbold Abteilung:C1` (Kennung der Buchung, Benutzer, Abteilung nur wenn gewählt).
+- Offen bleiben für die Spec: P-2 (landet `Referenz` sichtbar in Sage?), P-4 (Feldlänge `Referenz`), wo die Referenz beim Sage-WE hinkommt
+  (StandardBelegService hat kein `Referenz`-Feld je Position wie der LagerbuchungService – belegen).
