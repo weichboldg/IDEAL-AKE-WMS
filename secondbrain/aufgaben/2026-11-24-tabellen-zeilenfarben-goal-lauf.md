@@ -37,3 +37,4 @@ Offen für den Menschen: 11 Punkte der Restprüfung in der Spec (u. a. Druck, B�
   237 050 821 Bytes, SHA-256 `D7B3B84F442E841CB26D8FC01419604B811CAA6EDE0E3403B4A3C5BB0BECD6FB`.
   `\AKENET01.ake.at\Installsourcen` und `\IDEALWEB01.ideal.ideal-ake.at\InstallSourcen`: Größe + SHA-256 gleich (OK), vorher nicht vorhanden.
 - Offen: Schranke 2 (Manual-UAT laut Restprüfung in der Spec, dann Merge). Kein Merge, kein Push.
+- Nachtrag 2026-11-24: Paket 16 brach auf IDEAL-Prod in der Vorprüfung ab (FreshInstallIndizes) → v1.99.63 + Paket 17, siehe [[2026-11-24-v1-99-63-sql-151-fresh-install-indizes]]. Paket 16 nicht mehr verwenden.
