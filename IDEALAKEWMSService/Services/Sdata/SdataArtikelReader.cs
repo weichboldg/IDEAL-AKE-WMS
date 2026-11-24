@@ -80,10 +80,7 @@ public sealed class SdataArtikelReader : ISageArtikelReader
     // Schnittstellenkatalog (sage-sdata-commonwawiservicesresources). Ohne where wuerde die 100.000-Zeilen-Grenze greifen (240.552 am AKE-Test).
     // NICHT "ne ''": liefert auf Textfeldern still 0 Zeilen (AKE-Test 2026-11-07: ne '' → 0, like '_%' → 240.552 = alle).
     public const string WhereRessourcen = "Ressourcenummer like '_%'";
-    // Nur nach dem gelesenen Feld sortieren: AKE-Prod-SData baut bei select=Ressourcenummer ein GROUP BY Ressourcenummer, dann ist
-    // BelPosID im ORDER BY ungueltig (HTTP 500, 2026-11-24). Stabil genug: gebraucht wird nur die Menge der Nummern, und die
-    // Zuordnung Position -> Nummer ist bei Sortierung nach Nummer eindeutig, egal ob Sage gruppiert oder nicht.
-    public const string OrderByRessourcen = "Ressourcenummer";
+    public const string OrderByRessourcen = "Ressourcenummer,BelPosID";
     // ponytail: 240k Positionen in grossen Seiten (der Client kommt mit kleineren Server-Seiten zurecht); erst lesen, wenn G16 die Menge bestaetigt.
     public const int SeitengroesseRessourcen = 5000;
 
