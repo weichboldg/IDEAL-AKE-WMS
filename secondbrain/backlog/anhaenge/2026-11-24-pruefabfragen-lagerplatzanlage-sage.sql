@@ -10,3 +10,7 @@ PRINT '--- P-5'; SELECT * FROM KHKLagertechnikenArten; SELECT Mandant, Lagerkenn
 PRINT '--- P-6'; SELECT Mandant, COUNT(*) abweichend FROM KHKLagerplaetze WHERE Kurzbezeichnung <> CONCAT(Lagerkennung,';',Dimension1,';',Dimension2,';',Dimension3) GROUP BY Mandant;
 SELECT TOP 10 Mandant, Lagerkennung, Dimension1, Dimension2, Dimension3, Kurzbezeichnung FROM KHKLagerplaetze WHERE Kurzbezeichnung <> CONCAT(Lagerkennung,';',Dimension1,';',Dimension2,';',Dimension3);
 PRINT '--- P-7'; SELECT Mandant, Lagerkennung, Dimension1, Dimension2, Dimension3, COUNT(*) n FROM KHKLagerplaetze GROUP BY Mandant, Lagerkennung, Dimension1, Dimension2, Dimension3 HAVING COUNT(*)>1;
+PRINT '--- P-9a'; SELECT COLUMN_NAME, DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='KHKArtikelVariantenLagerplatz' ORDER BY ORDINAL_POSITION;
+PRINT '--- P-9b'; SELECT Tag, Bezeichnung FROM KHKGruppen WHERE Mandant=0 AND Typ=40025;
+PRINT '--- P-9c'; SELECT COLUMN_NAME, IS_NULLABLE, COLUMN_DEFAULT FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='KHKLagerorte' AND COLUMN_NAME LIKE 'USER[_]%';
+PRINT '--- P-9d'; SELECT DATABASEPROPERTYEX(DB_NAME(),'Collation') Kollation;
