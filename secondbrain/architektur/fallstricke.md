@@ -2227,6 +2227,13 @@ Code: `hardware-scanner.js` Block „Scannen ohne Feld“, CSS `.hw-scan-bereit`
   Bootstrap-Hintergrund-Schatten. Balkenfarbe `--bs-primary-text-emphasis` (#052c65): `--bs-primary` erreicht auf der aktiven
   `table-danger`-Zeile nur ca. 2,7:1 (< 3:1 für Bedienelemente).
 - **Warum:** Der Wareneingang zeigt Fehlerzeilen rot; die neue Fokus-Zeile (v1.99.52) darf diese Bedeutung nicht wegnehmen.
+- **Ergänzung v1.99.62** ([[0035-tabellen-zeilenfarben-global-ueber-bootstrap-zustandsvariablen]]):
+  - `background-color` am **`<tr>`** ist in Bootstrap 5.3 **unsichtbar** – die Zellen malen deckend darüber (`--bs-table-bg` = Weiß). Die alte Regel
+    `.table tbody tr:hover` war deshalb jahrelang wirkungslos, Tests grün. Ebenso vermutlich die OSEON-Ebenenfarben am `tr` (jetzt `table-plain`).
+  - `--bs-table-active-bg` **nie global** setzen: färbt die Gruppen-Kopfzeilen `tr.table-active` (Kommissionierlisten, Beschichtung, Vormontage).
+    Fokus-Zeile hat deshalb eine eigene Variable `--wms-table-focus-bg`.
+  - Keine Kontextklasse an `<table>` selbst: die globale `.table`-Variable (gleiche Spezifität, später) überschreibt dann Bootstraps Wert.
+  - **Warum:** Die Fehler sind alle pixel-, nicht testsichtbar – Sichtprüfung je Zustand ist Pflicht (TS-187).
 
 ## 62. WMS-Ausbuchung auf einem Sage-Platz ohne Sage-Übergabe wird vom Lagerbestand-Abgleich zurückgebucht (v1.99.53, [[2026-11-23-lagerbestellung-verbrauchsbuchung-bei-lieferung-spec]])
 

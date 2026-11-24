@@ -2,14 +2,14 @@
 type: spec
 title: Alle Tabellen – Streifen, Hover und Fokus-Zeile in CI-Blau
 slug: 2026-11-23-tabellen-streifen-hover-ci-hellblau-spec
-status: Freigegeben
+status: InUmsetzung
 created: 2026-11-23
-updated: 2026-11-23
+updated: 2026-11-24
 source_backlog: "[[2026-11-23-tabellen-streifen-hover-ci-hellblau]]"
-task: ""
+task: "[[2026-11-24-tabellen-zeilenfarben-goal-lauf]]"
 jira: ""
-worktree: ""
-branch: ""
+worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"
+branch: feature/2026-08-07-ideal-teile-1-5
 standort: beide
 affected_code:
   - IdealAkeWms/wwwroot/css/site.css (Regel .table tbody tr:hover Z. 198-200 ersetzen; .we-positionen Z. 1505-1530 in globale Regeln überführen; neue globale Regeln + @media print)
