@@ -173,10 +173,26 @@ public sealed class SageSdataReadClient : ISageSdataReadClient
         string orderBy, int count, int startIndex, string? include = null)
     {
         var query = $"{ressource}?format=json&orderBy={orderBy}&count={count}&startIndex={startIndex}"
-            + (string.IsNullOrWhiteSpace(select) ? "" : $"&select={select}")
+            + (string.IsNullOrWhiteSpace(select) ? "" : $"&select={MitSortfeldern(select, orderBy)}")
             + (string.IsNullOrWhiteSpace(include) ? "" : $"&include={include}")
             + (string.IsNullOrWhiteSpace(where) ? "" : "&where=" + where.Replace("%", "%25").Replace("#", "%23").Replace("&", "%26").Replace("+", "%2B"));
         return SdataUrlBuilder.BuildResourceUrl(ziel.BaseUrl, ziel.Application, vertrag, ziel.Dataset, query);
+    }
+
+    /// <summary>
+    /// Haengt jedes orderBy-Feld an, das im select fehlt. Grund: Sage SData auf AKE-Prod (2026-11-24) gruppiert nach den select-Feldern
+    /// (GROUP BY); ein Sortierfeld ausserhalb der Liste ergibt dann HTTP 500 („… nicht in der GROUP BY-Klausel enthalten“).
+    /// </summary>
+    public static string MitSortfeldern(string select, string orderBy)
+    {
+        var felder = select.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries).ToList();
+        foreach (var teil in orderBy.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries))
+        {
+            var feld = teil.Split(' ', StringSplitOptions.RemoveEmptyEntries)[0]; // "Feld desc" -> "Feld"
+            if (!felder.Contains(feld, StringComparer.OrdinalIgnoreCase))
+                felder.Add(feld);
+        }
+        return string.Join(",", felder);
     }
 
     public async Task<SdataSeiten<T>> QueryAllAsync<T>(SdataLeseZiel ziel, string vertrag, string ressource, string? where, string? select,

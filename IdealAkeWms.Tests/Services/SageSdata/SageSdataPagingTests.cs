@@ -282,4 +282,18 @@ public class SageSdataPagingTests
         SageSdataReadClient.BuildQueryUrl(Ziel, SageSdataReadClient.VertragResourcesSpecific, "PpsRessourcenListenInfo", null, null, "Position", 500, 0)
             .Should().Be("https://sagetest01.ake.at:5493/sdata/ol/CommonWawiServicesResourcesSpecific/ake_TEST2026;1/PpsRessourcenListenInfo?format=json&orderBy=Position&count=500&startIndex=0");
     }
+
+    // AKE-Prod 2026-11-24: Sage gruppiert nach den select-Feldern; jedes Sortierfeld muss deshalb in der Feldliste stehen.
+    [Theory]
+    [InlineData("Artikelnummer,Hauptlieferant", "Artikelnummer,AuspraegungID", "Artikelnummer,Hauptlieferant,AuspraegungID")]
+    [InlineData("Ressourcenummer", "Ressourcenummer", "Ressourcenummer")]
+    [InlineData("a, B", "b desc, c asc", "a,B,c")]
+    public void MitSortfeldern_haengt_fehlende_Sortfelder_an(string select, string orderBy, string erwartet)
+        => SageSdataReadClient.MitSortfeldern(select, orderBy).Should().Be(erwartet);
+
+    [Fact]
+    public void BuildQueryUrl_select_enthaelt_Sortfelder()
+        => SageSdataReadClient.BuildQueryUrl(Ziel, SageSdataReadClient.VertragResources, "ArtikelVariantenExtended", null,
+                "Artikelnummer,Hauptlieferant", "Artikelnummer,AuspraegungID", 500, 0)
+            .Should().EndWith("&select=Artikelnummer,Hauptlieferant,AuspraegungID");
 }
