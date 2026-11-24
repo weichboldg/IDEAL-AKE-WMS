@@ -9,7 +9,7 @@ Ziele = @(
   @{ Firma='IDEAL'; System='Prod';       Prod=$true;  WebPfad='C:\inetpub\wwwroot\IDEALAKEWMS';           DienstPfad='C:\IDEAL\IdealAkeWmsService';             Url='https://idealweb01.ideal.ideal-ake.at/' }
   @{ Firma='IDEAL'; System='Test';       Prod=$false; WebPfad='C:\inetpub\wwwroot\IDEALAKEWMS_Test';      DienstPfad='C:\IDEAL\IdealAkeWmsService_Test';        Url='http://idealweb01.ideal.ideal-ake.at:88/' }
   @{ Firma='AKE';   System='Prod';       Prod=$true;  WebPfad='C:\inetpub\wwwroot\IDEALAKEWMS';           DienstPfad='C:\AKE\IdealAkeWmsService';               Url='https://akenet01.ake.at:4443/' }
-  @{ Firma='AKE';   System='Test';       Prod=$false; WebPfad='C:\inetpub\wwwroot\IDEALAKEWMS_Test';      DienstPfad='C:\AKE\IdealAkeWmsService_Test';        Url='https://akenet01.ake.at:4444/' }
+  @{ Firma='AKE';   System='Test';       Prod=$false; WebPfad='C:\inetpub\wwwroot\IdealAkeWMS-TEST';      DienstPfad='C:\AKE\IDEALAKEWMSService-Test';        Url='https://akenet01.ake.at:4444/' }
   @{ Firma='AKE';   System='Test-IDEAL'; Prod=$false; WebPfad='C:\inetpub\wwwroot\IdealAkeWMS-TESTIDEAL'; DienstPfad='C:\AKE\IDEALAKEWMSService-TestIDEAL'; Url='https://akenet01.ake.at:4445/' }
   @{ Firma='AKE';   System='DEV';        Prod=$false; WebPfad='D:\Dev\AKE\Web';                      DienstPfad='D:\Dev\AKE\Service';                   Url='http://localhost:8081/' }
   @{ Firma='IDEAL'; System='DEV';        Prod=$false; WebPfad='D:\Dev\IDEAL\Web';                    DienstPfad='D:\Dev\IDEAL\Service';                 Url='http://localhost:8082/' }

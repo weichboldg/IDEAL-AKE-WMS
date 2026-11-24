@@ -38,7 +38,7 @@ stoppt nichts und schreibt nichts, gibt aber Site, Pool, Dienst, Konto, Umgebung
 | IDEAL | Prod | ja | idealweb01 | `https://idealweb01.ideal.ideal-ake.at/` | `C:\inetpub\wwwroot\IDEALAKEWMS` | `C:\IDEAL\IdealAkeWmsService` |
 | IDEAL | Test | nein | idealweb01 | `http://idealweb01.ideal.ideal-ake.at:88/` | `C:\inetpub\wwwroot\IDEALAKEWMS_Test` | `C:\IDEAL\IdealAkeWmsService_Test` |
 | AKE | Prod | ja | akenet01 | `https://akenet01.ake.at:4443/` | `C:\inetpub\wwwroot\IDEALAKEWMS` | `C:\AKE\IdealAkeWmsService` |
-| AKE | Test | nein | akenet01 | `https://akenet01.ake.at:4444/` | `C:\inetpub\wwwroot\IDEALAKEWMS_Test` | `C:\AKE\IdealAkeWmsService_Test` |
+| AKE | Test | nein | akenet01 | `https://akenet01.ake.at:4444/` | `C:\inetpub\wwwroot\IdealAkeWMS-TEST` | `C:\AKE\IDEALAKEWMSService-Test` |
 | AKE | Test-IDEAL | nein | akenet01 | `https://akenet01.ake.at:4445/` | `C:\inetpub\wwwroot\IdealAkeWMS-TESTIDEAL` | `C:\AKE\IDEALAKEWMSService-TestIDEAL` |
 | AKE | DEV | nein | Entwickler-PC | `http://localhost:8081/` | `D:\Dev\AKE\Web` | `D:\Dev\AKE\Service` |
 | IDEAL | DEV | nein | Entwickler-PC | `http://localhost:8082/` | `D:\Dev\IDEAL\Web` | `D:\Dev\IDEAL\Service` |

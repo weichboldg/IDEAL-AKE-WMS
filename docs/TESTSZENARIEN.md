@@ -11543,7 +11543,7 @@ Aufruf DEV (Eingaben per Tastatur oder Pipe):
   `D:\Dev\logs\deploy\yyyy-MM-dd_HHmm_IDEAL-Test_v<Version>.log`; App-Pool und Dienst laufen vorher wie nachher.
 - **TS-125.2 Abfrage.** Ohne `-Firma`/`-System`. Erwartet: Firma-Abfrage; `XYZ` → erneute Frage; Systemliste IDEAL zeigt 2 Einträge
   (AKE: 3); ungültige Nummer → erneute Frage.
-- **TS-125.3 Falsche Firma.** `-Firma AKE -System Test` ohne Pfadparameter (auf dem DEV-PC). Erwartet: Abbruch „C:\inetpub\wwwroot\IDEALAKEWMS_Test fehlt“,
+- **TS-125.3 Falsche Firma.** `-Firma AKE -System Test` ohne Pfadparameter (auf dem DEV-PC). Erwartet: Abbruch „C:\inetpub\wwwroot\IdealAkeWMS-TEST fehlt“,
   keine DB kontaktiert, nichts gestoppt.
 - **TS-125.4 Pfad fehlt.** `-WebPfad D:\Dev\IDEAL\WebX`. Erwartet: Abbruch mit Pfad.
 - **TS-125.5 Mehrere Systeme mit Pfad.** `-System Test,Test-IDEAL` mit `-WebPfad`. Erwartet: Abbruch vor jeder Aktion.
