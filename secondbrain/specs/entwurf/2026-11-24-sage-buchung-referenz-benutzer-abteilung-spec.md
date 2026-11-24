@@ -316,7 +316,16 @@ und Abteilung“, plus Eintrag in `secondbrain/tests/testszenarien-index.md`:
   als seinen Auftrag. Antworte je Frage in **fett** hinter dem Pfeil.
 -->
 
-1. Leerzeichen im Benutzernamen → Punkt? →
-2. P-4 Feldlänge Referenz / Kopf-Memo EK-Beleg (Wert) →
-3. P-2 Referenz landet sichtbar in Sage? →
-4. Auswahlliste Abteilung (ohne „nicht in Sage“?) / „C1“ Werkbank-Name? →
+1. Leerzeichen im Benutzernamen → Punkt? → **Nein. Benutzername genau so, wie der User im WMS angelegt ist (`User.Name`), kein Punkt (Gerald 2026-11-24).**
+2. P-4 Feldlänge Referenz / Kopf-Memo EK-Beleg (Wert) → **Geprüft 2026-11-24 per Schema-Abfrage (nur lesend, `INFORMATION_SCHEMA.COLUMNS`, Sage-DB `ake` auf AKESQL20):
+   `KHKLagerplatzbuchungen.Referenz varchar(31)`, `KHKLagerplatzbuchungen.Memo varchar(max)`, `KHKLagerplatzbuchungenJobs.Memo varchar(max)`
+   (+ `Benutzer`), `KHKEKBelege.Memo varchar(max)`, `KHKEKBelege.Bearbeiter varchar(128)`. `DPSMDELagerbuchung.Abteilung varchar(10)`
+   (DPS-MDE-Tabelle, Spalten ID, Tan, MA, Artikel, Menge, HLP, ZLP, …, OLBuchungsID – wird vom WMS nicht beschrieben).**
+3. P-2 Referenz landet sichtbar in Sage? → **Ja (Beleg Gerald 2026-11-24, Sage-Testsystem, Lagerbuchungsprotokoll 23.11.2026, Job 592161,
+   EM, EK019956): Spalte „Referenz“ zeigt `IdealAkeWms Lagerbuchung SM#ATI` = genau 31 Zeichen. Sage füllt `Referenz` heute selbst aus dem
+   Kopf-Memo und schneidet bei 31 ab. Die Spalte „Abteilung“ derselben Liste kommt aus der DPS-MDE-Welt (`DPSMDELagerbuchung`, 10 Zeichen).**
+4. Auswahlliste Abteilung (ohne „nicht in Sage“?) / „C1“ Werkbank-Name? → **ok, wie Empfehlung (Gerald 2026-11-24).**
+5. NEU (aus 2/3): `Referenz` hat nur **31 Zeichen** – `WMS: SM#ATI#12345# Gerald Weichbold Abteilung:C1` passt nicht. Vorschlag:
+   `Referenz` = **`<Abteilung> <Benutzer>`** gekürzt auf 31 (Abteilung zuerst, max. 10 wie DPS), voller Text
+   `WMS: SM#…# <Benutzer> Abteilung:<x>` ins **Zeilen-`Memo`** (varchar(max)); die Kennung bleibt im Kopf-Memo (Wiedererkennung). Sage-WE:
+   voller Text ins Kopf-Memo (varchar(max), keine Kürzung nötig). →
