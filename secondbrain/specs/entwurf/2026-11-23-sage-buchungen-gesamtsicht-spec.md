@@ -1,61 +1,71 @@
 ---
 type: spec
-title: Sage-Buchungen – eine Gesamtsicht über alle Übergabewege
+title: Sage-Buchungen – eine Seite für Lagerbuchungen und Sage-Wareneingänge
 slug: 2026-11-23-sage-buchungen-gesamtsicht-spec
 status: Entwurf
 created: 2026-11-23
-updated: 2026-11-23
+updated: 2026-11-24
 source_backlog: "[[2026-11-23-sage-buchungen-gesamtsicht]]"
 task: ""
 jira: ""
 worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"
 branch: "feature/2026-08-07-ideal-teile-1-5"
 standort: beide
-version_vorschlag: "1.99.63 (Worktree IdealAkeWms/AppVersion.cs:5 = 1.99.61, nicht 1.99.53 wie im Auftrag; 1.99.62 ist an [[2026-11-23-tabellen-streifen-hover-ci-hellblau-spec]] vergeben, 1.99.48/1.99.49 in Entwürfen reserviert. Dev-Lauf prüft erneut)"
-testszenario_vorschlag: "TS-188 (docs/TESTSZENARIEN.md des Worktrees endet bei TS-186, TS-187 ist an die Tabellen-Spec vergeben, TS-171/172 in Entwürfen reserviert)"
+version_vorschlag: "nächste freie Bündel-Version, Stand 2026-11-24 = 1.99.64 (Worktree IdealAkeWms/AppVersion.cs:5 = 1.99.63, vergeben an SQL/151). 1.99.64 nennen auch [[2026-11-24-bedarfsmeldung-aus-lesender-stueckliste-spec]] und [[2026-11-24-bf-auftrag-baugruppen-aufloesen-und-als-fa-zeigen-spec]] – der Dev-Lauf vergibt in Baureihenfolge"
+testszenario_vorschlag: "nächste freie TS-Nummer, Stand 2026-11-24 = TS-189 (docs/TESTSZENARIEN.md:13800 TS-188 = SQL/151; testszenarien-index.md:162). TS-189 nennen auch die Bedarfsmeldungs- und die BF-Auftrag-Spec – Dev-Lauf löst auf"
 affected_code:
-  - IdealAkeWms/Services/SageBuchungenGesamtsicht.cs (neu, reine Funktion – Zeile, Anzeige-Status, Herkunft, Zuordnung je Weg)
-  - IdealAkeWms/Controllers/SageBookingQueueController.cs:64-93 (Index lädt drei Quellen, Union, Spaltenfilter, Paging) – Variante A
-  - IdealAkeWms/Models/ViewModels/SageBookingQueueViewModel.cs (Zeilen statt Items, Zeitraum, Anzeige-Filter) – Variante A
-  - IdealAkeWms/Views/SageBookingQueue/Index.cshtml (Spalten Herkunft/Bezug/Status im Weg, Filterkarte Zeitraum + Anzeige-Status, Link zur Fachseite) – Variante A
-  - IdealAkeWms/Data/Repositories/SageBookingQueueRepository.cs:77-88 + ISageBookingQueueRepository (GetForMonitoringAsync mit Zeitraum, Include PurchaseOrderReceipt)
-  - IdealAkeWms/Data/Repositories/PurchaseOrderReceiptRepository.cs (neue Lesemethode für die Gesamtsicht)
-  - IdealAkeWms/Data/Repositories/SageFaArbeitsgangAnlageRepository.cs (neue Lesemethode für die Gesamtsicht)
-  - IdealAkeWms/Services/ColumnFilterSyntax.cs:70 (Register SageBookingQueue/Index um neue Spalten-Typen)
-  - IdealAkeWms/Services/Navigation/NavigationKatalog.cs:88 (nur Titel, falls Rückfrage 6 = umbenennen; Variante B: neues NavZiel + Regel)
-  - IdealAkeWms/Views/Shared/_Layout.cshtml:98-102 (Linktext, falls umbenannt; Variante B: neuer Link)
-  - IdealAkeWms.Tests/Services/SageBuchungenGesamtsichtTests.cs (neu)
-  - IdealAkeWms/AppVersion.cs + IDEALAKEWMSService/AppVersion.cs (1.99.63), IdealAkeWms/Views/Help/Changelog.cshtml
-  - docs/TESTSZENARIEN.md (TS-188), docs/anwender/09-einbuchen-ausbuchen-umbuchen.md, docs/anwender/18-startseite-und-menue.md
+  - IdealAkeWms/Services/SageBuchungenGesamtsicht.cs (neu, reine Funktion – Anzeige-Status, Herkunft, Zeile, erste Zeile je Vorgang, Zeitraum-Regel)
+  - IdealAkeWms/Controllers/SageBookingQueueController.cs:15-115 (Index lädt Lagerbuchungen + Sage-WE, Filterkarte, Spaltenfilter, Paging; Requeue mit returnUrl; Lesefilter nach Rückfrage 12)
+  - IdealAkeWms/Models/ViewModels/SageBookingQueueViewModel.cs (Zeilen der Gesamtsicht, Filter, Hinweise, Rechte-Flags)
+  - IdealAkeWms/Views/SageBookingQueue/Index.cshtml (Titel „Sage-Buchungen“, Filterkarte, Spalten inkl. WE-Spalten, WE-Aktionen, Zahnrad)
+  - IdealAkeWms/Models/ViewModels/ColumnDefinitions.cs:866-899 (neuer ViewConfig SageBookingQueue, WE-Spalten DefaultHidden)
+  - IdealAkeWms/Data/Repositories/SageBookingQueueRepository.cs:77-88 + ISageBookingQueueRepository.cs:31 (GetForMonitoringAsync mit Zeitraum-Regel)
+  - IdealAkeWms/Data/Repositories/PurchaseOrderReceiptRepository.cs:41/87-98 (GetSageWareneingaengeAsync mit Zeitraum-Regel, ohne NurInSage)
+  - IdealAkeWms/Controllers/PurchaseOrdersController.SageWe.cs:61-167 (Liste → 301-Umleitung, POST-Actions mit returnUrl; SageWeListeAsync entfällt)
+  - IdealAkeWms/Controllers/EinkaufPurchaseOrdersController.cs:29-34 (Umleitung, Rückfrage 12)
+  - IdealAkeWms/Views/PurchaseOrders/SageWareneingaenge.cshtml + Models/ViewModels/SageWareneingaengeViewModel.cs (entfallen; SageWareneingangZeile wandert in die Gesamtsicht)
+  - IdealAkeWms/Services/Navigation/NavigationKatalog.cs:88/91/162/255/258 (Titel „Sage-Buchungen“, NavZiel SageWareneingaengeLager entfällt)
+  - IdealAkeWms/Views/Shared/_Layout.cshtml:101-105 (Linktext, WE-Link entfällt), :271-273 (Einkauf, Rückfrage 12)
+  - IdealAkeWms/Services/ColumnFilterSyntax.cs:70/85 (Register SageBookingQueue/Index erweitert, PurchaseOrders/SageWareneingaenge entfällt)
+  - IdealAkeWms/Views/ServiceSettings/Index.cshtml:62/68, Views/PurchaseOrders/Receive.cshtml:263, Views/Help/Index.cshtml:143-150/170/308-329/497, Views/Users/RoleOverview.cshtml:221-226
+  - IdealAkeWms/Models/AppSettingDefinitions.cs:128, IdealAkeWms/Models/ServiceSettingDefinitions.cs:73/88/93/97/102 (nur Verwendungstexte)
+  - IdealAkeWms.Tests/Services/SageBuchungenGesamtsichtTests.cs (neu), IdealAkeWms.Tests/Controllers/SageWareneingaengeListeTests.cs (umziehen), PurchaseOrdersControllerTests.cs:252-254, NavigationSichtTests.cs:292-295
+  - IdealAkeWms/AppVersion.cs + IDEALAKEWMSService/AppVersion.cs, IdealAkeWms/Views/Help/Changelog.cshtml
+  - docs/TESTSZENARIEN.md (neues Kapitel + Umstellungsliste), docs/anwender/05, 09, 18, docs/betrieb/04, 05, 06, 07, 08, 10, README.md
 open_questions:
-  - "1. Welche Maske ist mit „Sage-Buchung“ gemeint: „Sage-Lagerbuchungen“ (Lager-Menü, SageBookingQueue) oder „Sage-Wareneingänge“? Empfehlung: Sage-Lagerbuchungen – dort fehlen heute genau die Wareneingänge mit Sage-WE-Beleg."
-  - "2. Variante A (Seite „Sage-Lagerbuchungen“ wird zur Gesamtsicht, Spalte Herkunft, Zeilen anderer Wege nur lesend mit Link) oder B (neue Seite „Sage-Übergaben“ als Union, bestehende Seiten bleiben unverändert)? Empfehlung A."
-  - "3. FA-Arbeitsgänge (IDEAL, „Arbeitsgänge → Sage“) einbeziehen? Empfehlung ja, sichtbar nur wie die Fachseite (Admin + ProduktionsauftragHierarchisch). Vorgemerkte Stammdaten-Übergaben (SageStammdatenOutbox, es wird nichts gesendet) bleiben draußen."
-  - "4. Rollen: Zeilen eines Weges nur zeigen, wenn der Benutzer dessen Fachseite sehen darf (Lagerbuchung = stock_read-Kreis, Wareneingang = zusätzlich Modul WareneingangBestellungAktiv, FA-Arbeitsgänge = Admin + hierarchisch)? Empfehlung ja (eine Regel: NavigationSicht der Fachseite)."
-  - "5. Standard-Zeitraum: „Erstellt ab“ = heute − 30 Tage; nicht erledigte Zeilen (wartet, gesendet, Fehler, Klären) immer unabhängig vom Zeitraum; „von Hand in Sage“ zählt als erledigt. Einverstanden, oder anderer Zeitraum?"
-  - "6. Nur Variante A: Seite und Menüpunkt in „Sage-Buchungen“ umbenennen (Route, Menü-Key und Favoriten bleiben)? Empfehlung ja."
-  - "7. Wareneingänge „nur in Sage buchen“ (Chargen-/Nachweispflicht, das WMS sendet nichts) mit anzeigen, als Status „von Hand in Sage“? Empfehlung ja – sie sind Sage-relevant und stehen heute auf „Sage-Wareneingänge“."
+  - "1. Eine Seite „Sage-Buchungen“ (heutige SageBookingQueue, Route/Menü-Key/Favoriten bleiben), übernimmt alle Funktionen beider Seiten – beantwortet 2026-11-24: ok, wie Empfehlung"
+  - "2. Inhalt Einbuchung, Ausbuchung, Lagerbestellungs-Entnahme, Umbuchung (wenn Schalter an), Wareneingang mit Sage-WE; Spalte + Filter „Herkunft“ – beantwortet 2026-11-24: ok, wie Empfehlung"
+  - "3. Funktionen beider Seiten, Rolle wie heute, bestehende POST-Actions, Redirect zurück mit Filtern – beantwortet 2026-11-24: ok, wie Empfehlung"
+  - "4. WE-Aktionen je Sage-WE-Vorgang, Knöpfe nur an der ersten Position – beantwortet 2026-11-24: ok, wie Empfehlung"
+  - "5. WE-Spalten per Zahnrad standardmäßig ausgeblendet – beantwortet 2026-11-24: ok, wie Empfehlung"
+  - "6. Alte Seite Sage-Wareneingänge (Lager + Einkauf) → Umleitung, Menüpunkt entfällt, Verweise nachziehen – beantwortet 2026-11-24: ok, wie Empfehlung (Einkauf-Teil siehe Rückfrage 12)"
+  - "7. Rechte: Seite stock_read, WE-Zeilen nur mit WareneingangBestellungAktiv, Aktionen Keyuser/Admin – beantwortet 2026-11-24: ok, wie Empfehlung"
+  - "8. Gemeinsamer Status + Originaltext, NurInSage nicht anzeigen – beantwortet 2026-11-24: ok, wie Empfehlung"
+  - "9. FA-Arbeitsgänge (IDEAL) nicht dabei – beantwortet 2026-11-24: ok, wie Empfehlung"
+  - "10. Standard-Zeitraum 30 Tage, offene Zeilen immer + Hinweis – beantwortet 2026-11-24: ok, wie Empfehlung"
+  - "11. „nacherfasst“-Zusatz in „Erfasst von“ – beantwortet 2026-11-24: ok, wie Empfehlung"
+  - "12. NEU (Lücke aus Antwort 6 + 7): Einkauf-Benutzer ohne Lager-Recht sehen heute „Einkauf → Sage-Wareneingänge (offen)“ (RequireEinkaufAccess, kein stock_read). Eine Umleitung auf die stock_read-Seite endet für sie mit 403. Empfehlung (a): Sage-Buchungen zusätzlich für Einkauf lesbar (Rolle einkauf + EinkaufAktiv), Einkauf sieht dort nur WE-Zeilen, keine Lagerbuchungen, keine Knöpfe; Einkauf-Menüpunkt bleibt und landet über die Umleitung. Alternativen: (b) Einkauf-Ansicht bleibt unverändert, (c) Umleitung trotzdem, Einkauf braucht künftig stock_read."
 epic: false
 etappen: []
 deploy:
   web: true
   service: false
   migration: false
-freigabe_entscheidung: ""
+freigabe_entscheidung: "A"
 freigabe_von: ""
 freigabe_am: ""
 ---
 
 ## Ziel / Nutzen (das Warum)
 
-Gerald will an **einer** Stelle sehen, was das WMS an Sage übergibt und wo es hängt – heute muss er dafür drei Seiten kennen, und eine
-davon (FA-Arbeitsgänge) zeigt Warteschlangen-Zeilen nur, solange der FA noch in der Struktur steht. Die Gesamtsicht ist **nur lesend**:
-Sie bündelt den Stand, die Reparatur (Erneut senden, Klären, Bestätigen) bleibt auf der jeweiligen Fachseite mit ihren Rechten und
-Sage-Prüfungen.
+Gerald will an **einer** Stelle sehen und reparieren, was das WMS an Sage übergibt. Heute braucht er dafür zwei Seiten mit eigenen Filtern
+und eigenen Knöpfen: „Sage-Lagerbuchungen“ (`SageBookingQueue`) und „Sage-Wareneingänge“ (`PurchaseOrders/SageWareneingaenge`, dazu die
+Einkauf-Sicht „(offen)“). Entscheidung Gerald 2026-11-24 (Antworten 1–11): Die Seiten werden **zusammengeführt, mit allen Funktionen beider
+Seiten**. Die Seite „Sage-Buchungen“ ist dabei nicht mehr nur lesend: Lagerbuchungen und Sage-Wareneingänge werden dort auch repariert.
 
 ## Umfang (In-Scope / Out-of-Scope)
 
-### Ist-Stand: alle Schreibwege WMS → Sage (gegengeprüft im Bündel-Worktree, Stand v1.99.61)
+### Ist-Stand: alle Schreibwege WMS → Sage (gegengeprüft im Bündel-Worktree, Stand v1.99.61, Zeilen 2026-11-24 nachgeprüft)
 
 Gesucht über `HttpMethod.*`, `new HttpRequestMessage(`, `PostAsync|PutAsync|PostAsJson|PutAsJson|PatchAsync`, SQL-Schreibbefehle auf
 `KHK*` und `ExecuteNonQuery`/`ExecuteSql*` in Web und Dienst. Ergebnis: **genau drei SData-POST-Stellen, alle im Dienst, alle aus
@@ -63,189 +73,240 @@ Gesucht über `HttpMethod.*`, `new HttpRequestMessage(`, `PostAsync|PutAsync|Pos
 
 | Weg | POST (Client) | Aufruf im Dienst | Ablage (WMS-DB) | Status-Enum | Anzeige heute | Recht Anzeige / Aktion |
 |---|---|---|---|---|---|---|
-| Lagerbuchung (Zugang/Entnahme/Umbuchung) | `SageLagerbuchungClient.cs:45` | `SageBookingWorker.cs:443`, Protokoll `SyncLogServices.SageLagerbuchung` (`:349`) | `SageBookingQueueItems` (FK `StockMovementId`), angelegt vom Decorator `SageBookingEnqueueingStockMovementRepository.cs:65-69` und vom Nacherfassungs-Lauf `SageBookingQueueRepository.cs:140-187` | `SageBookingQueueStatus` Offen/Gesendet/Bestaetigt/Fehler (`SageBookingQueueStatus.cs:11-17`) | „Sage-Lagerbuchungen“ `SageBookingQueueController.Index` (`:64-93`), alle Einträge ohne Zeitraum (`SageBookingQueueRepository.cs:77-88`) | Klasse `[RequireStockReadAccess]` (`:15`); „Erneut senden“ `[RequireStockKeyUserAccess]` (`:97`), Knopf über `CanTransferStockAsync` (`Index.cshtml:6`) |
-| Sage-Wareneingangsbeleg (ELL) | `SageWareneingangClient.cs:47` | `SageWareneingangService.cs:151`, gestartet `SageBookingWorker.cs:210`, Protokoll `SyncLogServices.SageWareneingang` (`:197`, `:225`) | `PurchaseOrderReceipts.SageWeStatus` + `SageWe*`-Felder (`PurchaseOrderReceipt.cs:51-62`), ein Beleg je `SageWeVorgang` | `SageWareneingangStatus` NichtNoetig/Offen/Gesendet/Uebergeben/Fehler/NurInSage/Klaeren (`PurchaseOrderReceipt.cs:15-26`) | „Sage-Wareneingänge“ `PurchaseOrdersController.SageWe.cs:61-117` (ohne `NichtNoetig`, Repository `PurchaseOrderReceiptRepository.cs:92`), Einkauf-Variante „(offen)“ `EinkaufPurchaseOrdersController.cs:29` | Klasse `[RequireStockReadAccess]` + `[RequireWareneingangBestellungAktiv]` (`PurchaseOrdersController.cs:17-18`); Erneut senden / Als übergeben / CSV `[RequireStockKeyUserAccess]` (`SageWe.cs:121-167`) |
-| FA-Arbeitsgänge anlegen (nur IDEAL) | `SageFaArbeitsgangClient.cs:84` | `SageFaArbeitsgangService.cs:157`, gestartet `SageBookingWorker.cs:288`, Protokoll `SyncLogServices.SageFaArbeitsgaenge` (`:274`) | `SageFaArbeitsgangAnlagen` (`SageFaArbeitsgangAnlage.cs:21-40`), eindeutig je (BelId, Sage-AG) | `SageFaArbeitsgangStatus` Offen/Gesendet/Angelegt/InSageVorhanden/Fehler (`SageFaArbeitsgangAnlage.cs:4-14`); „unklar“ = Fehler mit Text-Präfix (`SageFaArbeitsgaenge.cs:40-44`) | **keine eigene Warteschlangen-Liste**: „Arbeitsgänge → Sage“ (`SageFaArbeitsgaengeController.Index`) ist eine Vorschau FA × Kürzel aus der aktiven FA-Struktur (`:77-79`, `VerschwundenSeit == null`), die den Warteschlangen-Status nur über diese Knoten einblendet (`:119-120`, Repository nur `GetByBelIdsAsync` `SageFaArbeitsgangAnlageRepository.cs:25-26`) – Zeilen verschwundener FAs sieht man nirgends | Klasse `[RequireAdminAccess]` (`:18`) + Gate `ProduktionsauftragHierarchisch` (`:67-71`); Anlegen/Bestätigen ebenfalls Admin (`:151`, `:192`) |
+| Lagerbuchung (Zugang/Entnahme/Umbuchung) | `SageLagerbuchungClient.cs:45` | `SageBookingWorker.cs:443`, Protokoll `SyncLogServices.SageLagerbuchung` (`:349`) | `SageBookingQueueItems` (FK `StockMovementId`), angelegt vom Decorator `SageBookingEnqueueingStockMovementRepository.cs:65-69` (`CreatedBy` = Akteur der Buchung, `SageBookingQueueRepository.cs:35`) und vom Nacherfassungs-Lauf `SageBookingQueueRepository.cs:140-187` (`CreatedBy = system:sage-booking`, `:169`) | `SageBookingQueueStatus` Offen/Gesendet/Bestaetigt/Fehler (`SageBookingQueueStatus.cs:11-17`) | „Sage-Lagerbuchungen“ `SageBookingQueueController.Index` (`:64-93`), alle Einträge ohne Zeitraum (`SageBookingQueueRepository.cs:77-88`) | Klasse `[RequireStockReadAccess]` (`:15`); „Erneut senden“ `[RequireStockKeyUserAccess]` (`:97`), Knopf über `CanTransferStockAsync` (`Index.cshtml:6`) |
+| Sage-Wareneingangsbeleg (ELL) | `SageWareneingangClient.cs:47` | `SageWareneingangService.cs:151`, gestartet `SageBookingWorker.cs:210`, Protokoll `SyncLogServices.SageWareneingang` | `PurchaseOrderReceipts.SageWeStatus` + `SageWe*`-Felder (`PurchaseOrderReceipt.cs:51-62`), ein Beleg je `SageWeVorgang` (`:52-53`) | `SageWareneingangStatus` NichtNoetig/Offen/Gesendet/Uebergeben/Fehler/NurInSage/Klaeren (`PurchaseOrderReceipt.cs:15-26`) | „Sage-Wareneingänge“ `PurchaseOrdersController.SageWe.cs:61-117` (ohne `NichtNoetig`, `PurchaseOrderReceiptRepository.cs:92`), Einkauf-Variante „(offen)“ `EinkaufPurchaseOrdersController.cs:29-34` (`OffeneSageWeStatus`, `SageWe.cs:55-59`, enthält NurInSage) | Lager: Klasse `[RequireStockReadAccess]` + `[RequireWareneingangBestellungAktiv]` (`PurchaseOrdersController.cs:17-18`); Einkauf: `[RequireEinkaufAccess]` + `[RequireEinkaufAktiv]` (`EinkaufPurchaseOrdersController.cs:14-15`), **ohne Lager-Recht**; Erneut senden / Als übergeben / CSV `[RequireStockKeyUserAccess]` (`SageWe.cs:121-167`) |
+| FA-Arbeitsgänge anlegen (nur IDEAL) | `SageFaArbeitsgangClient.cs:84` | `SageFaArbeitsgangService.cs:157` | `SageFaArbeitsgangAnlagen` | `SageFaArbeitsgangStatus` | „Arbeitsgänge → Sage“ | Admin + `ProduktionsauftragHierarchisch` – **nicht Teil der Seite (Antwort 9)** |
 
-Belegte Nicht-Wege (damit niemand sie später als fehlend sucht):
+Belegte Nicht-Wege (unverändert gültig):
 
-- **Vorgemerkte Stammdaten-Übergaben** (Lagerplätze, BDE-Mitarbeiter) in `SageStammdatenOutbox` werden **nicht gesendet**: kein Worker,
-  kein Client (`SageStammdatenOutbox.cs:9-10`, `SageStammdatenOutboxItem.cs:6-11`; einzige Schreiber `StorageLocationRepository.cs:22`,
-  `BdeOperatorRepository.cs:32/44`, `LagerplatzSyncService.cs:183` – nur Vormerken/Erledigen in der WMS-DB).
-- **Beschichtungsauftrag, BF-Auftrag, Kreditoren, Sage-Benutzerfelder** schreiben nicht an Sage: Kein `HttpMethod.Post/Put/Patch` außer den
-  drei Clients; die Web-SData-Zugriffe sind GET (`SageSdataReadClient.cs:97`, `:248`, `:280`; `ServiceSettingsController.cs:199`). BF und
-  Beschichtung erzeugen Mails/CSV (`BfAuftragEmailService.cs:59`), keine Sage-Buchung.
-- **Kein SQL-Schreiben in die Sage-DB:** keine Treffer für `UPDATE|INSERT INTO|MERGE … KHK*`; die `ExecuteNonQuery`-Stellen im
-  Sage-Import laufen auf der WMS-Verbindung (`SageImportService.cs:137`, `:218`, `:306`, `:343`).
-- **Kommissionierung geht nie an Sage:** Kommissionier-Transfers sind Umbuchungen mit FA-Text (`PickingTransferService.cs:216-218`), und
-  Umbuchungen mit FA-Bezug schließen Decorator und Nacherfassung aus (`SageBookingEnqueueDecision.cs:74-75`,
-  `SageBookingQueueRepository.cs:152`). Die Backlog-Idee „Herkunft Kommissionierung“ entfällt damit.
-- **Wareneingang ohne Sage-WE** (`SageWeStatus = NichtNoetig`) steht schon heute in „Sage-Lagerbuchungen“ (als Einbuchung in der Queue);
-  mit Sage-WE ist er bewusst ausgeschlossen (`SageBookingEnqueueDecision.cs:70`, `SageBookingQueueRepository.cs:154`). Die
-  Backlog-Aussage dazu stimmt.
+- **Vorgemerkte Stammdaten-Übergaben** in `SageStammdatenOutbox` werden **nicht gesendet**: kein Worker, kein Client
+  (`SageStammdatenOutbox.cs:9-10`, `SageStammdatenOutboxItem.cs:6-11`).
+- **Beschichtungsauftrag, BF-Auftrag, Kreditoren, Sage-Benutzerfelder** schreiben nicht an Sage (Web-SData-Zugriffe sind GET,
+  `SageSdataReadClient.cs:97`, `:248`, `:280`; BF/Beschichtung erzeugen Mails/CSV, `BfAuftragEmailService.cs:59`).
+- **Kein SQL-Schreiben in die Sage-DB** (die `ExecuteNonQuery`-Stellen im Sage-Import laufen auf der WMS-Verbindung,
+  `SageImportService.cs:137`, `:218`, `:306`, `:343`).
+- **Kommissionierung geht nie an Sage:** Umbuchungen mit FA-Bezug schließen Decorator und Nacherfassung aus
+  (`SageBookingEnqueueDecision.cs:69`, `:74-75`; `SageBookingQueueRepository.cs:152`).
+- **Wareneingang ohne Sage-WE** (`SageWeStatus = NichtNoetig`) steht als Einbuchung in der Queue; mit Sage-WE (auch NurInSage) nie
+  (`SageBookingEnqueueDecision.cs:70`, `SageBookingQueueRepository.cs:154`). Es gibt also keine Doppelzeile zwischen den beiden Quellen.
 
 **In-Scope**
-- Eine lesende Liste über die drei Wege (Zeile = ein Queue-Eintrag, ein Wareneingang mit `SageWeStatus <> NichtNoetig`, eine AG-Anlage).
-- Gemeinsamer Anzeige-Status (nur Zuordnung, die Enums bleiben unverändert).
-- Spalte „Herkunft“ aus vorhandenen Feldern abgeleitet, Spalte „Bezug“, Link zur Fachseite.
-- Listen-View-Pflichten (ADR 0005), Rechte je Weg (ADR 0006), Navigation über `NavigationKatalog` (ADR 0034).
+- Die Seite `SageBookingQueue/Index` heißt „Sage-Buchungen“ und zeigt Lagerbuchungen (Queue) und Sage-Wareneingänge
+  (`SageWeStatus` ∉ {NichtNoetig, NurInSage}) in einer Liste, mit allen Filtern, Hinweisen und Knöpfen beider bisherigen Seiten.
+- Alte Listen-Routen (Lager und Einkauf) leiten um; Menüpunkt „Sage-Wareneingänge“ entfällt; alle Verweise werden nachgezogen.
+- Listen-View-Pflichten (ADR 0005), Zahnrad (ColumnDefinitions), Navigation über `NavigationKatalog` (ADR 0034).
 
 **Out-of-Scope**
-- Neue Schreibaktionen in der Gesamtsicht für Wareneingang und FA-Arbeitsgänge (Erneut senden, Als übergeben, Bestätigen, CSV bleiben auf
-  ihren Seiten). Bei Variante A bleibt „Erneut senden“ für Lagerbuchungs-Zeilen, weil die Seite deren Fachseite ist.
-- `SageStammdatenOutbox` (sendet nichts; aufnehmen erst, wenn es einen Sende-Worker gibt).
-- Umbau der Status-Enums, Umbau der Fachseiten (Variante B lässt sie unverändert; Variante A ändert nur die Lagerbuchungs-Seite).
-- Live-Lesen in Sage (die Gesamtsicht zeigt nur den WMS-Stand der Warteschlangen).
+- FA-Arbeitsgänge (Antwort 9), `SageStammdatenOutbox` (sendet nichts).
+- Neue Schreibaktionen: es werden nur die bestehenden POST-Actions wiederverwendet (Antwort 3).
+- Umbau der Status-Enums, des Dienstes oder der Sende-Logik; Live-Lesen in Sage.
+- „Nur in Sage buchen“-Wareneingänge (Antwort 8). Folge, nur zur Kenntnis: Sie stehen danach in keiner Liste mehr, auch nicht im Einkauf
+  „nur offene“ (bisher enthalten, `SageWe.cs:58`). Sichtbar bleiben sie als Zähler „Sage-Wareneingang: n× Status“ je Position in den Offenen
+  Bestellungen (`PurchaseOrderReceiptRepository.cs:18`, `:84`; `PurchaseOrderListViewModel.cs:42`).
 
 ## Fachliche Anforderungen
 
-**F1 Quellen und Zeilen.** Die Liste zeigt je Weg:
-- Lagerbuchung: jeden `SageBookingQueueItem`.
-- Sage-Wareneingang: jeden `PurchaseOrderReceipt` mit `SageWeStatus <> NichtNoetig` (wie `PurchaseOrderReceiptRepository.cs:92`), eine Zeile je
-  Position (wie die Fachseite; ein ELL-Beleg umfasst alle Positionen eines `SageWeVorgang`).
-- FA-Arbeitsgang: jede `SageFaArbeitsgangAnlage`, **auch** wenn der FA nicht mehr in der aktiven Struktur steht.
+**F1 Quellen und Zeilen.**
+- Lagerbuchung: jeder `SageBookingQueueItem`, eine Zeile.
+- Sage-Wareneingang: jeder `PurchaseOrderReceipt` mit `SageWeStatus` ∉ {NichtNoetig, NurInSage}, **eine Zeile je Position** (Antwort 4).
+  Ein Vorgang (`SageWeVorgang`) ist ein ELL-Beleg mit allen Positionen.
 
-**F2 Anzeige-Status** (Auswahlliste im Filter; die Spalte „Status im Weg“ zeigt zusätzlich den Originaltext der Fachseite):
+**F2 Gemeinsamer Status** (Antwort 8; Auswahlliste „Status“ in der Filterkarte, Spalte „Status im Weg“ zeigt den Originaltext):
 
-| Anzeige | Lagerbuchung (`SageBookingQueueStatus`) | Wareneingang (`SageWareneingangStatus`) | FA-Arbeitsgang (`SageFaArbeitsgangStatus`) | erledigt? |
+| Anzeige (`SageBuchungAnzeige`) | Lagerbuchung | Sage-Wareneingang | offen? | Badge |
 |---|---|---|---|---|
-| wartet | Offen | Offen | Offen | nein |
-| gesendet (Antwort offen) | Gesendet | Gesendet | Gesendet | nein |
-| übergeben | Bestaetigt | Uebergeben | Angelegt, InSageVorhanden | ja |
-| Fehler | Fehler | Fehler | Fehler (ohne „Antwort unklar“) | nein |
-| klären | – | Klaeren | Fehler mit `SageFaArbeitsgaenge.IstUnklar` (`SageFaArbeitsgaenge.cs:43`) | nein |
-| von Hand in Sage | – | NurInSage | – | ja (siehe Rückfrage 5/7) |
+| wartet (`Wartet`) | Offen | Offen | ja | `text-bg-secondary` |
+| gesendet (`Gesendet`) | Gesendet | Gesendet | ja | `text-bg-info` |
+| übergeben (`Uebergeben`) | Bestaetigt | Uebergeben | nein | `text-bg-success` |
+| Fehler (`Fehler`) | Fehler | Fehler | ja | `text-bg-danger` |
+| klären (`Klaeren`) | – | Klaeren | ja | `text-bg-warning` |
+| – (nicht angezeigt) | – | NichtNoetig, NurInSage | – | – |
 
-Originaltexte: Lagerbuchung `SageBookingQueueController.StatusText` (`:32-39`), Wareneingang `PurchaseOrdersController.SageWeStatusText`
-(`SageWe.cs:17-27`), FA-Arbeitsgang die Texte aus `SageFaArbeitsgaenge.QueueStatus` (`:126-139`). Badge-Farben wie heute
-(`Index.cshtml:71-77`), „klären“ gelb mit dunkler Schrift; der Text steht immer im Badge (Farbe nie allein).
+Originaltexte unverändert: `SageBookingQueueController.StatusText` (`:32-39`) und `PurchaseOrdersController.SageWeStatusText` (`SageWe.cs:17-27`).
+Der Text steht immer im Badge (Farbe nie allein); `text-bg-*` setzt die Schriftfarbe passend (Kontrast WCAG AA).
 
-**F3 Herkunft** (aus gespeicherten Feldern, Reihenfolge = Vorrang, nicht aus Namen geraten):
+**F3 Herkunft** (Antwort 2; Spalte „Herkunft“ + Auswahlliste „Herkunft“ in der Filterkarte, Reihenfolge = Vorrang, aus gespeicherten Feldern):
 
-| Herkunft | Regel | Beleg |
+| Herkunft (`SageBuchungHerkunft`) | Regel | Beleg |
 |---|---|---|
-| Wareneingang (Sage-WE) | Zeile aus `PurchaseOrderReceipts` | F1 |
-| Wareneingang zu Bestellung | Queue-Zeile, `StockMovement.PurchaseOrderReceipt != null` (dann `NichtNoetig`) | `StockMovement.cs:59`, `PurchaseOrderReceipt.cs:36` |
-| Lagerbestellung | Queue-Zeile, `StockMovement.WarehouseRequisitionItemId != null` | `StockMovement.cs:64` (v1.99.53) |
-| Einbuchung / Ausbuchung / Umbuchung | Queue-Zeile, sonst nach `MovementType`; Ausbuchung mit FA-Text als „Ausbuchung (FA)“ | `StockMovement.cs:22`, `:31` |
-| FA-Arbeitsgang | Zeile aus `SageFaArbeitsgangAnlagen` | F1 |
+| Wareneingang | Zeile aus `PurchaseOrderReceipts` (Sage-WE) | F1 |
+| Lagerbestellung | Queue-Zeile, `StockMovement.WarehouseRequisitionItemId != null` | `StockMovement.cs:64` |
+| Einbuchung / Ausbuchung / Umbuchung | Queue-Zeile nach `StockMovement.MovementType` | `StockMovement.cs:22`, `SageBookingEnqueueDecision.cs:40-52` |
 
-Ob eine Ein-/Ausbuchung aus der Einzel-, Mehrfach- oder Lagerplatz-Maske kam, speichert das WMS nicht – die Herkunft wird darum nicht
-feiner. Eine nachträglich eingereihte Buchung (`CreatedBy = system:sage-booking`, `SageBookingQueueRepository.cs:12`, `:169`) bekommt den
-Zusatz „nacherfasst“ in der Spalte „Erfasst von“ (der Wert steht schon dort).
+Umbuchungen kommen nur bei eingeschaltetem `SageLagerbuchungUmbuchungAktiv` in die Queue (`SageBookingEnqueueDecision.cs:68`); die Seite
+zeigt einfach, was in der Queue steht. Ein Wareneingang **ohne** Sage-WE ist eine Queue-Einbuchung und erscheint als „Einbuchung“ (wie heute).
 
-**F4 Spalten:** Herkunft, Erstellt, Status (Anzeige), Status im Weg, Bezug (Artikel bzw. „Bestellung <Belegnummer> Pos <BelPosId>“ bzw.
-„FA <BelId> AG <SageArbeitsgangnummer> (<Kürzel>)“), Menge, Lagerplatz, Sage-Beleg/Kennung (Queue `SageKennung`, WE `SageWeBelegnummer`
-sonst `SageWeKennung`, FA leer), Übergeben am (Queue `ConfirmedAt`, WE `SageWeAm`, FA `SageAm`), Versuche (`AttemptCount` /
-`SageWeVersuche` / `Versuche`), Fehler (`LastError` / `SageWeFehler` / `Fehler`), Erfasst von (`CreatedBy`), Aktion.
-Leere Zellen bleiben leer (FA-Zeilen haben keine Menge/keinen Platz).
+> [!note] Überholt (Entwurf 2026-11-23)
+> Die Herkunftswerte „Wareneingang zu Bestellung“ (Queue-Zeile mit `PurchaseOrderReceipt`), „Ausbuchung (FA)“ und „FA-Arbeitsgang“ entfallen
+> mit Antwort 2 und 9.
 
-**F5 Aktion je Zeile:** Link „zur Fachseite“:
-- Wareneingang → `PurchaseOrders/SageWareneingaenge?bestellung=<Belegnummer>` (Parameter vorhanden, `SageWe.cs:61`).
-- FA-Arbeitsgang → `SageFaArbeitsgaenge/Index?fa=<BelId>` (`SageFaArbeitsgaengeController.cs:64`); steht der FA nicht mehr in der Struktur,
-  Hinweis „FA nicht mehr in der FA-Struktur“ statt eines Links ins Leere.
-- Lagerbuchung → Variante A: unverändert „Erneut senden“ bei Fehler (gleiche Rechte wie heute); Variante B: Link
-  `SageBookingQueue/Index?colf_id=<Id>` (Spaltenfilter-Präfix `ColumnFilterHelper.cs:12`).
+**F4 Spalten** (Reihenfolge; „Zahnrad“ = `ColumnDefinitions`, Antwort 5):
 
-Keine weitere Schreibaktion.
+| Key | Kopf | Lagerbuchung | Sage-Wareneingang | Standard |
+|---|---|---|---|---|
+| `id` | # | Queue-`Id` | leer | sichtbar |
+| `herkunft` | Herkunft | F3 | „Wareneingang“ | sichtbar, gesperrt |
+| `status` | Status | Anzeige F2 | Anzeige F2 | sichtbar, gesperrt |
+| `status-weg` | Status im Weg | `StatusText` | `SageWeStatusText` | sichtbar |
+| `created-at` | Erstellt | `CreatedAt` | `Receipt.CreatedAt` | sichtbar |
+| `bestellung` | Bestellung | leer | `Belegnummer` | sichtbar |
+| `pos` | Pos.-ID | leer | `BelPosId` | sichtbar |
+| `article` | Artikel | `StockMovement.Article.ArticleNumber` | dto. über `Receipt.StockMovement` | sichtbar |
+| `quantity` | Menge | `StockMovement.Quantity` | `Receipt.Quantity` (wie `SageWe.cs:41`) | sichtbar |
+| `storage-location` | Lagerplatz | `StockMovement.StorageLocation.Code` | dto. | sichtbar |
+| `sagebeleg` | Sage-Beleg | leer | `SageWeBelegnummer` | sichtbar |
+| `sent-at` | Gesendet | `SentAt` | leer | sichtbar |
+| `confirmed-at` | Übergeben am | `ConfirmedAt` | `SageWeAm` | sichtbar |
+| `attempts` | Vers. | `AttemptCount` | `SageWeVersuche` | sichtbar |
+| `error` | Fehler | `LastError` + „Sage-Antwort“-Details wie heute (`Index.cshtml:89-106`) | `SageWeFehler` (pre-wrap wie `SageWareneingaenge.cshtml:123`) | sichtbar |
+| `erfasst-von` | Erfasst von | F6 | `Receipt.CreatedBy` | sichtbar |
+| `lieferschein` | Lieferschein | leer | `Lieferschein` | **ausgeblendet** |
+| `barcode` | Barcode | leer | `Barcode` | **ausgeblendet** |
+| `memo-position` | Positionsmemo | leer | `StockMovement.Note` | **ausgeblendet** |
+| `memo` | Memo | leer | Memo-Kennung je Vorgang (`SageWe.cs:77-79`) | **ausgeblendet** |
+| `csv` | CSV | leer | `WareneingangCsv.StatusText` (`SageWe.cs:93`) | **ausgeblendet** |
+| `actions` | – | F5 | F5 | sichtbar, gesperrt |
 
-**F6 Rechte je Weg** (Rückfrage 4): Zeilen eines Weges erscheinen nur, wenn `NavigationSicht` die Fachseite zeigt –
-Lagerbuchung `NavZiele.SageLagerbuchungen` (stock_read-Kreis, `NavigationKatalog.cs:255`), Wareneingang `SageWareneingaengeLager`
-(`WareneingangBestellungAktiv` && stock_read, `:258`), FA-Arbeitsgang `ArbeitsgaengeSage` (Admin && hierarchisch, `:287`). Damit sieht
-niemand in der Gesamtsicht mehr als auf den Fachseiten und kein Link führt auf 403.
+Die Spalte „Bewegung“ (`movement-type`) geht in „Herkunft“ auf. Leere Zellen bleiben leer.
 
-**F7 Zeitraum und Filter:** Filterkarte mit „Erstellt ab“ (Datum, Default nach Rückfrage 5: heute − 30 Tage), „Erstellt bis“ (leer) und
-Anzeige-Status (Auswahlliste F2, „Alle“). Nicht erledigte Zeilen (F2) erscheinen unabhängig vom Zeitraum; darüber ein Hinweis
-„n nicht erledigte Übergaben, davon m älter als der Zeitraum“, wenn m > 0 (melden statt still).
+**F5 Aktionen** (Antwort 3, 4, 7; Rechte wie heute):
+- Lagerbuchung, Status Fehler: „Erneut senden“ → `SageBookingQueue/Requeue` (`:95-115`), Knopf bei `CanTransferStockAsync` (wie `Index.cshtml:6`).
+- Sage-Wareneingang, **je Vorgang einmal**, an der ersten Zeile des Vorgangs auf der angezeigten Seite (Reihenfolge der Liste):
+  - Status Fehler/Klären: „Erneut senden“ → `PurchaseOrders/SageWeErneutSenden` und „Als übergeben markieren“ mit Pflichtfeld Belegnummer
+    (max. `SagePurchaseOrderLine.BelegnummerMaxLaenge`) → `PurchaseOrders/SageWeAlsUebergeben`, Texte/Tooltips wie `SageWareneingaenge.cshtml:126-137`.
+  - CSV-Fehler: „CSV erneut schreiben“ → `PurchaseOrders/CsvErneutSchreiben` mit dem Hinweistext wie `SageWareneingaenge.cshtml:139-147`.
+  - Knöpfe nur, wenn `CanTransferStockAsync` **und** `WareneingangBestellungAktiv` an (wie `SageWe.cs:101-109`; die POST-Actions liegen hinter dem
+    Klassen-Gate von `PurchaseOrdersController`, `PurchaseOrdersController.cs:17-18`).
+  - Übrige Zeilen desselben Vorgangs auf der Seite zeigen in der Aktionsspalte „gehört zu Vorgang <Memo-Kennung>“ (kleiner, gedämpfter Text;
+    die Kennung ist die lesbare Form des Vorgangs, `SageWareneingang.Kennung`).
+  - Warum „auf der angezeigten Seite“ statt „kleinste Id“: Bei Spaltenfilter oder Seitenwechsel kann die erste Position fehlen; dann gäbe es
+    keinen Knopf. Die Aktion gilt ohnehin für den ganzen Vorgang (`PurchaseOrderReceiptRepository.cs:102-103`, `:117-118`).
+- Alle Formulare senden `returnUrl` = aktuelle URL (Filter, Seite). Die POST-Actions leiten bei `Url.IsLocalUrl(returnUrl)` dorthin zurück, sonst
+  auf `SageBookingQueue/Index` (WE-Actions mit `herkunft=Wareneingang`). Muster `BdeTeilelisteController.cs:184`. Meldungen über
+  `TempData["SuccessMessage"]`/`["WarningMessage"]` unverändert.
+
+**F6 „Erfasst von“** (Antwort 11): Lagerbuchung = `StockMovement.CreatedBy` (wer gebucht hat); hat die Queue-Zeile
+`CreatedBy = SageBookingQueueRepository.ServiceActor` (`:12`, Nacherfassung `:169`) und die Bewegung einen Akteur, folgt der Zusatz
+„(nacherfasst)“. Ohne Akteur an der Bewegung steht der Service-Akteur da (wie `:35`), ohne Zusatz. Wareneingang = `Receipt.CreatedBy`.
+
+**F7 Rechte** (Antwort 7, Rückfrage 12):
+- Seite: `stock_read`-Kreis (`CurrentUserService.cs:104-105`), Klassenfilter bleibt `[RequireStockReadAccess]` – bei Rückfrage 12 (a) zusätzlich
+  Einkauf, siehe Lösungsentwurf.
+- Lagerbuchungs-Zeilen: `stock_read`-Kreis.
+- WE-Zeilen: nur bei `WareneingangBestellungAktiv` = `true` (gleiche Lese-Semantik wie `NavigationKatalog.cs:243`) und `stock_read`;
+  bei Rückfrage 12 (a) zusätzlich für Einkauf (`EinkaufAktiv` + Rolle einkauf, ohne Modulbedingung wie heute, `EinkaufPurchaseOrdersController.cs:10`).
+- Aktionen: wie F5 (Keyuser/Admin über `RequireStockKeyUserAccess`).
+- Wer keine WE-Zeilen sehen darf, sieht auch die Auswahl „Herkunft = Wareneingang“, die WE-Spalten, die WE-Hinweise und die Filter
+  „Bestellung“ nicht.
+
+**F8 Filterkarte und Zeitraum** (Antwort 10; GET-Formular wie `SageWareneingaenge.cshtml:52-81`):
+- „Herkunft“ (Auswahlliste F3, „Alle“), „Status“ (Auswahlliste F2, „Alle“), „nur offene“ (Haken: wartet/gesendet/Fehler/klären),
+  „Bestellung“ (Text, enthält – wie `PurchaseOrderReceiptRepository.cs:94`; gesetzt ⇒ nur WE-Zeilen), „von“/„bis“ (Datum, Erstellt).
+- Ohne „von“ gilt heute − 30 Tage; das Feld zeigt den wirksamen Wert. „Zurücksetzen“ = Standard.
+- Offene Zeilen erscheinen **immer**, unabhängig von „von“/„bis“. Liegen offene Zeilen außerhalb des Zeitraums, steht über der Tabelle
+  „n offene Buchungen außerhalb des Zeitraums werden mit angezeigt.“ (melden statt still). Herkunft/Status/Bestellung/Spaltenfilter gelten
+  auch für diese Zeilen.
+- Query-Parameter: `herkunft`, `status`, `nurOffene`, `bestellung`, `von`, `bis`, `page`, `pageSize`, `colf_*`. `status` bindet an
+  `SageBuchungAnzeige`; die Werte heißen so, dass alte Lesezeichen `?status=Fehler|Gesendet` und WE-Werte `Klaeren|Uebergeben` weiter binden;
+  `?status=Offen|Bestaetigt` bindet nicht und zeigt „Alle“ (kein Fehler).
+
+**F9 Hinweise und Kopf** (alles aus beiden Seiten bleibt):
+- TLS-Banner (`Index.cshtml:16-29`) wie heute.
+- Q-2-Hinweis „Sage-Wareneingang ist aus …“ (`SageWe.cs:110`, `SageWareneingang.AusHinweis`) und CSV-Hinweise (`SageWe.cs:111`) – nur wenn
+  WE-Zeilen sichtbar.
+- Knopf „Wareneingang zu Bestellung“ (`SageWareneingaenge.cshtml:17-20`) – nur wenn WE-Zeilen sichtbar und `CanAccessStockAsync`.
+- Einleitungstext: beide Texte (`Index.cshtml:31-35`, `SageWareneingaenge.cshtml:42-46`) zusammengefasst; Leerzeile „Keine Einträge.“
+
+**F10 Alte Seiten** (Antwort 6):
+- `GET PurchaseOrders/SageWareneingaenge` → 301 auf `SageBookingQueue/Index?herkunft=Wareneingang` und reicht `bestellung`, `von`, `bis` weiter;
+  `status` wird über die F2-Zuordnung übersetzt (Offen → Wartet; NichtNoetig/NurInSage → weggelassen). Muster „Abgeloeste Routen“
+  ([[controller]]; `ProductionOrdersController.cs:63-72`, `RedirectToActionPermanent`).
+- `GET EinkaufPurchaseOrders/SageWareneingaenge` → 301 auf dieselbe Seite mit zusätzlich `nurOffene=true` (Ergebnis für Einkauf-Benutzer
+  hängt an Rückfrage 12).
+- Menü: Lager-Eintrag „Sage-Wareneingänge“ entfällt. In-App-Favoriten können darauf nie gezeigt haben: Das Ziel hat keine Kategorie
+  (`NavigationKatalog.cs:91`), Favoriten zeigen nur Kacheln (`:195`); ein gespeicherter Key erscheint künftig als „… (nicht mehr vorhandene
+  Funktion)“ (`:197`). Browser-Lesezeichen landen über die Umleitung.
 
 ## Technischer Loesungsentwurf
 
-### Gemeinsamer Kern (beide Varianten)
+**Kern `IdealAkeWms/Services/SageBuchungenGesamtsicht.cs`** (statisch, DB-frei, Muster `SageFaArbeitsgaenge.BuildVorschau`):
+- `enum SageBuchungAnzeige { Wartet, Gesendet, Uebergeben, Fehler, Klaeren }`, `enum SageBuchungHerkunft { Einbuchung, Ausbuchung, Umbuchung,
+  Lagerbestellung, Wareneingang }` – nur Anzeige, keine DB-Spalte.
+- `Anzeige(SageBookingQueueStatus)` → `SageBuchungAnzeige`, `Anzeige(SageWareneingangStatus)` → `SageBuchungAnzeige?` (null = nicht anzeigen).
+- `Herkunft(StockMovement)`, `IstOffen(SageBuchungAnzeige)`, `ErfasstVon(SageBookingQueueItem)` (F6).
+- `record Zeile(...)` mit den Feldern aus F4 plus `Queue` (nullable), `We` (die bestehende `SageWareneingangZeile` mit Receipt/Memo/Csv/CsvFehler,
+  aus `SageWareneingaengeViewModel.cs:23` hierher verschoben) und `ZeigtWeAktionen`.
+- `Build(queue, weZeilen)` → Liste nach `CreatedAt` absteigend, dann `Id`; `MarkiereErsteJeVorgang(seite)` setzt `ZeigtWeAktionen` nach dem Paging.
 
-`IdealAkeWms/Services/SageBuchungenGesamtsicht.cs` (statisch, DB-frei, wie `SageFaArbeitsgaenge.BuildVorschau`):
-- `enum SageBuchungAnzeige { Wartet, Gesendet, Uebergeben, Fehler, Klaeren, VonHandInSage }` – nur Anzeige, keine DB-Spalte.
-- `record Zeile(...)` mit den Feldern aus F4, dazu `Weg`, `Herkunft`, `Anzeige`, `IstErledigt`, Link-Ziel.
-- `Anzeige(SageBookingQueueStatus)`, `Anzeige(SageWareneingangStatus)`, `Anzeige(SageFaArbeitsgangAnlage)` – drei kleine `switch` nach F2.
-- `Herkunft(StockMovement)` nach F3.
-- `Build(queue, receipts, anlagen, kuerzel, sichtbar: (lager, we, fa))` → `List<Zeile>`, sortiert nach Erstellt absteigend.
+**Repositories** (ADR 0001; je Quelle eine Abfrage, Regel `(CreatedAt >= von && CreatedAt < bis+1) || offen`):
+- `ISageBookingQueueRepository.GetForMonitoringAsync(DateTime von, DateTime? bis)` statt `(SageBookingQueueStatus?)`; einziger Aufrufer
+  `SageBookingQueueController.cs:71` (geprüft per Suche in allen `*.cs`). Includes wie heute (`:80-81`); `WarehouseRequisitionItemId` ist ein
+  Skalar am `StockMovement`, kein Include nötig.
+- `IPurchaseOrderReceiptRepository.GetSageWareneingaengeAsync(string? bestellung, DateTime von, DateTime? bis)`: zusätzlich ohne `NurInSage`, der
+  Status-Parameter entfällt (Filter läuft über F2); einziger Aufrufer `SageWe.cs:75`.
+- Die Memo/CSV-Aufbereitung aus `SageWeListeAsync` (`SageWe.cs:77-96`, inkl. `GetCsvExporteAsync`, `SageSystemKuerzel`, Schalter) zieht in den
+  Index der Gesamtsicht um, unverändert; `SageWeListeAsync` entfällt.
 
-Datenzugriff nur über Repositories (ADR 0001), je Quelle **eine** Abfrage mit derselben Zeitraum-Regel
-`CreatedAt >= ab || !erledigt` (F7). Nicht berechtigte Quellen werden gar nicht gelesen:
-- `ISageBookingQueueRepository.GetForMonitoringAsync(DateTime? ab)`: wie heute (`SageBookingQueueRepository.cs:77-88`), zusätzlich
-  `Include(StockMovement.PurchaseOrderReceipt)` und `SourceStorageLocation`. Der bisherige Status-Parameter entfällt (Filter läuft über
-  die Anzeige); einziger Aufrufer ist `SageBookingQueueController.cs:71`.
-- `IPurchaseOrderReceiptRepository.GetFuerGesamtsichtAsync(DateTime? ab)`: `SageWeStatus <> NichtNoetig`, Includes wie
-  `GetSageWareneingaengeAsync` (`:89-92`).
-- `ISageFaArbeitsgangAnlageRepository.GetFuerGesamtsichtAsync(DateTime? ab)`: `AsNoTracking`, keine Struktur-Abhängigkeit. Für den Hinweis
-  „FA nicht mehr in der FA-Struktur“ eine `SubFA`-Menge aus `IFaHierarchyNodeRepository.GetAllAsync()` (wie
-  `SageFaArbeitsgaengeController.cs:77`), nur wenn FA-Zeilen sichtbar sind.
+**`SageBookingQueueController.Index(SageBuchungHerkunft? herkunft, SageBuchungAnzeige? status, bool nurOffene, string? bestellung,
+DateTime? von, DateTime? bis, int page = 1, int? pageSize = null)`**:
+- Rechte F7 über `ICurrentUserService` + `IAppSettingRepository` (neue Ctor-Abhängigkeiten: `IPurchaseOrderReceiptRepository`,
+  `IAppSettingRepository`). Nicht sichtbare Quellen werden nicht gelesen; `herkunft=Wareneingang` lädt die Queue nicht, `bestellung` ebenso.
+- Union bauen → Filterkarte (Herkunft, Status, nurOffene) → `ColumnFilterHelper.Apply` über die ganze Union mit `ColumnMap` (gerenderter Zelltext,
+  Datum `dd.MM.yyyy HH:mm` wie `:57-59`) → `Skip/Take` → `MarkiereErsteJeVorgang`.
+- `PageSize.Resolve` + `PaginationState` als Model-Property, Seitenparameter `page` (Fallstrick 50).
+- `Requeue(int id, string? returnUrl)` sonst unverändert (`:95-115`).
+- `const int StandardTage = 30; // ponytail: feste 30 Tage, Einstellung erst bei Bedarf`.
 
-Memo-Kennung der WE-Zeilen über `SageWareneingang.Kennung` wie die Fachseite (`SageWe.cs:32`, `:77-79`), nicht neu berechnen.
+**`PurchaseOrdersController.SageWe.cs`**: `SageWareneingaenge(...)` wird Umleitung (F10); `SageWeErneutSenden`, `SageWeAlsUebergeben`,
+`CsvErneutSchreiben` bekommen `string? returnUrl` und ersetzen die fünf `RedirectToAction(nameof(SageWareneingaenge))` (`:129`, `:134`, `:148`,
+`:153`, `:166`) durch einen gemeinsamen Rücksprung (F5). Logik, Q-2-Sperre und Meldungstexte bleiben. `OffeneSageWeStatus` (`:55-59`) entfällt,
+wenn kein Aufrufer bleibt (Suche: nur `SageWe.cs:76`, `SageWareneingaenge.cshtml:8`).
 
-Listen-View-Pattern (ADR 0005, Referenz `ProductionOrdersController.Index`):
-- `PageSize.Resolve` + `PaginationState` + `_Pagination`, Seitenparameter heißt `page`, State als Model-Property (Fallstrick 50:
-  `PaginationSeiteKlemmenFilter` greift nur so).
-- Server-Spaltenfilter `data-server-column-filter="true"`, jedes `<th>` mit `data-col-key`, `ColumnFilterHelper.ReadFromQuery` →
-  `ColumnFilterHelper.Apply` über die **ganze Union**, danach `Skip/Take`. ColumnMap liefert den gerenderten Zelltext (Datum
-  `dd.MM.yyyy HH:mm` wie `SageBookingQueueController.cs:57-59`).
-- Typen im Register `ColumnFilterSyntax.cs` (Zahl: Menge, Versuche; Datum: Erstellt, Übergeben am) – P-2 (Kollation je Spalte) entfällt, weil
-  in C# gefiltert wird.
-- Filterkarte wie die bestehenden Listen (GET-Formular, Zeitraum + Anzeige-Status, „Zurücksetzen“).
+**View `Views/SageBookingQueue/Index.cshtml`**:
+- Titel/`ViewData["Title"]`/`h2` „Sage-Buchungen“.
+- Zahnrad: `data-table-toolbar`-Host, `<table data-view-key="SageBookingQueue" data-server-column-filter="true">`, jedes `<th>` mit
+  `data-col-key`, `#view-config` + `#column-config` (WE-Spalten `"defaultHidden": true`); Muster `Articles/Index.cshtml:140-152`,
+  `Receive.cshtml:114-118`, `:268-279`.
+- WE-Spalten-Köpfe, WE-Filter und WE-Hinweise nur, wenn WE-Zeilen sichtbar (F7) – dann auch nicht im `#column-config`.
+- Formulare der WE-Aktionen mit `asp-controller="PurchaseOrders"` (Wächter `PurchaseOrdersControllerTests.cs:252-254` zieht auf diese View um).
 
-### Variante A – „Sage-Lagerbuchungen“ wird die Gesamtsicht (Empfehlung)
+**`ColumnDefinitions`**: `ViewConfig SageBookingQueue` („Sage-Buchungen“, `SupportsReorder: false`, `SupportsSortDefault: false`) mit den Keys
+aus F4, gesperrt `herkunft`, `status`, `actions`, `DefaultHidden` für die fünf WE-Spalten; Eintrag in `GetByViewKey` (`:866-899`). Drift-Wächter
+`ViewKeyDriftGuardTests.ViewKey_Registriert` greift automatisch.
 
-- `SageBookingQueueController.Index(SageBuchungAnzeige? anzeige, DateTime? ab, DateTime? bis, int page, int? pageSize)` lädt die drei
-  Quellen (F6 über `NavigationSicht.GetAsync()`, scoped, schon in DI), baut die Union und filtert/paged wie oben. `Requeue` (`:95-115`)
-  bleibt unverändert.
-- View: neue Spalten Herkunft, Status im Weg, Bezug, Sage-Beleg, Erfasst von; Spalte „Bewegung“ entfällt in „Herkunft“; Fehler-/Antwort-Detail
-  wie heute (`Index.cshtml:89-106`). Einleitungstext nennt die drei Wege und dass Wareneingang/FA nur auf ihrer Seite repariert werden.
-- Navigation: kein neues `NavZiel`, Regel unverändert (`NavigationKatalog.cs:255`). Nur bei Rückfrage 6 = ja: `Titel` von
-  `NavZiele.SageLagerbuchungen` auf „Sage-Buchungen“ (`:88`) und Linktext `_Layout.cshtml:101`; Key, Route und Favoriten bleiben.
-- TLS-Banner (`Index.cshtml:16-29`) bleibt.
-- Alte Lesezeichen `?status=Fehler` binden auf `anzeige` nicht mehr → Liste „Alle“ (kein Fehler). Bewusst kein Altparameter (YAGNI).
+**`ColumnFilterSyntax.cs`**: Register `SageBookingQueue/Index` (`:70`) um `pos` (N) erweitern; `confirmed-at` bleibt D. Eintrag
+`PurchaseOrders/SageWareneingaenge` (`:85`) entfällt. P-2 (Kollation) entfällt, gefiltert wird in C#.
 
-Für A spricht (Ponytail-Leiter, Sprosse 2):
-- Geralds Wort „Maske Sage-Buchung“ zeigt auf eine bestehende Seite.
-- Kein neuer Controller, keine neue Route, kein neues `NavZiel`, kein neuer Menüeintrag.
-- Lagerbuchungs-Zeilen behalten „Erneut senden“ am selben Ort.
-- Die einzige Seite ohne Zeitraum (`GetForMonitoringAsync` lädt heute alles) bekommt nebenbei einen.
+**Navigation (Fallstrick 58, ADR 0034)**: `NavZiele.SageLagerbuchungen` Titel → „Sage-Buchungen“ (`:88`, Key bleibt); `SageWareneingaengeLager`
+aus `NavZiele` (`:91`), `Alle` (`:162`) und Regel (`:258`) entfernen; `_Layout.cshtml:101` Linktext, `:103-106` Block entfernen.
+`NavigationSichtTests.cs:295` erwartet künftig „Sage-Buchungen“. Einkauf-Eintrag (`:131`, `_Layout.cshtml:271-273`) nach Rückfrage 12.
 
-Dagegen spricht:
-- Die Lagerbuchungs-Seite ändert ihr Aussehen; wer nur Lagerbuchungen will, filtert die Spalte Herkunft.
-- Seitentitel und Inhalt passen nur mit der Umbenennung.
+**Rückfrage 12 (a), falls so beantwortet**: der Klassenfilter `[RequireStockReadAccess]` (`SageBookingQueueController.cs:15`) wandert an die
+Actions – `Index` bekommt den neuen kombinierten Filter `RequireStockReadOrEinkaufAccess` (stock_read-Kreis oder einkauf + `EinkaufAktiv`),
+`Requeue` behält `[RequireStockKeyUserAccess]` (`:97`) und bekommt `[RequireStockReadAccess]`; Einkauf-Benutzer ohne `stock_read` sehen nur WE-Zeilen, nie Knöpfe. Neuer Filter =
+drei Stellen (Attribut, [[controller]], `Views/Users/RoleOverview.cshtml`). Der Einkauf-Menüpunkt bleibt auf
+`EinkaufPurchaseOrders/SageWareneingaenge` und landet über die Umleitung.
 
-### Variante B – neue Seite „Sage-Übergaben“
-
-- Neuer `SageUebergabenController` (Klasse `[RequireStockReadAccess]` **oder** Admin – der Admin ist im stock_read-Kreis enthalten,
-  `CurrentUserService.cs:104-105`), Index wie oben, keine POST-Action. Neues ViewModel und neue View.
-- Navigation nach Fallstrick 58:
-  - `NavZiel("SageUebergaben", "Sage-Übergaben", "SageUebergaben", "Index")` ohne Kategorie (nur Menü wie die beiden Sage-Protokolle).
-  - Regel `"SageUebergaben" => stockRead`.
-  - Link im Lager-Block `_Layout.cshtml:97-106`.
-  - Wächter `NavigationSichtTests` greifen automatisch.
-- Bestehende Seiten unverändert; der Lagerbuchungs-Link geht über `?colf_id=`.
-
-Für B: Die Fachseiten bleiben unberührt, die Gesamtsicht kann nichts kaputt machen. Dagegen: Ein weiterer Controller, eine weitere View
-und ein weiterer Menüpunkt neben „Sage-Lagerbuchungen“, und die beiden Seiten zeigen dieselben Lagerbuchungen doppelt.
-
-**Empfehlung: A.** Weniger Code und kein dritter Sage-Menüpunkt. Die Sicherheitsfrage „bleibt die Fachseite heil?“ beantwortet A ebenso, weil
-die Schreibaktion `Requeue` und ihre Rechte unverändert bleiben.
+> [!note] Überholt (Entwurf 2026-11-23)
+> Der Entwurf vom 2026-11-23 sah eine **nur lesende** Gesamtsicht über drei Wege (inkl. FA-Arbeitsgänge) mit Link zur jeweiligen Fachseite vor;
+> „Sage-Wareneingänge“ und „Arbeitsgänge → Sage“ sollten unverändert bleiben. Mit Antwort 1, 3, 6 und 9 ist das ersetzt: zusammengeführte
+> Seite mit allen Funktionen, ohne FA-Arbeitsgänge, alte WE-Seite wird Umleitung.
+>
+> **Variante B – verworfen:** eigene neue Seite „Sage-Übergaben“ (`SageUebergabenController`, nur lesend, eigener Menüpunkt), bestehende
+> Seiten unverändert. Verworfen, weil sie einen dritten Sage-Menüpunkt und doppelte Lagerbuchungs-Zeilen bringt; gewählt ist A
+> (`freigabe_entscheidung: A`).
 
 ## Migrations-/SQL-Auswirkungen
 
-Keine. Alle angezeigten Felder existieren:
-- `SageBookingQueueItems`, `PurchaseOrderReceipts.SageWe*`, `SageFaArbeitsgangAnlagen`.
-- `StockMovements.WarehouseRequisitionItemId` seit SQL/166.
-
-Keine neue Spalte, kein Index. `IX_SageFaArbeitsgangAnlagen_Status` (`ApplicationDbContext.cs:1905`) und der Queue-Status-Index tragen die
-Regel „nicht erledigt“. Die Zeitraum-Bedingung auf `CreatedAt` läuft ohne Index; die Tabellen sind klein bzw. werden heute schon ganz
-gelesen (`SageBookingQueueRepository.cs:87`). Falls die QA auf DEV eine spürbare Ladezeit misst, wird das als Befund gemeldet, nicht
-vorab indiziert. Kein FreshInstall-Eintrag, kein `SQL/AgentJobs`-Bezug.
+Keine. Alle Felder existieren (`SageBookingQueueItems`, `PurchaseOrderReceipts.SageWe*`, `StockMovements.WarehouseRequisitionItemId` seit SQL/166).
+Kein Index: Die Queue wird heute schon ganz gelesen (`SageBookingQueueRepository.cs:87`); misst die QA auf DEV eine spürbare Ladezeit, ist das ein
+Befund, kein Vorab-Index. Kein FreshInstall-Eintrag, kein `SQL/AgentJobs`-Bezug.
 
 ## Einstellungen
 
-keine. Der Standard-Zeitraum (Rückfrage 5) ist eine feste Konstante im Controller (`// ponytail: feste 30 Tage, Einstellung erst bei
-Bedarf`), keine AppSetting.
+Keine neue oder geänderte Einstellung. Nur die **Verwendungstexte** nennen künftig „Sage-Buchungen“ statt „Sage-Wareneingänge“:
+`AppSettingDefinitions.cs:128` (`WareneingangBarcodeAktiv`), `ServiceSettingDefinitions.cs:73`, `:88`, `:93`, `:97`, `:102`. Wert, Default,
+Wertebereich und Wirkung bleiben. Der Standard-Zeitraum ist eine Konstante (F8), keine Einstellung.
 
 | Key | Typ | Erlaubte Werte | Default | Wirkung | Verwendung | Standort | Warnhinweis |
 |---|---|---|---|---|---|---|---|
@@ -253,56 +314,72 @@ Bedarf`), keine AppSetting.
 
 ## Audit-Feld-Auswirkungen
 
-Keine: Die Seite schreibt nichts. Bei A bleibt `Requeue` unverändert (`SageBookingQueueRepository.RequeueAsync` setzt `ModifiedAt/By/ByWindows`,
-`:127-138`). Angezeigt werden die vorhandenen `CreatedBy`-Werte (Service-Akteure `system:sage-booking`, `system:sage-fa-arbeitsgaenge` als
-solche erkennbar).
+Keine neuen Schreibwege. Die wiederverwendeten Actions setzen `ModifiedAt/By/ByWindows` schon: `RequeueAsync`
+(`SageBookingQueueRepository.cs:127-138`), `SageWeErneutSendenAsync`/`SageWeAlsUebergebenAsync` (`PurchaseOrderReceiptRepository.cs:109`, `:126`),
+`CsvErneutSchreibenAsync` (Aufruf `SageWe.cs:163` mit Anzeige- und Windows-Name).
 
 ## Akzeptanzkriterien
 
-1. Die Liste zeigt Zeilen aus allen drei Wegen (Lagerbuchung, Sage-Wareneingang, FA-Arbeitsgang), je Zeile Herkunft und Anzeige-Status nach
-   F2/F3. Ein Wareneingang mit Sage-WE erscheint, einer mit `NichtNoetig` erscheint nur als Lagerbuchung (Herkunft „Wareneingang zu Bestellung“).
-2. Jede Status-Kombination der drei Enums landet auf genau dem Anzeige-Status aus F2 (Unit-Test über alle Enum-Werte, neue Enum-Werte
-   brechen den Test).
-3. Eine FA-Arbeitsgang-Fehlerzeile mit Text „Antwort unklar …“ zeigt „klären“, ohne diesen Text „Fehler“.
-4. Herkunft: Lagerbestellungs-Ausbuchung (`WarehouseRequisitionItemId` gesetzt) = „Lagerbestellung“; Ausbuchung mit FA-Text = „Ausbuchung (FA)“;
-   Umbuchung = „Umbuchung“.
-5. Benutzer nur mit `stock_read`, Modul `WareneingangBestellungAktiv` aus: sieht nur Lagerbuchungs-Zeilen; Modul an: zusätzlich Wareneingänge;
-   FA-Zeilen nur Admin bei `ProduktionsauftragHierarchisch = true`. Kein Link der Seite führt auf 403.
-6. Spaltenfilter (z. B. Herkunft = „Wareneingang“, Fehler enthält „Timeout“) filtern die ganze Union vor dem Paging; Trefferzahl und Seiten
-   stimmen (Seite 2 bei wenigen Treffern leitet auf die letzte Seite, Fallstrick 50).
-7. Default-Zeitraum: Zeilen älter als 30 Tage und erledigt sind ausgeblendet. Ältere nicht erledigte (wartet/gesendet/Fehler/klären) sind
-   sichtbar, und der Hinweis nennt ihre Anzahl.
-8. Wareneingangs- und FA-Zeilen haben keine Schreib-Schaltfläche, nur den Link zur Fachseite. Der Link öffnet die Fachseite gefiltert auf
-   Bestellung bzw. FA. FA nicht mehr in der Struktur → Hinweistext statt Link.
-9. (A) „Erneut senden“ an Lagerbuchungs-Fehlerzeilen funktioniert unverändert (Recht `stock_keyuser`/`picking`/Admin).
-   (B) Die bestehenden Seiten sind unverändert.
-10. Menü: (A) ein Eintrag, Titel nach Rückfrage 6. (B) neuer Eintrag „Sage-Übergaben“ im Lager-Menü, Sichtbarkeit aus `NavigationSicht`,
-    `NavigationSichtTests` grün.
-11. Build und alle Tests grün; neue Tests `SageBuchungenGesamtsichtTests` (Zuordnung, Herkunft, Rechte-Ausschluss, Zeitraum-Regel).
+1. Menü Lager zeigt „Sage-Buchungen“ (kein Eintrag „Sage-Wareneingänge“ mehr); die Seite unter `/SageBookingQueue` heißt „Sage-Buchungen“.
+2. Die Liste zeigt Queue-Zeilen und Sage-WE-Positionen gemeinsam; ein Wareneingang mit `NichtNoetig` erscheint nur einmal (als „Einbuchung“),
+   einer mit `NurInSage` gar nicht.
+3. Jeder Wert beider Status-Enums landet auf genau dem Anzeige-Status aus F2 (Unit-Test über alle Enum-Werte; ein neuer Enum-Wert bricht den Test).
+4. Herkunft: Lagerbestellungs-Entnahme = „Lagerbestellung“, Umbuchung = „Umbuchung“, Sage-WE = „Wareneingang“; Filter „Herkunft“ schränkt genau so ein.
+5. Lagerbuchung Fehler + Keyuser: „Erneut senden“ reiht ein, Rücksprung auf dieselbe gefilterte Seite (Filter und Seite bleiben).
+6. Sage-WE-Vorgang mit 3 Positionen im Status Fehler/Klären: drei Zeilen; Knöpfe „Erneut senden“ und „Als übergeben markieren“ nur an der
+   ersten Zeile auf der Seite, die anderen zeigen „gehört zu Vorgang WE#…#“. Ein Klick wirkt auf alle drei Positionen.
+7. „Als übergeben markieren“ ohne bzw. mit 46 Zeichen Belegnummer: abgelehnt mit dem bisherigen Hinweis; mit gültiger Nummer: alle Positionen
+   „übergeben“, Rücksprung mit Filtern.
+8. CSV-Fehler: „CSV erneut schreiben“ mit Hinweistext an der ersten Zeile des Vorgangs; wirkt wie bisher.
+9. Spalten Lieferschein, Barcode, Positionsmemo, Memo, CSV sind beim ersten Aufruf ausgeblendet, über das Zahnrad einblendbar, die Wahl bleibt
+   gespeichert; bei Lagerbuchungen leer.
+10. Rechte: `stock_read` ohne Keyuser sieht die Seite ohne Knöpfe, POST per Hand ergibt 403. `WareneingangBestellungAktiv` aus: keine WE-Zeilen,
+    keine WE-Spalten/-Filter/-Hinweise. Einkauf-Benutzer: Verhalten nach Rückfrage 12.
+11. Zeitraum: Ohne „von“ sind erledigte Zeilen älter als 30 Tage ausgeblendet; offene ältere (wartet/gesendet/Fehler/klären) sind sichtbar und der
+    Hinweis nennt ihre Anzahl.
+12. Nacherfasste Lagerbuchung zeigt in „Erfasst von“ den buchenden Benutzer mit „(nacherfasst)“.
+13. `/PurchaseOrders/SageWareneingaenge?status=Fehler&bestellung=X` leitet (301) auf Sage-Buchungen mit Herkunft Wareneingang, Status Fehler,
+    Bestellung X; `/EinkaufPurchaseOrders/SageWareneingaenge` zusätzlich mit „nur offene“. Die Links aus `/ServiceSettings` führen direkt auf
+    Sage-Buchungen (Herkunft Wareneingang).
+14. Spaltenfilter und Filterkarte filtern die ganze Union vor dem Paging; Trefferzahl stimmt; Seite außerhalb der Treffer wird geklemmt (Fallstrick 50).
+15. Q-2-Hinweis, CSV-Hinweise, TLS-Banner und Knopf „Wareneingang zu Bestellung“ erscheinen unter denselben Bedingungen wie bisher.
+16. Build und alle Tests grün; `SageBuchungenGesamtsichtTests` (Zuordnung, Herkunft, erste Zeile je Vorgang, Zeitraum-Regel, nacherfasst),
+    umgezogene `SageWareneingaengeListeTests`, `ViewKeyDriftGuardTests`, `NavigationSichtTests`.
 
 ## Test-Szenarien
 
-Neues Kapitel **TS-188 „Sage-Buchungen: Gesamtsicht über alle Übergabewege (v1.99.63)“** in `docs/TESTSZENARIEN.md` (Worktree), danach eine
-Zeile in `secondbrain/tests/testszenarien-index.md`. Querverweis auf das Kapitel der Sage-Lagerbuchungen und TS-178 (Lagerbestellung).
+Neues Kapitel **TS-189 (vorläufig, Nummer prüft der Dev-Lauf) „Sage-Buchungen: Lagerbuchungen und Sage-Wareneingänge auf einer Seite“** in
+`docs/TESTSZENARIEN.md` (Worktree), danach Zeile in `secondbrain/tests/testszenarien-index.md`. Kein Agent schreibt an Sage: Testdaten über vorhandene
+DEV-Daten bzw. per SQL auf DEV gesetzte Status; „Erneut senden“ nur bei ausgeschaltetem Dienst oder Sage-Test (Gerald).
 
-- **Vorbedingungen:** DEV AKE und DEV IDEAL mit Stand 1.99.63. Je ein Queue-Eintrag Bestätigt und Fehler (vorhandene Testdaten oder
-  `SageLagerbuchungAktiv` auf DEV). Ein Wareneingang mit Sage-WE (`Offen`/`Uebergeben`) und einer „nur in Sage“. IDEAL: eine
-  `SageFaArbeitsgangAnlagen`-Zeile (Angelegt) und eine „Antwort unklar“. Benutzer: admin, einer nur `stock_read`, einer `stock_keyuser`.
-- **188.1** admin, Seite öffnen: Zeilen aller Wege, Herkunft und Status korrekt; DB-Gegenprobe
-  `SELECT Status, COUNT(*) FROM SageBookingQueueItems GROUP BY Status` usw.
-- **188.2** Filter Anzeige „Fehler“ und „klären“: Zuordnung wie F2; FA-„Antwort unklar“ unter „klären“.
-- **188.3** Spaltenfilter Herkunft = `Wareneingang` + Seite 2: Paging über die gefilterte Union, Zähler stimmt.
-- **188.4** Zeitraum: erledigte Zeile mit `CreatedAt` älter 30 Tage (DEV-Daten oder per SQL auf DEV zurückdatiert) ausgeblendet. Fehlerzeile
-  gleichen Alters sichtbar, Hinweis mit Anzahl.
-- **188.5** Link Wareneingang → „Sage-Wareneingänge“ gefiltert auf die Bestellung; Link FA → „Arbeitsgänge → Sage“ mit `fa=`.
-- **188.6** (A) „Erneut senden“ an Lagerbuchungs-Fehlerzeile mit `stock_keyuser`: Erfolgsmeldung, Status „wartet“. Mit `stock_read`: kein
-  Knopf; POST per Hand ergibt 403.
-- **Negativ 188.7** `stock_read` bei Modul Wareneingang aus: keine WE-Zeilen, kein Link auf 403.
-- **Negativ 188.8** AKE (Master hierarchisch aus) bzw. Nicht-Admin auf IDEAL: keine FA-Zeilen.
-- **Negativ 188.9** WE `NichtNoetig`: erscheint nicht doppelt (nur als Lagerbuchung).
-- **Negativ 188.10** Leere Datenlage: „Keine Einträge.“, Pagination 0.
-- **188.11** Kontrast und Bedienung: Badges mit Text, „klären“ gelb mit dunkler Schrift (≥ 4,5:1), 390 px Breite mit genau einem
-  Scrollbalken der Tabelle.
+- **Vorbedingungen:** DEV AKE (WE-Zeilen, `WareneingangBestellungAktiv` an) und DEV IDEAL (nur Lagerbuchungen). Je eine Queue-Zeile Bestätigt
+  und Fehler, eine nacherfasste, eine Lagerbestellungs-Entnahme; ein Sage-WE-Vorgang mit 3 Positionen auf Fehler, einer auf Klären, einer mit
+  CSV-Fehler, einer `NurInSage`, einer `NichtNoetig`. Benutzer: admin, `stock_read`, `stock_keyuser`, Einkauf ohne Lager-Recht.
+- **189.1** admin öffnet Lager → Sage-Buchungen: Titel, beide Herkünfte, Status nach F2, DB-Gegenprobe
+  `SELECT Status, COUNT(*) FROM SageBookingQueueItems GROUP BY Status; SELECT SageWeStatus, COUNT(*) FROM PurchaseOrderReceipts GROUP BY SageWeStatus`.
+- **189.2** Filter Herkunft, Status, nur offene, Bestellung, von/bis einzeln und kombiniert; Spaltenfilter Fehler enthält „Timeout“ + Seite 2.
+- **189.3** Zeitraum-Standard: erledigte Zeile > 30 Tage (per SQL auf DEV zurückdatiert) fehlt, offene gleichen Alters da, Hinweis mit Anzahl.
+- **189.4** Vorgang mit 3 Positionen: Knöpfe nur an der ersten Zeile, Rest „gehört zu Vorgang …“; Spaltenfilter auf die 2. Position: Knöpfe dort.
+- **189.5** Keyuser: Lagerbuchung „Erneut senden“, WE „Als übergeben markieren“ (leer, 46 Zeichen, gültig), „CSV erneut schreiben“; jeweils
+  Meldung + Rücksprung mit allen Filtern.
+- **189.6** Zahnrad: WE-Spalten aus/ein, nach Neuladen gespeichert; Lagerbuchungs-Zeilen dort leer.
+- **189.7** Nacherfasste Zeile: „Erfasst von“ mit „(nacherfasst)“.
+- **189.8** Umleitungen: alte Lager-URL mit `status=Klaeren&bestellung=…`, alte Einkauf-URL, Links in `/ServiceSettings`, Hinweis in „Wareneingang zu
+  Bestellung“ nennt „Sage-Buchungen“.
+- **Negativ 189.9** `stock_read`: keine Knöpfe; POST `SageWeErneutSenden` per Werkzeug → 403.
+- **Negativ 189.10** `WareneingangBestellungAktiv` aus (DEV IDEAL): keine WE-Zeilen, keine Auswahl „Wareneingang“, keine WE-Spalten im Zahnrad.
+- **Negativ 189.11** `NurInSage` und `NichtNoetig` erscheinen nicht als WE-Zeile; `NichtNoetig` nur als Einbuchung.
+- **Negativ 189.12** Einkauf ohne Lager-Recht: Menü Einkauf → Sage-Wareneingänge (offen) – Ergebnis nach Rückfrage 12 (bei (a): nur WE-Zeilen,
+  „nur offene“ gesetzt, keine Knöpfe, keine Lagerbuchungen).
+- **Negativ 189.13** Leere Datenlage: „Keine Einträge.“, Pagination 0.
+- **189.14** Kontrast/Bedienung: Badges mit Text, `text-bg-warning`/`text-bg-info` lesbar (≥ 4,5:1), 390 px Breite mit genau einem Scrollbalken.
+
+**Umstellungsliste bestehender Szenarien** (Pfad „Lager → Sage-Wareneingänge“ / „Sage-Lagerbuchungen“ → „Lager → Sage-Buchungen“, ggf. „Herkunft
+Wareneingang“; Fundstellen `docs/TESTSZENARIEN.md` im Worktree): Kap. 56 Überschrift/Schritte (`:6308`), `:679`, 116.5 (`:11412`), `:11421`
+(Testname), 116.23 (`:11437`), **116.24 (`:11438`) als überholt durch TS-189 markieren** (Menüblock mit zwei Einträgen gibt es nicht mehr), 116.26
+(`:11440`), `:11443`, 129.10 (`:11740`), 132.3.2 (`:12007`), 137.2 (`:12268`), `:12286` (Testname), 153.8 (`:12817`), `:12885`, `:12900`, `:12908`
+(Testname `SageWareneingaengeListeTests.Einkauf_NurOffene_*` → neuer Name), 178.6 (`:13634`). Reine Sage-Begriffe („Sage-WE auf DEV aus“,
+`:12297`, `:12569`) bleiben.
 
 ## Etappen (nur bei epic: true)
 
@@ -314,39 +391,67 @@ Zeile in `secondbrain/tests/testszenarien-index.md`. Querverweis auf das Kapitel
 
 **Vorläufig** – der QA-Lauf bestätigt es am echten Diff.
 
-- **Web-App:** ja (Controller, View, Repositories, Navigation/Layout falls umbenannt, Changelog, Version 1.99.63 in beiden `AppVersion.cs`).
-- **Service:** nein (kein Dienst-Code; `IDEALAKEWMSService/AppVersion.cs` wird nur hochgezählt – Dienst-Deploy nur, wenn das Bündel ihn
-  ohnehin mitnimmt).
+- **Web-App:** ja (Controller, View, Repositories, Navigation/Layout, Hilfe, Changelog, Version in beiden `AppVersion.cs`).
+- **Service:** nein (kein Dienst-Code; `IDEALAKEWMSService/AppVersion.cs` wird nur hochgezählt).
 - **Migration:** nein.
-- **Manifest-Einträge** (`scripts/deploy/nachlauf.psd1`): keine Schema-, Daten-, Einmal-, Prüf- oder Einstellungs-Einträge. Nur bei
-  Rückfrage 6 = umbenennen (Variante A) bzw. bei Variante B ein Info-Eintrag:
-  - Id `v1.99.63-SageBuchungenInfo`, Version 1.99.63, Typ Info, Firma beide, Phase Nachher, Ausführung anzeigen.
-  - Text A: „Lager → ‚Sage-Lagerbuchungen‘ heißt jetzt ‚Sage-Buchungen‘ und zeigt alle Übergaben an Sage (Lagerbuchungen, Sage-Wareneingänge,
-    bei IDEAL Arbeitsgänge). Reparieren weiter auf der jeweiligen Seite.“
-  - Text B: „Neuer Menüpunkt Lager → ‚Sage-Übergaben‘: alle Übergaben an Sage in einer Liste, nur lesend.“
-- **Publish-Befehle** (im Worktree):
-  - `dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWMSWeb`
-- **Doku (DoD):** `docs/anwender/09-einbuchen-ausbuchen-umbuchen.md` (Abschnitt Sage-Lagerbuchungen), `docs/anwender/18-startseite-und-menue.md`
-  (Menütext), Foto der Seite per Playwright gegen DEV (nur ansehen).
+- **Manifest-Eintrag** (`scripts/deploy/nachlauf.psd1`), sonst keine Schema-, Daten-, Einmal-, Prüf- oder Einstellungs-Einträge:
+  - Id `v<Version>-SageBuchungenInfo`, Version = vergebene Version, Typ `Info`, Firma `beide`, Phase `Nachher`, Ausführung `anzeigen`.
+  - Text: „Lager/Einkauf informieren: ‚Sage-Lagerbuchungen‘ heißt jetzt ‚Sage-Buchungen‘ und enthält auch die Sage-Wareneingänge mit allen Knöpfen
+    (Erneut senden, Als übergeben markieren, CSV erneut schreiben). Der Menüpunkt ‚Sage-Wareneingänge‘ entfällt, alte Links leiten um.
+    ‚Nur in Sage buchen‘ steht nicht mehr in der Liste.“
+  - Der alte Eintrag `nachlauf.psd1:454` (v1.99.7) bleibt als Historie.
+- **Publish** (im Worktree): `dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWMSWeb`.
+- **Doku/Hilfe – Umstellungsliste (DoD):**
+  - `docs/anwender/05-wareneingang-zu-bestellung.md`: Rechte-Tabelle `:19-22`, Abschnitt Liste `:150-165` mit **neuem Foto** statt
+    `bilder/05-05-sage-wareneingaenge.jpg` (`:153`), Bekannte Effekte `:195`.
+  - `docs/anwender/09-einbuchen-ausbuchen-umbuchen.md:196`, `docs/anwender/18-startseite-und-menue.md:70` (Menütext) + Foto der Seite per Playwright gegen DEV (nur ansehen).
+  - `docs/betrieb/04-konfiguration.md:160`, `:218`; `05-schnittstellen.md:175`; `06-logs-ueberwachung.md:24-25`, §5 `:167-177` und §6 `:184-190`
+    zusammenführen, Tabelle `:229-230`; `07-troubleshooting.md:51`, `:53`, `:70`; `08-diagnose-abfragen.md:203`, `:251`, `:268`; `10-backup-restore.md:83`.
+    `docs/betrieb/AGENTS.md:76` bleibt (Begriff, keine Seite).
+  - `README.md:534`, `:757`, `:767`, `:796` (und `:1052` prüfen).
+  - App: `Views/Help/Index.cshtml:143-150`, `:170`, `:308-329`, `:497`; `Views/Users/RoleOverview.cshtml:221-226`; `Views/ServiceSettings/Index.cshtml:62`, `:68`;
+    `Views/PurchaseOrders/Receive.cshtml:263`. `Views/Help/Changelog.cshtml` nur neuer Eintrag (Historie bleibt).
+  - Brain (Hauptcheckout, Dev-Lauf): [[controller]] (Abgeloeste Routen, Rechte), `codebase/module.md`/`feature-map.md`, Testindex.
 
 ## Offene Rueckfragen
 
-1. **Welche Maske ist gemeint?** „Sage-Lagerbuchungen“ (Lager-Menü, `SageBookingQueue`) oder „Sage-Wareneingänge“ (`PurchaseOrders/
-   SageWareneingaenge`)? Empfehlung: **Sage-Lagerbuchungen**. Dort fehlen heute genau die Wareneingänge mit Sage-WE; „Sage-Wareneingänge“
-   zeigt nur einen Weg.
-2. **Variante A oder B?** Empfehlung **A** (Begründung im Lösungsentwurf: vorhandene Seite, kein neuer Controller/Menüpunkt, Lagerbuchungs-
-   Reparatur bleibt am Ort).
-3. **FA-Arbeitsgänge (IDEAL) einbeziehen?** Empfehlung **ja**, sichtbar nur wie die Fachseite (Admin + `ProduktionsauftragHierarchisch`).
-   Nebennutzen: Warteschlangen-Zeilen verschwundener FAs werden zum ersten Mal sichtbar. `SageStammdatenOutbox` bleibt draußen (sendet nichts).
-4. **Rollen:** Zeilen eines Weges nur, wenn der Benutzer dessen Fachseite sehen darf (Lagerbuchung = stock_read-Kreis, Wareneingang =
-   zusätzlich Modul `WareneingangBestellungAktiv`, FA = Admin + hierarchisch)? Empfehlung **ja**. Alternative wäre „alle Zeilen für den
-   stock_read-Kreis“; dann führte der FA-Link für Nicht-Admins auf 403.
-5. **Standard-Zeitraum:** „Erstellt ab“ = heute − 30 Tage. Nicht erledigte Zeilen (wartet, gesendet, Fehler, klären) immer, unabhängig vom
-   Zeitraum. „Von Hand in Sage“ zählt als erledigt, sonst sammeln sich diese Zeilen ewig an (das WMS ändert den Status nie). Einverstanden
-   oder anderer Zeitraum?
-6. **(nur A) Umbenennen** von Seite und Menüpunkt in „Sage-Buchungen“? Route, Menü-Key und gespeicherte Favoriten bleiben. Empfehlung **ja**.
-7. **Wareneingänge „nur in Sage buchen“** (Chargen-/Nachweispflicht, `PurchaseOrdersController.Receive.cs:163`, das WMS sendet nichts) als
-   Status „von Hand in Sage“ mitzeigen? Empfehlung **ja**: Sie sind Sage-relevant und stehen heute schon auf „Sage-Wareneingänge“.
+Fragen 1–11: Liste Gerald 2026-11-24, beantwortet „ok, wie Empfehlungen“ (siehe Freigabe-Antworten). Sie ersetzen die Fragen 1–7 des Entwurfs
+vom 2026-11-23 (unten eingeklappt als Historie).
+
+1. Eine Seite „Sage-Buchungen“ (heutige SageBookingQueue, Route/Menü-Key/Favoriten bleiben), übernimmt alle Funktionen beider Seiten.
+2. Inhalt: Einbuchung, Ausbuchung, Lagerbestellungs-Entnahme, Umbuchung (wenn Schalter an), Wareneingang mit Sage-WE; Spalte + Filter „Herkunft“.
+3. Funktionen: Lagerbuchungen „Erneut senden“ wie heute; WE-Zeilen „Erneut senden“, „Als übergeben markieren“ (mit Belegnummer), „CSV erneut
+   schreiben“ wie heute auf der WE-Seite; Rolle wie heute (RequireStockKeyUserAccess). Bestehende POST-Actions wiederverwenden, Redirect zurück auf
+   die Gesamtsicht mit Filtern.
+4. WE-Aktionen gelten je Sage-WE-Vorgang: eine Zeile je Position, Knöpfe nur an der ersten Position des Vorgangs, übrige Zeilen „gehört zu Vorgang …“.
+5. WE-Spalten (Lieferschein, Barcode, Positionsmemo, Memo, CSV) bleiben, per Zahnrad (ColumnDefinitions) standardmäßig ausgeblendet; bei
+   Lagerbuchungen leer.
+6. Alte Seite „Sage-Wareneingänge“ (Lager + Einkauf) → Umleitung auf Sage-Buchungen mit Filter Herkunft = Wareneingang (Einkauf: + „nur offene“),
+   Muster „Abgelöste Routen“ (controller.md); Menüpunkt/Kachel „Sage-Wareneingänge“ entfällt aus NavigationKatalog (ADR 0034, Fallstrick 58),
+   Favoriten darauf landen über die Umleitung; Links aus Receive.cshtml u. a. nachziehen (alle Verweise belegen).
+7. Rechte: Seite = stock_read; WE-Zeilen nur bei aktivem Modul WareneingangBestellungAktiv; Aktionen Keyuser/Admin.
+8. Gemeinsamer Status wartet/gesendet/übergeben/Fehler/klären + Originaltext; „nur in Sage buchen“ (NurInSage) NICHT anzeigen.
+9. FA-Arbeitsgänge (IDEAL) nicht dabei.
+10. Standard-Zeitraum 30 Tage, offene Zeilen (wartet/gesendet/Fehler/klären) immer + Hinweis mit Anzahl älterer offener.
+11. „nacherfasst“-Zusatz in „Erfasst von“.
+12. **NEU – Einkauf ohne Lager-Recht (Lücke zwischen Antwort 6 und 7).** Die Einkauf-Sicht läuft heute unter `[RequireEinkaufAccess]` +
+    `[RequireEinkaufAktiv]` und ausdrücklich **ohne** Lager-Recht (`EinkaufPurchaseOrdersController.cs:9-15`; Rolle einkauf ist nicht im
+    stock_read-Kreis, `CurrentUserService.cs:104-105` vs. `:113-114`). Nach Antwort 6 leitet sie auf Sage-Buchungen um, nach Antwort 7 ist die
+    Seite stock_read – ein Einkauf-Benutzer ohne Lager-Recht bekäme 403. Optionen:
+    - **(a) Empfehlung:** Sage-Buchungen zusätzlich für Einkauf lesbar (Rolle einkauf + `EinkaufAktiv`, neuer kombinierter Lesefilter, drei Stellen).
+      Einkauf ohne Lager-Recht sieht nur WE-Zeilen (ohne Modulbedingung, wie heute), keine Lagerbuchungen, keine Knöpfe. Der Einkauf-Menüpunkt
+      „Sage-Wareneingänge (offen)“ bleibt und landet über die Umleitung mit „nur offene“. Hält „eine Seite“ und nimmt niemandem etwas weg.
+    - (b) Einkauf-Ansicht bleibt unverändert (nur die Lager-Seite wird zusammengeführt) – weniger Code, aber zwei Listen bleiben.
+    - (c) Umleitung wie beschlossen; Einkauf-Benutzer brauchen künftig `stock_read` (Rollenpflege), Einkauf-Menüpunkt entfällt.
+
+> [!faq]- Historie: Fragen 1–7 des Entwurfs vom 2026-11-23 (ersetzt durch die Liste vom 2026-11-24)
+> 1. Welche Maske ist gemeint: „Sage-Lagerbuchungen“ oder „Sage-Wareneingänge“? Empfehlung Sage-Lagerbuchungen.
+> 2. Variante A (Sage-Lagerbuchungen wird lesende Gesamtsicht) oder B (neue Seite „Sage-Übergaben“)? Empfehlung A.
+> 3. FA-Arbeitsgänge (IDEAL) einbeziehen? Empfehlung ja.
+> 4. Rollen: Zeilen je Weg nur mit Recht auf die Fachseite? Empfehlung ja.
+> 5. Standard-Zeitraum 30 Tage, nicht erledigte immer, „von Hand in Sage“ = erledigt?
+> 6. (nur A) Umbenennen in „Sage-Buchungen“? Empfehlung ja.
+> 7. Wareneingänge „nur in Sage buchen“ mitzeigen? Empfehlung ja.
 
 ## ANTWORTEN auf Rueckfragen - Fachbereich (aus Jira)
 
@@ -360,10 +465,17 @@ Zeile in `secondbrain/tests/testszenarien-index.md`. Querverweis auf das Kapitel
   Bei Varianten-Specs zusaetzlich freigabe_entscheidung im Frontmatter setzen.
 -->
 
-1. Welche Maske (Sage-Lagerbuchungen / Sage-Wareneingänge)? →
-2. Variante A oder B? →
-3. FA-Arbeitsgänge (IDEAL) einbeziehen? →
-4. Rollen: Zeilen je Weg nur mit Recht auf die Fachseite? →
-5. Standard-Zeitraum 30 Tage, nicht erledigte immer, „von Hand in Sage“ = erledigt? →
-6. (nur A) Umbenennen in „Sage-Buchungen“? →
-7. Wareneingänge „nur in Sage buchen“ mitzeigen? →
+Antwort Gerald 2026-11-24 zu 1–11: „ok, wie Empfehlungen“.
+
+1. Eine Seite „Sage-Buchungen“ (heutige SageBookingQueue, Route/Menü-Key/Favoriten bleiben), übernimmt alle Funktionen beider Seiten. → **ok, wie Empfehlungen (Gerald 2026-11-24)**
+2. Inhalt: Einbuchung, Ausbuchung, Lagerbestellungs-Entnahme, Umbuchung (wenn Schalter an), Wareneingang mit Sage-WE; Spalte + Filter „Herkunft“. → **ok, wie Empfehlungen (Gerald 2026-11-24)**
+3. Funktionen: Lagerbuchungen „Erneut senden“ wie heute; WE-Zeilen „Erneut senden“, „Als übergeben markieren“ (mit Belegnummer), „CSV erneut schreiben“ wie heute auf der WE-Seite; Rolle wie heute (RequireStockKeyUserAccess). Bestehende POST-Actions wiederverwenden, Redirect zurück auf die Gesamtsicht mit Filtern. → **ok, wie Empfehlungen (Gerald 2026-11-24)**
+4. WE-Aktionen gelten je Sage-WE-Vorgang: eine Zeile je Position, Knöpfe nur an der ersten Position des Vorgangs, übrige Zeilen „gehört zu Vorgang …“. → **ok, wie Empfehlungen (Gerald 2026-11-24)**
+5. WE-Spalten (Lieferschein, Barcode, Positionsmemo, Memo, CSV) bleiben, per Zahnrad (ColumnDefinitions) standardmäßig ausgeblendet; bei Lagerbuchungen leer. → **ok, wie Empfehlungen (Gerald 2026-11-24)**
+6. Alte Seite „Sage-Wareneingänge“ (Lager + Einkauf) → Umleitung auf Sage-Buchungen mit Filter Herkunft = Wareneingang (Einkauf: + „nur offene“), Muster „Abgelöste Routen“ (controller.md); Menüpunkt/Kachel „Sage-Wareneingänge“ entfällt aus NavigationKatalog (ADR 0034, Fallstrick 58), Favoriten darauf landen über die Umleitung; Links aus Receive.cshtml u. a. nachziehen (alle Verweise belegen). → **ok, wie Empfehlungen (Gerald 2026-11-24)**
+7. Rechte: Seite = stock_read; WE-Zeilen nur bei aktivem Modul WareneingangBestellungAktiv; Aktionen Keyuser/Admin. → **ok, wie Empfehlungen (Gerald 2026-11-24)**
+8. Gemeinsamer Status wartet/gesendet/übergeben/Fehler/klären + Originaltext; „nur in Sage buchen“ (NurInSage) NICHT anzeigen. → **ok, wie Empfehlungen (Gerald 2026-11-24)**
+9. FA-Arbeitsgänge (IDEAL) nicht dabei. → **ok, wie Empfehlungen (Gerald 2026-11-24)**
+10. Standard-Zeitraum 30 Tage, offene Zeilen (wartet/gesendet/Fehler/klären) immer + Hinweis mit Anzahl älterer offener. → **ok, wie Empfehlungen (Gerald 2026-11-24)**
+11. „nacherfasst“-Zusatz in „Erfasst von“. → **ok, wie Empfehlungen (Gerald 2026-11-24)**
+12. Einkauf ohne Lager-Recht: (a) Sage-Buchungen auch für Einkauf lesbar (nur WE-Zeilen, keine Knöpfe), (b) Einkauf-Ansicht bleibt, (c) Einkauf braucht stock_read? →
