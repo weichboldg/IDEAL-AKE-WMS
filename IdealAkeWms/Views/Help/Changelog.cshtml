@@ -9,6 +9,22 @@
 
         <div class="card mb-3">
             <div class="card-header text-white" style="background-color: var(--ake-primary);">
+                <strong>v1.99.64</strong> <span class="text-white-50 ms-2">24.11.2026</span>
+            </div>
+            <div class="card-body">
+                <h6>Artikel- und Lieferanten-Abgleich aus Sage laufen auf AKE-Prod wieder</h6>
+                <ul>
+                    <li>Behoben: Der Artikel-Sync und der Artikel-Lieferanten-Sync brachen auf AKE-Prod mit „HTTP 500 … nicht in der
+                        GROUP BY-Klausel“ ab. Sage liest dort anders als am Testsystem; das WMS fragt jetzt jedes Sortierfeld mit ab.</li>
+                    <li>Update-Skript: richtige Ordner für AKE-Test (<code>IdealAkeWMS-TEST</code>, <code>IDEALAKEWMSService-Test</code>).</li>
+                    <li>Neu im Paket: <code>deploy\Set-Startkennwort.ps1</code> – gemeinsames Startkennwort mit Pflichtwechsel für lokale
+                        Benutzer ohne Kennwort (Voraussetzung für das Update ab v1.99.28).</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header text-white" style="background-color: var(--ake-primary);">
                 <strong>v1.99.63</strong> <span class="text-white-50 ms-2">24.11.2026</span>
             </div>
             <div class="card-body">
