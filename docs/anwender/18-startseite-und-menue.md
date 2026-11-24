@@ -1,6 +1,6 @@
 # 18 Startseite und Menü
 
-Stand: Version **1.99.53** (23.11.2026). Bilder: 18-01, 18-06 und 18-07 (AKE), 18-02 und 18-05 (IDEAL) aus den DEV-Systemen mit 1.99.53; 18-03 und 18-04 Testsysteme mit 1.99.45 (ohne Symbole, Inhalt sonst gleich).
+Stand: Version **1.99.61** (24.11.2026, Text zu FA-Struktur; sonst 1.99.53). Bilder: 18-01, 18-06 und 18-07 (AKE), 18-02 und 18-05 (IDEAL) aus den DEV-Systemen mit 1.99.53; 18-03 und 18-04 Testsysteme mit 1.99.45 (ohne Symbole, Inhalt sonst gleich).
 
 ## Zweck
 
@@ -69,6 +69,8 @@ Ein Bereich ohne sichtbare Kachel erscheint nicht. Hat man gar keine Funktion, s
 - Manche Seiten gibt es **nur im Menü**, nicht als Kachel (z. B. Kreditoren, Debitoren, Empfänger, Service-Einstellungen,
   Sage-Lagerbuchungen). Sie sind seltener gebraucht.
 - **OSEON AG-Übersicht** erscheint nur, wenn das OSEON-Modul (Teileverfolgung) eingeschaltet ist.
+- **FA-Struktur** steht seit 1.99.60 im Menü **Fertigungsaufträge** unter „FA-Liste“. Seit 1.99.61 erscheinen Menüpunkt und Kachel nur, wenn
+  die hierarchische Struktur eingeschaltet ist (in der Regel IDEAL); sonst führt auch die direkte Adresse mit Hinweis zur Startseite.
 - Ein Menü ohne sichtbaren Eintrag (z. B. „Bestellungen“ ohne passende Rolle) erscheint nicht mehr leer.
 - **Favoriten zeigen nie mehr als „Alle“.** Fehlt das Recht oder ist das Modul aus, wird der Favorit ausgeblendet, aber **nicht gelöscht**.
   Im Reiter Favoriten steht dann gelb „Nicht verfügbar (Recht oder Modul fehlt): …“ mit dem Knopf **Nicht verfügbare entfernen**.

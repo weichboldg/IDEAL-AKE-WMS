@@ -1542,7 +1542,7 @@ th:hover .col-resize-handle {
 .table:not(.table-plain) > tbody .text-danger { color: var(--bs-danger-text-emphasis) !important; }
 .table:not(.table-plain) > tbody .text-warning { color: var(--bs-warning-text-emphasis) !important; }
 .table:not(.table-plain) > tbody .text-info { color: var(--bs-info-text-emphasis) !important; }
-/* Vault-/enaio-Symbole in Zeilen (Antwort 9): volle Deckkraft, dunklere CI-Toene >= 3,5:1 auf Weiss/Streifen/Hover/Fokus/danger
+/* Vault-/enaio-Symbole in Zeilen (Antwort 9): volle Deckkraft, dunklere CI-Toene >= 3,49:1 auf Weiss/Streifen/Hover/Fokus/danger
    (#43A6E2/#EF7D00 mit opacity .7 lagen schon auf Weiss unter 2:1); Hover dunkel statt weiss (weiss war auf Hellblau unsichtbar).
    Nur in Tabellen – im dunklen Kartenkopf (Artikelinfo) bleibt das helle Symbol. */
 .table:not(.table-plain) > tbody .vault-link { color: #1C6EA4; opacity: 1; }

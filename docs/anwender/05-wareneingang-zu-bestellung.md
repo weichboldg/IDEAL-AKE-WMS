@@ -83,7 +83,8 @@ Die Tabelle ist breit – nach rechts scrollen bis **Ist-Menge**, **Überlieferu
 Seit 1.99.52 sind die Zeilen abwechselnd hinterlegt. Die Zeile, in der Sie gerade tippen, ist **mit einem dunkelblauen Balken links**
 markiert – so sieht man auch in der breiten Tabelle, zu welcher Position Menge und Platz gehören. Mit **Tab** springt man zum nächsten Feld.
 Seit 1.99.59 ist die Zeile, in der Sie tippen, **sehr hellblau** (statt grau, Balken bleibt), die Zeile unter dem Mauszeiger **hellblau**;
-rot markierte Fehlerzeilen bleiben rot.
+rot markierte Fehlerzeilen bleiben rot. Seit 1.99.62 gilt das in allen Tabellen ([Kapitel 10](10-bestaende-spaltenfilter.md), Abschnitt 5); ein
+angeklickter Link markiert die Zeile nicht mehr, nur Eingabefelder.
 
 ![Positionstabelle: Position 1 hat den Fokus (sehr hellblau, dunkelblauer Balken links, Link „Nr. 41“ dunkelblau), Position 2 unter dem Mauszeiger (hellblau); Zahnrad rechts über der Tabelle](bilder/05-06-positionen-fokus-zeile.jpg)
 

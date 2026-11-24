@@ -1,6 +1,6 @@
 # 10 – Bestände und Spaltenfilter-Suche
 
-Stand: Version 1.99.55 · Standorte AKE und IDEAL · Bilder aus dem AKE-Testsystem
+Stand: Version 1.99.62 · Standorte AKE und IDEAL · Bilder aus dem AKE-Testsystem
 
 ## Zweck
 
@@ -144,6 +144,22 @@ Was drin ist:
   gleich. Am Bildschirm stehen Zahlen weiter mit Tausenderpunkt (`10.026,000`).
 
 Keinen CSV-Knopf gibt es in Baumansichten (FA-Struktur, OSEON-Teileverfolgung) und auf Formular- und Druckseiten.
+
+### 5. Zeilen lesen: Streifen, Hellblau, markierte Eingabezeile (seit 1.99.62)
+
+In **allen Tabellen** sind die Zeilen abwechselnd weiß und hellgrau hinterlegt. Die Zeile unter dem Mauszeiger bzw. die zuletzt angetippte
+Zeile ist **hellblau** – so verrutscht man beim Ablesen nicht in der Zeile.
+
+Tippen Sie in ein Eingabefeld einer Zeile (Menge, Auswahl, Memo), ist die ganze Zeile **sehr hellblau** und links mit einem **dunkelblauen
+Balken** markiert. Mit **Tab** wandert die Markierung zum nächsten Feld. Kästchen markieren die Zeile nur, wenn man sie mit der Tabulatortaste
+ansteuert (nicht per Mausklick); Links und Knöpfe markieren nie.
+
+- Rot, grau oder grün hinterlegte Zeilen (z. B. storniert, erledigt, kommissioniert, überfällig) **behalten ihre Farbe**, auch beim Überfahren.
+- Links sowie rote und grüne Schrift sind dunkler, die Vault- und enaio-Symbole kräftiger – gut lesbar auch auf Hellblau.
+- **Ohne Streifen** bleiben die Baumansichten (FA-Struktur, Teileverfolgung, OSEON-Teileverfolgung) und die kleine Tabelle in der Artikelinfo.
+- Beim **Drucken** (Strg+P) erscheinen keine Streifen und kein Hellblau.
+
+![Lagerbestellungen: Zeilen abwechselnd weiß und hellgrau, Zeile 62 unter dem Mauszeiger hellblau](bilder/10-07-tabellen-streifen-hover.jpg)
 
 ## Unterschiede AKE und IDEAL
 

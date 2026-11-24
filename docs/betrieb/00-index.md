@@ -1,6 +1,6 @@
 # 00 – Betriebshandbuch IdealAkeWms: Übersicht
 
-**Stand:** v1.99.58, 2026-11-23 (Bündel `feature/2026-08-07-ideal-teile-1-5`, Paket 14; v1.99.54–58 ohne Betriebsänderung (nur Web, keine Migration, keine Einstellung); Quelle: `IdealAkeWms/AppVersion.cs:5`; erstellt mit v1.99.23, zuletzt Kapitel 03 und 04 nachgezogen – siehe „Änderungen seit v1.99.23“) ·
+**Stand:** v1.99.62, 2026-11-24 (Bündel `feature/2026-08-07-ideal-teile-1-5`, Paket 16; v1.99.54–62 ohne Betriebsänderung (nur Web, keine Migration, keine neue Einstellung); Quelle: `IdealAkeWms/AppVersion.cs:5`; erstellt mit v1.99.23, zuletzt Kapitel 03 und 04 nachgezogen – siehe „Änderungen seit v1.99.23“) ·
 **Zielgruppe:** Administratoren und IT-Kollegen ohne Entwicklerwissen · **Zweck:** Betrieb, Update, Überwachung und Fehlersuche des
 Warehouse-, Produktions- und Betriebsdatensystems der Standorte AKE und IDEAL – mit Fundstelle zu jeder Aussage.
 
@@ -91,6 +91,7 @@ Warehouse-, Produktions- und Betriebsdatensystems der Standorte AKE und IDEAL �
 | 1.99.51 | Startseite: Reiter „Favoriten“, je Benutzer in der DB (Ansichts-Einstellung `Startseite.Favoriten`, `HomeController.cs:19`; „Ansichten zurücksetzen“ in `/Users` löscht sie mit); kein SQL, keine Einstellung; Manifest: Info `v1.99.51-StartseiteFavoriten` | – |
 | 1.99.52 | Wareneingang zu Bestellung: Bestellnummer ohne Jahr, Fokus-Zeile, Zahnrad (Spalten, Ansicht `PurchaseOrderReceive`), Hauptlagerplatz als Ziel-Vorschlag mit Hinweistext; kein SQL, keine Einstellung | – |
 | 1.99.53 | Lager-/Glasbestellung: Lieferung beim Abschließen ausbuchen. `SQL/166` (additiv: `StockMovements.WarehouseRequisitionItemId` NULL, FK, Index; keine Datenänderung); neue AppSetting `LagerbestellungVerbrauchsbuchungAktiv` (Standard **aus**). **Warnung:** Am Einschalttag endet die Handbuchung dieser Lieferungen in Sage – sonst doppelte Entnahme. Manifest: `Einstellung/LagerbestellungVerbrauchsbuchungAktiv`, `Info/Lagerbestellung-Entnahmeplatz`. SQL/164 und 165 sind reserviert, nicht vorhanden | [03 5.2a](03-installation-update-rollback.md), [04 5.5](04-konfiguration.md) |
+| 1.99.59–1.99.62 | Nur Web, kein SQL, keine neue Einstellung, Dienst nur Versionsnummer (Paket 15 = 1.99.59, Paket 16 = 1.99.62). Anwender-sichtbar: Tabellenfarben, Versionsnummer auf der Anmeldeseite, Menü FA-Struktur. **1.99.61:** FA-Struktur (Menü, Kachel, `/FaHierarchy`) nur, wenn die bestehende Dienst-Einstellung `ProduktionsauftragHierarchisch` = `true` ist – bei AKE verschwindet der (leere) Punkt | [04](04-konfiguration.md) |
 
 Anwender-Sicht: `docs/anwender/` – neu Kapitel 13 „Anmeldung und Benutzer“.
 
