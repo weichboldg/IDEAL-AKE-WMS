@@ -1,6 +1,6 @@
 # 00 – Betriebshandbuch IdealAkeWms: Übersicht
 
-**Stand:** v1.99.62, 2026-11-24 (Bündel `feature/2026-08-07-ideal-teile-1-5`, Paket 16; v1.99.54–62 ohne Betriebsänderung (nur Web, keine Migration, keine neue Einstellung); Quelle: `IdealAkeWms/AppVersion.cs:5`; erstellt mit v1.99.23, zuletzt Kapitel 03 und 04 nachgezogen – siehe „Änderungen seit v1.99.23“) ·
+**Stand:** v1.99.63, 2026-11-24 (Bündel `feature/2026-08-07-ideal-teile-1-5`, Paket 17; v1.99.54–62 ohne Betriebsänderung (nur Web, keine Migration, keine neue Einstellung), v1.99.63 Update-Skript + `SQL/151` (nur IDEAL-Prod); Quelle: `IdealAkeWms/AppVersion.cs:5`; erstellt mit v1.99.23, zuletzt Kapitel 03 und 04 nachgezogen – siehe „Änderungen seit v1.99.23“) ·
 **Zielgruppe:** Administratoren und IT-Kollegen ohne Entwicklerwissen · **Zweck:** Betrieb, Update, Überwachung und Fehlersuche des
 Warehouse-, Produktions- und Betriebsdatensystems der Standorte AKE und IDEAL – mit Fundstelle zu jeder Aussage.
 
@@ -53,7 +53,7 @@ Warehouse-, Produktions- und Betriebsdatensystems der Standorte AKE und IDEAL �
   - **Sicherheit:** ~~Benutzer ohne hinterlegtes Kennwort können sich mit leerem Kennwort anmelden~~ – **behoben in v1.99.28** (Formular nur mit
     Kennwort, Erstkennwort mit Pflichtwechsel; [09 Abschnitt 4 und 8](09-sicherheit-konten-rechte.md)). Weitere Risiken in [09 Abschnitt 8](09-sicherheit-konten-rechte.md).
   - **Erstinstallation:** ~~`SQL/00_FreshInstall.sql` bricht bei den Indizes auf `ProductionOrders.IsReleasedForPicking`/`AssignedPickerId` ab~~ –
-    **behoben in v1.99.28**; für die Erstinstallation vom 04.11.2026 (IDEAL-Prod) gibt es die Prüfung `Pruefung/FreshInstallIndizes`
+    **behoben in v1.99.28**; für die Erstinstallation vom 04.11.2026 (IDEAL-Prod) repariert seit v1.99.63 `Pruefung/FreshInstallIndizes` mit `SQL/151`
     ([03 Abschnitt 4](03-installation-update-rollback.md)).
   - **Widersprüchliche Quellen** (z. B. Pfade und Dienstname zwischen `scripts/deploy/ziele.psd1`, `README.md` und `Install-IdealAkeWms.ps1`) sind in den
     Kapiteln an der jeweiligen Stelle genannt. Maßgeblich für Updates ist `scripts/deploy/ziele.psd1` ([02 Abschnitt 1](02-systeme-umgebungen.md)).
@@ -92,6 +92,7 @@ Warehouse-, Produktions- und Betriebsdatensystems der Standorte AKE und IDEAL �
 | 1.99.52 | Wareneingang zu Bestellung: Bestellnummer ohne Jahr, Fokus-Zeile, Zahnrad (Spalten, Ansicht `PurchaseOrderReceive`), Hauptlagerplatz als Ziel-Vorschlag mit Hinweistext; kein SQL, keine Einstellung | – |
 | 1.99.53 | Lager-/Glasbestellung: Lieferung beim Abschließen ausbuchen. `SQL/166` (additiv: `StockMovements.WarehouseRequisitionItemId` NULL, FK, Index; keine Datenänderung); neue AppSetting `LagerbestellungVerbrauchsbuchungAktiv` (Standard **aus**). **Warnung:** Am Einschalttag endet die Handbuchung dieser Lieferungen in Sage – sonst doppelte Entnahme. Manifest: `Einstellung/LagerbestellungVerbrauchsbuchungAktiv`, `Info/Lagerbestellung-Entnahmeplatz`. SQL/164 und 165 sind reserviert, nicht vorhanden | [03 5.2a](03-installation-update-rollback.md), [04 5.5](04-konfiguration.md) |
 | 1.99.59–1.99.62 | Nur Web, kein SQL, keine neue Einstellung, Dienst nur Versionsnummer (Paket 15 = 1.99.59, Paket 16 = 1.99.62). Anwender-sichtbar: Tabellenfarben, Versionsnummer auf der Anmeldeseite, Menü FA-Struktur. **1.99.61:** FA-Struktur (Menü, Kachel, `/FaHierarchy`) nur, wenn die bestehende Dienst-Einstellung `ProduktionsauftragHierarchisch` = `true` ist – bei AKE verschwindet der (leere) Punkt | [04](04-konfiguration.md) |
+| 1.99.63 | Update-Skript: `SQL/151_RepairFreshInstallIndexes.sql` (additiv, keine Migration) legt auf **IDEAL-Prod** die 24 fehlenden Indizes der Erstinstallation an – Reparatur `Pruefung/FreshInstallIndizes` im Haltepunkt (vorher Abbruch in der Vorprüfung); neue Vorprüfung `Pruefung/FreshInstallIndizesDuplikate`; Kommissionierlisten-Prüfungen erst nach `SQL/159`; Abbruchtext der Vorprüfung korrigiert. Paket 17 | [03 Abschnitt 4](03-installation-update-rollback.md) |
 
 Anwender-Sicht: `docs/anwender/` – neu Kapitel 13 „Anmeldung und Benutzer“.
 

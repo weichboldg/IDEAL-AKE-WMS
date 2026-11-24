@@ -221,6 +221,33 @@ public class NachlaufManifestDriftTests
         skript.Should().Contain("Pickup = (Get-Einstellung $dienst $uDienst 'MailSettings' 'PickupDirectory')", "Ermittlungs-Anzeige aus derselben Lese-Logik wie die DB");
     }
 
+    /// <summary>v1.99.63 (P-2b, Entscheid Gerald 2026-11-24): SQL/151 = Abschnitt 15 der Erstinstallation ohne die zwei abgedeckten Indizes;
+    /// die Pruefung zaehlt genau diese Namen, repariert im Haltepunkt (nie in der Vorpruefung), Duplikate bricht die Vorpruefung auf Prod ab.</summary>
+    [Fact]
+    public void Pruefung_FreshInstallIndizes_GleicheNamenWieSql151UndAbschnitt15()
+    {
+        var m = Eintraege(ManifestText).Single(x => x["Id"] == "Pruefung/FreshInstallIndizes");
+        (m["Phase"], m["Ausfuehrung"], m["Datei"]).Should().Be(("Haltepunkt", "Reparatur", "151_RepairFreshInstallIndexes.sql"));
+        var sql151 = File.ReadAllText(Path.Combine(Root, "SQL", "151_RepairFreshInstallIndexes.sql"));
+        var fresh = File.ReadAllText(Path.Combine(Root, "SQL", "00_FreshInstall.sql"));
+        var abschnitt = fresh[fresh.IndexOf("-- 15. Indexes", StringComparison.Ordinal)..];
+        abschnitt = abschnitt[..abschnitt.IndexOf("\nGO", StringComparison.Ordinal)];
+        static List<string> Namen(string t) => Regex.Matches(t, @"INDEX \[(\w+)\]").Select(x => x.Groups[1].Value).OrderBy(n => n, StringComparer.Ordinal).ToList();
+        var erwartet = Namen(abschnitt).Except(new[] { "IX_StockMovements_ArticleId", "IX_WorkstationUsers_WorkstationId" }).ToList();
+        erwartet.Should().HaveCount(28);
+        Namen(sql151).Should().Equal(erwartet);
+        Regex.Matches(m["Pruefung"], @"\(N'(\w+)'\)").Select(x => x.Groups[1].Value).OrderBy(n => n, StringComparer.Ordinal).Should().Equal(erwartet);
+        sql151.Should().Contain("FK_StockMovements_ProductionOrders_ProductionOrderId").And.NotContain("ROLLBACK").And.NotContain("__EFMigrationsHistory")
+            .And.NotMatchRegex(@"(?m)^\s*:");
+        var d = Eintraege(ManifestText).Single(x => x["Id"] == "Pruefung/FreshInstallIndizesDuplikate");
+        (d["Firma"], d["Phase"], d["Ausfuehrung"]).Should().Be(("IDEAL", "Vorher", "anzeigen"));
+        foreach (var u in new[] { "IX_SageBookingQueueItems_StockMovementId", "IX_ProductionOrders_SubOrderNumber", "IX_ProductionWorkplaceUsers_ProductionWorkplaceId_UserId" })
+        {
+            sql151.Should().Contain($"CREATE UNIQUE NONCLUSTERED INDEX [{u}]");
+            d["Pruefung"].Should().Contain(u);
+        }
+    }
+
     /// <summary>v1.99.0: jedes Braucht verweist auf einen Schema-Eintrag mit MigrationId (sonst Abbruch im Skript).</summary>
     [Fact]
     public void Manifest_BrauchtVerweistAufVorhandeneIds()

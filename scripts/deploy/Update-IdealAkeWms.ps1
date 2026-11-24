@@ -742,7 +742,7 @@ function Invoke-System($e) {
                 "Reparaturen: $(if ($reparatur) { @($reparatur | ForEach-Object { $_.Id }) -join ', ' } else { 'keine' }); " +
                 "Haltepunkt: $(if ($halte) { @($halte | ForEach-Object { $_.Id }) -join ', ' } else { 'keiner' }); kopieren: $Komponente; Ordner/Rechte; " +
                 "vor dem Start: $(if ($vorStart) { @($vorStart | ForEach-Object { $_.Id }) -join ', ' } else { 'nichts' }); starten; Nachlauf.")
-    if ($sperre) { Stop-Mit "Produktivsystem $($e.Name): $($sperre -join '; ') Keine automatische Reparatur (die Datei ist nicht im Paket und wird nie ueberschrieben): Wert von Hand entfernen, dann Skript neu starten. Nichts gestoppt, Web und Dienst laufen weiter." }
+    if ($sperre) { Stop-Mit "Produktivsystem $($e.Name): $($sperre -join '; ') Keine automatische Reparatur in der Vorpruefung: Ursache wie im Text beschrieben von Hand beheben, dann Skript neu starten. Nichts gestoppt, Web und Dienst laufen weiter." }
 
     if ($NurPruefen) {
         Write-Schritt '5a. Ordner und Rechte (nur Bericht)'

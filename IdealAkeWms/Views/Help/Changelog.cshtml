@@ -9,6 +9,24 @@
 
         <div class="card mb-3">
             <div class="card-header text-white" style="background-color: var(--ake-primary);">
+                <strong>v1.99.63</strong> <span class="text-white-50 ms-2">24.11.2026</span>
+            </div>
+            <div class="card-body">
+                <h6>Update-Skript: fehlende Indizes auf IDEAL-Prod werden nachgezogen</h6>
+                <ul>
+                    <li>Neu: <code>SQL/151</code> legt die 24 Indizes an, die bei der Erstinstallation von IDEAL-Prod (04.11.2026) fehlten
+                        (schnellere Listen und Buchungen). Das Update-Skript spielt es nach Bestätigung im Haltepunkt ein – nur auf IDEAL-Prod.</li>
+                    <li>Vorher prüft das Skript, ob doppelte Werte das Anlegen der eindeutigen Indizes verhindern würden, und bricht dann ab,
+                        bevor etwas gestoppt wird.</li>
+                    <li>Die Prüfungen zur Kommissionierliste melden vor dem Schema-Update keinen Fehler mehr („Ungültiger Spaltenname“),
+                        sondern „nach Schema“. Die Abbruchmeldung der Vorprüfung nennt die richtige Abhilfe.</li>
+                    <li>Für Anwender keine sichtbare Änderung.</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header text-white" style="background-color: var(--ake-primary);">
                 <strong>v1.99.62</strong> <span class="text-white-50 ms-2">24.11.2026</span>
             </div>
             <div class="card-body">
