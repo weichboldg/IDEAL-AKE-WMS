@@ -1,7 +1,8 @@
 ---
 type: backlog
 typ: feature
-status: offen
+status: in-spec
+spec: "[[2026-11-24-sage-buchung-referenz-benutzer-abteilung-spec]]"
 created: 2026-11-24
 quelle: Gerald, Chat 2026-11-24 („Sage Schnittstelle – Grund/Abteilung bei Ausbuchung, Benutzer bei jeder Buchung mitgeben“)
 modul: Sage-Übergabe (Lagerbuchung, Sage-WE)
