@@ -195,10 +195,6 @@ body {
     white-space: nowrap;
 }
 
-.table tbody tr:hover {
-    background-color: var(--ake-very-light-blue);
-}
-
 .table td {
     padding: 0.6rem 0.75rem;
     vertical-align: middle;
@@ -1502,29 +1498,62 @@ th:hover .col-resize-handle {
 /* v1.87.0 (QA A5 Q-2): FA-Link in einer Alert-Karte (FA-Kopf der Bestandsuebersicht) mit der dunklen Alert-Linkfarbe – sonst ~4,1:1 auf Gelb. */
 .alert a.fa-link { color: var(--bs-alert-link-color); font-weight: 600; }
 
-/* v1.99.52 (Spec 2026-11-23-wareneingang-zu-bestellung-bedienung F2): Wareneingang zu Bestellung – Zeile mit dem Eingabefokus markieren,
-   nur CSS (:focus-within), nur diese Tabelle. Zwei Teile, Farbe nie allein:
-   1 Hintergrund im Aktiv-Ton der Zeile ueber Bootstraps Zustandsvariable (table-danger behaelt seinen Rotton #dfc2c4, sonst Grau #e6e6e6);
-   2 4-px-Balken links an der gesperrten Spalte Pos. (nie ausgeblendet) in --bs-primary-text-emphasis (#052c65: ca. 8:1 auf #dfc2c4,
-     ca. 11:1 auf #e6e6e6; das hellere --bs-primary laege auf Rot bei ca. 2,7:1). Der Balken ersetzt den Hintergrund-Schatten der Zelle,
-     daher steht Bootstraps Hintergrund-Schatten als zweiter Schatten dahinter (sonst verschwaenden Streifen und Rot). */
-.we-positionen > tbody > tr:focus-within > * {
-    --bs-table-bg-state: var(--bs-table-active-bg);
-    --bs-table-color-state: var(--bs-table-active-color);
+/* v1.99.62 (Spec 2026-11-23-tabellen-streifen-hover-ci-hellblau, ADR 0035): Zeilenfarben fuer JEDE .table global, Ausnahme .table-plain
+   (Baeume mit eigener Zellfaerbung, Artikelinfo-Schluessel-Wert, FA-Kopf). Loest die WE-Regeln v1.99.52/59 ab.
+   Nur Bootstraps Zustandsvariablen, nie background-color am td (Fallstrick 61: table-danger & Co. setzen ihre Varianten selbst am tr
+   und behalten so Ruhe-, Hover- und Fokus-Ton). --bs-table-active-bg bleibt unberuehrt (Gruppenkoepfe tr.table-active).
+   Kontrast: Streifentext #000 auf #F2F2F2 18,8:1; Text #212529 auf Hover #A1D9F7 / Fokus #D9F4FF 10,1 / 13,5:1; Balken #052C65 11,8:1.
+   Hover ohne @media (hover: hover) (Freigabe-Antwort 5: auch auf Touch). */
+.table {
+    --bs-table-hover-bg: var(--ake-light-blue);
+    --bs-table-hover-color: var(--bs-body-color);
+    --wms-table-focus-bg: var(--ake-very-light-blue);
+    --wms-table-focus-color: var(--bs-body-color);
 }
-.we-positionen > tbody > tr:focus-within > td:first-child {
+.table-primary, .table-secondary, .table-success, .table-info, .table-warning, .table-danger, .table-light, .table-dark {
+    --wms-table-focus-bg: var(--bs-table-active-bg);
+    --wms-table-focus-color: var(--bs-table-active-color);
+}
+.table:not(.table-plain) > tbody > tr:nth-of-type(odd) > * {
+    --bs-table-color-type: var(--bs-table-striped-color);
+    --bs-table-bg-type: var(--bs-table-striped-bg);
+}
+.table:not(.table-plain) > tbody > tr:hover > * {
+    --bs-table-color-state: var(--bs-table-hover-color);
+    --bs-table-bg-state: var(--bs-table-hover-bg);
+}
+/* Fokus-Zeile (nach Hover = Vorrang): Wertfelder bei jedem Fokus, Kaestchen/Optionsfelder nur Tastatur, Links/Knoepfe nie (Antwort 7).
+   Eigene Regeln, weil ein Browser ohne :has() sonst die ganze Regel verwirft (Antwort 8: dann fehlt nur die Fokus-Zeile). */
+.table:not(.table-plain) > tbody > tr:has(:is(input:not([type=hidden], [type=checkbox], [type=radio], [type=button], [type=submit], [type=reset]), select, textarea):focus, :is(input[type=checkbox], input[type=radio]):focus-visible) > * {
+    --bs-table-bg-state: var(--wms-table-focus-bg);
+    --bs-table-color-state: var(--wms-table-focus-color);
+}
+.table:not(.table-plain) > tbody > tr:has(:is(input:not([type=hidden], [type=checkbox], [type=radio], [type=button], [type=submit], [type=reset]), select, textarea):focus, :is(input[type=checkbox], input[type=radio]):focus-visible) > :first-child {
     box-shadow: inset 4px 0 0 var(--bs-primary-text-emphasis),
                 inset 0 0 0 9999px var(--bs-table-bg-state, var(--bs-table-bg-type, var(--bs-table-accent-bg)));
 }
-/* v1.99.59: WE-Positionen in CI-Blau statt Bootstrap-Grau (Grau war am Terminal kaum sichtbar): Hover hellblau, Fokus-Zeile
-   (focus-within nutzt --bs-table-active-bg) noch heller, damit beide unterscheidbar sind. table-danger setzt beide Variablen selbst und bleibt rot. */
-.table.we-positionen {
-    --bs-table-hover-bg: var(--ake-light-blue);
-    --bs-table-hover-color: var(--bs-body-color);
-    --bs-table-active-bg: var(--ake-very-light-blue);
-    --bs-table-active-color: var(--bs-body-color);
-}
-/* v1.99.59 (QA B-1): Links in den WE-Positionen dunkelblau – Bootstrap-Blau #0d6efd laege auf dem Hellblau bei 2,95:1, so ca. 8,9:1. */
-.we-positionen a:not(.btn) {
+/* Links dunkelblau (#052C65: >= 8,6:1 auf allen Zeilengruenden; Bootstrap-Blau laege auf Hellblau bei 2,95:1). */
+.table:not(.table-plain) > tbody a:not(.btn, .badge, .vault-link, .dms-link) {
     color: var(--bs-primary-text-emphasis);
+}
+/* Farbtexte in Zeilen auf die dunklen Bootstrap-Toene (Antwort 6): #DC3545/#198754 laegen auf Hellblau bei ca. 3:1. */
+.table:not(.table-plain) > tbody .text-primary { color: var(--bs-primary-text-emphasis) !important; }
+.table:not(.table-plain) > tbody .text-success { color: var(--bs-success-text-emphasis) !important; }
+.table:not(.table-plain) > tbody .text-danger { color: var(--bs-danger-text-emphasis) !important; }
+.table:not(.table-plain) > tbody .text-warning { color: var(--bs-warning-text-emphasis) !important; }
+.table:not(.table-plain) > tbody .text-info { color: var(--bs-info-text-emphasis) !important; }
+/* Vault-/enaio-Symbole in Zeilen (Antwort 9): volle Deckkraft, dunklere CI-Toene >= 3,5:1 auf Weiss/Streifen/Hover/Fokus/danger
+   (#43A6E2/#EF7D00 mit opacity .7 lagen schon auf Weiss unter 2:1); Hover dunkel statt weiss (weiss war auf Hellblau unsichtbar).
+   Nur in Tabellen – im dunklen Kartenkopf (Artikelinfo) bleibt das helle Symbol. */
+.table:not(.table-plain) > tbody .vault-link { color: #1C6EA4; opacity: 1; }
+.table:not(.table-plain) > tbody .vault-link:hover { color: var(--ake-primary); }
+.table:not(.table-plain) > tbody .dms-link:not(.badge) { color: #A35400; opacity: 1; }
+.table:not(.table-plain) > tbody .dms-link:not(.badge):hover { color: #7A3F00; }
+/* Strg+P aus Bildschirmseiten: keine Streifen, kein Hover, keine Fokus-Zeile (auch mit Hintergrundgrafiken). Bedeutungszeilen bleiben. */
+@media print {
+    .table > tbody > tr > * {
+        --bs-table-bg-type: initial !important;
+        --bs-table-bg-state: initial !important;
+        box-shadow: none !important;
+    }
 }

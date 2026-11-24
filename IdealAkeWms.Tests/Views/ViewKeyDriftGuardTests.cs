@@ -65,7 +65,7 @@ public class ViewKeyDriftGuardTests
     }
 
     /// <summary>v1.99.52 (Spec 2026-11-23 F2/F2b): Positionstabelle Wareneingang – drei Quellen gleich, Toolbar-Host, kein Filter/CSV, genau die
-    /// acht Pflichtspalten gesperrt; Streifen/Hover/Fokus-Klasse; die Fokus-Regeln setzen keine eigene Hintergrundfarbe (table-danger bleibt).</summary>
+    /// acht Pflichtspalten gesperrt; Zeilenfarben seit v1.99.62 global (TabellenZeilenfarbeTests).</summary>
     [Fact]
     public void WareneingangPositionen_DreiQuellenGleich_Gesperrt_FokusZeile()
     {
@@ -79,16 +79,8 @@ public class ViewKeyDriftGuardTests
             .Equal("pos", "artikel", "rest", "einheit", "lagerplatz", "menge", "ueberlieferung", "status");
         (cfg.SupportsReorder, cfg.SupportsSortDefault).Should().Be((true, false));
         html.Should().Contain("data-table-toolbar").And.Contain("column-preferences.js").And.NotContain("filterable-table")
-            .And.Contain("class=\"table table-sm table-striped table-hover align-middle we-positionen\" data-view-key=\"PurchaseOrderReceive\"");
-
-        var css = File.ReadAllText(Path.Combine(ViewsDir().Parent!.FullName, "wwwroot", "css", "site.css"));
-        var regeln = Regex.Matches(css, @"\.we-positionen[^{]*\{([^}]*)\}").Select(m => m.Groups[1].Value).ToList();
-        regeln.Should().HaveCount(4);
-        regeln.Should().OnlyContain(r => !r.Contains("background"));
-        regeln[0].Should().Contain("--bs-table-bg-state: var(--bs-table-active-bg)");
-        regeln[1].Should().Contain("inset 4px 0 0").And.Contain("var(--bs-table-bg-state, var(--bs-table-bg-type");
-        regeln[2].Should().Contain("--bs-table-hover-bg: var(--ake-light-blue)") // v1.99.59: Hover CI-Hellblau, Fokus-Zeile heller
-            .And.Contain("--bs-table-active-bg: var(--ake-very-light-blue)");
-        regeln[3].Should().Contain("color: var(--bs-primary-text-emphasis)"); // v1.99.59 QA B-1: Links dunkelblau
+            .And.Contain("class=\"table table-sm table-striped table-hover align-middle\" data-view-key=\"PurchaseOrderReceive\"");
+        // v1.99.62: Streifen/Hover/Fokus-Zeile/Links kommen aus den globalen Tabellenregeln (TabellenZeilenfarbeTests); keine Ausnahme hier.
+        html.Should().NotContain("table-plain");
     }
 }
