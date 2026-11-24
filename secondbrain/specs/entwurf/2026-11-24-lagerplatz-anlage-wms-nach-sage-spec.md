@@ -15,7 +15,14 @@ affected_code:
   - "Outbox-Helfer: IdealAkeWms/Data/SageStammdatenOutbox.cs:14 (TypLagerplatz), :18-27 (Vormerken, speichert nicht), :30-45 (ErledigenAsync -> Bestaetigt)"
   - "Outbox-Entität: IdealAkeWms/Models/SageStammdatenOutboxItem.cs:12-37 (EntityType, EntityKey = WMS-Id, PayloadJson nur Nachvollziehbarkeit :24-26, Status SageBookingQueueStatus :29, AttemptCount :32, LastError :36); Tabelle ApplicationDbContext.cs:1267-1282; SQL/107"
   - "Status-Enums: IdealAkeWms/Models/SageBookingQueueStatus.cs:11-17 (Offen 0, Gesendet 1, Bestaetigt 2, Fehler 3); IdealAkeWms/Models/Creditor.cs:150-156 (SageUebergabeStatus NichtNoetig/Offen/Uebergeben/Fehler), :158-172 (SageUebergabeStatusText, IstOffen = Offen|Fehler)"
-  - "Schreiber der Outbox heute: IdealAkeWms/Data/Repositories/StorageLocationRepository.cs:17-27 (AddAsync merkt bei Status Offen vor); IdealAkeWms/Controllers/StorageLocationsController.cs:103-120 (Create setzt Offen :111)"
+  - "Schreiber der Outbox heute: IdealAkeWms/Data/Repositories/StorageLocationRepository.cs:17-27 (AddAsync merkt bei Status Offen vor, ZWEI SaveChanges je Platz: Repository.cs:33-37 + :24; fuer die Sage-Anlage NICHT verwenden, S2); IdealAkeWms/Controllers/StorageLocationsController.cs:103-120 (Create setzt Offen :111)"
+  - "Transaktions-Muster fuer die neue Repository-Methode (S2): IdealAkeWms/Data/Repositories/BfAuftragRepository.cs:105-112 (BeginTransactionAsync, IsRelational-Guard fuer InMemory :107)"
+  - "Abgleich-Diff, den die Uebernahme treffen muss (S6): LagerplatzSyncService.cs:195-208 (Sperr-/Massfelder, Description getrimmt :126), :301 (Abweichend = Quelle liefert Wert, WMS anders); Rundung SdataLagerplatzReader.cs:68, :77 (3 Stellen); Code-Vergleich ohne Gross/Klein :100-101"
+  - "Protokoll/Mail-Muster (S7): SageFaArbeitsgangService.cs:82 (kein Lauf ohne Arbeit); SageBookingWorker.cs:272-281, :292 (Fehlertext nur bei Wechsel melden, Merker im Worker); SyncErrorNotifier.cs:28-60 (keine eigene Drosselung)"
+  - "Lagerort-Liste ohne Aktiv-/Outbox-Filter (S10, nur Hinweis): IdealAkeWms/Data/Repositories/PickingAreaRepository.cs:36-37"
+  - "Spaltenfilter-Typen der Liste (S8): StorageLocationsController.cs:76 (ColumnFilterTypes.For(\"StorageLocations/Index\"))"
+  - "Manifest (S9): scripts/deploy/nachlauf.psd1:12-13 (Pruefung = EINE Zahl), :51 (SQL/98), :209-216 (Muster Pruefung/sage-fa-ag-sdata-zugang, Pruefung/ArtikelQuelleSData)"
+  - "QA-Grenzen (Freigabe-Antwort 8): .claude/agents/qa-agent.md:84-87 (nennt SageLagerplatzAnlageAktiv nicht; 'never touch AKESQL20 ... or Sage' - fuer diese Spec durch Antwort 8 eingeschraenkt, siehe Test-Szenarien)"
   - "Leser/Erlediger der Outbox heute: IDEALAKEWMSService/Services/LagerplatzSyncService.cs:174-189 (manueller Platz mit Übergabe offen + gleicher Code -> Source Sage, Uebergeben, ErledigenAsync); sonst kein Leser, kein Worker"
   - "Liste „Offene Übergaben an Sage“: StorageLocationsController.cs:55-92 (Filter onlyUebergabeOffen :70-71, Zähler :81, ColumnMap :30-45); Views/StorageLocations/Index.cshtml:32-51 (Hinweistext „Das WMS sendet nichts an Sage“ :38-39), :103/:144 (Spalte Übergabe an Sage)"
   - "Lagerplatz-Modell: IdealAkeWms/Models/StorageLocation.cs:12-15 (Code 50), :36-38 (Source), :61-71 (SageLagerkennung, SageLagerplatzId), :78-80 (StorageAreaId), :109-117 (Übergabe-Felder), :121-130 (Validate: manuelle Codes max. 12 Zeichen); Unique-Index Code ApplicationDbContext.cs:236"
@@ -37,7 +44,8 @@ open_questions:
   - "4. BEANTWORTET 2026-11-24: beide Standorte, Schalter je Standort, Default aus; AKE geprüft, IDEAL-Prüfung ist Voraussetzung vor dem Einschalten an IDEAL."
   - "5. BEANTWORTET 2026-11-24: Testsystem idealakeweb01.ideal.ideal-ake.at:88 auf IDEAL_TEST_2026_05_03, Testlager legt Benjamin an."
   - "6. BEANTWORTET 2026-11-24: DPS wird nicht informiert."
-  - "7. AKE-Abnahme auf ake_TEST2026 (AKESQL20.ake.at): welches WMS-System (Web + Dienst) wird mit seiner SageConnection auf ake_TEST2026 gestellt (z. B. DEV AKE), und wer legt dort die Sage-seitigen Testlager an?"
+  - "7. BEANTWORTET 2026-11-24: AKE-Abnahme auf DEV AKE (DEV-Dienst mit appsettings.DEV.json -> ake_TEST2026 auf AKESQL20), Sage-Testlager legt Gerald an."
+  - "8. BEANTWORTET 2026-11-24 (Pruefbefund B2): QA darf die Pruef-/Abnahmeabfragen per SQL selbst ausfuehren; Auslegung siehe Test-Szenarien (Schalter auf DEV nur nach SQL-Beleg Test-DB, danach wieder aus, Produktiv nie)."
 epic: false
 etappen: []
 deploy:
@@ -71,14 +79,16 @@ Ziel: Ein im WMS erfasster Lagerplatz wird vom Dienst **automatisch** in Sage an
 **Freigabe-Antworten Gerald 2026-11-24 (eingearbeitet, siehe Abschnitt am Ende):** Existiert das Lager in Sage noch nicht, legt der Dienst
 auch das **Lager** an, sofern das am Standort freigegeben ist (sonst nur Plätze in vorhandenen Lagern). Geschrieben wird über die
 bestehende `SageConnection` des Dienstes mit Minimalrechten. Rolle `masterdata`. **Beide Standorte**, Schalter je Standort, Default aus.
-DPS wird nicht informiert.
+DPS wird nicht informiert. AKE-Abnahme auf **DEV AKE** gegen `ake_TEST2026`, Testlager legt Gerald an (Antwort 7). Der `qa-agent` darf die
+Prüf- und Abnahmeabfragen selbst per SQL ausführen und den Schalter auf DEV nach SQL-Beleg der Test-DB einschalten (Antwort 8, Auslegung im
+Abschnitt Test-Szenarien). Die Befunde der „Kritischen Prüfung (2026-11-24)“ sind eingearbeitet (Liste am Ende jenes Abschnitts).
 
 ## Umfang (In-Scope / Out-of-Scope)
 
 **In-Scope**
 - Neue Erfassung „Lagerplätze in Sage anlegen“ in Stammdaten → Lagerplätze: Lagerort wählen (aus `StorageAreas`) **oder ein neues Lager
   erfassen** (F1a), Bereich je Dimension von–bis, Buchbar/Sage-Buchung erlaubt. Das WMS legt Lager und Plätze sofort an (Status „Offen“,
-  Outbox-Eintrag je Lager und je Platz).
+  Outbox-Eintrag je Lager und je Platz), alles in **einer** DB-Transaktion (S2).
 - Neuer Schritt im `SageBookingWorker`: zuerst neue Lager (eine Transaktion je Lager, Anhang 4/8.1), dann Plätze (eine Transaktion je Platz)
   per Direkt-SQL in Sage anlegen; danach den WMS-Platz übernehmen (Quelle Sage, `SageLagerplatzId`, Status „Übergeben“, Outbox „Bestätigt“).
 - Austauschbare Schreibstelle `ISageLagerplatzAnlage` mit genau einer Implementierung (Direkt-SQL), zwei Methoden (Lager, Platz).
@@ -112,8 +122,11 @@ DPS wird nicht informiert.
 eingeschaltetem Schalter und Schreibrecht `RequireMasterDataAccess` = `admin`, `masterdata`, Freigabe-Antwort 3). Das Formular fragt:
 - Lagerort: Auswahl aus `StorageAreas` mit `IsActive = true` und `SageMissingSince IS NULL` (Anzeige Lagerkennung + Bezeichnung + Lagertechnik;
   ein im WMS erfasstes, noch nicht übergebenes Lager mit Zusatz „(neu, wartet auf Sage)“), dazu der Eintrag „Neues Lager erfassen …“ (F1a),
-  nur wenn `SageLagerAnlageLagertechniken` ≠ `Aus`.
-- Dimension 1 von–bis (ganze Zahl ≥ 1), Dimension 2 von–bis, Dimension 3 von–bis (≥ 0; „0–0“ = Dimension nicht genutzt). Hinweis am Formular:
+  nur wenn `SageLagerAnlageLagertechniken` ≠ `Aus`. Ein Lager, dessen Lager-Outbox-Eintrag auf `Fehler` steht, erscheint als
+  „<Kennung> (Fehler – erst ‚Erneut senden‘)“ und ist **nicht wählbar**; der Server lehnt einen POST mit diesem Lager ab (S10: sonst entstünden
+  Plätze, die nie gesendet werden).
+- Dimension 1 von–bis (ganze Zahl 1–9999), Dimension 2 von–bis, Dimension 3 von–bis (0–9999; „0–0“ = Dimension nicht genutzt; Obergrenze S3:
+  hält Überlauf-/Kürzungsfehler aus Sage fern, `<Kennung 10>;` + 3 × 4 Ziffern passt in `Kurzbezeichnung` 50). Hinweis am Formular:
   „Nicht genutzte Dimensionen auf 0 lassen. Ob die Koordinaten zur Lagertechnik passen, prüft Sage beim Anlegen.“
 - Buchbar, Sage-Buchung erlaubt (Vorbelegung wie bei „Neuen Lagerplatz anlegen“).
 
@@ -125,7 +138,8 @@ erfassen“ nicht angeboten: Die Eindeutigkeitsprüfung in F1a stützt sich auf 
 `LagerplatzSyncService.cs:319-320`) kennt das WMS die vorhandenen Sage-Lager nicht.
 
 **F1a Neues Lager erfassen (Freigabe-Antwort 1, „wenn möglich“).** Wählt der Anwender „Neues Lager erfassen …“, fragt das Formular zusätzlich:
-- Lagerkennung: Pflicht, getrimmt, 1–10 Zeichen (`varchar(10)`, Anhang 4.2; `StorageArea.cs:14`), kein `;` (Trennzeichen der Kurzbezeichnung),
+- Lagerkennung: Pflicht, getrimmt, 1–10 Zeichen (`varchar(10)`, Anhang 4.2; `StorageArea.cs:14`), nur Buchstaben A–Z/a–z, Ziffern, `-` und `_`
+  (H10: Leer- und Sonderzeichen landen sonst in Code und Barcode, `BarcodeValue = Code`; schließt `;`, das Trennzeichen der Kurzbezeichnung, ein),
   noch nicht in `StorageAreas` (Vergleich ohne Groß/Klein wie der Abgleich, `LagerplatzSyncService.cs:325`; Unique-Index
   `ApplicationDbContext.cs:267`), und der Basisplatz-Code `<Lagerkennung>;0;0;0` noch nicht in `StorageLocations` (AKE-Fall `HAUPT` mit
   Kurzbezeichnung `Hauptlager;0;0;0`, Prüfergebnis P-6: eine neue Kennung `Hauptlager` ergäbe in Sage eine zweite Kurzbezeichnung
@@ -141,7 +155,8 @@ erfassen“ nicht angeboten: Die Eindeutigkeitsprüfung in F1a stützt sich auf 
 - WarenflussKZ wird nicht abgefragt: fest `SWF` (Out-of-Scope oben).
 
 Ist `SageLagerAnlageLagertechniken = Aus`, zeigt das Formular statt des Eintrags den Hinweis „Lager-Anlage in Sage ist an diesem Standort nicht
-freigegeben – Lagerplätze nur in vorhandenen Lagern.“ Das WMS legt beim Absenden in **einem** `SaveChanges` an: das `StorageArea`
+freigegeben – Lagerplätze nur in vorhandenen Lagern.“ Das WMS legt beim Absenden in **einer** DB-Transaktion an (S2, Repository-Methode
+siehe F2; ~~„in einem `SaveChanges`“~~ **überholt**: der Outbox-Schlüssel ist die WMS-Id, die erst nach dem Insert feststeht): das `StorageArea`
 (`Lagerkennung`, `Bezeichnung`, `Lagertechnik`, `IstDispoLager = true` wie Sage `-1`, Anhang 4.2; `IsActive = true`, `SageMissingSince = null`,
 Audit des Anwenders), einen Outbox-Eintrag `EntityType = 'StorageArea'` (neue Konstante `SageStammdatenOutbox.TypLagerort`, `EntityKey` =
 StorageArea-Id, Payload Lagerkennung/Bezeichnung/Lagertechnik nur zur Nachvollziehbarkeit) und – bei Platzverwaltung – die Plätze nach F2 mit
@@ -153,9 +168,19 @@ WMS-Platz:
   Schlüssel, über den der Lese-Abgleich Plätze zuordnet (`LagerplatzSyncService.cs:124`, `:136`).
 - `Zone` = Lagerkennung (so schreibt sie der Abgleich, `LagerplatzSyncService.cs:125`), `StorageAreaId` = gewählter Lagerort, `Description` leer
   bis zur Übergabe.
-- `Source = Manual`, `SageUebergabeStatus = Offen`, Outbox-Eintrag je Platz über das bestehende `StorageLocationRepository.AddAsync`
-  (`StorageLocationRepository.cs:17-27`); Payload um Lagerkennung und D1–D3 ergänzt (nur Nachvollziehbarkeit, `SageStammdatenOutboxItem.cs:24`).
-- Koordinaten, deren Code im WMS schon existiert, werden übersprungen (wie Sage vorhandene Kombinationen überspringt, Anhang 5.1). Rückmeldung:
+- `Source = Manual`, `SageUebergabeStatus = Offen`, Outbox-Eintrag je Platz (Payload Id, Code, Lagerkennung, D1–D3; nur Nachvollziehbarkeit,
+  `SageStammdatenOutboxItem.cs:24`). ~~über das bestehende `StorageLocationRepository.AddAsync`~~ **überholt (S2):** `AddAsync` speichert je
+  Platz zweimal (`Repository.cs:33-37` + `StorageLocationRepository.cs:24`) und ist nicht atomar; ein Abbruch ließe Plätze ohne Outbox-Eintrag
+  (nie gesendet) bzw. ein Lager ohne Outbox-Eintrag zurück, das die Fehlend-Schleife des Abgleichs deaktiviert.
+- **Speichern (S2):** neue Methode `IStorageLocationRepository.AddSageAnlageAsync(StorageArea? neuesLager, IReadOnlyList<StorageLocation> plaetze)`
+  – eine DB-Transaktion nach Muster `BfAuftragRepository.cs:105-112` (`BeginTransactionAsync`, Isolationsstufe Standard ReadCommitted genügt;
+  bei nicht-relationalem Provider ohne Transaktion wie `:107`): Lager + Plätze hinzufügen → `SaveChanges` (Ids) → `SageStammdatenOutbox.Vormerken`
+  für Lager (Typ `StorageArea`) und jeden Platz → `SaveChanges` → `Commit`. Scheitert ein Schritt (z. B. Unique-Index `Code`/`Lagerkennung` bei
+  zwei gleichzeitigen Anwendern), ist nichts angelegt; das Formular zeigt „Inzwischen von jemand anderem angelegt – bitte erneut prüfen“
+  (`ModelState`-Fehler, kein `ErrorMessage`). Das bestehende `AddAsync` (Create, E9) bleibt unverändert. Der Abgleich sieht ein noch nicht
+  committetes Lager nicht und markiert es deshalb auch nicht als fehlend.
+- Koordinaten, deren Code im WMS schon existiert (Vergleich **ohne Groß/Klein** wie der Abgleich, `LagerplatzSyncService.cs:100-101`, und wie der
+  Unique-Index `ApplicationDbContext.cs:236` unter der SQL-Kollation, H3), werden übersprungen (wie Sage vorhandene Kombinationen überspringt, Anhang 5.1). Rückmeldung:
   „n Lagerplätze angelegt, m übersprungen (Code im WMS schon vorhanden: …)“ als `SuccessMessage` bzw. `WarningMessage`.
 - Höchstens 200 Plätze je Absenden; mehr = Formularfehler mit der berechneten Anzahl (kurze Transaktionen, Anhang 2.6).
 - **Kennzeichen „Sage-Anlage“** = `Source == Manual` und `StorageAreaId != null`. Das ist eindeutig, weil `StorageAreaId` heute nur der Abgleich
@@ -165,38 +190,62 @@ WMS-Platz:
 **F3 Senden (Dienst).** Bei eingeschaltetem Schalter verarbeitet der Dienst im Takt des `SageBookingWorker` **zuerst** die Lager (F3a),
 **danach** alle Outbox-Einträge `EntityType = 'StorageLocation'` mit Status `Offen` (sowie hängende `Gesendet`, F5), deren Platz Sage-Anlage ist
 (F2) und `IsActive = true`, in Reihenfolge der Outbox-Id. Ein Platz, dessen Lager einen Outbox-Eintrag `StorageArea` mit Status ≠ `Bestaetigt`
-hat, wird in diesem Takt **nicht** gesendet und bleibt unverändert `Offen` (wartet auf das Lager; der Fehler steht am Lager, F6). Je Platz:
+hat, wird in diesem Takt **nicht** gesendet und bleibt unverändert `Offen` (wartet auf das Lager; der Fehler steht am Lager, F6). Solche
+wartenden Plätze zählen **nicht als Arbeit** (S7). **Kein Protokoll-Lauf je Takt ohne Arbeit** (Muster `SageFaArbeitsgangService.cs:82`):
+Gibt es weder Lager- noch Platz-Kandidaten, kehrt der Schritt ohne Lauf-Eintrag zurück. Jeder Lauf mit Arbeit schreibt einmal die Info
+„Sage-Datenbank: <@@SERVERNAME>/<DB_NAME()>“ (aus dem Ergebnis des ersten Sage-Befehls im Lauf; Beleg für Freigabe-Antwort 8). Je Platz:
 1. Outbox-Status vor dem Sage-Aufruf auf `Gesendet`, `AttemptCount + 1`, Audit (Muster „Status vor dem Call“, `SageBookingWorker.cs:14-20`).
 2. Aufruf `ISageLagerplatzAnlage.AnlegenAsync(Lagerkennung, D1, D2, D3)`. Lagerkennung aus `StorageArea.Lagerkennung`, Koordinaten aus dem Code;
    passt der Code nicht zum Muster `<Lagerkennung>;<int>;<int>;<int>` mit derselben Lagerkennung, wird nichts gesendet (fachlicher Fehler).
 3. Ergebnis **angelegt** oder **in Sage vorhanden**: WMS-Platz übernehmen: `Source = Sage`, `SageLagerplatzId` = PlatzID, `SageLagerkennung` =
-   Code, `Description` = Sage-Platzbezeichnung, `SageUebergabeStatus = Uebergeben`, `SageUebergabeAm = jetzt`, `SageUebergabeFehler = null`,
-   Outbox `Bestaetigt` (über `SageStammdatenOutbox.ErledigenAsync` erweitert um `Gesendet`), Audit. Info im Protokoll: „Lagerplatz <Code> in Sage
-   angelegt (PlatzID n)“ bzw. „… war in Sage schon vorhanden (PlatzID n) – übernommen“.
-4. **Fachlicher Fehler** (Konflikt, Lager inaktiv, Koordinaten passen nicht, Text zu lang …): Outbox `Fehler` + `LastError`, Platz
-   `SageUebergabeStatus = Fehler` + `SageUebergabeFehler` = Klartext. Nichts in Sage geschrieben (Rollback). Warnung im Protokoll.
-5. **Technischer Fehler** (Verbindung, Rechte, Timeout, Deadlock): Sage-Transaktion ist zurückgerollt; Outbox zurück auf `Offen`, `LastError` und
-   `SageUebergabeFehler` = „Letzter Versuch fehlgeschlagen: …“, Platzstatus bleibt `Offen`. Rest des Takts wird übersprungen; der Lauf meldet
-   denselben Fehlertext nur einmal (Muster `SageBookingWorker.cs:272-278`), Fehlermail über `NotifyErrorAsync` wie die anderen Schritte.
-   Ausnahme: SQL-Fehler 515 (NULL in Pflichtspalte) und 207 (unbekannte Spalte) zählen als **fachlich** (Punkt 4) mit Text „Sage-Tabelle hat
-   abweichende Pflicht-/Spalten (<Meldung>) – Prüfabfrage P-1 der Spec, Anlage am Standort abschalten“, damit ein Sage-Update mit neuem
-   `USER_`-Pflichtfeld nicht in jedem Takt erneut versucht wird.
+   Code, `Description` = Sage-Platzbezeichnung (getrimmt wie `LagerplatzSyncService.cs:126`), `SageUebergabeStatus = Uebergeben`,
+   `SageUebergabeAm = jetzt`, `SageUebergabeFehler = null`, **dazu die Sage-Werte der Zeile** (S6): `SageIstGesperrt = (IstGesperrt <> 0)`,
+   `SageIstGesperrtInventur = (IstGesperrtInventur <> 0)`, `SageLaenge/-Breite/-Hoehe/-Volumen/-Tragkraft` = Sage-Wert gerundet auf 3 Stellen
+   wie `SdataLagerplatzReader.cs:77` – im Fall „angelegt“ wie „vorhanden“ aus dem Ergebnis-`SELECT` des Befehls. Grund: der Sage-Zweig des
+   Abgleichs vergleicht diese Felder (`LagerplatzSyncService.cs:197-203`, `Abweichend` `:301`); ohne sie zählte der erste SData-Abgleich jeden
+   übergebenen Platz als „aktualisiert“. Outbox `Bestaetigt` (über `SageStammdatenOutbox.ErledigenAsync` erweitert um `Gesendet`; wirkt auch für
+   `BdeOperator`, harmlos, AK 38), Audit. Info im Protokoll: „Lagerplatz <Code> in Sage angelegt (PlatzID n)“ bzw. „… war in Sage schon
+   vorhanden (PlatzID n) – übernommen“.
+4. **Fachlicher Fehler** (Konflikt, Lager inaktiv, Koordinaten passen nicht, Text zu lang, jede nicht-technische SQL-Ausnahme …): Outbox `Fehler`
+   + `LastError`, Platz `SageUebergabeStatus = Fehler` + `SageUebergabeFehler` = Klartext. Nichts in Sage geschrieben (Rollback). Warnung im
+   Protokoll, **keine Mail** (sichtbar in der Liste, F6). Kein automatisches Wiederholen; der Takt läuft mit dem nächsten Eintrag weiter.
+5. **Technischer Fehler** (nur die Klassen unten): Sage-Transaktion ist zurückgerollt; Outbox zurück auf `Offen`, `LastError` und
+   `SageUebergabeFehler` = „Letzter Versuch fehlgeschlagen: …“, Platzstatus bleibt `Offen`. Rest des Takts wird übersprungen (alle weiteren
+   Einträge scheiterten am selben Grund). **Melden nur beim Wechsel (S7)** nach Muster `SageBookingWorker.cs:272-281`/`:292`: Der Worker merkt
+   sich den letzten technischen Fehlertext (`_lpTechnischGemeldet`) und übergibt ihn dem Service. Ist der Text gleich und im Takt sonst nichts
+   geschehen, schreibt der Service **keinen** Lauf (Lauf wird erst beim ersten Ergebnis geöffnet) und der Worker schickt **keine** Mail; neuer oder
+   geänderter Text → ein fehlgeschlagener Lauf mit dem Text und **eine** Mail über `NotifyErrorAsync` (`SyncErrorNotifier.cs:28-60` drosselt
+   selbst nicht). Ein Takt ohne technischen Fehler setzt den Merker zurück.
+
+**Fehlerklassen (S3, abschließend; Einordnung in `SqlSageLagerplatzAnlage`, als reine Funktion `IstTechnisch(SqlException)` unit-getestet).**
+Technisch (Exception an den Aufrufer, Punkt 5): `SqlException.Number` = `-2` (Timeout), `1205` (Deadlock-Opfer), `1222` (Lock-Timeout),
+`229`/`230`/`262` (Recht fehlt – Testschritt .l), `4060`/`18456` (Datenbank/Anmeldung), `233`/`10053`/`10054`/`10060`/`53`/`-1`
+(Transport/Netz) oder `SqlException.Class >= 20`; außerdem jede Nicht-`SqlException` aus dem Verbindungsaufbau (`InvalidOperationException`,
+`IOException`, `TimeoutException`). **Alles andere** – `THROW 50001–50019`, `515`, `207`, `208`, `2812`, `8152`/`2628`, `220`/`8115`, `245`,
+`547`/`2627`/`2601` usw. – ist fachlich (Ergebnis `Abgelehnt` mit Meldungstext; bei `515`/`207`/`208`/`2812` mit Zusatz „Sage-Tabelle oder
+-Prozedur weicht ab – Prüfabfragen P-1 bis P-3 der Spec, Anlage am Standort abschalten“). Damit blockiert ein Datenfehler an einem Eintrag nie die
+Warteschlange (AK 34). ~~„Ausnahme: SQL-Fehler 515 und 207 zählen als fachlich“~~ **überholt** durch diese Liste.
 
 **F3a Lager senden (Dienst).** Outbox-Einträge `EntityType = 'StorageArea'` mit Status `Offen` (bzw. hängend `Gesendet`), deren
 `StorageArea.IsActive = true`, in Reihenfolge der Outbox-Id, gleicher Status-Automat wie F3 Punkt 1, 4, 5:
-1. Ist die Lagertechnik des Lagers nicht (mehr) in der Freigabe `SageLagerAnlageLagertechniken` des Standorts → fachlicher Fehler „Lagertechnik
-   <T> ist für die Lager-Anlage an diesem Standort nicht freigegeben“, nichts gesendet.
-2. Aufruf `ISageLagerplatzAnlage.LagerAnlegenAsync(Lagerkennung, Bezeichnung, Lagertechnik)`.
+1. ~~Ist die Lagertechnik nicht (mehr) freigegeben → fachlicher Fehler, nichts gesendet.~~ **Überholt (H4):** die Freigabe gilt nur für die
+   **Neuanlage**. Der Dienst übergibt `neuanlageErlaubt` = (Lagertechnik des Lagers ist in der aktuellen Stufe `SageLagerAnlageLagertechniken`);
+   der Befehl wirft nur dann 50006 „Lagertechnik <T> ist für die Lager-Anlage an diesem Standort nicht freigegeben“, wenn das Lager in Sage
+   **nicht** existiert. Existiert es (z. B. nach einem Konflikt, dessen Sage-Werte der Abgleich übernommen hat), gilt „vorhanden“ – sonst
+   scheiterte „Erneut senden“ dauerhaft an einer nicht freigegebenen Sage-Technik.
+2. Aufruf `ISageLagerplatzAnlage.LagerAnlegenAsync(Lagerkennung, Bezeichnung, Lagertechnik, neuanlageErlaubt)`.
 3. Ergebnis **angelegt** oder **vorhanden** (gleiche Kennung, gleiche Bezeichnung, gleiche Lagertechnik, aktiv): Outbox `Bestaetigt`, Audit;
    `StorageArea` bleibt unverändert (Werte stimmen schon, der Abgleich gleicht später ab). Info im Protokoll „Lager <X> in Sage angelegt
    (Basisplatz PlatzID n)“ bzw. „… war in Sage schon vorhanden – übernommen“. Die wartenden Plätze laufen im selben Takt (Schritt danach).
-4. **Fachlicher Fehler** (Kennung in Sage anders belegt oder inaktiv, Basisplatz-Kurzbezeichnung schon vergeben, Zuordnungen in
-   `KHKArtikelVariantenLagerplatz`, Technik/`SWF` in Sage unbekannt, 515/207): Outbox `Fehler` + `LastError`, nichts in Sage, Warnung im
-   Protokoll. Die Plätze des Lagers bleiben `Offen` (warten).
-5. **Technischer Fehler:** wie F3 Punkt 5 (Outbox zurück auf `Offen`, Rest des Takts übersprungen, Fehler einmal gemeldet).
+4. **Fachlicher Fehler** (Kennung in Sage anders belegt oder inaktiv 50003, Basisplatz-Kurzbezeichnung schon vergeben 50005,
+   Artikel-Zuordnungen an Plätzen dieser Kennung 50004 – über `PlatzID` gegen `KHKLagerplaetze`, P-9a –, Plätze dieser Kennung ohne Lager 50007,
+   Technik/`SWF` in Sage unbekannt 50001/50002, Technik nicht freigegeben 50006, alle übrigen nicht-technischen SQL-Fehler nach F3): Outbox
+   `Fehler` + `LastError`, nichts in Sage, Warnung im Protokoll. Die Plätze des Lagers bleiben `Offen` (warten, zählen nicht als Arbeit).
+5. **Technischer Fehler:** wie F3 Punkt 5 (Outbox zurück auf `Offen`, Rest des Takts übersprungen, Meldung nur beim Wechsel).
 
 **F4 Datenhoheit nach der Übergabe.** Ab der Übernahme ist der Platz ein Sage-Platz: Der Lese-Abgleich findet ihn über den Code im Sage-Zweig
-(`LagerplatzSyncService.cs:191-231`) und legt **keine** Dublette an; `Zone`, `Description`, `SageLagerplatzId` stimmen bereits, also kein Diff.
+(`LagerplatzSyncService.cs:191-231`) und legt **keine** Dublette an; `Zone`, `Description`, `SageLagerplatzId` und – seit S6 – die Sperr- und
+Maßfelder (`:197-203`) stimmen bereits, also kein Diff (auch mit Quelle View, die diese Felder nicht liefert, `:301`).
 `IstBuchbar`/`SageBuchungErlaubt` fasst der Sage-Zweig nie an (E9-Regel, SData-Spec F11). Die Bearbeitung folgt der Sage-Regel
 (`StorageLocationsController.cs:147-155`). Folge wie bei E9, als Info ausgewiesen: ab dem nächsten Lauf gleicht der Lagerbestand-Abgleich den
 Bestand dieses Platzes mit Sage ab. Kommt der Lese-Abgleich zwischen Sage-Commit und WMS-Speichern (F5), übernimmt er den Platz selbst über den
@@ -231,7 +280,11 @@ schon gibt, und legt nur an, wenn nicht. Fälle:
   Fehler fachlich und lesbar ist.
 - Hängender `Gesendet`-Eintrag (Dienst-Abbruch nach dem Sage-Commit, vor dem WMS-Speichern): Er wird ab `Sync:SageLagerbuchungStuckMinutes`
   (vorhandener Key, `SageBookingWorker.cs:285`) einfach erneut verarbeitet; der idempotente Befehl liefert „vorhanden“ → Übernahme. Kein eigener
-  Wiederherstellungs-Lookup.
+  Wiederherstellungs-Lookup. Bewusste Abweichung vom Hausmuster „hängend nie blind neu senden“ (`SageBookingWorker.cs:19`), weil der Befehl
+  idempotent ist – in ADR 0036 begründet (H12).
+- Bekannte Folge (H9, dokumentieren, nicht abfangen): Wird ein Platz deaktiviert, während sein Eintrag hängend `Gesendet` ist, verarbeitet der
+  Dienst ihn nicht mehr (Filter `IsActive`). Der nächste Abgleich findet den Sage-Platz, übernimmt ihn per E9 (`LagerplatzSyncService.cs:174-189`)
+  und **reaktiviert** ihn (`:225`). Hilfe und ADR nennen das.
 - Restrisiko: Der Sage-Dialog sperrt nicht wie das WMS. Legt ein Anwender gleichzeitig denselben Platz in Sage an, kann eine Dublette entstehen.
   Sie wird sichtbar: der Lese-Abgleich meldet doppelte Kurzbezeichnungen als Warnung und überspringt sie (`LagerplatzSyncService.cs:80-98`).
 
@@ -248,7 +301,9 @@ Die Lagerplatzliste zeigt deshalb über der Tabelle einen Hinweis (kein eigener 
 „Lager <X> wartet auf Anlage in Sage“ (Offen/Gesendet) bzw. „Lager <X> konnte nicht in Sage angelegt werden: <LastError>“ mit Knopf „Erneut
 senden“ (Status `Fehler`; Outbox `Fehler → Offen`, `AttemptCount = 0`, `LastError` leer, Audit des Anwenders; Rolle wie oben). Bei
 eingeschaltetem Schalter ergänzt der Hinweistext: „Neue Lager legt der Dienst vor ihren Plätzen an; Plätze eines wartenden Lagers bleiben
-‚Offen‘.“
+‚Offen‘.“ Ein Lager mit Status `Fehler` ist für neue Plätze gesperrt (F1, S10). Folge außerhalb der Lagerplatzliste (nur Hinweis in Hilfe und
+ADR, kein Code): die Lagerort-Auswahl der Kommissionierbereichs-Regeln zeigt jedes `StorageArea` ohne Aktiv-/Outbox-Filter
+(`PickingAreaRepository.cs:36-37`), also auch ein wartendes oder fehlerhaftes neues Lager.
 
 **F7 Bearbeiten eines Sage-Anlage-Platzes vor der Übergabe.** `Code`, `Description`, `Zone` sind nicht änderbar (Code ist der Schlüssel zu Sage);
 `IsActive`, `IstBuchbar`, `SageBuchungErlaubt`, `Capacity`, `IsPickingTransport` schon. Das Speichern darf nicht an der 12-Zeichen-Regel für
@@ -263,7 +318,8 @@ gesendet (F3).
 |---|---|---|
 | `ISageLagerplatzAnlage` + `SqlSageLagerplatzAnlage` | `IDEALAKEWMSService/Services/` | Reader-Interfaces (`ISageLagerplatzReader.cs:15-18`); einzige gerechtfertigte Abstraktion (Entscheid 2) |
 | `SageLagerplatzAnlageService.RunOnceAsync` | `IDEALAKEWMSService/Services/` | `SageFaArbeitsgangService` (Schritt im Worker, `Program.cs:161-168`) |
-| Schritt `ProcessSageLagerplatzAnlageAsync` | `SageBookingWorker` | eigener try-Block wie `:136-150`, Schalter nicht Safe lesen wie `:268` |
+| Schritt `ProcessSageLagerplatzAnlageAsync` + Merker `_lpTechnischGemeldet` | `SageBookingWorker` | eigener try-Block wie `:136-150`, Schalter nicht Safe lesen wie `:268`, Meldung nur beim Wechsel wie `:272-281`/`:292` (S7) |
+| `IStorageLocationRepository.AddSageAnlageAsync` (Lager + Plätze + Outbox in einer Transaktion) | `StorageLocationRepository` | `BfAuftragRepository.cs:105-112` (S2) |
 | `SyncLogServices.SageLagerplatzAnlage`, Anzeige „Lagerplätze → Sage“ | `SyncLogServices.cs` | `:44`, `:66`, `:108`; Counts `angelegt`, `vorhanden`, `fehler`, `uebersprungen`, `lager_angelegt`, `lager_vorhanden`, `lager_fehler` |
 | Schalter-Konstanten `SageLagerplatzAnlage.ToggleKey`, `LagertechnikenKey`, feste Liste der fünf Techniken (Anhang 4.4, AKE P-5 gleich) + Stufen, `ServiceActor = "system:sage-lagerplatz-anlage"` | `IdealAkeWms/Services/` | `SageFaArbeitsgaenge.cs:16-21`; `// ponytail: Technikliste fest aus Anhang 4.4/P-5; neue Sage-Technik = Konstante erweitern` |
 | `SageStammdatenOutbox.TypLagerort = "StorageArea"`; `ErledigenAsync` zusätzlich für Status `Gesendet` | `IdealAkeWms/Data/SageStammdatenOutbox.cs` | `:14-15`, `:30-45` |
@@ -275,15 +331,30 @@ gesendet (F3).
 
 ```csharp
 public enum SageLagerplatzAnlageArt { Angelegt, Vorhanden, Abgelehnt }
-public record SageLagerplatzAnlageErgebnis(SageLagerplatzAnlageArt Art, int? PlatzId, string? Platzbezeichnung, string? Grund);
+// S6: Sperr-/Masswerte der Sage-Zeile fuer die Uebernahme; SageDb = "<@@SERVERNAME>/<DB_NAME()>" fuer die Protokoll-Info (Antwort 8).
+public record SageLagerplatzAnlageErgebnis(SageLagerplatzAnlageArt Art, int? PlatzId, string? Platzbezeichnung, string? Grund,
+    bool? IstGesperrt = null, bool? IstGesperrtInventur = null, decimal? Laenge = null, decimal? Breite = null, decimal? Hoehe = null,
+    decimal? Volumen = null, decimal? Tragkraft = null, string? SageDb = null);
 public interface ISageLagerplatzAnlage
 {
-    // Fachliche Ablehnung = Ergebnis Abgelehnt mit Grund; technische Fehler = Exception (Aufrufer: F3 Punkt 5).
+    // Fachliche Ablehnung = Ergebnis Abgelehnt mit Grund; technische Fehler (Klassen F3) = Exception (Aufrufer: F3 Punkt 5).
     Task<SageLagerplatzAnlageErgebnis> AnlegenAsync(string lagerkennung, int d1, int d2, int d3, CancellationToken ct);
     // F3a: PlatzId = Basisplatz, Platzbezeichnung = Lagerbezeichnung (gleiches Ergebnis-Record, kein zweites).
-    Task<SageLagerplatzAnlageErgebnis> LagerAnlegenAsync(string lagerkennung, string bezeichnung, string lagertechnik, CancellationToken ct);
+    // neuanlageErlaubt (H4): false = nur "vorhanden" uebernehmen, Neuanlage -> 50006.
+    Task<SageLagerplatzAnlageErgebnis> LagerAnlegenAsync(string lagerkennung, string bezeichnung, string lagertechnik, bool neuanlageErlaubt,
+        CancellationToken ct);
 }
 ```
+
+**Parameter und Sperren (S4).** Alle Parameter typisiert: `@Lager` `SqlDbType.VarChar` 10, `@Bez` `VarChar` 40, `@Technik` `VarChar` 10,
+`@D1–@D3` `Int`, `@Mandant` `SmallInt`, `@NeuanlageErlaubt` `Bit` – kein `nvarchar` (unter der SQL-Kollation `SQL_Latin1_General_CP1_CI_AS`,
+P-9d, verhinderte ein `nvarchar`-Vergleich Index-Seeks). Beide Befehle beginnen mit `SET DEADLOCK_PRIORITY LOW;`: Die Sperrreihenfolge des
+WMS (`KHKLagerplaetze` → `KHKTan`) ist umgekehrt zu der des Sage-Dialogs (`spSysTan` → INSERT, Anhang 5.1); bei einem Deadlock soll das WMS das
+Opfer sein (1205 = technisch, nächster Takt), nicht der Sage-Anwender. `UPDLOCK, HOLDLOCK` mit `… OR Kurzbezeichnung = @Kurz` kann ohne Index
+auf `Kurzbezeichnung` die ganze Tabelle sperren (AKE 4595 Plätze); das ist bei je einer kurzen Transaktion je Platz hingenommen, die Indexlage
+liefert P-10 als Information für die ADR. **Ergebnis erst nach `COMMIT` (S5):** Die Werte stehen in Variablen; das `SELECT` an den Client folgt
+dem `COMMIT`. Ein Fehler beim `COMMIT` kann so nicht hinter einer schon gelesenen Ergebnismenge verloren gehen. Der Client liest mit
+`ExecuteReaderAsync` genau eine Zeile; fehlt sie, ist das ein fachlicher Fehler „Sage lieferte kein Ergebnis“.
 
 Die Outbox, der Status-Automat, die Übernahme in F3 Punkt 3 und die gesamte Oberfläche hängen nur an diesem Vertrag. Rückbau auf SData = neue
 Implementierung registrieren, `SqlSageLagerplatzAnlage` löschen, ADR 0036 superseden.
@@ -294,15 +365,17 @@ Implementierung registrieren, `SqlSageLagerplatzAnlage` löschen, ADR 0036 super
 
 ```sql
 SET XACT_ABORT ON;
+SET DEADLOCK_PRIORITY LOW;                                            -- S4: WMS ist Deadlock-Opfer, nicht der Sage-Dialog
+DECLARE @LagerBez varchar(40), @B1 varchar(50), @B2 varchar(50), @B3 varchar(50), @Aktiv smallint, @Ebenen smallint,
+        @InvUeb datetime, @InvZaehl datetime, @InvJahr smallint, @PlatzID int, @Kurz varchar(50), @Bez varchar(200), @n int,
+        @Angelegt bit = 0;
 BEGIN TRAN;
-  DECLARE @LagerBez varchar(40), @B1 varchar(50), @B2 varchar(50), @B3 varchar(50), @Aktiv smallint, @Ebenen smallint,
-          @InvUeb datetime, @InvZaehl datetime, @InvJahr smallint, @PlatzID int, @Kurz varchar(50), @Bez varchar(200), @n int;
   SELECT @LagerBez = o.Bezeichnung, @Aktiv = o.Aktiv,
          @B1 = t.BezeichnungDimension1, @B2 = t.BezeichnungDimension2, @B3 = t.BezeichnungDimension3
   FROM KHKLagerorte o WITH (UPDLOCK, HOLDLOCK)
   JOIN KHKLagertechnikenArten t ON t.Lagertechnikkennung = o.Lagertechnik
   WHERE o.Mandant = @Mandant AND o.Lagerkennung = @Lager;
-  IF @@ROWCOUNT = 0 THROW 50010, 'Lager oder Lagertechnik in Sage nicht gefunden', 1;
+  IF @@ROWCOUNT = 0 THROW 50010, 'Lager in Sage nicht gefunden, ohne Lagertechnik oder mit unbekannter Lagertechnik', 1;   -- H5: Lagertechnik nullable
   IF @Aktiv <> -1 THROW 50013, 'Lager ist in Sage inaktiv', 1;      -- inaktive Lager liest der Abgleich nicht (SageLagerplatzReader.cs:28)
   SET @Ebenen = IIF(@B1 IS NULL,0,1) + IIF(@B2 IS NULL,0,1) + IIF(@B3 IS NULL,0,1);
   IF @Ebenen = 0 THROW 50011, 'Lagertechnik ohne Dimensionen - keine Plaetze moeglich', 1;
@@ -331,9 +404,13 @@ BEGIN TRAN;
     FROM KHKLagerorte o CROSS APPLY (SELECT MAX(Dimension1) M1, MAX(Dimension2) M2, MAX(Dimension3) M3, COUNT(*) Anz
                                      FROM KHKLagerplaetze p WHERE p.Mandant = o.Mandant AND p.Lagerkennung = o.Lagerkennung) x
     WHERE o.Mandant = @Mandant AND o.Lagerkennung = @Lager;          -- Zähler aus den Daten, in derselben Transaktion (Anhang 5.4, besser als Sage)
+    SET @Angelegt = 1;
   END
-  SELECT @PlatzID AS PlatzID, IIF(@n = 0, 1, 0) AS Angelegt, (SELECT Platzbezeichnung FROM KHKLagerplaetze WHERE PlatzID = @PlatzID AND Mandant = @Mandant) AS Platzbezeichnung;
 COMMIT;
+-- S5: Ergebnis erst nach dem COMMIT; S6: Sperr-/Masswerte fuer die Uebernahme; Antwort 8: Ziel-DB fuer das Protokoll
+SELECT p.PlatzID, @Angelegt AS Angelegt, p.Platzbezeichnung, p.IstGesperrt, p.IstGesperrtInventur, p.Laenge, p.Breite, p.Hoehe, p.Volumen,
+       p.Tragkraft, CONCAT(@@SERVERNAME, '/', DB_NAME()) AS SageDb
+FROM KHKLagerplaetze p WHERE p.PlatzID = @PlatzID AND p.Mandant = @Mandant;
 ```
 
 Unverändert aus dem Anhang übernommen und **nicht** abgewandelt: `KHKBoolean` `-1/0` (nie `1`), `Timestamp` nie schreiben, Inventurmethode und
@@ -352,10 +429,10 @@ AKE-Defaults dieser Spalten in den Prüfergebnissen nicht ausgewiesen sind; (c) 
 
 ```sql
 SET XACT_ABORT ON;
+SET DEADLOCK_PRIORITY LOW;                                            -- S4
+DECLARE @PlatzID int, @Bez0 varchar(40), @Tech0 varchar(10), @Aktiv0 smallint, @Kurz varchar(50) = CONCAT(@Lager, ';0;0;0'),
+        @Angelegt bit = 0, @BezOut varchar(40);
 BEGIN TRAN;
-  DECLARE @PlatzID int, @Bez0 varchar(40), @Tech0 varchar(10), @Aktiv0 smallint, @Kurz varchar(50) = CONCAT(@Lager, ';0;0;0');
-  IF NOT EXISTS (SELECT 1 FROM KHKLagertechnikenArten WHERE Lagertechnikkennung = @Technik) THROW 50001, 'Lagertechnik in Sage unbekannt', 1;
-  IF NOT EXISTS (SELECT 1 FROM KHKGruppen WHERE Mandant = 0 AND Typ = 40025 AND Tag = 'SWF') THROW 50002, 'WarenflussKZ SWF in Sage unbekannt', 1;
   SELECT @Bez0 = Bezeichnung, @Tech0 = Lagertechnik, @Aktiv0 = Aktiv
   FROM KHKLagerorte WITH (UPDLOCK, HOLDLOCK) WHERE Mandant = @Mandant AND Lagerkennung = @Lager;
   IF @@ROWCOUNT = 1
@@ -364,14 +441,23 @@ BEGIN TRAN;
        THROW 50003, 'Lagerkennung in Sage schon anders belegt oder inaktiv', 1;
     SELECT @PlatzID = PlatzID FROM KHKLagerplaetze
     WHERE Mandant = @Mandant AND Lagerkennung = @Lager AND Dimension1 = 0 AND Dimension2 = 0 AND Dimension3 = 0;
-    SELECT @PlatzID AS PlatzID, 0 AS Angelegt, @Bez0 AS Platzbezeichnung;                 -- vorhanden
+    SET @BezOut = @Bez0;                                                                  -- vorhanden (auch ohne Freigabe, H4)
   END
   ELSE
   BEGIN
+    IF @NeuanlageErlaubt = 0
+       THROW 50006, 'Lagertechnik fuer die Lager-Anlage an diesem Standort nicht freigegeben', 1;   -- H4: nur fuer die Neuanlage
+    IF NOT EXISTS (SELECT 1 FROM KHKLagertechnikenArten WHERE Lagertechnikkennung = @Technik) THROW 50001, 'Lagertechnik in Sage unbekannt', 1;
+    IF NOT EXISTS (SELECT 1 FROM KHKGruppen WHERE Mandant = 0 AND Typ = 40025 AND Tag = 'SWF') THROW 50002, 'WarenflussKZ SWF in Sage unbekannt', 1;
     IF EXISTS (SELECT 1 FROM KHKLagerplaetze WITH (UPDLOCK, HOLDLOCK) WHERE Mandant = @Mandant AND Kurzbezeichnung = @Kurz)
        THROW 50005, 'Kurzbezeichnung des Basisplatzes in Sage schon vergeben', 1;      -- AKE: Hauptlager;0;0;0 (P-6)
-    IF EXISTS (SELECT 1 FROM KHKArtikelVariantenLagerplatz WHERE Mandant = @Mandant AND Lagerkennung = @Lager)   -- Spalten unbelegt, P-9
-       THROW 50004, 'Artikel-Lagerplatz-Zuordnungen fuer diese Lagerkennung vorhanden', 1;      -- Sage prueft das ebenso (Anhang 4.1)
+    -- S1/P-9a: KHKArtikelVariantenLagerplatz hat keine Lagerkennung, nur PlatzID -> Join ueber den Platz (Sage prueft das ebenso, Anhang 4.1)
+    IF EXISTS (SELECT 1 FROM KHKArtikelVariantenLagerplatz a JOIN KHKLagerplaetze p ON p.PlatzID = a.PlatzID AND p.Mandant = a.Mandant
+               WHERE p.Mandant = @Mandant AND p.Lagerkennung = @Lager)
+       THROW 50004, 'Artikel-Lagerplatz-Zuordnungen zu Plaetzen dieser Lagerkennung vorhanden', 1;
+    -- S1: verwaiste Plaetze derselben Kennung (ohne Lager) wuerden sonst still Teil des neuen Lagers
+    IF EXISTS (SELECT 1 FROM KHKLagerplaetze WITH (UPDLOCK, HOLDLOCK) WHERE Mandant = @Mandant AND Lagerkennung = @Lager)
+       THROW 50007, 'Lagerplaetze mit dieser Lagerkennung ohne Lager in Sage vorhanden', 1;
     EXEC spSysTan @Table = 'KHKLagerplaetze', @Mandant = @Mandant, @Increment = 1, @Tan = @PlatzID OUTPUT;
     INSERT INTO KHKLagerorte
       (Lagerkennung, Mandant, Bezeichnung, Lagertechnik, WarenflussKZ, Aktiv, AnzahlLagerplaetze, IstDispoLager, IstFremdlager,
@@ -381,13 +467,17 @@ BEGIN TRAN;
     INSERT INTO KHKLagerplaetze (PlatzID, Mandant, Lagerkennung, Dimension1, Dimension2, Dimension3, Dimensionsebene, Kurzbezeichnung,
            Platzbezeichnung, IstGesperrt, Laenge, Breite, Hoehe, Volumen, Tragkraft, Status, Inventurmethode, IstGesperrtInventur)
     VALUES (@PlatzID, @Mandant, @Lager, 0, 0, 0, 0, @Kurz, @Bez, 0, 0, 0, 0, 0, 0, 0, 0, 0);       -- Inventurdaten NULL wie Sage (4.3)
-    SELECT @PlatzID AS PlatzID, 1 AS Angelegt, @Bez AS Platzbezeichnung;
+    SELECT @Angelegt = 1, @BezOut = @Bez;
   END
 COMMIT;
+SELECT @PlatzID AS PlatzID, @Angelegt AS Angelegt, @BezOut AS Platzbezeichnung, CONCAT(@@SERVERNAME, '/', DB_NAME()) AS SageDb;   -- S5: nach COMMIT
 ```
 
 `IstPlatzverwaltet` und `AnzahlDimension1–3` stehen nicht im INSERT (bleiben 0 wie bei Sage, Anhang 4.1); sie setzt erst der Platz-Befehl.
-Vergleich `@Bez0 = @Bez` folgt der Kollation der Sage-DB (Groß/Klein laut P-9 prüfen).
+Vergleich `@Bez0 = @Bez` folgt der Kollation der Sage-DB: AKE `SQL_Latin1_General_CP1_CI_AS` (P-9d) → ohne Groß/Klein, wie der WMS-Abgleich;
+IDEAL laut P-9 vor dem Einschalten prüfen. Die Prüfungen 50001/50002 stehen seit H4 nur im Neuanlage-Zweig (ein vorhandenes Lager braucht sie
+nicht). ~~`KHKArtikelVariantenLagerplatz … WHERE … Lagerkennung = @Lager`~~ **überholt** (S1, P-9a: Spalte existiert nicht; ein Verweis auf
+eine fehlende Spalte bricht den ganzen Batch mit 207 ab).
 
 **Verbindung (Freigabe-Antwort 2).** Der Dienst schreibt, nicht das Web (Web ohne Sage-SQL-Verbindung, `IdealAkeWms/appsettings.json:2-5`),
 über die **bestehende** `ConnectionStrings:SageConnection` mit `Trusted_Connection` (`IDEALAKEWMSService/appsettings.json:4`), also als
@@ -406,14 +496,20 @@ hinter austauschbarer Schnittstelle, bis DPS einen SData-Service liefert“. Pfl
   (Freigabe-Antwort 2; ~~eigener Login~~ überholt).
 - Updatefestigkeit: Sage-Versionswechsel können Spalten, Defaults, Trigger, `spSysTan` ändern → nach jedem Sage-Update vor dem Wiedereinschalten
   P-1 bis P-3 (und P-9 bei Lager-Anlage) erneut prüfen; Schalter bis dahin aus. Neue `USER_`-Pflichtfelder ohne Default brechen den INSERT ab
-  (sichtbarer fachlicher Fehler 515, kein Teilschreiben, F3 Punkt 5).
+  (sichtbarer fachlicher Fehler 515, kein Teilschreiben, F3 Punkt 4 und Fehlerklassen).
 - Support DPS: Direktschreiben ist kein von Sage/DPS unterstützter Weg; DPS wird bewusst nicht informiert (Freigabe-Antwort 6). Abgrenzung im
   Fehlerfall: Outbox + Protokoll zeigen jeden WMS-Schreibvorgang mit PlatzID und Zeit.
 - Lager-Anlage „wenn möglich“: nur für Lagertechniken, deren Lager-Anlage am Standort durch Mitschnitt bzw. Abnahmevergleich belegt ist
   (Einstellung `SageLagerAnlageLagertechniken`); WarenflussKZ fest `SWF`, `HWE`/`HWA` nie; Lagertechnik/Bezeichnung bestehender Lager nie ändern.
 - Transaktion: je Lager bzw. je Platz eine Transaktion inkl. Zähler-UPDATE, `XACT_ABORT`, kurz (`spSysTan` sperrt `KHKTan` bis Commit, Anhang 2.6).
 - Idempotenz: Prüfen-und-Anlegen in einer Transaktion mit `UPDLOCK, HOLDLOCK`; Wiederholung ist gefahrlos; Restrisiko gleichzeitiger
-  Sage-Dialog (F5).
+  Sage-Dialog (F5). Ausdrücklich: Abweichung vom Hausmuster „hängend nie blind neu senden“ (`SageBookingWorker.cs:19`) – erlaubt, weil der
+  Befehl idempotent ist (H12).
+- Sperren: `DEADLOCK_PRIORITY LOW` (WMS ist Opfer), typisierte `varchar`-Parameter, Ergebnis nach `COMMIT`; Indexlage `KHKLagerplaetze` aus P-10
+  festhalten (S4, S5).
+- Fehlerklassen technisch/fachlich wie F3 (S3); Meldung technischer Fehler nur beim Wechsel (S7).
+- Bekannte Folgen: hängender Eintrag eines deaktivierten Platzes wird vom Abgleich übernommen und reaktiviert (H9); ein neues Lager erscheint vor
+  der Übergabe schon in der Lagerort-Auswahl der Kommissionierbereichs-Regeln (`PickingAreaRepository.cs:36-37`, S10).
 - Rückbau: SData-Implementierung des Interfaces, Outbox/Status/Oberfläche bleiben; ADR wird superseded.
 
 **Zusatzfund (nicht mitbauen, melden):** `SageLagerplatzReader.cs:26` verbindet `KHKLagerorte` und `KHKLagerplaetze` nur über `Lagerkennung`, ohne
@@ -442,14 +538,20 @@ gegen die Sage-Mandanten-DB, je Standort zuerst Testmandant, vor dem Produktiv-E
 - **AKE (`ake` und `ake_TEST2026` auf `AKESQL20.ake.at`): P-1, P-2, P-3, P-5, P-6, P-7 erledigt** (Prüfergebnisse 2026-11-24): keine
   `USER_`-Spalten an `KHKLagerplaetze`; Lager-INSERT spaltenseitig möglich (NOT NULL ohne Default nur `Lagerkennung`); nur DELETE-Trigger;
   `spSysTan` wie erwartet, `Tan = MAX(PlatzID)`; Techniken wie Anhang 4.4; platzverwaltete Lager `GL`, `HR`, `KonsHainzl`, `LL`, `SL`, `VT`
-  (`VT` fehlt in `ake_TEST2026`); 1 abweichende Kurzbezeichnung (`HAUPT;0;0;0` = `Hauptlager;0;0;0`); keine Dubletten. **Offen an AKE:** P-4
-  Nachprüfung aus dem Dienstkontext nach dem GRANT (`EXECUTE AS LOGIN` scheiterte an der AD-Abfrage), P-8, P-9.
-- **IDEAL (`IDEAL_TEST_2026_05_03` auf `idealsql2.ideal.ideal-ake.at\SAGE100TEST`, danach Produktiv-DB): nicht geprüft** (Anmeldung abgewiesen;
-  Zugang bisher über Royal TS mit `IDEAL\t1_adminweg`). **Voraussetzung vor dem Dev-Lauf** (wie im Prüfergebnis vermerkt): P-1
-  (`USER_`-Pflichtfelder ohne Default an `KHKLagerorte`/`KHKLagerplaetze`), P-2 und der Owner-Teil von P-4, durch den Menschen mit der Datei.
-  **Voraussetzung vor dem Einschalten an IDEAL** (Test wie Produktiv): zusätzlich P-3, P-5 bis P-9 und die Rechte-Nachprüfung P-4 nach dem GRANT.
-  Weicht das Ergebnis vom AKE-Stand ab (Trigger auf INSERT/UPDATE, anderer `spSysTan`, Owner ≠ `dbo`), braucht die Spec vor dem Dev-Lauf einen
-  Nachtrag; `USER_`-Spalten allein ändern den Code nicht (sie werden nicht geschrieben, 515/207 = fachlicher Fehler). **Ergebnis-Regel:**
+  (`VT` fehlt in `ake_TEST2026`); 1 abweichende Kurzbezeichnung (`HAUPT;0;0;0` = `Hauptlager;0;0;0`); keine Dubletten. **P-8, P-9 erledigt**
+  (Nachtrag 2026-11-24): `KHKArtikelVariantenLagerplatz` ohne `Lagerkennung` (→ S1, Join über `PlatzID`), `SWF` vorhanden, `USER_` an
+  `KHKLagerorte` ohne Pflicht, Kollation `SQL_Latin1_General_CP1_CI_AS`; die AKE-WMS-DBs stehen vor SQL/98 (keine `StorageAreas`,
+  `Sync:Quelle:Lagerplaetze` nicht gesetzt). **Offen an AKE:** P-4 Nachprüfung aus dem Dienstkontext nach dem GRANT (`EXECUTE AS LOGIN`
+  scheiterte an der AD-Abfrage), P-10 (Information). Für DEV AKE (Antwort 7) gilt dieselbe Test-DB `ake_TEST2026`.
+- **IDEAL (`IDEAL_TEST_2026_05_03` auf `idealsql2.ideal.ideal-ake.at\SAGE100TEST`, danach Produktiv-DB):** per sqlcmd nicht geprüft (Anmeldung
+  abgewiesen; Zugang bisher über Royal TS mit `IDEAL\t1_adminweg`). Für die Test-DB belegt der Anhang bereits P-2 (nur DELETE-Trigger, Anhang 1),
+  P-3 (`spSysTan`-Quelltext, Anhang 3) und die `USER_`-Spalten von `KHKLagerorte` (alle mit Default, Anhang 4.2) (H1). ~~**Voraussetzung vor dem
+  Dev-Lauf**: P-1, P-2, Owner-Teil P-4~~ **überholt (H1):** Die IDEAL-Prüfungen sind **kein** Freigabe- oder Dev-Lauf-Blocker; der Code hängt
+  von ihnen nicht ab (`USER_`-Spalten werden nie geschrieben, abweichende Spalten/Prozeduren sind fachliche Fehler nach F3).
+  **Voraussetzung vor dem Einschalten an IDEAL** (Test wie Produktiv): P-1 (insbesondere `USER_` an `KHKLagerplaetze`), P-2, **P-3** (codewirksam:
+  `spSysTan`), P-4 (Owner und Rechte-Nachprüfung nach dem GRANT), P-5 bis P-9, für die Produktiv-DB alle erneut.
+  Weicht das Ergebnis vom AKE-Stand ab (Trigger auf INSERT/UPDATE, anderer `spSysTan`, Owner ≠ `dbo`), bleibt der Schalter an IDEAL aus und die
+  Spec braucht einen Nachtrag; `USER_`-Spalten allein ändern den Code nicht (sie werden nicht geschrieben, 515/207 = fachlicher Fehler). **Ergebnis-Regel:**
   hat `KHKLagerorte` an IDEAL eine `USER_`-Spalte `IS_NULLABLE = NO` ohne `COLUMN_DEFAULT`, bleibt `SageLagerAnlageLagertechniken = Aus`
   (nur Platz-Anlage); hat `KHKLagerplaetze` eine solche Spalte, bleibt auch `SageLagerplatzAnlageAktiv` aus und die Spec braucht einen Nachtrag.
 
@@ -472,15 +574,19 @@ gegen die Sage-Mandanten-DB, je Standort zuerst Testmandant, vor dem Produktiv-E
 - **P-6 abweichende Kurzbezeichnungen** (Konfliktfälle F5): `SELECT COUNT(*) FROM KHKLagerplaetze WHERE Mandant = 1 AND Kurzbezeichnung <> CONCAT(Lagerkennung, ';', Dimension1, ';', Dimension2, ';', Dimension3);`
 - **P-7 Dubletten:** `SELECT Lagerkennung, Dimension1, Dimension2, Dimension3, COUNT(*) FROM KHKLagerplaetze WHERE Mandant = 1 GROUP BY Lagerkennung, Dimension1, Dimension2, Dimension3 HAVING COUNT(*) > 1;`
 - **P-8 (WMS-DB des Standorts) Lagerort-Liste:** `SELECT [Key], [Value] FROM ServiceSettings WHERE [Key] IN ('Sync:LagerplaetzeEnabled','Sync:Quelle:Lagerplaetze'); SELECT COUNT(*) FROM StorageAreas WHERE IsActive = 1 AND SageMissingSince IS NULL;`
-  Erwartet: Lagerplatz-Abgleich an, Quelle `SData`, Anzahl > 0. Sonst bleibt das Formular leer (F1).
+  Erwartet: Lagerplatz-Abgleich an, Quelle `SData`, Anzahl > 0. Sonst bleibt das Formular leer (F1). Vor SQL/98 (AKE-WMS-DBs heute) scheitert
+  die zweite Abfrage mit Msg 208 – das ist der erwartete Stand vor dem Bündel-Deploy; die Manifest-Prüfung (Deploy) ist deshalb an SQL/98 gebunden.
 - **P-9 Lager-Anlage** (nur wenn `SageLagerAnlageLagertechniken` ≠ `Aus` werden soll):
   `SELECT COLUMN_NAME, DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'KHKArtikelVariantenLagerplatz' ORDER BY ORDINAL_POSITION;`
   `SELECT Tag, Bezeichnung FROM KHKGruppen WHERE Mandant = 0 AND Typ = 40025;`
   `SELECT COLUMN_NAME, IS_NULLABLE, COLUMN_DEFAULT FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'KHKLagerorte' AND COLUMN_NAME LIKE 'USER[_]%';`
   `SELECT DATABASEPROPERTYEX(DB_NAME(), 'Collation') AS Kollation;`
-  Erwartet: `KHKArtikelVariantenLagerplatz` hat Spalten `Mandant` und `Lagerkennung` (sonst passt der Dev-Lauf die Prüfung 50004 an die
-  belegten Namen an – **bis dahin unbelegt**); `SWF` vorhanden; keine `USER_`-Spalte `NO` ohne Default; Kollation `…_CI_…` (dann gelten
+  Erwartet: `KHKArtikelVariantenLagerplatz` hat Spalten `PlatzID` und `Mandant` (AKE belegt P-9a; ~~„`Mandant` und `Lagerkennung`“~~ überholt –
+  die Prüfung 50004 joint über `PlatzID`, S1); `SWF` vorhanden; keine `USER_`-Spalte `NO` ohne Default; Kollation `…_CI_…` (dann gelten
   Lagerkennung/Bezeichnung ohne Groß/Klein wie im WMS-Abgleich).
+- **P-10 Indizes `KHKLagerplaetze`** (nur Information für ADR 0036, S4; kein Schalter hängt daran):
+  `SELECT i.name, i.is_unique, c.name AS Spalte, ic.key_ordinal FROM sys.indexes i JOIN sys.index_columns ic ON ic.object_id = i.object_id AND ic.index_id = i.index_id JOIN sys.columns c ON c.object_id = ic.object_id AND c.column_id = ic.column_id WHERE i.object_id = OBJECT_ID('dbo.KHKLagerplaetze') ORDER BY i.name, ic.key_ordinal;`
+  Zeigt, ob die Prüfung `Kurzbezeichnung = @Kurz` einen Index nutzen kann (sonst Scan mit Bereichssperren, hingenommen).
 
 ## Einstellungen
 
@@ -516,8 +622,9 @@ lesen (`SageBookingWorker.cs:267-268`).
 4. `CreateInSage` mit Lagerort L (Kennung `TB`), D1 1–2, D2 1–3, D3 0–0 legt 6 Plätze `TB;1;1;0` … `TB;2;3;0` an, alle `Source = Manual`,
    `StorageAreaId` = L, `Zone = TB`, `SageUebergabeStatus = Offen`, je ein Outbox-Eintrag `StorageLocation/<Id>` Status `Offen`; Reihenfolge der
    Outbox-Ids = D1 außen, D3 innen.
-5. Existiert `TB;1;2;0` im WMS schon, werden 5 angelegt und 1 gemeldet („übersprungen, Code im WMS schon vorhanden: TB;1;2;0“).
-6. Mehr als 200 Koordinaten oder D1 < 1 oder von > bis: Formularfehler, nichts angelegt.
+5. Existiert `TB;1;2;0` im WMS schon – auch als `tb;1;2;0` (H3) –, werden 5 angelegt und 1 gemeldet („übersprungen, Code im WMS schon
+   vorhanden: TB;1;2;0“), keine Ausnahme beim Speichern.
+6. Mehr als 200 Koordinaten oder D1 < 1 oder ein Wert > 9999 oder von > bis: Formularfehler, nichts angelegt.
 7. Ohne aktive `StorageAreas`: Formular zeigt den Hinweis aus F1 statt der Auswahl, Absenden nicht möglich.
 8. Dienst, Schalter an, Testmandant: für jeden Eintrag aus AK 4 entsteht in Sage genau ein Platz; WMS-Platz danach `Source = Sage`,
    `SageLagerplatzId` = Sage-PlatzID, `SageLagerkennung = Code`, `Description` = Sage-Platzbezeichnung, Status `Uebergeben`, `SageUebergabeAm`
@@ -532,15 +639,20 @@ lesen (`SageBookingWorker.cs:267-268`).
 13. Konflikt: Koordinaten in Sage mit anderer Kurzbezeichnung belegt (oder umgekehrt, oder mehrfach) → nichts geschrieben, WMS-Platz Status
     `Fehler`, Spalte „Übergabe-Fehler“ nennt PlatzID/Kurzbezeichnung, Outbox `Fehler`, Warnung im Protokoll.
 14. Fachliche Ablehnungen sichtbar mit Klartext, nichts in Sage geschrieben: Lager inaktiv (50013), Koordinaten passen nicht zur Lagertechnik
-    (50012, Text nennt die Dimensionen der Technik), Lagertechnik ohne Dimensionen (50011), Platzbezeichnung > 110 (50015), Code passt nicht zum
-    Muster.
+    (50012, Text nennt die Dimensionen der Technik), Lagertechnik ohne Dimensionen (50011), Platzbezeichnung > 110 (50015), Lager nicht
+    gefunden bzw. ohne/mit unbekannter Lagertechnik (50010, Text nennt beides, H5), Code passt nicht zum Muster.
 15. Technischer Fehler (fehlendes Recht des Dienstkontos, Verbindung weg): kein Teilschreiben in Sage; Outbox wieder `Offen`, Platz `Offen` mit
-    „Letzter Versuch fehlgeschlagen: …“; der gleiche Fehlertext steht nur einmal im Protokoll, bis er sich ändert; nach Behebung läuft der
-    Eintrag ohne Zutun durch.
+    „Letzter Versuch fehlgeschlagen: …“; über 10 Takte mit gleichem Fehlertext genau **ein** fehlgeschlagener Lauf im Protokoll und genau
+    **ein** `NotifyErrorAsync`-Aufruf (Unit-Test mit Mock-Notifier); ein geänderter Text erzeugt einen weiteren Lauf und eine weitere Mail; nach
+    Behebung läuft der Eintrag ohne Zutun durch und der Merker ist zurückgesetzt.
 16. Hängender `Gesendet`-Eintrag (simuliert: Sage-Platz angelegt, WMS-Speichern nicht erfolgt) wird nach `Sync:SageLagerbuchungStuckMinutes`
     erneut verarbeitet und als „vorhanden“ übernommen – keine zweite Sage-Zeile.
-17. Rücklesen: Ein Lagerplatz-Abgleich nach der Übergabe meldet für diese Plätze weder „neu“ noch „Konflikt“ noch „aktualisiert“ und legt keine
-    zweite WMS-Zeile an; `IstBuchbar`/`SageBuchungErlaubt` bleiben wie erfasst.
+17. Rücklesen (S6, prüfbar): Nach der Übergabe tragen die Plätze `SageIstGesperrt`/`SageIstGesperrtInventur`/Maße aus der Sage-Zeile. Ein
+    Lagerplatz-Abgleich danach – mit Quelle SData **und** mit Quelle View – ändert sie nicht: Prüfabfrage auf der WMS-DB
+    `SELECT COUNT(*) FROM StorageLocations WHERE Code LIKE '<Kennung>;%' AND (ModifiedBy <> 'system:sage-lagerplatz-anlage' OR Source <> 'Sage')`
+    liefert 0 (`Source` ist ein String, `StorageLocationSource.cs:5-6`), `COUNT(*) … GROUP BY Code HAVING COUNT(*) > 1` liefert
+    0 Zeilen, keine Warnung „Konflikt: Lagerplatz <Code>“ im Abgleich-Lauf; `IstBuchbar`/`SageBuchungErlaubt` wie erfasst. Unit-Test: Abgleich
+    mit DTO = Befehlswerten → `updated = 0` für diese Plätze.
 18. Alt-Einträge (Status Offen, ohne `StorageAreaId`) und inaktive Sage-Anlage-Plätze sendet der Dienst nicht; ihr Outbox-Eintrag bleibt
     unverändert.
 19. „Erneut senden“ bei Status `Fehler`: Platz und Outbox `Offen`, Fehlertext leer, `AttemptCount = 0`, Audit des Anwenders; der nächste Takt
@@ -549,17 +661,29 @@ lesen (`SageBookingWorker.cs:267-268`).
     kein Fehler „max. 12 Zeichen“.
 21. Hinweistext der Liste unterscheidet Schalter an/aus (F6); neue Spalte „Übergabe-Fehler“ mit `data-col-key`, Server-Spaltenfilter
     (`ColumnMap`), Eintrag in `column-config`; Pagination und Filter bleiben über Seitenwechsel erhalten.
-22. Regression je Standort mit Schalter aus (AKE und IDEAL): Lagerplatz-Neuanlage, Lagerplatz-Abgleich, Sage-Lagerbuchung unverändert.
+22. Regression (S8, je Standort AKE und IDEAL), jeweils prüfbar:
+    (a) Abgleich mit Quelle SData: ein Sage-Lager **ohne** Lager-Outbox-Eintrag, das nicht geliefert wird, bekommt weiter `SageMissingSince` und
+    `IsActive = false` (Unit-Test Fehlend-Schleife);
+    (b) Schalter **an**: „Neuen Lagerplatz anlegen“ erzeugt weiter Status `Offen` + Outbox ohne `StorageAreaId`, der Dienst sendet ihn nicht (AK 18),
+    die E9-Übernahme beim Abgleich (`LagerplatzSyncService.cs:174-189`) wirkt wie heute;
+    (c) `SageStammdatenOutbox.ErledigenAsync` bestätigt `BdeOperator`-Einträge (`Offen`/`Fehler`) wie bisher (Unit-Test);
+    (d) der neue Spalten-Key ist in `ColumnMap` **und** `ColumnFilterTypes.For("StorageLocations/Index")` (`StorageLocationsController.cs:76`)
+    eingetragen, bestehende Listen-Tests grün;
+    (e) bestehende `LagerplatzSdataTests` unverändert grün;
+    (f) Schalter aus: Lagerplatz-Neuanlage, Lagerplatz-Abgleich, Sage-Lagerbuchung unverändert, kein Lauf „Lagerplätze → Sage“.
 23. ADR 0036 liegt im Hauptcheckout mit den Pflichtinhalten aus dem Lösungsentwurf; `fallstricke.md` bekommt den Eintrag „Direkt-SQL in Sage:
     nach Sage-Update erst P-1 bis P-3 (P-9), dann Schalter an“ mit Warum.
 24. `SageLagerAnlageLagertechniken = Aus`: kein Eintrag „Neues Lager erfassen“, Hinweis „Lager-Anlage … nicht freigegeben“; ein POST mit
     Lager-Feldern wird abgelehnt, nichts angelegt. `Mitschnitt`: Auswahl nur `LTD0ST`, `LTD1BL`; ein POST mit `LTD2SF` → Formularfehler.
     Ungültiger Wert in `/ServiceSettings` → Speichern abgelehnt.
-25. Lager-Neuanlage im Formular: Kennung leer, > 10 Zeichen, mit `;`, schon in `StorageAreas` (auch in anderer Groß/Kleinschreibung), oder
+25. Lager-Neuanlage im Formular: Kennung leer, > 10 Zeichen, mit `;`, Leerzeichen oder anderem Zeichen außer A–Z/a–z/0–9/`-`/`_` (H10), schon in `StorageAreas` (auch in anderer Groß/Kleinschreibung), oder
     `<Kennung>;0;0;0` schon als Platz-Code vorhanden (AKE: `Hauptlager`) → Formularfehler, nichts angelegt. Bezeichnung leer/> 40 → Fehler.
 26. Gültige Lager-Neuanlage `TL-WMS` (`LTD2SF`, platzverwaltet, Reihe 1–2 × Platz 1–2): ein `StorageArea` (Audit des Anwenders, aktiv), ein
-    Outbox-Eintrag `StorageArea/<Id>` `Offen`, vier Plätze mit `StorageAreaId` = neues Lager und je ein Outbox-Eintrag; alles in einem Speichern.
-    Ohne Platzverwaltung: nur `StorageArea` + Lager-Eintrag. Bei `LTD0ST` ist Platzverwaltung gesperrt.
+    Outbox-Eintrag `StorageArea/<Id>` `Offen`, vier Plätze mit `StorageAreaId` = neues Lager und je ein Outbox-Eintrag; alles in **einer**
+    Transaktion (S2): scheitert ein Teil (Unit-Test: Ausnahme beim zweiten `SaveChanges` bzw. Unique-Verletzung am relationalen Provider), ist
+    **nichts** angelegt – kein `StorageArea`, kein Platz, kein Outbox-Eintrag – und das Formular zeigt den Fehler. Ohne Platzverwaltung: nur
+    `StorageArea` + Lager-Eintrag. Bei `LTD0ST` ist Platzverwaltung gesperrt. (Die InMemory-Tests prüfen den Ablauf; die echte Atomarität am
+    relationalen Provider zeigt TS-189 Schritt .p per SQL: `StorageAreas`/`StorageLocations`/`SageStammdatenOutbox` gleich viele neue Zeilen.)
 27. Dienst: das Lager wird vor seinen Plätzen gesendet; in Sage entstehen genau eine `KHKLagerorte`-Zeile (`WarenflussKZ = 'SWF'`, alle
     `IstWE/IstHauptWE/IstWA/IstHauptWALager = 0`, `Aktiv = -1`, `IstDispoLager = -1`, `AnzahlLagerplaetze = 1` vor den Plätzen) und der Basisplatz
     `TL-WMS;0;0;0` mit Platzbezeichnung = Lagerbezeichnung; `KHKTan` steigt um 1 für das Lager. Lager-Outbox `Bestaetigt`; danach die Plätze wie AK 8,
@@ -571,62 +695,117 @@ lesen (`SageBookingWorker.cs:267-268`).
 30. Lager-Idempotenz: existiert die Kennung in Sage mit gleicher Bezeichnung/Technik und aktiv → nichts geschrieben (`KHKTan` unverändert),
     „vorhanden – übernommen“; mit anderer Bezeichnung oder Technik oder inaktiv → Lager-Outbox `Fehler`, Hinweis über der Lagerplatzliste mit
     Klartext und „Erneut senden“; die Plätze bleiben `Offen`.
-31. Lager-Fehler 50005 (Basisplatz-Kurzbezeichnung vergeben), 50001 (Technik unbekannt), Technik nicht mehr freigegeben (Einstellung
-    zurückgestellt), 515/207 (Pflicht-/fremde Spalte) → fachlicher Fehler mit Klartext, nichts in Sage, kein Wiederholen ohne „Erneut senden“.
+31. Lager-Fehler 50005 (Basisplatz-Kurzbezeichnung vergeben), 50004 (Artikel-Zuordnungen an Plätzen dieser Kennung, Join über `PlatzID`, S1),
+    50007 (Plätze dieser Kennung ohne Lager), 50001 (Technik unbekannt), 50006 (Technik nicht freigegeben und Lager in Sage nicht vorhanden),
+    515/207 (Pflicht-/fremde Spalte) → fachlicher Fehler mit Klartext, nichts in Sage, kein Wiederholen ohne „Erneut senden“. Der Lager-Befehl
+    kompiliert gegen `ake_TEST2026` (kein 207 für `KHKArtikelVariantenLagerplatz`; TS-189 Schritt .q).
 32. Das WMS schreibt an einem bestehenden Sage-Lager nie `Bezeichnung`, `Lagertechnik`, `WarenflussKZ` oder WE/WA-Kennzeichen (Abnahmevergleich
     und Mitschnitt/Diff des Befehls: nur Zähler-Spalten im UPDATE).
 33. Platz-Konflikt mandantenweit: existiert die Kurzbezeichnung des neuen Platzes in Sage in einem **anderen** Lager → Konflikt 50014, nichts
     geschrieben.
+34. Fehlerklassen (S3): `IstTechnisch` liefert `true` genau für die Liste in F3 (Unit-Test je Nummer inkl. `Class >= 20`) und `false` u. a. für
+    `8152`, `2628`, `220`, `8115`, `245`, `547`, `2627`, `515`, `207`, `50001–50019`. Service-Test: Mock liefert für Eintrag A `Abgelehnt`
+    (z. B. aus 8152), für B `Angelegt` → A `Fehler`, B im **selben** Takt `Uebergeben`.
+35. Kein Lauf ohne Arbeit (S7): Schalter an, keine Kandidaten bzw. nur Plätze eines wartenden oder fehlerhaften Lagers → 10 Takte, 0 neue
+    Läufe „Lagerplätze → Sage“ im Protokoll (Unit-Test über `ISyncLogger`-Mock; im TS per `SELECT COUNT(*) FROM SyncLogs …`).
+36. Sperren und Ergebnis (S4, S5): beide Befehle beginnen mit `SET DEADLOCK_PRIORITY LOW`; alle String-Parameter `SqlDbType.VarChar` mit Länge
+    (Code-Review/Unit-Test auf die `SqlParameter`-Liste); das Ergebnis-`SELECT` steht nach dem `COMMIT` (Code-Review).
+37. Lager mit Lager-Outbox `Fehler`: in der Lagerort-Auswahl als „(Fehler – erst ‚Erneut senden‘)“, nicht wählbar; ein POST mit diesem Lager →
+    Formularfehler, nichts angelegt (S10).
+38. `ErledigenAsync` setzt zusätzlich `Gesendet` → `Bestaetigt`; `Offen`/`Fehler` wie bisher (Unit-Test, auch Typ `BdeOperator`).
+39. H4: Lager-Eintrag, dessen Technik nach einem Konflikt nicht (mehr) freigegeben ist, das Lager in Sage aber mit gleichen Werten existiert →
+    „Erneut senden“ führt zu „vorhanden – übernommen“ (Mock: `neuanlageErlaubt = false` wird übergeben, Ergebnis `Vorhanden`).
+40. Jeder Lauf mit Arbeit enthält genau eine Info „Sage-Datenbank: <Server>/<DB>“; auf DEV AKE lautet sie auf `…/ake_TEST2026`
+    (Freigabe-Antwort 8, TS-189 Vorbedingung V3).
 
 Unit-testbar (InMemory + Mock `ISageLagerplatzAnlage`): AK 1–8 (WMS-Seite), 12–19 (Status-Automat, Übernahme, Wiederholung, Einmal-Meldung),
-24–26, 28, 29 (Fehlend-Schleife, Muster `LagerplatzSdataTests.cs`), 30–31 (Status-Automat Lager mit gemocktem Ergebnis).
-Der SQL-Befehl selbst (AK 9–11, 13–14, 27, 30–33 Sage-Seite) ist **nicht** InMemory-testbar → Manual-UAT am Testmandanten (fallstricke „Tests,
-EF, SQL Server“). UNIQUE auf `Code` und `Lagerkennung` erzwingt InMemory nicht: die Prüfungen in F1a/F2 sind App-Code und werden getestet.
+22 (a–e), 24–26, 28, 29 (Fehlend-Schleife, Muster `LagerplatzSdataTests.cs`), 30–31 (Status-Automat Lager mit gemocktem Ergebnis), 34, 35,
+37–39. Der SQL-Befehl selbst (AK 9–11, 13–14, 27, 30–33 Sage-Seite, 36 nur per Code-Review, 40) ist **nicht** InMemory-testbar → Manual-UAT am
+Testmandanten (fallstricke „Tests, EF, SQL Server“). UNIQUE auf `Code` und `Lagerkennung` erzwingt InMemory nicht: die Prüfungen in F1a/F2 sind
+App-Code und werden getestet. Die Transaktion (AK 26) ist unter InMemory ein No-op (`IsRelational`-Guard) – die Atomarität belegt TS-189 .p.
 
 ## Test-Szenarien
 
-Neues Kapitel in `docs/TESTSZENARIEN.md` (nächste freie Nummer, Stand 2026-11-24 höchste vergebene TS-187; Dev-Lauf prüft) „Lagerplätze im WMS
-erfassen und in Sage anlegen (Direkt-SQL)“ (Titel künftig „Lager und Lagerplätze …“), Index in `secondbrain/tests/testszenarien-index.md`.
+Neues Kapitel **TS-189** in `docs/TESTSZENARIEN.md` (H2: TS-188 ist im Bündel vergeben, nächste freie 189; der Dev-Lauf prüft erneut)
+„Lager und Lagerplätze im WMS erfassen und in Sage anlegen (Direkt-SQL)“, Index in `secondbrain/tests/testszenarien-index.md`.
 Standort: **beide** – das Szenario läuft an jedem Standort am Testmandanten vollständig durch, bevor dort eingeschaltet wird.
 
 **Vorbedingungen je Standort:**
-- **IDEAL:** WMS-Testsystem `idealakeweb01.ideal.ideal-ake.at:88` (greift auf `IDEAL_TEST_2026_05_03` auf `idealsql2\SAGE100TEST` zu,
-  Freigabe-Antwort 5); vor dem Test prüfen, dass dessen **Dienst** läuft und `ConnectionStrings:SageConnection` auf diese DB zeigt. IDEAL-Prüfung
-  P-1 bis P-9 erledigt (Voraussetzung, Abschnitt Migrations-/SQL-Auswirkungen). Die Sage-seitigen Testlager legt **Benjamin** an.
-- **AKE:** Sage-Test-DB `ake_TEST2026` auf `AKESQL20.ake.at`; WMS-System und Anleger der Testlager laut Rückfrage 7. P-4 (nach GRANT), P-8,
-  P-9 erledigt.
-- Beide: GRANT für das Dienstkonto auf der Test-DB erst **nach** Schritt .l (der Schritt prüft den Fehlerfall ohne Recht).
+- **V1 IDEAL:** WMS-Testsystem `idealakeweb01.ideal.ideal-ake.at:88` (greift auf `IDEAL_TEST_2026_05_03` auf `idealsql2\SAGE100TEST` zu,
+  Freigabe-Antwort 5); vor dem Test V3 für dessen Dienst. IDEAL-Prüfung P-1 bis P-9 erledigt (Voraussetzung **vor dem Einschalten**, Abschnitt
+  Migrations-/SQL-Auswirkungen). Die Sage-seitigen Testlager legt **Benjamin** an.
+- **V2 AKE (Freigabe-Antwort 7):** **DEV AKE** – Web `http://localhost:8081`, Dienst `AKE_WMS_DEV_Service`, DB `AKE_WMS_DEV` (Instanz `.`),
+  Sage-Lesung/-Schreibung über `D:\Dev\AKE\Service\appsettings.DEV.json:4` → `ake_TEST2026` auf `AKESQL20.ake.at`. Die Sage-seitigen Testlager
+  (Paar 1 komplett, Paar 2 `TL-SAGE`, Inventur- und Technik-Paare) legt **Gerald** an. P-4 für das Konto des DEV-Dienstes (`sc qc
+  AKE_WMS_DEV_Service` → `SERVICE_START_NAME`) nach dem GRANT, P-8 (DEV-DB), P-9 erledigt (AKE belegt).
+- **V3 Beleg Sage-Ziel (harte Vorbedingung für jedes Einschalten von `SageLagerplatzAnlageAktiv` auf DEV/Testsystem, Freigabe-Antwort 8):**
+  (1) Umgebung des Dienstes ermitteln (`reg query HKLM\SYSTEM\CurrentControlSet\Services\<Dienst> /v Environment` → `DOTNET_ENVIRONMENT`
+  bzw. `ASPNETCORE_ENVIRONMENT`) und daraus `appsettings.<Umgebung>.json` → `ConnectionStrings:SageConnection` (Server, Database). Hintergrund
+  (Kritische Prüfung B2): das `appsettings.json` des DEV-AKE-Dienstes zeigt auf Produktiv `ake`; ohne Umgebungs-Überlagerung schriebe der Dienst
+  dorthin. (2) **Per SQL belegen:** `sqlcmd -S <Server aus 1> -d <Database aus 1> -E -C -Q "SELECT @@SERVERNAME AS Server, DB_NAME() AS Db"` –
+  `Db` muss `ake_TEST2026` bzw. mit `IDEAL_TEST_` beginnen, **nie** `ake` oder eine IDEAL-Produktiv-DB. Ergebnis (Ausgabe) in den QA-Nachweis.
+  Scheitert (1) oder (2) oder ist das Ziel nicht eindeutig eine Test-DB: Schalter bleibt aus, alle Sage-schreibenden Schritte NICHT MOEGLICH.
+  (3) Nach dem ersten Takt mit Arbeit: `SELECT TOP 1 Message FROM SyncLogs WHERE Message LIKE N'Sage-Datenbank:%' ORDER BY Id DESC` (DEV-DB) muss
+  dieselbe Test-DB nennen (AK 40); sonst Schalter sofort aus, Befund.
+- **V4 Rechte vor .l (H6):** P-4 für das Dienstkonto auf der Test-DB ausführen. Sind `InsPlatz`/`InsOrt`/`UpdOrt`/`ExecTan` schon 1 (z. B.
+  `db_datawriter`), entfällt .l (im Nachweis vermerken). Sonst GRANT erst **nach** Schritt .l (der Schritt prüft den Fehlerfall ohne Recht).
 - **Paar 1 (Platz-Anlage):** in Sage zwei Lager mit identischen Eingaben, z. B. `TS-SAGE` und `TS-WMS`, Bezeichnung gleich lang, Lagertechnik
-  `LTD2SF` (zusätzlich ein Paar `LTD3HR`, ein Lager mit Basisplatz-Inventurdaten ≠ NULL).
+  `LTD2SF`; zusätzlich ein Paar `LTD3HR`. **Inventurdaten (H7):** in einem **vorhandenen** platzverwalteten Lager, dessen Basisplatz
+  Inventurdaten trägt (finden: `SELECT o.Lagerkennung FROM KHKLagerorte o JOIN KHKLagerplaetze p ON p.Mandant = o.Mandant AND p.Lagerkennung =
+  o.Lagerkennung AND p.Dimension1 = 0 AND p.Dimension2 = 0 AND p.Dimension3 = 0 WHERE o.Mandant = 1 AND o.IstPlatzverwaltet = -1 AND
+  p.LetztesInventurjahr IS NOT NULL;` – IDEAL laut Anhang 5.2 z. B. `LIFT1`), je **einen** freien Platz per Sage-Dialog und per WMS anlegen
+  und nur diese zwei Zeilen vergleichen (Abnahmevergleich mit `WHERE PlatzID IN (…)` statt Lagerkennung).
 - **Paar 2 (Lager-Anlage):** in Sage nur `TL-SAGE` über den Lagerstamm anlegen (Bezeichnung `Testlager L`, `LTD2SF`, WarenflussKZ `SWF`, sonst
-  Vorgaben); das Gegenstück `TL-WMS` mit derselben Bezeichnung legt das WMS an (Schritt .o). Für `Mitschnitt` zusätzlich ein Paar `LTD1BL`.
-- Lagerplatz-Abgleich mit Quelle SData einmal gelaufen (Lager in `StorageAreas`); Benutzer A mit Rolle `masterdata`, Benutzer R nur
-  `masterdata_read`; `SageLagerAnlageLagertechniken = Mitschnitt` bzw. für Paar 2 `Alle` (nur am Testsystem).
+  Vorgaben); das Gegenstück `TL-WMS` mit derselben Bezeichnung legt das WMS an (Schritt .p). **Je Lagertechnik der Zielstufe ein Paar (H8):**
+  `Mitschnitt` = `LTD0ST`, `LTD1BL`; `Alle` = zusätzlich `LTD1UF`, `LTD2SF`, `LTD3HR`. Eine Stufe gilt an einem Standort erst als abgenommen,
+  wenn .s für **jedes** ihrer Paare 0 Abweichungen zeigt.
+- Lager in `StorageAreas`: Lagerplatz-Abgleich mit Quelle SData einmal gelaufen (Mensch, siehe QA-Regel), **oder** – für den QA-Lauf – die
+  Test-Lager per SQL in der DEV-DB angelegt (`INSERT StorageAreas` mit Lagerkennung/Bezeichnung/Lagertechnik/`IstDispoLager` wie in Sage, Audit
+  `qa-agent`; Testdaten in der DEV-DB sind erlaubt, `qa-agent.md:86`). Benutzer A mit Rolle `masterdata`, Benutzer R nur `masterdata_read`;
+  `SageLagerAnlageLagertechniken` je Schritt wie angegeben (nur am Test-/DEV-System).
+
+**QA-Regel (Freigabe-Antwort 8 „Prüfungen gerne per SQL selbst aufrufen“ – Auslegung, so festgelegt im Auftrag Gerald 2026-11-24):**
+- Der `qa-agent` **darf** die Prüf- und Abnahmeabfragen selbst per `sqlcmd … -E -C` ausführen: nur `SELECT` (P-1 bis P-10, Abnahmevergleiche
+  .k/.s, `KHKTan`-Stand, Ergebniskontrollen der Schritte) gegen die Sage-**Test**-DBs `ake_TEST2026` (`AKESQL20.ake.at`) und, sofern erreichbar,
+  `IDEAL_TEST_2026_05_03`. Das ist eine auf diese Spec begrenzte Ausnahme von `qa-agent.md:87` („never touch AKESQL20 … or Sage“).
+- Er **darf** auf DEV (AKE `localhost:8081`, IDEAL `localhost:8082`) `SageLagerplatzAnlageAktiv` und `SageLagerAnlageLagertechniken` einschalten –
+  **nur nach bestandenem V3** – und stellt **nach dem Test beide wieder auf den Default** (`false` bzw. `Aus`), Beleg per `SELECT [Key],[Value]
+  FROM ServiceSettings WHERE [Key] IN (N'SageLagerplatzAnlageAktiv', N'SageLagerAnlageLagertechniken')` im Nachweis. In Sage schreibt dabei nur der
+  DEV-Dienst (die Software unter Test).
+- Er **darf nicht:** Abfragen oder Schalter gegen Produktiv (`ake`, IDEAL-Produktiv) – Produktiv nie durch QA; Schreibanweisungen per sqlcmd in
+  Sage (kein INSERT/UPDATE/DELETE, kein GRANT, nicht den Befehl aus .v); `Sync:*Enabled` einschalten (`qa-agent.md:84-85` gilt weiter).
+- Daraus folgt: **Nur Mensch** (für QA NICHT MOEGLICH) sind die Sage-Dialog-Schritte (.e, Sage-Teil von .h/.j/.r/.u, Anlage der Paare), der
+  Lagerplatz-Abgleich (.f, Abgleich-Teil von .p/.r/.u; braucht `Sync:LagerplaetzeEnabled`), der GRANT (.l zweiter Teil) und .v (DBA). Alle
+  übrigen Schritte darf QA nach V3 ausführen. Am IDEAL-Testsystem `idealakeweb01:88` schaltet nur der Mensch.
+- Empfehlung (außerhalb des Repos, Mensch): `SageLagerplatzAnlageAktiv = false` in das DEV-Sicherheits-SQL von `D:\Dev\scripts\dev-deploy.ps1`
+  aufnehmen, damit ein erneuter DEV-Deploy den Schalter sicher zurücksetzt.
 
 | Schritt | Aktion | Erwartet |
 |---|---|---|
 | .a | Schalter aus, Lagerplatzliste öffnen | wie heute, kein Knopf „Lagerplätze in Sage anlegen“, Hinweistext „Das WMS sendet nichts an Sage“ |
 | .b | Schalter an; Benutzer R | kein Knopf; URL `/StorageLocations/CreateInSage` → Zugriff verweigert |
 | .c | Benutzer A: Lagerort `TS-WMS`, D1 1–3, D2 1–2, D3 0–0 | 6 Plätze `TS-WMS;1;1;0` …, Status Offen, Outbox 6 Zeilen Status 0 |
-| .d | Dienst-Takt abwarten (≤ 1 min) | alle 6 „Übergeben“, Quelle Sage, Spalte Übergabe-Fehler leer; Protokoll „Lagerplätze → Sage“ angelegt = 6 |
-| .e | In Sage `TS-SAGE` dieselben Plätze über den Dialog „Lagerplätze anlegen“ anlegen | – |
-| .f | Lagerplatz-Abgleich starten | `TS-SAGE`-Plätze neu im WMS; `TS-WMS`-Plätze weder neu noch Konflikt noch aktualisiert, keine Dublette |
+| .d | Dienst-Takt abwarten (≤ 1 min) | alle 6 „Übergeben“, Quelle Sage, Spalte Übergabe-Fehler leer; Protokoll „Lagerplätze → Sage“ angelegt = 6 und Info „Sage-Datenbank: …/ake_TEST2026“ (V3 Teil 3); `SageIstGesperrt`/Maße der 6 Plätze gesetzt (S6) |
+| .d2 | Schalter an, nichts zu erfassen, 10 Takte (≈ 200 s) warten | `SELECT COUNT(*) FROM SyncLogs WHERE Service = N'<Wert von SyncLogServices.SageLagerplatzAnlage>' AND Timestamp >= '<Schrittbeginn>'` = 0 (AK 35; Spalten `SyncLog.cs:7-29`) |
+| .e | In Sage `TS-SAGE` dieselben Plätze über den Dialog „Lagerplätze anlegen“ anlegen (Mensch) | – |
+| .f | Lagerplatz-Abgleich starten (Mensch), einmal mit Quelle SData, einmal mit Quelle View | `TS-SAGE`-Plätze neu im WMS; für `TS-WMS` liefert die Prüfabfrage aus AK 17 0, keine Dublette, keine Konflikt-Warnung |
 | .g | Denselben Bereich für `TS-WMS` nochmals erfassen | alle 6 übersprungen („Code im WMS schon vorhanden“) |
 | .h | In Sage `TS-WMS;3;3;0` von Hand anlegen, dann im WMS D1 3–3, D2 3–3 erfassen | Dienst: „war in Sage schon vorhanden – übernommen“, `KHKTan` unverändert |
 | .i | D1 1–1, D2 1–1, D3 1–1 für `TS-WMS` (2-dimensional) | Status Fehler, Text „Koordinaten passen nicht zur Lagertechnik (Reihe, Platz)“, nichts in Sage |
 | .j | Lager `TS-WMS` in Sage kurz inaktiv setzen, Platz `TS-WMS;3;1;0` erfassen; dann Lager wieder aktiv, „Erneut senden“ | erst Fehler „Lager ist in Sage inaktiv“, nichts in Sage; nach „Erneut senden“ Offen → nächster Takt Übergeben. Fehler-Platz aus .i deaktivieren: wird nie gesendet, Zähler offener Übergaben sinkt |
 | .k | **Abnahmevergleich** (SQL unten) | beide Richtungen 0 Zeilen für `KHKLagerplaetze` und `KHKLagerorte` |
-| .l | **Zuerst, vor dem GRANT** (Reihenfolge siehe Vorbedingungen): Schalter an, Platz erfassen, Dienstkonto noch ohne Schreibrecht | Platz Offen, „Letzter Versuch fehlgeschlagen: …“ (Rechte-Fehler), Fehler einmal im Protokoll, nichts in Sage; DBA vergibt GRANT → nächster Takt läuft durch. Danach .c ff. |
+| .l | **Zuerst, vor dem GRANT** (Reihenfolge siehe V4; entfällt, wenn das Konto schon Schreibrecht hat): Schalter an, zwei Plätze erfassen, Dienstkonto noch ohne Schreibrecht, mindestens 10 Takte warten | beide Plätze Offen, „Letzter Versuch fehlgeschlagen: …“ (Rechte-Fehler 229), über die 10 Takte genau **ein** fehlgeschlagener Lauf im Protokoll (und höchstens eine Fehlermail, falls Mails an sind), nichts in Sage (`KHKTan` unverändert); DBA vergibt GRANT (Mensch) → nächster Takt läuft durch. Danach .c ff. |
 | .m | Dienst nach Sage-Commit hart beenden (Debug-Haltepunkt bzw. Prozess beenden), neu starten | nach Stuck-Minuten „vorhanden – übernommen“, keine zweite Sage-Zeile |
 | .n | Schalter aus am jeweils anderen Standort (bzw. vor dem Einschalten): Lagerplatz anlegen, Lagerplatz-Abgleich, Ein-/Ausbuchung | unverändert |
 | .o | `SageLagerAnlageLagertechniken = Aus` | kein „Neues Lager erfassen“, Hinweis „nicht freigegeben“; auf `Mitschnitt`: nur `LTD0ST`/`LTD1BL` wählbar |
-| .p | Neues Lager `TL-WMS`, Bezeichnung `Testlager L`, `LTD2SF` (Stufe `Alle`), platzverwaltet, Reihe 1–2 × Platz 1–3; gleichzeitig Lagerplatz-Abgleich starten, bevor der Dienst sendet | Lager im Auswahlfeld „(neu, wartet auf Sage)“, Hinweis „Lager TL-WMS wartet …“; der Abgleich setzt es **nicht** auf „nicht in Sage“; 6 Plätze Offen |
-| .q | Dienst-Takt abwarten | Protokoll `lager_angelegt = 1`, dann `angelegt = 6`; in Sage `TL-WMS` mit Basisplatz `TL-WMS;0;0;0`; WMS-Plätze Übergeben; Hinweis weg |
+| .p | Neues Lager `TL-WMS`, Bezeichnung `Testlager L`, `LTD2SF` (Stufe `Alle`), platzverwaltet, Reihe 1–2 × Platz 1–3; gleichzeitig Lagerplatz-Abgleich starten, bevor der Dienst sendet (Abgleich-Teil Mensch) | Lager im Auswahlfeld „(neu, wartet auf Sage)“, Hinweis „Lager TL-WMS wartet …“; der Abgleich setzt es **nicht** auf „nicht in Sage“; 6 Plätze Offen. Atomarität (S2) per SQL auf der WMS-DB: 1 neue `StorageAreas`-Zeile, 6 neue `StorageLocations` mit `StorageAreaId` = neues Lager, 7 neue `SageStammdatenOutbox`-Zeilen (1 × `StorageArea`, 6 × `StorageLocation`), alle `Status = 0` |
+| .q | Dienst-Takt abwarten | Protokoll `lager_angelegt = 1`, dann `angelegt = 6`; in Sage `TL-WMS` mit Basisplatz `TL-WMS;0;0;0`; WMS-Plätze Übergeben; Hinweis weg; kein Fehler 207 (S1: Lager-Befehl kompiliert gegen die Test-DB, AK 31) |
 | .r | In Sage für `TL-SAGE` dieselben Plätze über den Dialog anlegen; Lagerplatz-Abgleich | keine zweite `StorageArea` `TL-WMS`, kein Konflikt |
 | .s | **Abnahmevergleich Lager** (SQL unten mit `@A = 'TL-SAGE'`, `@B = 'TL-WMS'`) für `KHKLagerorte` und `KHKLagerplaetze` | beide Richtungen 0 Zeilen; Abweichung (z. B. AKE `USER_Aussenlager` NULL vs. Sage-Wert) = Lager-Anlage an diesem Standort bleibt `Aus`, Befund in die Spec |
 | .t | Neues Lager mit Kennung eines vorhandenen Sage-Lagers in anderer Schreibweise (z. B. `ts-sage`) sowie (AKE) Kennung `Hauptlager` | Formularfehler „Lagerkennung schon vorhanden“ bzw. „Platz-Code Hauptlager;0;0;0 schon vorhanden“, nichts angelegt |
-| .u | Lager-Konflikt: im WMS `TL-KON` erfassen, vor dem Dienst-Takt in Sage `TL-KON` mit anderer Bezeichnung anlegen | Lager-Outbox Fehler, Hinweis „konnte nicht in Sage angelegt werden: … anders belegt“, Plätze Offen; Lagerplatz-Abgleich starten (übernimmt Sage-Bezeichnung), „Erneut senden“ → „vorhanden – übernommen“, Plätze laufen durch |
-| .v | (AKE, `ake_TEST2026`) Konfliktfall aus P-6 (`HAUPT;0;0;0` = `Hauptlager;0;0;0`): der DBA führt den Lager-Befehl in SSMS in einer Transaktion mit `ROLLBACK` und `@Lager = 'Hauptlager'` aus | `THROW 50005` „Kurzbezeichnung des Basisplatzes in Sage schon vergeben“ (der WMS-Weg ist schon durch .t gesperrt) |
+| .u | Lager-Konflikt: im WMS `TL-KON` erfassen (Dienst-Schalter kurz aus), in Sage `TL-KON` mit anderer Bezeichnung anlegen (Mensch), Schalter an | Lager-Outbox Fehler, Hinweis „konnte nicht in Sage angelegt werden: … anders belegt“, Plätze Offen; im Formular erscheint `TL-KON` als „(Fehler – erst ‚Erneut senden‘)“ und ist nicht wählbar (S10, AK 37); Lagerplatz-Abgleich starten (Mensch; übernimmt Sage-Bezeichnung), „Erneut senden“ → „vorhanden – übernommen“, Plätze laufen durch |
+| .v | (AKE, `ake_TEST2026`) Konfliktfall aus P-6 (`HAUPT;0;0;0` = `Hauptlager;0;0;0`): der DBA führt den Lager-Befehl in SSMS in einer Transaktion mit `ROLLBACK` und `@Lager = 'Hauptlager'`, `@NeuanlageErlaubt = 1` aus (Mensch) | `THROW 50005` „Kurzbezeichnung des Basisplatzes in Sage schon vergeben“ (der WMS-Weg ist schon durch .t gesperrt) |
+| .w | Abschluss: Schalter auf DEV/Testsystem zurück (`SageLagerplatzAnlageAktiv = false`, `SageLagerAnlageLagertechniken = Aus`) und per SQL belegen; Testlager-Liste (alle `TS-*`, `TL-*`, Inventur-Paar-Plätze) an den Sage-Anwender zum Aufräumen geben (H11: das WMS löscht nie) | Schalter Default; Aufräum-Liste im Nachweis |
 
 **Abnahmevergleich (Schritt .k, Anhang 9)** – gegen die Sage-Test-DB; Kennung und Bezeichnung werden in den Texten ersetzt, PlatzID,
 Lagerkennung und Timestamp ausgenommen. Alle übrigen Spalten (auch `USER_`) kommen aus `INFORMATION_SCHEMA`:
@@ -649,14 +828,24 @@ Für `KHKLagerorte` (Schritt .s) dasselbe Muster mit `TABLE_NAME = 'KHKLagerorte
 im Paar gleich und wird mitverglichen. Für `KHKLagerplaetze` in Schritt .s ist `@BezA = @BezB` (gleiche Lagerbezeichnung).
 
 **Negativfälle** zusammengefasst: Schalter aus, Lager-Anlage nicht freigegeben, fehlendes Recht (Rolle und Dienstkonto), leere Lagerort-Liste,
-> 200 Koordinaten, WMS-Dublette (Platz, Lagerkennung, Basisplatz-Code), Sage-Dublette/Konflikt (Platz mandantenweit, Lager), inaktives Lager,
-falsche Koordinaten, technischer Fehler, Abbruch nach Commit, Alt-Einträge ohne Lagerort, inaktiver Platz, Abgleich vor Übergabe.
+> 200 Koordinaten oder > 9999, WMS-Dublette (Platz auch in anderer Schreibweise, Lagerkennung, Basisplatz-Code), unzulässige Zeichen in der
+Lagerkennung, Sage-Dublette/Konflikt (Platz mandantenweit, Lager), inaktives Lager, falsche Koordinaten, technischer Fehler (nur einmal gemeldet),
+Abbruch nach Commit, Alt-Einträge ohne Lagerort, inaktiver Platz, Abgleich vor Übergabe, Lager mit Fehler nicht wählbar, Sage-Ziel nicht
+belegbar (V3 → Schalter bleibt aus).
 
 ## Etappen (nur bei epic: true)
 
-Kein Epic. Empfohlene Commit-Reihenfolge im Dev-Lauf: (1) Web-Erfassung + Überposting-Schutz + Bearbeiten, (2) Interface + Dienst-Schritt mit
-Mock-Tests, (3) `SqlSageLagerplatzAnlage` (Platz), (4) Lager-Anlage: Einstellung, Formular F1a, F3a, Lager-SQL, Fehlend-Schleife im Abgleich,
-(5) Liste/„Erneut senden“/Hinweistexte, (6) Doku, ADR, Testszenario.
+Kein Epic, **kein Split** (Entscheid Gerald 2026-11-24; Vorschlag S11 „zwei Teile“ bewusst abgelehnt): ein Dev-Lauf ist bei ~25–30 Dateien
+machbar, und der Lager-Teil ist im Betrieb über `SageLagerAnlageLagertechniken = Aus` (Default) vollständig abschaltbar – Teil 1 „nur Plätze“
+ist damit ohne zweiten Merge nutzbar. Damit der Lauf trotzdem in sauberen Schritten vorankommt, gilt die Commit-Reihenfolge **Plätze zuerst,
+Lager danach** (jeder Schritt baut und testet grün):
+1. Web-Erfassung Plätze (F1 ohne F1a, F2 mit `AddSageAnlageAsync`) + Überposting-Schutz + Bearbeiten (F7).
+2. Interface + Dienst-Schritt Plätze (F3, Fehlerklassen, Merker S7) mit Mock-Tests.
+3. `SqlSageLagerplatzAnlage.AnlegenAsync` (Platz-SQL).
+4. Liste/„Erneut senden“ Platz/Hinweistexte (F6), Spalte „Übergabe-Fehler“.
+5. Lager-Anlage: Einstellung `SageLagerAnlageLagertechniken`, Formular F1a, F3a, Lager-SQL, Fehlend-Schleife im Abgleich, Lager-Hinweis und
+   „Erneut senden“ Lager, Sperre fehlerhafter Lager (S10).
+6. Doku, ADR 0036, `fallstricke.md`, Testszenario TS-189, Manifest.
 
 | # | Etappe | Status | Commit |
 |---|--------|--------|--------|
@@ -671,9 +860,10 @@ Mock-Tests, (3) `SqlSageLagerplatzAnlage` (Platz), (4) Lager-Anlage: Einstellung
   (kein neuer Connection String, Freigabe-Antwort 2)
 - **Migration:** nein (Begründung im Abschnitt Migrations-/SQL-Auswirkungen)
 - **DBA-Schritt je Standort und je Sage-DB (Test, dann Produktiv)** – Rechte für das Dienstkonto der `SageConnection` (AKE `AKENB\svc_idealakewms`;
-  IDEAL: Konto des IDEAL-Dienstes, aus den Dienst-Eigenschaften ablesen; Testsystem `idealakeweb01:88`: dessen Dienstkonto):
+  IDEAL: Konto des IDEAL-Dienstes, aus den Dienst-Eigenschaften ablesen; Testsystem `idealakeweb01:88`: dessen Dienstkonto; **DEV AKE**
+  (Abnahme, Antwort 7): Konto von `AKE_WMS_DEV_Service`, `sc qc AKE_WMS_DEV_Service` → `SERVICE_START_NAME`, GRANT nur auf `ake_TEST2026`):
   ```sql
-  USE [<SageMandantenDB>];   -- AKE: ake_TEST2026, dann ake; IDEAL: IDEAL_TEST_2026_05_03, dann Produktiv-DB
+  USE [<SageMandantenDB>];   -- AKE: ake_TEST2026 (DEV AKE), dann ake; IDEAL: IDEAL_TEST_2026_05_03, dann Produktiv-DB
   -- Datenbank-Benutzer muss existieren (heute liest der Dienst schon; sonst: CREATE USER [<Konto>] FOR LOGIN [<Konto>];)
   GRANT INSERT ON dbo.KHKLagerplaetze TO [<Konto>];
   GRANT INSERT, UPDATE ON dbo.KHKLagerorte TO [<Konto>];
@@ -681,15 +871,21 @@ Mock-Tests, (3) `SqlSageLagerplatzAnlage` (Platz), (4) Lager-Anlage: Einstellung
   -- nur falls P-4 SELECT = 0 zeigt (kein db_datareader):
   GRANT SELECT ON dbo.KHKLagerorte TO [<Konto>];  GRANT SELECT ON dbo.KHKLagerplaetze TO [<Konto>];
   GRANT SELECT ON dbo.KHKLagertechnikenArten TO [<Konto>];  GRANT SELECT ON dbo.KHKGruppen TO [<Konto>];
-  GRANT SELECT ON dbo.KHKArtikelVariantenLagerplatz TO [<Konto>];
+  GRANT SELECT ON dbo.KHKArtikelVariantenLagerplatz TO [<Konto>];   -- Join 50004 ueber PlatzID (S1, P-9a)
   ```
-  Nachprüfung P-4 **aus dem Dienstkontext**. Am Testmandanten den GRANT erst nach Testschritt .l.
-- **Reihenfolge je Standort:** Publish aus dem Worktree → Testsystem (Schalter aus; IDEAL `idealakeweb01.ideal.ideal-ake.at:88` auf
-  `IDEAL_TEST_2026_05_03`, AKE laut Rückfrage 7 auf `ake_TEST2026`) → Prüfabfragen (IDEAL: P-1 bis P-9 als Voraussetzung; AKE: P-4 nach GRANT,
-  P-8, P-9) → Schalter am Testsystem an, Testschritt .l → GRANT → Testszenario inkl. beider Abnahmevergleiche → Merge (Schranke 2). Produktiv:
+  Nachprüfung P-4 **aus dem Dienstkontext**. Am Testmandanten den GRANT erst nach Testschritt .l (entfällt laut V4, wenn schon Schreibrecht).
+- **Reihenfolge je Standort:** Publish aus dem Worktree → Test-/DEV-System (Schalter aus; IDEAL `idealakeweb01.ideal.ideal-ake.at:88` auf
+  `IDEAL_TEST_2026_05_03`, AKE **DEV AKE** auf `ake_TEST2026`, Freigabe-Antwort 7) → **V3 Beleg Sage-Ziel per SQL** (harte Vorbedingung, TS-189)
+  → Prüfabfragen (IDEAL: P-1 bis P-9 vor dem Einschalten; AKE: P-4 nach GRANT, P-10 Information) → Schalter am Test-/DEV-System an,
+  Testschritt .l → GRANT → Testszenario inkl. aller Abnahmevergleiche → Schalter zurück auf Default (.w) → Merge (Schranke 2). Produktiv:
   Deploy mit beiden Einstellungen **aus**; Einschalten je Standort erst nach P-1 bis P-7 (P-9) gegen die Produktiv-Sage-DB, GRANT + P-4 und
   Sage-DB-Backup. `SageLagerAnlageLagertechniken` nur auf die Stufe stellen, deren Abnahmevergleich am Testmandanten desselben Standorts 0
-  Abweichungen zeigte. ~~DPS-Abstimmung~~ entfällt (Freigabe-Antwort 6).
+  Abweichungen zeigte (je Paar seiner Techniken, H8). ~~DPS-Abstimmung~~ entfällt (Freigabe-Antwort 6). Testlager in den Sage-Test-DBs räumt
+  ein Sage-Anwender nach der Abnahme auf (H11, Liste aus TS-189 .w).
+- **QA auf DEV (Freigabe-Antwort 8, Auslegung):** Der `qa-agent` führt nach dem DEV-Deploy die SELECT-Prüfungen gegen die Sage-Test-DBs selbst
+  aus und schaltet `SageLagerplatzAnlageAktiv`/`SageLagerAnlageLagertechniken` auf DEV **nur nach V3** ein (SQL-Beleg: Sage-Verbindung des
+  DEV-Dienstes zeigt auf `ake_TEST2026` bzw. `IDEAL_TEST_*`, nie `ake`/Produktiv); nach dem Test beide zurück auf Default und per SQL belegt.
+  Produktiv nie durch QA; Sage-Dialog-, Abgleich-, GRANT- und DBA-Schritte bleiben beim Menschen (Liste in TS-189 „QA-Regel“).
 - **Manifest-Einträge** (`scripts/deploy/nachlauf.psd1`, ADR 0022/0023; Texte nur ASCII, Drift-Test `NachlaufManifestDriftTests.cs:304-314`;
   Version = Version des Dev-Laufs):
   - `Id='v<X>-SageLagerplatzRechte'`, Typ `Info`, Firma `beide`, Phase `Vorher`, Ausfuehrung `anzeigen`, Text: „Lager-/Lagerplatz-Anlage in
@@ -703,8 +899,14 @@ Mock-Tests, (3) `SqlSageLagerplatzAnlage` (Platz), (4) Lager-Anlage: Einstellung
   - `Id='v<X>-SageLagerAnlageLagertechniken'`, Typ `Einstellung`, Firma `beide`, Phase `Nachher`, Ausfuehrung `anzeigen`, Text:
     „SageLagerAnlageLagertechniken bleibt Aus. Mitschnitt bzw. Alle erst nach Abnahmevergleich der Lager-Anlage am Testmandanten dieses Standorts;
     Aus lassen bei USER_-Pflichtfeld ohne Default in KHKLagerorte.“
-  - `Id='Pruefung/LagerorteFuerSageAnlage'`, Typ `Pruefung`, Firma `beide`, Phase `Nachher`, Ausfuehrung `anzeigen`: Skript nach Muster der
-    vorhandenen `Pruefung/*`-Einträge, zeigt `Sync:Quelle:Lagerplaetze`, `Sync:LagerplaetzeEnabled` und die Anzahl aktiver `StorageAreas` (P-8).
+  - ~~`Pruefung/LagerorteFuerSageAnlage` … zeigt drei Werte~~ **überholt (S9):** eine `Pruefung` liefert **eine Zahl** (0 = in Ordnung,
+    `nachlauf.psd1:12-13`) und darf vor SQL/98 nicht mit Msg 208 scheitern (AKE-WMS-DBs ohne `StorageAreas`, P-8). Neu, Muster
+    `Pruefung/sage-fa-ag-sdata-zugang` (`nachlauf.psd1:209-212`):
+    `Id='Pruefung/LagerorteFuerSageAnlage'; Version='<X>'; Typ='Pruefung'; Firma='beide'; Phase='Nachher'; Ausfuehrung='anzeigen'; Braucht=@('SQL/98')`,
+    `Pruefung='SELECT CASE WHEN EXISTS (SELECT 1 FROM dbo.ServiceSettings WHERE [Key] = N''SageLagerplatzAnlageAktiv'' AND LOWER(LTRIM(RTRIM([Value]))) = N''true'') AND (NOT EXISTS (SELECT 1 FROM dbo.ServiceSettings WHERE [Key] = N''Sync:Quelle:Lagerplaetze'' AND [Value] COLLATE Latin1_General_BIN = N''SData'') OR NOT EXISTS (SELECT 1 FROM dbo.StorageAreas WHERE IsActive = 1 AND SageMissingSince IS NULL)) THEN 1 ELSE 0 END'`,
+    `Text='Lagerplatz-Anlage in Sage ist an, aber Sync:Quelle:Lagerplaetze steht nicht auf SData oder es gibt keine aktiven Lagerorte: das Formular Lagerplaetze in Sage anlegen bietet keinen Lagerort an (/ServiceSettings > Quelle Lagerplaetze = SData, Lagerplatz-Abgleich laufen lassen).'`,
+    `Quelle='<Changelog-Slug des Dev-Laufs>'`. Mit `Braucht=@('SQL/98')` läuft die Prüfung erst, wenn `StorageAreas` existiert. `[Value]` mit
+    `COLLATE Latin1_General_BIN` wie `nachlauf.psd1:214` (exakte Schreibweise `SData`).
   - Keine Schema-, Daten- oder Einmal-Einträge.
 - **Publish-Befehle** (im Worktree):
   `dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWMSWeb`
@@ -721,10 +923,13 @@ Mock-Tests, (3) `SqlSageLagerplatzAnlage` (Platz), (4) Lager-Anlage: Einstellung
 5. ~~**Testsystem**~~ – **beantwortet** (Freigabe-Antwort 5): `idealakeweb01.ideal.ideal-ake.at:88` auf `IDEAL_TEST_2026_05_03`, Testlager
    legt Benjamin an.
 6. ~~**DPS**~~ – **beantwortet** (Freigabe-Antwort 6): nein.
-7. **AKE-Abnahme (neu, aus Freigabe-Antwort 4):** Welches WMS-System (Web + Dienst) wird mit seiner `SageConnection` auf `ake_TEST2026`
-   (`AKESQL20.ake.at`) gestellt – z. B. DEV AKE –, und wer legt dort die Sage-seitigen Testlager (Paar 1 komplett, Paar 2 `TL-SAGE`) an? Ohne
-   diese Abnahme bleiben an AKE beide Einstellungen aus.
-   Antwort (bitte unter „Freigabe-Antworten“ als Punkt 7 ergänzen) →
+7. ~~**AKE-Abnahme**~~ – **beantwortet 2026-11-24** (Freigabe-Antwort 7, Prüfbefund B1): DEV AKE (`AKE_WMS_DEV_Service`,
+   `appsettings.DEV.json` → `ake_TEST2026`), Testlager legt Gerald an; eingearbeitet in TS-189 V2/V3 und Deploy.
+8. ~~**QA und Sage-Schreibschritte**~~ – **beantwortet 2026-11-24** (Freigabe-Antwort 8, Prüfbefund B2): QA darf die Prüfungen per SQL selbst
+   aufrufen; Auslegung (SELECT gegen Test-DBs, Schalter auf DEV nur nach SQL-Beleg der Test-DB, danach wieder aus, Produktiv nie) in TS-189
+   „QA-Regel“ und Deploy.
+
+Keine offenen Rückfragen.
 
 ## ANTWORTEN auf Rueckfragen - Fachbereich (aus Jira)
 
@@ -747,6 +952,9 @@ Antworten Gerald im Chat 2026-11-24 (wörtlich übernommen):
 6. DPS informieren/Bestätigung vor Produktiv → **nein**
 
 Bestätigung Gerald im Chat 2026-11-24 zur Auslegung von Antwort 1: neue Lager nur mit WarenflussKZ `SWF`, `WE`/`WA` nicht anbieten → **ja**
+
+7. AKE-Abnahme (Rückfrage 7 / Prüfbefund B1) → **AKE-Abnahme auf DEV AKE, Testlager legt Gerald an.**
+8. QA und Sage-Schreibschritte (Prüfbefund B2) → **Prüfungen gerne per SQL selbst aufrufen.** (Gerald im Chat 2026-11-24, wörtlich)
 
 ### Prüfergebnisse 2026-11-24 (Claude, sqlcmd, nur SELECT, Datei `backlog/anhaenge/2026-11-24-pruefabfragen-lagerplatzanlage-sage.sql` = P-1 bis P-7 ohne Mandant-Filter)
 
@@ -927,3 +1135,5 @@ Anwenderdoku mit Fotos. In einem Lauf machbar, aber der Lager-Teil trägt S1, S1
   in Sage ab („vorhanden“) – geprüft, kein Befund.
 
 NACHBESSERUNG NOETIG: B1/B2 brauchen Geralds Antwort; der Lager-Befehl referenziert eine nicht existierende Spalte (S1), die Erfassung ist nicht atomar (S2).
+
+Eingearbeitet 2026-11-24: B1 (Antwort 7), B2 (Antwort 8, als Auslegung), S1 (Join über PlatzID + 50007 für verwaiste Plätze), S2, S3, S4 (P-10 nur Information), S5, S6 (Variante „Übernahme setzt Sage-Werte“), S7, S8, S9, S10, H1–H12; H13 ohne Handlungsbedarf; S11 bewusst abgelehnt (kein Split, Entscheid Gerald; Etappen-Reihenfolge Plätze vor Lager).
