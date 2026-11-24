@@ -2,7 +2,7 @@
 type: spec
 title: Alle Tabellen – Streifen, Hover und Fokus-Zeile in CI-Blau
 slug: 2026-11-23-tabellen-streifen-hover-ci-hellblau-spec
-status: InUmsetzung
+status: Testbereit
 created: 2026-11-23
 updated: 2026-11-24
 source_backlog: "[[2026-11-23-tabellen-streifen-hover-ci-hellblau]]"
@@ -305,7 +305,11 @@ Nicht zutreffend (`epic: false`) – ein Commit.
 
 ## Deploy
 
-*Vorläufig – der QA-Lauf bestätigt gegen den echten Diff.*
+*QA 2026-11-24 gegen den echten Diff `598df88a..7fbdd2b7` bestätigt:* `deploy.web: true` (`IdealAkeWms/` geändert: `site.css`, 6 Views, Changelog,
+`AppVersion.cs`), `deploy.service: false` (nur `IDEALAKEWMSService/AppVersion.cs` mitgezählt – kein Service-Deploy nötig), `deploy.migration: false`
+(keine Datei unter `*/Migrations/`, kein `SQL/`). Kein Eintrag in `scripts/deploy/nachlauf.psd1` nötig (kein SQL, keine Einstellung, kein manueller
+Schritt). Publish nach `<worktree>\publish` in diesem QA-Lauf **nicht** ausgeführt (Auftrag des Lauf-Leiters: kein Publish/Paket – macht der
+Bündel-Abschluss). Nach dem Merge nur dann aus `main` neu publizieren, wenn der Merge getestete Dateien mit parallelen `main`-Änderungen kombiniert hat.
 
 - **Web-App:** ja (`site.css`, wenige Views, Changelog, Version **1.99.62** – 1.99.60 (Menü FA-Struktur, `bcb7a357`) und 1.99.61 (FA-Struktur-Titel/Gate) sind vergeben; Dev-Lauf prüft erneut).
 - **Service:** nein (nur `AppVersion.cs` mitzählen, kein Service-Deploy nötig, sofern der Dev-Lauf am Service nichts ändert).
@@ -354,3 +358,121 @@ Changelog, feature-map, Testindex.
 7. Auslöser der Fokus-Zeile (Wertfelder; Kästchen nur Tastatur; WE-Link-Fokus entfällt) → **Ja, wie empfohlen: nur Eingabefelder; Kästchen nur Tastatur; Links/Knöpfe nie.**
 8. Browser der Terminals/Scanner (`:has()`) → **Unklar – trotzdem `:has()`; Geräteliste im UAT prüfen, auf alten Geräten fehlt nur die Fokus-Zeile.**
 9. Vault-/enaio-Symbol-Kontrast hier oder eigene Notiz → **Hier mitnehmen (in dieser Spec umsetzen).**
+
+## QA v1.99.62 (qa-agent, 2026-11-24)
+
+Geprüft: Commit `7fbdd2b7` (Diff gegen `598df88a`) im Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5`, Freigabe-Block als Auftrag
+(Abweichungen laut [[2026-11-24-tabellen-zeilenfarben-goal-lauf]]: Hover ohne `@media (hover: hover)`, Vault/enaio hier, `fa-head-table` Ausnahme).
+
+### 1. Build und Tests
+- `dotnet build IdealAkeWms.slnx`: 0 Fehler, 30 Warnungen (vorbestehend, u. a. CS8620/NU190x).
+- `dotnet test`: **IdealAkeWms.Tests 3492 bestanden / 1 übersprungen / 0 Fehler (3493)**; **IDEALAKEWMSService.Tests 790 / 0 / 0 (790)**.
+
+### 2. Code-Review (selbst, in diesem Lauf)
+Geprüft: `site.css` (alle neuen Regeln gegen Bootstrap 5.3.3 `.table`/`.table-striped`/`.table-hover`/`.table-active`/`.table-danger`-Variablenkette),
+die 6 View-Änderungen (`table-plain` an `#faTree`, `fa-head-table`, `#trackingTree`, `#oseonTree`, Artikelinfo-Bedarfe; `we-positionen` entfernt),
+`TabellenZeilenfarbeTests`, `ViewKeyDriftGuardTests`, Changelog, `AppVersion` beider Projekte, TS-187/TS-184.4. Ergebnis je Prüfpunkt:
+- Spezifität/Wirksamkeit: Streifen und Hover (0,3,2) schlagen Bootstraps (0,2,2); Fokus-Regel per `:has(:is(input:not(…)…):focus, …)` (0,4,3) schlägt Hover → Vorrang
+  Fokus; alles nur über `--bs-table-*-type/-state` am Zellelement, kein `background` (Fallstrick 61) – im Pixel bestätigt (Abschnitt 6).
+- Kontextzeilen: `.table-danger` usw. am `tr` definieren `--bs-table-striped/hover/active-bg` selbst, die Zelle erbt vom `tr` vor der `.table`; die neue
+  `--wms-table-focus-bg` wird für Kontextklassen auf deren `--bs-table-active-bg` umgebogen → rot bleibt in Ruhe/Hover/Fokus (Pixel: Ruhe #F8D7DA/#ECCCCF, Hover #E5C7CA).
+- Gruppenköpfe `tr.table-active`: `--bs-table-active-bg` wird in `site.css` nirgends gesetzt (Wächter + Grep) → Ruhe grau #E5E5E5 (Pixel), Hover hellblau (gewollt, TS-187.1).
+- Fokus-Auslöser: Wertfelder `:focus`, Kästchen/Optionsfelder nur `:focus-visible`, `a`/`button` nicht in der Liste → Links/Knöpfe nie. Zwei getrennte Regeln, damit ein
+  Browser ohne `:has()` nur diese verwirft.
+- Druck: `@media print` setzt `--bs-table-bg-type/-state` und `box-shadow` mit `!important` zurück; Kontextzeilen behalten ihren `--bs-table-bg` (Hintergrundfarbe der Zelle).
+- Ausnahmen: Wächter nagelt genau 5 `table-plain`-Tabellen fest; kein `<table>` trägt eine Kontextklasse.
+- Vault/enaio: neue Farben nur unter `.table:not(.table-plain) > tbody` → Kartenkopf der Artikelinfo unberührt (Sicht bestätigt); `dms-link.badge` ausgenommen;
+  beschriftete Varianten (`ShowLabel: true`) gibt es nur im Kartenkopf und als Badge, also keinen Symboltext in Tabellen, für den 4,5:1 gälte.
+- Link-Regel `:not(.btn, .badge, .vault-link, .dms-link)`: Dropdowns/`nav-link` in Tabellen gibt es nicht (Grep `Views`); `text-reset`/`link-*`/`text-white` schlagen sie per `!important`.
+- Klassen der Prüfliste (Script-Einbettung, `hidden`+`d-*`, stille Fallbacks, Positions-Binding, Nur-Client-Validierung, eine Regel an mehreren Orten): nicht berührt
+  (reines CSS plus Markup-Klassen; die alte WE-Regel ist entfernt, nicht dupliziert).
+
+Befunde (keiner blockierend, keiner gefixt):
+- **N-1 (niedrig, Zusatzfund):** In den Ausnahmetabellen (Bäume, FA-Kopf) und außerhalb von Tabellen bleiben `.vault-link`/`.dms-link` beim alten Kontrast
+  (#43A6E2/#EF7D00, `opacity .7`, < 3:1) – folgt aus AK 10 „Bäume wie vorher“ und der Freigabe „in Tabellen“. Ggf. eigene Notiz.
+- **N-2 (Kosmetik):** Kommentar in `site.css` nennt Symbole „>= 3,5:1“; gerechnet auf danger-Hover #E5C7CA 3,50 (#1C6EA4) bzw. **3,49** (#A35400) – AA-Ziel 3:1 erfüllt, nur die Kommentarzahl rundet auf.
+- **N-3 (Hinweis):** `@media print` setzt auch `--bs-table-bg-state` der Gruppenköpfe `tr.table-active` zurück → im Druck (Hintergrundgrafiken an) nicht mehr grau. Entspricht AK 11 „keine Farbflächen“; Fettschrift bleibt.
+- **N-4 (Hinweis, bekannt aus Spec):** `tr:has(…)` der äußeren Zeile greift auch auf Felder in geschachtelten Tabellen – heute keine solche Stelle.
+- **N-5 (Kosmetik):** `AppVersion.Date` steht in beiden Projekten weiter auf 2026-11-19 (so auch schon bei 1.99.61).
+
+### 3. Nachweisart je AK
+| AK | Nachweis |
+|---|---|
+| 1 Streifen | Manual-UAT, auf DEV gemessen (OK); Wächter prüft nur Quelltext |
+| 2 Hover #A1D9F7 | Manual-UAT, gemessen (OK) |
+| 3 Kontextzeilen | Manual-UAT: `table-danger` gemessen (OK); `-secondary`/`-success` nicht gemessen (gleicher Bootstrap-Mechanismus) – offen für Mensch |
+| 4 Gruppenköpfe grau | Manual-UAT, gemessen #E5E5E5 (OK); Wächter `--bs-table-active-bg` unberührt |
+| 5 Fokus-Zeile + Balken | Manual-UAT, gemessen #D9F4FF + #052C65 (OK) |
+| 6 Kästchen nur Tastatur | Manual-UAT, gemessen (OK) |
+| 7 Link/Knopf nie | Review (Selektor) + Wächter; im Browser nicht separat geprüft |
+| 8 Fokus vor Hover | Manual-UAT, gemessen (OK) |
+| 9 Links #052C65 | Manual-UAT, gemessen auch im Link-Hover (OK); Wächter Quelltext |
+| 10 Bäume unverändert | Manual-UAT: FA-Struktur ohne Streifen, Hover #F5F5F5, FA-Kopf ungestreift (OK); „Hervorheben“/Filtertreffer, Teileverfolgung, OSEON offen |
+| 11 Druck | NICHT MOEGLICH (Druckdialog); nur Review + Wächter-Regex |
+| 12 Kopf/Filter/Fuß | Review (Regeln nur `> tbody`) |
+| 13/15 Kontrast | gerechnet (unten) + gemessene Pixelwerte |
+| 14 WE wie TS-177/184 | Manual-UAT, gemessen (OK) |
+| 16 Touch | entfällt laut Freigabe 5; TS-187.12 Mensch |
+| 17 Tests grün | automatisch (OK) |
+
+### 4. Geänderte bestehende Tests
+- `ViewKeyDriftGuardTests.WareneingangPositionen_DreiQuellenGleich_Gesperrt_FokusZeile`: **Verhalten absichtlich geändert** (Spec „Wächter“ letzter Absatz, AK 17):
+  Markup-Assert ohne `we-positionen`, CSS-Teil (vier `.we-positionen`-Regeln) entfällt zugunsten `TabellenZeilenfarbeTests`, neu `NotContain("table-plain")`. Kein „Sonstiges“.
+
+### 5. Checkliste CLAUDE.md / ADR 0020
+Keine Migration/SQL/FreshInstall/AgentJobs (nicht betroffen); keine Audit-Felder; Version 1.99.62 in **beiden** `AppVersion.cs`; Anwender-Changelog v1.99.62;
+Brain-Changelog `2026-11-24-v1-99-62-…` vorhanden; ADR 0035, Fallstrick 61 ergänzt; TS-187 in `docs/TESTSZENARIEN.md` + Index Zeile 187; TS-184.4 als überholt markiert.
+Keine Einstellung → ADR 0020 nicht anwendbar. `nachlauf.psd1`: kein Eintrag nötig.
+
+### 6. DEV-Deploy und Sichtprüfung
+- Deploy (erhöhte Shell, `-OhneDienst` laut Auftrag): `dev-deploy.ps1 -Standort AKE -Quelle <worktree>` → „HTTP 200, Fusszeile v1.99.62 … Fertig: AKE v1.99.62“, Exit 0;
+  `-Standort IDEAL` → „HTTP 200, Fusszeile v1.99.62 … Fertig: IDEAL v1.99.62“, Exit 0. Standort laut Frontmatter `beide`.
+- Messmethode: kein JS-Werkzeug verfügbar (javascript:-URL gesperrt) → Zoom-Aufnahmen mit echter Maus (CDP-Hover) und Tastatur, als PNG gespeichert, Pixel per
+  `System.Drawing` ausgelesen (exakte Hex-Werte). Erst AKE, dann IDEAL, dann AKE nacheinander im selben Tab.
+
+| Schritt | Seite | Ergebnis | Status |
+|---|---|---|---|
+| 187.1 | AKE `/WarehouseRequisitions` (vorher ungestreift) | Zeilen abwechselnd #F2F2F2/#FFFFFF; Hover-Zeile **#A1D9F7** | OK |
+| 187.1 | IDEAL `/FaHierarchyVormontage` | Gruppenkopf `tr.table-active` Ruhe **#E5E5E5**, Hover hellblau; Datenzeilen gestreift | OK |
+| 187.1 | IDEAL Kommissionierlisten | Liste auf DEV leer | NICHT MOEGLICH (keine Daten) |
+| 187.2 | AKE `/Beschichtungsauftraege` (vorher `table-hover`) | Hover **#A1D9F7** | OK |
+| 187.3 | AKE `/PurchaseOrders` überfällig (`table-danger`) | Ruhe #F8D7DA / Streifen #ECCCCF, Hover **#E5C7CA** (rot, kein Hellblau) | OK |
+| 187.3 | FA-Liste erledigt/storniert, Stückliste grün, Teileverfolgung je Werkbank | nicht gemessen | offen (Mensch) |
+| 187.4 | AKE WE zu Bestellung `belId=177915`: Klick in Ist-Menge, Maus weg | Zeile **#D9F4FF**, Balken **#052C65** links | OK |
+| 187.4 | rote Zeile mit Fokus; Mehrfach-Einbuchung, Lagerbestellung/FA-Abschluss bearbeiten | WE hatte nur eine nicht-rote Position | offen (Mensch) |
+| 187.4/AK 8 | Fokus im Feld + Maus über derselben Zeile | Zeile bleibt #D9F4FF (Fokus vor Hover) | OK |
+| 187.5 | WE: Tab auf Kästchen „Überlieferung bestätigt“ | Zeile #D9F4FF | OK |
+| 187.5 | Fokus weg, Mausklick auf das Kästchen (danach zurückgeklickt, nichts gespeichert) | Zeile #F2F2F2, keine Fokus-Zeile | OK |
+| 187.5 | Leitstand-Sammelkästchen; Link/Knopf per Tab | nicht geprüft | offen (Mensch) |
+| 187.6 | AKE Beschichtungsaufträge: Link „BA-2026-00002“ in Hover-Zeile, Maus auf dem Link | Link **#052C65** auf #A1D9F7 | OK |
+| 187.6 | AKE FA-Liste: enaio-Symbol / Vault-Symbol | **#A35400** / **#1C6EA4** (voll deckend) | OK |
+| 187.6 | AKE Artikelinfo `EK000015` Kartenkopf „Im VAULT öffnen“ | unverändert hell | OK |
+| 187.6 | FA-Liste Datum überfällig (`text-danger`) | **#58151C** | OK |
+| 187.6 | Symbol-Hover, Badge „+n weitere“ | nicht geprüft | offen (Mensch) |
+| 187.7 | IDEAL FA-Struktur: Baumzeilen und FA-Kopf-Tabelle | ungestreift #FFFFFF; Baum-Hover **#F5F5F5** (wie vorher) | OK |
+| 187.7 | IDEAL Artikelinfo Bedarfe (Schlüssel-Wert) | ungestreift | OK |
+| 187.7 | „Hervorheben“/Filtertreffer, AKE Teileverfolgung/OSEON aufklappen | nicht geprüft | offen (Mensch) |
+| 187.8 | Strg+P / PDF | Druckdialog nicht automatisierbar | NICHT MOEGLICH |
+| 187.9, 187.10, 187.12 | Zahnrad/Modals/Touch | nicht geprüft | offen (Mensch) |
+| 187.11 | Kontrast | gerechnet, s. unten | OK |
+| 187.13 | Konsole Beschichtungsaufträge | keine Fehler | OK |
+
+Kontrast (WCAG 2, gerechnet): #000 auf Streifen #F2F2F2 18,76; #212529 auf Hover #A1D9F7 10,13 / Fokus #D9F4FF 13,47; Link #052C65 auf #F2F2F2 12,07 /
+#A1D9F7 8,87 / #D9F4FF 11,79 / danger-Hover #E5C7CA 8,59; `text-danger` #58151C auf #A1D9F7 8,96, auf #E5C7CA 8,68; `text-success` #0A3622 auf #A1D9F7 8,81;
+Balken #052C65 auf danger-aktiv #DFC2C4 8,14; Vault #1C6EA4 auf Weiß/#A1D9F7/#E5C7CA 5,50/3,61/3,50; enaio #A35400 5,49/3,60/3,49 (Symbole, Ziel 3:1). Alle ≥ Ziel.
+
+### 7. Publish
+Nicht ausgeführt – ausdrücklicher Auftrag des Lauf-Leiters (kein Publish/Paket/Shares in diesem QA-Lauf; das macht der Bündel-Abschluss).
+
+### Manuelle Restprüfung (Mensch)
+1. TS-187.1 IDEAL Kommissionierlisten mit Daten (Gruppenköpfe grau, Hover hellblau).
+2. TS-187.3 FA-Liste erledigt (grau) / storniert, Stückliste kommissioniert (grün), Teileverfolgung je Werkbank – Ruhe und Hover.
+3. TS-187.4 Fokus in einer **roten** WE-Zeile (rot + Balken), Mehrfach-Einbuchung, Lagerbestellung bearbeiten, FA-Abschluss bearbeiten.
+4. TS-187.5 Leitstand-Sammelkästchen (Maus/Tab); Link/Knopf per Tab → keine Fokus-Zeile.
+5. TS-187.6 Symbol-Hover dunkler, Stückliste-Badge „+n weitere“ unverändert.
+6. TS-187.7 FA-Struktur „Hervorheben“ + Spaltenfilter-Treffer in jeder Zeile; AKE Teileverfolgung + OSEON aufklappen.
+7. TS-187.8 Strg+P mit Hintergrundgrafiken + PDF; Druckansichten Kommissionierliste/Stückliste.
+8. TS-187.9 Zahnrad (erste Spalte ausblenden → Fokus-Zeile ohne Balken), Filter, Sortieren, CSV.
+9. TS-187.10 Modals BDE-Terminal „Alle fertig melden“, FA-Struktur Arbeitsgänge; Einstellungen; Hilfe.
+10. TS-187.12 Android-Scanner (Touch); Rückfrage 8 Geräteliste/Browser (`:has()`).
+11. Testsystem-Lauf nach Publish/Paket, dann Merge (Schranke 2).
