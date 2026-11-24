@@ -36,22 +36,31 @@ function Test-Kennwort([string]$gespeichert, [string]$kennwort) {
     return -not (Compare-Object $soll $ist -SyncWindow 0)
 }
 
-# Verbindung wie die App: appsettings.Production.json vor appsettings.json
+# Verbindung wie die App (und Update-IdealAkeWms.ps1 Get-Umgebung): ASPNETCORE_ENVIRONMENT aus web.config (sonst Production),
+# appsettings.<Umgebung>.json vor appsettings.json. QA 2026-11-24: fest "Production" las auf DEV/Test die Basis-Datei (AKESQL20).
+$umgebung = 'Production'
+$wc = Join-Path $WebPfad 'web.config'
+if (Test-Path $wc) { $n = ([xml](Get-Content $wc -Raw)).SelectSingleNode("//environmentVariable[@name='ASPNETCORE_ENVIRONMENT']"); if ($n) { $umgebung = $n.value } }
 $cs = $null
-foreach ($d in @('appsettings.Production.json', 'appsettings.json')) {
+foreach ($d in @("appsettings.$umgebung.json", 'appsettings.json')) {
     $p = Join-Path $WebPfad $d
     if (-not $cs -and (Test-Path $p)) {
-        $j = Get-Content $p -Raw | ConvertFrom-Json
+        $j = Get-Content $p -Raw -Encoding UTF8 | ConvertFrom-Json
         if ($j.PSObject.Properties['ConnectionStrings'] -and $j.ConnectionStrings.PSObject.Properties['DefaultConnection']) { $cs = $j.ConnectionStrings.DefaultConnection }
     }
 }
 if (-not $cs) { throw "ConnectionStrings:DefaultConnection nicht in $WebPfad\appsettings*.json gefunden." }
 $b = New-Object System.Data.SqlClient.SqlConnectionStringBuilder($cs)
-Write-Host "Datenbank: $($b.DataSource) / $($b.InitialCatalog)" -ForegroundColor Cyan
+Write-Host "Umgebung $umgebung, Datenbank: $($b.DataSource) / $($b.InitialCatalog)" -ForegroundColor Cyan
 
-$sec = Read-Host 'Startkennwort' -AsSecureString
-$kennwort = [Runtime.InteropServices.Marshal]::PtrToStringBSTR([Runtime.InteropServices.Marshal]::SecureStringToBSTR($sec))
+function Read-Kennwort([string]$text) {
+    $bstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR((Read-Host $text -AsSecureString))
+    try { return [Runtime.InteropServices.Marshal]::PtrToStringBSTR($bstr) } finally { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr) }
+}
+$kennwort = Read-Kennwort 'Startkennwort'
 if ($kennwort.Length -lt 8) { throw 'Startkennwort zu kurz (mindestens 8 Zeichen).' }
+# QA 2026-11-24: ein Tippfehler beim Setzen sperrt alle Betroffenen aus und laesst -Schritt Nachher ins Leere laufen
+if ($Schritt -eq 'Vorher' -and (Read-Kennwort 'Startkennwort wiederholen') -cne $kennwort) { throw 'Eingaben stimmen nicht ueberein. Nichts geaendert.' }
 
 $con = New-Object System.Data.SqlClient.SqlConnection($cs)
 $con.Open()
@@ -69,7 +78,7 @@ try {
 
     $ziel | ForEach-Object { Write-Host "  $($_.Id)  $($_.Name)" }
     $aktion = if ($Schritt -eq 'Vorher') { 'Startkennwort setzen' } else { 'Pflichtwechsel setzen' }
-    if ((Read-Host "$($ziel.Count) Benutzer: $aktion? (ja/nein)") -ne 'ja') { Write-Host 'Abgebrochen. Nichts geaendert.'; $tx.Rollback(); return }
+    if ((Read-Host "$($ziel.Count) Benutzer: $($aktion)? (ja/nein)") -ne 'ja') { Write-Host 'Abgebrochen. Nichts geaendert.'; $tx.Rollback(); return }
 
     $windows = [Security.Principal.WindowsIdentity]::GetCurrent().Name
     foreach ($r in $ziel) {
@@ -86,6 +95,14 @@ try {
     }
     $tx.Commit()
     Write-Host "$($ziel.Count) Benutzer: $aktion - erledigt." -ForegroundColor Green
-    if ($Schritt -eq 'Vorher') { Write-Host 'NACH dem Update unbedingt: -Schritt Nachher (Pflichtwechsel).' -ForegroundColor Yellow }
+    if ($Schritt -eq 'Vorher') {
+        # QA 2026-11-24: dieselbe Abfrage wie Pruefung/BenutzerOhneKennwort (nachlauf.psd1) - zaehlt bei WindowsAuthAktiv aus auch
+        # Benutzer mit WindowsUserName, die dieses Skript bewusst nicht anfasst.
+        $c = $con.CreateCommand()
+        $c.CommandText = "SELECT COUNT(*) FROM dbo.Users u WHERE u.IsActive = 1 AND u.Name <> N'admin' AND (u.PasswordHash IS NULL OR u.PasswordHash = N'') AND (u.WindowsUserName IS NULL OR NOT EXISTS (SELECT 1 FROM dbo.AppSettings WHERE [Key] = N'WindowsAuthAktiv' AND LOWER([Value]) = N'true'))"
+        $rest = [int]$c.ExecuteScalar()
+        if ($rest -gt 0) { Write-Host "Pruefung/BenutzerOhneKennwort zaehlt weiter $rest Benutzer (mit Windows-Benutzer, WindowsAuthAktiv aus): unter /Users/Edit klaeren." -ForegroundColor Yellow }
+        Write-Host 'NACH dem Update unbedingt: -Schritt Nachher (Pflichtwechsel).' -ForegroundColor Yellow
+    }
 }
 finally { $con.Dispose() }
