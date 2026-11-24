@@ -412,6 +412,7 @@ additive Migration für `User.MussKennwortAendern`, siehe Migrations-/SQL-Auswir
   Migration). Läuft nur auf IDEAL-Prod (FreshInstall-Herkunft, Namen identisch); auf upgegradeten DBs können gleichwertige Indizes
   unter EF-Namen existieren – dort **nicht** laufen lassen (Duplikate).
 - Prüfabfragen (lesend, Gerald in SSMS auf der WMS-DB des jeweiligen Systems; **nicht** auf Sage):
+  > **Ergebnisse 2026-11-17 IDEAL (Koordination, [[2026-11-17-pruefabfragen-gerald]]):** P-1 PROD: 4 AD-Benutzer ohne Kennwort, kein lokaler, admin mit Kennwort, WindowsAuth an; TEST: 5 lokale ohne Kennwort (Andi.Peric, Testuser[Terminal], till.zoehrer, Walter Kronberger, WB1[Terminal]). P-2a PROD leer (erwartet). **P-2b PROD: 26 von 30 Indizes fehlen** → SQL/151 nötig; IX_StockMovements_ArticleId und IX_WorkstationUsers_WorkstationId sind durch vorhandene Indizes abgedeckt (Duplikat prüfen). AKE-Systeme und MailSettings offen.
 
 ```sql
 -- P-1 Benutzer ohne Kennwort (je System: IDEAL-Prod, IDEAL-Test, AKE-Prod, AKE-Test, AKE-Test-IDEAL)
@@ -968,3 +969,55 @@ Aufgeräumt: `ts139-b2a`, `ts139-b2d` samt Rollen gelöscht; `ts139-erst` bleibt
 **7. Publish:** `<worktree>\publish\` neu (Ordner geleert): `IDEALAKEWMSWeb`, `IDEALAKEWMSWebService` (beide Exit 0), `SQL`, `deploy`, `publish-info.txt`: Version 1.99.29, Commit `504acdd390c86e96b7a9282bd4bb2d7378eae60e`, Branch `feature/2026-08-07-ideal-teile-1-5`, Erstellt 2026-11-16 19:14. Achtung N-1: enthält die nicht committete Hilfeseiten-Änderung. Deploy-Wirkung dieser Nachbesserung: nur Web (keine Migration, kein Dienst-Code).
 
 **Offen für Gerald (zusätzlich zur Liste oben):** 139.4a/4d einmal auf dem Testsystem (Haken beim Öffnen leer, nach Eingabe vorausgewählt, ohne Kennwort nur Hinweis).
+
+## QA v1.99.63 SQL/151 (qa-agent, 2026-11-24)
+
+Bezug: Rückfrage 4 / P-2b (Entscheid Gerald 2026-11-24: `IX_StockMovements_ArticleId` und `IX_WorkstationUsers_WorkstationId` **nicht** anlegen). Kleiner Deploy-Fix auf Zuruf, keine eigene Spec, Status dieser Spec unverändert. Geprüft: Commit `9dbc6ef2` im Worktree `C:\Git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-07-ideal-teile-1-5` (Branch `feature/2026-08-07-ideal-teile-1-5`), nur dieser Commit (`git show 9dbc6ef2`).
+
+**1. Build und Tests** (`dotnet build IdealAkeWms.slnx`, `dotnet test`): Build 0 Fehler, 30 Warnungen (vorbestehend). `IdealAkeWms.Tests` 3493 bestanden / 1 übersprungen / 0 Fehler (3494); `IDEALAKEWMSService.Tests` 790 / 0 / 0.
+
+**2. Review** (`SQL/151_RepairFreshInstallIndexes.sql`, `scripts/deploy/nachlauf.psd1:144-167`, `scripts/deploy/Update-IdealAkeWms.ps1:237-292, 420-466, 699-745, 818-820, 923-930`, `NachlaufManifestDriftTests.cs:224-249`):
+- SQL/151 gegen Abschnitt 15 von `SQL/00_FreshInstall.sql` zeilenweise verglichen (sortierte CREATE/FK-Zeilen, `diff`): identisch bis auf die zwei ausgelassenen Indizes. Je Anweisung ein Batch mit Guard, kein ROLLBACK, kein History-Insert, keine sqlcmd-Direktive; `StorageAreaId`-Guard (`COL_LENGTH`) wie im Original.
+- Reparatur-Fluss: `Test-PasstFirma` (`:263-267`) filtert `System=@('Prod')` + `Firma='IDEAL'` → auf allen anderen Systemen erscheinen beide Prüfungen gar nicht. Vorprüfung (`:702-706`): Phase Haltepunkt → kein `$sperre`, Hinweis „Reparatur in 4a nach Bestaetigung“; `$reparatur` (`:737`) setzt `$alleStoppen` → Web+Dienst werden gestoppt. 4a (`:820`) → `Invoke-Pruefung` (`:431-466`): `Read-Ja`, `Assert-Gestoppt`, `Invoke-SqlDatei` mit `-b -I` (`:249`), Exit ≠ 0 → Abbruch bei gestopptem Web/Dienst, danach Nachprüfung muss exakt 0 sein (`:464`). Passt.
+- `Get-BrauchtFehlend` (`:288-290`) mit echtem Manifest nachgestellt: ohne `20261117183315_FaStrukturAbgleich` liefern beide Kommissionierlisten-Prüfungen `[SQL/159]` → `Get-PruefStand` = `nach Schema` (String, also keine Sperre, kein Hinweis); mit 159 leer. Nachlauf-Liste (`:923-930`) liest die History neu → nach dem Schema wird regulär gezählt.
+- Duplikat-Abfrage: nur SELECT, Lese-Wächter `Invoke-Lesen` (`:238`) schlägt bei beiden Abfragen nicht an (geprüft). GROUP BY zählt auch NULL-Gruppen – entspricht dem UNIQUE-Verhalten von SQL Server (nur ein NULL erlaubt). Je Index „schon da → 0“.
+- Abbruchtext `:745` generisch, passt jetzt zu allen Vorher-Prüfungen.
+- Überschneidung mit noch ausstehenden Schema-Skripten geprüft (`SQL/14x–16x`, CREATE INDEX auf den 11 Tabellen): nur `SQL/166` `IX_StockMovements_WarehouseRequisitionItemId` (andere Spalte) → keine Doppel-Indizes durch die Reihenfolge Schema → 151.
+
+Befunde:
+- **H-1 (Hinweis, nicht blockierend):** `Pruefung/FreshInstallIndizesDuplikate` (`nachlauf.psd1:164`) prüft nur 3 der 5 UNIQUE-Indizes aus SQL/151; `IX_StorageAreas_Lagerkennung` und `UQ_ArticleSageDetails_ArticleId` fehlen in der Abfrage. Laut P-2b sind genau diese zwei auf IDEAL-Prod vorhanden, ihr Guard überspringt sie → kein Risiko für diesen Lauf. Nur falls Prod doch abweicht, bräche sqlcmd bei gestopptem Web/Dienst ab (Abbruchmeldung korrekt). Behandlung: akzeptiert, festgehalten.
+- **H-2 (Brain, offen für den Umsetzer):** zu v1.99.63 fehlen im Hauptcheckout noch Brain-Changelog (`secondbrain/changelog/2026-11-24-v1-99-63-…`, auf den `Quelle=` in `nachlauf.psd1:167` verweist), TS-188 in `secondbrain/tests/testszenarien-index.md` und der `feature-map.md`-Eintrag. Behandlung: an den Aufrufer gemeldet.
+- Keine sonstigen Befunde.
+
+**3. Nachweisart:** Manifest-Form, Namensgleichheit SQL/151 = Abschnitt 15 − 2 = Prüfabfrage (28 Namen), UNIQUE-Namen in der Duplikat-Abfrage → automatisch (`Pruefung_FreshInstallIndizes_GleicheNamenWieSql151UndAbschnitt15`). Laufzeit von SQL/151 und der Abfragen (raw SQL) → nicht InMemory-testbar, hier per Wegwerf-DB belegt (unten). Lauf des Update-Skripts auf IDEAL-Prod (Plan, 4a, Nachprüfung) → Manual-UAT (TS-188).
+
+**4. Geänderte bestehende Tests:** keine (nur ein neuer Test in `NachlaufManifestDriftTests`).
+
+**5. Checkliste:** keine Migration, kein Schema → FreshInstall/History unverändert, korrekt. Version 1.99.63 in beiden `AppVersion.cs`, `Changelog.cshtml`, `docs/TESTSZENARIEN.md` TS-188, `docs/betrieb/00-index.md` + `03-installation-update-rollback.md` nachgezogen. Deploy-Schritt steht im Manifest (`nachlauf.psd1:160-167`). Brain-Teile siehe H-2. **5a ADR 0020:** keine neue/geänderte Einstellung.
+
+**6. Laufzeit-Nachweis (statt DEV-Deploy, Auftrag):** lokale Instanz `.`, Wegwerf-DB `QA_Sql151_085012` (Kopie von `00_FreshInstall.sql` im Scratchpad mit ersetztem DB-Namen; `IDEAL_AKE_WMS`, `IDEAL_WMS_DEV`, `AKE_WMS_DEV` nicht angefasst):
+
+| Schritt | Ergebnis | |
+|---|---|---|
+| FreshInstall einspielen (`sqlcmd -b -I`) | Exit 0, „Installation abgeschlossen“ | OK |
+| Prüfabfrage `Pruefung/FreshInstallIndizes` (aus `nachlauf.psd1` per `Import-PowerShellDataFile`) | 0 | OK |
+| 26 Indizes aus Abschnitt 15 gedroppt (alle außer den 4 auf Prod vorhandenen; FK bleibt) | Exit 0 | OK |
+| Prüfabfrage (Prod-Zustand) | **24** | OK (= Erwartung) |
+| Duplikat-Abfrage | 0 | OK |
+| SQL/151 Lauf 1 (`-b -I -f 65001`) | Exit 0, „SQL/151: Indizes/FK aus Abschnitt 15 vorhanden.“ | OK |
+| Prüfabfrage nach SQL/151 | **0** | OK |
+| SQL/151 Lauf 2 | Exit 0 (idempotent) | OK |
+| Duplikat-Abfrage | 0 | OK |
+| Doppelte Indizes (gleiche Tabelle + Schlüsselspalten) | nur `WarehouseRequisitionItems` ShortageStatus (vorbestehend, nicht SQL/151) | OK |
+| Negativ: `IX_ProductionOrders_SubOrderNumber` gedroppt, zwei FAs mit `SubOrderNumber = QA-DUP` | Prüfabfrage 1, Duplikat-Abfrage **1** | OK |
+| Negativ: SQL/151 mit Duplikat | Msg 1505, **Exit 1** (sqlcmd -b bricht ab → Skript stoppt in 4a) | OK |
+| Wegwerf-DB gelöscht | nur `QA_Sql151_085012`; DEV-DBs und `IDEAL_AKE_WMS` vorhanden | OK |
+
+Zusatz (lesend, `IDEAL_WMS_DEV`): `IX_ProductionOrders_SubOrderNumber` ist dort UNIQUE (EF-Modell), 0 doppelte `SubOrderNumber` → die Daten sind vom Modell her eindeutig.
+Kein DEV-Deploy (Web ändert nur Version und Changelog-Text; Auftrag). **7. Publish:** nicht durchgeführt (Auftrag).
+
+**Urteil: bestanden.** Offen für Gerald (Manual-UAT, TS-188 auf IDEAL-Prod):
+1. `-NurPruefen`: `FreshInstallIndizesDuplikate OK`, `FreshInstallIndizes Abweichung 24 -> Reparatur in 4a`, Kommissionierlisten-Prüfungen `nach Schema`, kein ABBRUCH (188.1/188.2).
+2. Lauf mit Backup, in 4a `j` → `repariert (vorher Abweichung 24, jetzt OK)`; anschließend `-NurPruefen` OK (188.3/188.4).
+3. SSMS: die zwei ausgelassenen Indizes existieren nicht (188.5); Web-Seiten laden (188.6).
+4. AKE-Systeme und IDEAL-Test: beide Prüfungen erscheinen nicht (188.7).
