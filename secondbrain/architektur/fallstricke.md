@@ -2336,3 +2336,19 @@ Code: `hardware-scanner.js` Block „Scannen ohne Feld“, CSS `.hw-scan-bereit`
 - **Regel:** `IstAbschliessend` immer ausdrücklich setzen – kein EF-`HasDefaultValue` (bool-Sentinel), der DB-Default 1 ist nur für den Bestand.
 - **Warum:** Der UNIQUE-Index schützt nur noch den Abschluss; Teilmeldungen fängt kein Index mehr ab. Fehler dieser Art fallen erst mit echten
   Teilmeldungen auf, der Bestand (alle = 1) verdeckt sie (ADR [[0037-teilfertigmeldung-nur-abschliessende-meldung-eindeutig]]).
+
+## 70. `maxlength` kürzt still – Längengrenzen meldet der Server (v1.99.79, [[2026-11-24-lagerplatz-anlage-wms-nach-sage-spec]])
+
+- **Problem:** `maxlength="10"` am Feld Lagerkennung schnitt eine 11-stellige Eingabe beim Tippen/Einfügen auf 10 Zeichen ab; das WMS legte
+  dann ein anderes Lager an, als der Benutzer gemeint hatte, ohne Meldung (QA v1.99.71, F-7).
+- **Regel:** Fachliche Längengrenzen nicht per `maxlength` erzwingen, wenn ein Kürzen die Bedeutung ändert (Codes, Kennungen). Der Server prüft,
+  `asp-validation-for` zeigt die Meldung am Feld.
+- **Warum:** Melden statt still behandeln – ein gekürzter Code ist ein falscher Code.
+
+## 71. Moq liefert für `Task<List<T>>` null – ein entfernter `?? new List` bricht Tests, nicht Produktion (v1.99.79)
+
+- **Problem:** Nach dem Entfernen des stillen Fallbacks in `PickingController` (F-1, Repository liefert per `ToListAsync` nie null) fielen drei
+  `PickingControllerTests` mit `ArgumentNullException`: `Mock<IPickingOrderRepository>` ohne Setup gibt für `Task<List<T>>` `null` zurück
+  (Moq `DefaultValue.Empty` füllt nur Arrays/Schnittstellen wie `IEnumerable<T>`, nicht `List<T>`).
+- **Regel:** Den Mock aufsetzen (`ReturnsAsync(new List<T>())`), nicht den Produktionscode mit `??` „absichern“.
+- **Warum:** Der Fallback verdeckte im Code einen Zustand, den es nur im Test gibt; die Negativaussage „nie null“ ist über den Repository-Weg belegt.

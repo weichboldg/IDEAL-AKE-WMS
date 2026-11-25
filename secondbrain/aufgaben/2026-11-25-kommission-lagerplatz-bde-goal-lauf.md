@@ -45,44 +45,44 @@ ADR des Epics: 0037 (statt 0036, an die Lagerplatz-Spec vergeben).
 ## Sammel-Fixes für den Schlusslauf (Auftrag Gerald 2026-11-25)
 Alle Befunde der Specs werden gesammelt und nach der letzten Epic-Etappe in EINEM Fix-Lauf mit eigener Version + qa-agent behoben.
 
-| # | Quelle | Befund | Vorschlag |
-|---|---|---|---|
-| F-1 | v1.99.70 Q1 | `PickingController.cs:258` stiller Fallback `?? new List<…>()` | entfernen (Repository liefert nie null) |
-| F-2 | v1.99.70 Q3 | „Altbestand geprüft“: Ausnahme in `ErzeugeOffeneAsync` → Fehlerseite, Kennzeichen schon gelöscht | Ausnahme fangen, WarningMessage „Nachtlauf holt nach“ |
-| F-3 | v1.99.70 Q2 | Merker „Run gestartet“ auch bei Gesamtfehler → Wiederholung erst am Folgetag | laut Spec F2 gewollt – nur prüfen, ggf. belassen |
-| F-4 | v1.99.70 Q4 | DEV-Absicherung (`Sync:%Enabled`) schaltet `Sync:KommissionierNachtragEnabled` ab → Nachtlauf auf DEV nie beobachtbar | Entscheid Gerald: DEV-Ausnahme bzw. QA-Erlaubnis für diesen Schalter (kein Code) |
-| F-5 | v1.99.71 N1 | Dienst-Stopp während Sage-Befehl → Eintrag „Fehler“ statt „Offen“ | Einzeiler `when (!ct.IsCancellationRequested && !IstTechnisch(ex))` in beiden catch |
-| F-6 | v1.99.71 N2 | Konfliktmeldung 50014 ohne belegende Sage-PlatzID (AK 13) | PlatzID in Meldung; Gerald 2026-11-25: Live-Test erst morgen möglich → im Schlusslauf den Konflikt-SELECT read-only gegen ake_TEST2026 selbst belegen (bekannter Fall `HAUPT;0;0;0` = `Hauptlager;0;0;0`), Live-Schreibtest bleibt Mensch |
-| F-7 | v1.99.71 QA | Lagercode-Feld kürzt 11 Zeichen still auf 10 | maxlength entfernen/Hinweis, Server-Meldung zeigen |
-| F-8 | v1.99.71 Umsetzer | `SageLagerplatzReader.cs:26` verbindet ohne Mandant | Mandant wie Schreibweg |
-| F-9 | v1.99.71 H1/H2 | kurzzeitig „fehlend“ beim parallelen Abgleich; Fehlermail je Takt bei unerwarteter Ausnahme | Hinweise, prüfen |
-| F-10 | v1.99.72 Umsetzer | AK 9 Blechdicke: Sage-Feld nicht konfiguriert → Bestandswerte bleiben statt „–“ (`SdataArtikelReader.cs:360`) | Spec-Erwartung vs. Verhalten klären/angleichen |
-| F-11 | v1.99.72 Umsetzer | Lagerbestell-Zeilen ohne Bestellart-Filter (Glasbestellung mit IF-Artikel erscheint) | Filter auf Bestellart prüfen |
-| F-12 | v1.99.72 Umsetzer | Bestandsübersicht-Spaltenauswahl: Bestandsspalte nicht fixiert | fixieren |
-| F-13 | v1.99.72 Umsetzer | Werkbank-Prüfung „Lagerbestellungen nur mit BDE-Teileliste“ ohne Unit-Test | Test ergänzen |
-| F-14 | v1.99.72 Umsetzer | Einmal-Skript Fräsen-Pfad: Rückfrage 15 als Annahme (Y:\ → \\idealfs1\Daten$\Produktion\CAM\), Rückfrage 16 Belegestation offen | Gerald vor SCHARF |
-| F-15 | v1.99.72 Umsetzer | Fußzeile „Stand“ in docs/TESTSZENARIEN.md veraltet | nachziehen |
-| F-16 | v1.99.72 QA F-2 (mittel) | `USER_OSBlechdicke` standardmäßig aktiv, Existenz in Sage IDEAL ungeprüft (P-1) → Blechteile-Lesen kann scheitern | Prüfabfrage P-1 vor Einschalten (IDEAL-Test nicht erreichbar → Gerald), ggf. Default aus. **Gerald 2026-11-25:** AKE hat das Feld nicht und muss ohne funktionieren. Code-Beleg: einziger Sage-Leser ist `SdataArtikelReader.BlechteileFelderLesenAsync`, nur über `BlechteileFelderNachlese.LaufAsync` (`SageImportService.cs:576`), Schalter `Sync:BlechteileFelderNachlesen` (AKE false); Fehler dort nur Warnung, Artikel-Abgleich bleibt gültig; Teileliste liest Merkmale aus der WMS-DB (leer = „–“). **Schluss-QA:** Artikel-Abgleich auf DEV AKE (Nachlese aus) und DEV IDEAL (Nachlese an, falls Sage-Test IDEAL erreichbar) laufen lassen, Aktivitäts-Protokoll auf Fehler/Warnungen prüfen, Schalter zurücksetzen. Gerald: Sage-Test IDEAL sollte verfügbar sein. Direkter SQL-Lesezugriff `idealsql2\SAGE100TEST`/IDEAL_TEST_2026_05_03 mit AKENB\gerald.weichbold: Anmeldung abgelehnt → Prüfung über den Dienst-Weg (SData sagetest01) in der QA |
-| F-17 | v1.99.72 QA F-5 | Artikel bearbeiten: bei Validierungsfehler verschwindet die Fräsen-Pfad-Karte | Karte im Fehlerfall wieder rendern |
-| F-18 | v1.99.72 QA F-7 | Einmal-Skript Fräsen-Pfad ohne eigene Standortprüfung (nur Manifest) | DB-Namen-/Standort-Guard im Skript |
-| F-19 | v1.99.72 QA F-9 | vorbestehendes `innerHTML` in WarehouseRequisitions/Edit | auf textContent prüfen |
-| F-20 | Epic E1 | CSV-Export der Teileliste enthält Teile-Zeilen (gemeinsames csv-export.js) | entscheiden; ggf. Kinder-Zeilen im Export ausnehmen |
-| F-21 | Epic E2 | Summen-Haken meldet immer volle Sollmenge – mit Teilfertigmeldung (E3) passend? | in E3/Schlusslauf entscheiden |
-| F-22 | Epic E3 | Baugruppe: „Fertig“ mit 0/0 nach Übermeldung wird abgewiesen (`ReportCompletionCoreAsync`), Blechteile/Lagerbestellung erlauben 0/0 | Entscheid Gerald, ggf. angleichen |
-| F-23 | Epic E3 | Spec-Abschnitt Einstellungen nennt noch „SQL/168“ (gemeint 169) | Text korrigieren |
-| F-24 | Epic E3 | docs/betrieb/03 Tabelle 5.2a ohne Zeile SQL/168 | nachtragen |
-| F-25 | Epic E4a | AG-Status in der FA-Sicht ohne Werkbank-Gate (Vereinfachung) | prüfen, ob Gate nötig |
-| F-26 | Epic E4b | Laufzeit in „Meine Buchungen“ zählt nicht live (Stand Seitenaufbau) | prüfen, ggf. Timer aus Terminal übernehmen |
-| F-27 | Epic E4b | Scan auf schon laufenden AG meldet „nicht gefunden (oder läuft bereits)“ (Bestand BdeScanResolver) | Meldung schärfen |
-| F-28 | Epic E4b | JSON-Aktionen nehmen terminalId vom Client (wie Terminal) | in QA bewerten |
-| F-29 | Epic E5 | Verwaiste Aufrufe ohne Nutzer: BdeTerminal/ActiveBookings, PausedBookings, StartProductionForOrder; API operator/{nr}, active-booking, today-history, available-operations | entfernen (ponytail) nach Grep-Beleg |
-| F-30 | Epic E5 | Fotos 11-02/11-03 nicht mehr referenziert | löschen oder belassen |
-| F-31 | Epic E5 | Tageshistorie ohne Anmeldung → nach Login auf Liste statt Historie | returnUrl durchreichen |
-| F-32 | Epic E1/E5 | Foto-Name 17-08 doppelt belegt (Isolierfräse vs. Handy-Teileliste) | nächste freie 17-NN |
-| F-33 | Epic-QA N1 | Kontrast 4,13:1 inaktive Reiter + „Tätigkeit starten“ | auf ≥4,5:1 |
-| F-34 | Epic-QA N2 | Tageshistorie „Sub-FA 0“ bei Blechteilen, „FA 0 / Sub-FA 0“ bei Lagerbestellung (`BdeTageshistorie.cs:73`) | 0 nicht anzeigen |
-| F-35 | Epic-QA N4 | „Meine Buchungen“ ohne Sub-FA (wie altes Terminal) | Sub-FA ergänzen |
-| F-36 | Epic-QA N6 | Alle Einzel-Haken wieder gesetzt → Summen-Haken kommt nicht zurück | koppeln |
-| F-37 | Epic-QA N7 | Kollisionsdialog: Fokus auf Dialog statt „OK“ | Fokus auf OK |
-| F-38 | Epic-QA N9 | QA legte 3 Tabellen in lokaler DB `.`/IDEAL_AKE_WMS an (BfAuftraege, BfAuftragPositionen, SageFaArbeitsgangAnlagen) | **Erledigt 2026-11-25: bleiben.** Lokale DB PC-WEICHBOLD/MSSQLSERVER (nicht DEV, nicht AKESQL20); `__EFMigrationsHistory` führt 20261117154645_AddBfAuftraege + 20261117192807_AddSageFaArbeitsgangAnlagen bereits als angewendet → Tabellen machen die Kopie konsistent, Löschen würde sie brechen; leer, kein Repo-Verweis auf diese DB |
-| F-39 | Epic-QA N10 | FreshInstall ohne History-Zeile `20260910081155_AddProductionOrderMatchcode` (Altbestand) | nachtragen |
+| # | Quelle | Befund | Vorschlag | Schlusslauf v1.99.79 |
+|---|---|---|---|---|
+| F-1 | v1.99.70 Q1 | `PickingController.cs:258` stiller Fallback `?? new List<…>()` | entfernen (Repository liefert nie null) | behoben (f1f0e4f2) |
+| F-2 | v1.99.70 Q3 | „Altbestand geprüft“: Ausnahme in `ErzeugeOffeneAsync` → Fehlerseite, Kennzeichen schon gelöscht | Ausnahme fangen, WarningMessage „Nachtlauf holt nach“ | behoben (f1f0e4f2) |
+| F-3 | v1.99.70 Q2 | Merker „Run gestartet“ auch bei Gesamtfehler → Wiederholung erst am Folgetag | laut Spec F2 gewollt – nur prüfen, ggf. belassen | offen Gerald |
+| F-4 | v1.99.70 Q4 | DEV-Absicherung (`Sync:%Enabled`) schaltet `Sync:KommissionierNachtragEnabled` ab → Nachtlauf auf DEV nie beobachtbar | Entscheid Gerald: DEV-Ausnahme bzw. QA-Erlaubnis für diesen Schalter (kein Code) | offen Gerald |
+| F-5 | v1.99.71 N1 | Dienst-Stopp während Sage-Befehl → Eintrag „Fehler“ statt „Offen“ | Einzeiler `when (!ct.IsCancellationRequested && !IstTechnisch(ex))` in beiden catch | behoben (f1f0e4f2) |
+| F-6 | v1.99.71 N2 | Konfliktmeldung 50014 ohne belegende Sage-PlatzID (AK 13) | PlatzID in Meldung; Gerald 2026-11-25: Live-Test erst morgen möglich → im Schlusslauf den Konflikt-SELECT read-only gegen ake_TEST2026 selbst belegen (bekannter Fall `HAUPT;0;0;0` = `Hauptlager;0;0;0`), Live-Schreibtest bleibt Mensch | behoben (f1f0e4f2); SELECT ake_TEST2026 findet PlatzID 1 HAUPT = Hauptlager;0;0;0 |
+| F-7 | v1.99.71 QA | Lagercode-Feld kürzt 11 Zeichen still auf 10 | maxlength entfernen/Hinweis, Server-Meldung zeigen | behoben (f1f0e4f2) |
+| F-8 | v1.99.71 Umsetzer | `SageLagerplatzReader.cs:26` verbindet ohne Mandant | Mandant wie Schreibweg | behoben (f1f0e4f2) |
+| F-9 | v1.99.71 H1/H2 | kurzzeitig „fehlend“ beim parallelen Abgleich; Fehlermail je Takt bei unerwarteter Ausnahme | Hinweise, prüfen | bestätigt (H1 selbstheilend `LagerplatzSyncService.cs:349-356`, H2 Muster) |
+| F-10 | v1.99.72 Umsetzer | AK 9 Blechdicke: Sage-Feld nicht konfiguriert → Bestandswerte bleiben statt „–“ (`SdataArtikelReader.cs:360`) | Spec-Erwartung vs. Verhalten klären/angleichen | behoben (f1f0e4f2) |
+| F-11 | v1.99.72 Umsetzer | Lagerbestell-Zeilen ohne Bestellart-Filter (Glasbestellung mit IF-Artikel erscheint) | Filter auf Bestellart prüfen | offen Gerald (Glas = Lagerbestellung? `WarehouseRequisitionType` Lager=1/Glas=2) |
+| F-12 | v1.99.72 Umsetzer | Bestandsübersicht-Spaltenauswahl: Bestandsspalte nicht fixiert | fixieren | behoben (f1f0e4f2) |
+| F-13 | v1.99.72 Umsetzer | Werkbank-Prüfung „Lagerbestellungen nur mit BDE-Teileliste“ ohne Unit-Test | Test ergänzen | behoben (f1f0e4f2) |
+| F-14 | v1.99.72 Umsetzer | Einmal-Skript Fräsen-Pfad: Rückfrage 15 als Annahme (Y:\ → \\idealfs1\Daten$\Produktion\CAM\), Rückfrage 16 Belegestation offen | Gerald vor SCHARF | offen Gerald |
+| F-15 | v1.99.72 Umsetzer | Fußzeile „Stand“ in docs/TESTSZENARIEN.md veraltet | nachziehen | behoben (f1f0e4f2) |
+| F-16 | v1.99.72 QA F-2 (mittel) | `USER_OSBlechdicke` standardmäßig aktiv, Existenz in Sage IDEAL ungeprüft (P-1) → Blechteile-Lesen kann scheitern | Prüfabfrage P-1 vor Einschalten (IDEAL-Test nicht erreichbar → Gerald), ggf. Default aus. **Gerald 2026-11-25:** AKE hat das Feld nicht und muss ohne funktionieren. Code-Beleg: einziger Sage-Leser ist `SdataArtikelReader.BlechteileFelderLesenAsync`, nur über `BlechteileFelderNachlese.LaufAsync` (`SageImportService.cs:576`), Schalter `Sync:BlechteileFelderNachlesen` (AKE false); Fehler dort nur Warnung, Artikel-Abgleich bleibt gültig; Teileliste liest Merkmale aus der WMS-DB (leer = „–“). **Schluss-QA:** Artikel-Abgleich auf DEV AKE (Nachlese aus) und DEV IDEAL (Nachlese an, falls Sage-Test IDEAL erreichbar) laufen lassen, Aktivitäts-Protokoll auf Fehler/Warnungen prüfen, Schalter zurücksetzen. Gerald: Sage-Test IDEAL sollte verfügbar sein. Direkter SQL-Lesezugriff `idealsql2\SAGE100TEST`/IDEAL_TEST_2026_05_03 mit AKENB\gerald.weichbold: Anmeldung abgelehnt → Prüfung über den Dienst-Weg (SData sagetest01) in der QA | offen Gerald |
+| F-17 | v1.99.72 QA F-5 | Artikel bearbeiten: bei Validierungsfehler verschwindet die Fräsen-Pfad-Karte | Karte im Fehlerfall wieder rendern | behoben (f1f0e4f2) |
+| F-18 | v1.99.72 QA F-7 | Einmal-Skript Fräsen-Pfad ohne eigene Standortprüfung (nur Manifest) | DB-Namen-/Standort-Guard im Skript | behoben (f1f0e4f2) |
+| F-19 | v1.99.72 QA F-9 | vorbestehendes `innerHTML` in WarehouseRequisitions/Edit | auf textContent prüfen | behoben (f1f0e4f2) |
+| F-20 | Epic E1 | CSV-Export der Teileliste enthält Teile-Zeilen (gemeinsames csv-export.js) | entscheiden; ggf. Kinder-Zeilen im Export ausnehmen | offen Gerald |
+| F-21 | Epic E2 | Summen-Haken meldet immer volle Sollmenge – mit Teilfertigmeldung (E3) passend? | in E3/Schlusslauf entscheiden | offen Gerald |
+| F-22 | Epic E3 | Baugruppe: „Fertig“ mit 0/0 nach Übermeldung wird abgewiesen (`ReportCompletionCoreAsync`), Blechteile/Lagerbestellung erlauben 0/0 | Entscheid Gerald, ggf. angleichen | offen Gerald |
+| F-23 | Epic E3 | Spec-Abschnitt Einstellungen nennt noch „SQL/168“ (gemeint 169) | Text korrigieren | behoben (Brain, Epic-Spec) |
+| F-24 | Epic E3 | docs/betrieb/03 Tabelle 5.2a ohne Zeile SQL/168 | nachtragen | behoben (f1f0e4f2) |
+| F-25 | Epic E4a | AG-Status in der FA-Sicht ohne Werkbank-Gate (Vereinfachung) | prüfen, ob Gate nötig | widerlegt (Spec Antwort 4: kein Werkbank-Gate) |
+| F-26 | Epic E4b | Laufzeit in „Meine Buchungen“ zählt nicht live (Stand Seitenaufbau) | prüfen, ggf. Timer aus Terminal übernehmen | behoben (f1f0e4f2) |
+| F-27 | Epic E4b | Scan auf schon laufenden AG meldet „nicht gefunden (oder läuft bereits)“ (Bestand BdeScanResolver) | Meldung schärfen | behoben (f1f0e4f2) |
+| F-28 | Epic E4b | JSON-Aktionen nehmen terminalId vom Client (wie Terminal) | in QA bewerten | behoben (f1f0e4f2) |
+| F-29 | Epic E5 | Verwaiste Aufrufe ohne Nutzer: BdeTerminal/ActiveBookings, PausedBookings, StartProductionForOrder; API operator/{nr}, active-booking, today-history, available-operations | entfernen (ponytail) nach Grep-Beleg | offen Gerald (nur Tests rufen auf; StartProductionForOrder → [[2026-11-25-bde-nur-fa-meldung-entfernen]]; /api/bde öffentlich) |
+| F-30 | Epic E5 | Fotos 11-02/11-03 nicht mehr referenziert | löschen oder belassen | offen Gerald |
+| F-31 | Epic E5 | Tageshistorie ohne Anmeldung → nach Login auf Liste statt Historie | returnUrl durchreichen | behoben (f1f0e4f2) |
+| F-32 | Epic E1/E5 | Foto-Name 17-08 doppelt belegt (Isolierfräse vs. Handy-Teileliste) | nächste freie 17-NN | bestätigt (Handy = 17-13, 17-08 nur einmal) |
+| F-33 | Epic-QA N1 | Kontrast 4,13:1 inaktive Reiter + „Tätigkeit starten“ | auf ≥4,5:1 | behoben (f1f0e4f2) |
+| F-34 | Epic-QA N2 | Tageshistorie „Sub-FA 0“ bei Blechteilen, „FA 0 / Sub-FA 0“ bei Lagerbestellung (`BdeTageshistorie.cs:73`) | 0 nicht anzeigen | behoben (f1f0e4f2) |
+| F-35 | Epic-QA N4 | „Meine Buchungen“ ohne Sub-FA (wie altes Terminal) | Sub-FA ergänzen | behoben (f1f0e4f2) |
+| F-36 | Epic-QA N6 | Alle Einzel-Haken wieder gesetzt → Summen-Haken kommt nicht zurück | koppeln | behoben (f1f0e4f2) |
+| F-37 | Epic-QA N7 | Kollisionsdialog: Fokus auf Dialog statt „OK“ | Fokus auf OK | behoben (f1f0e4f2) |
+| F-38 | Epic-QA N9 | QA legte 3 Tabellen in lokaler DB `.`/IDEAL_AKE_WMS an (BfAuftraege, BfAuftragPositionen, SageFaArbeitsgangAnlagen) | **Erledigt 2026-11-25: bleiben.** Lokale DB PC-WEICHBOLD/MSSQLSERVER (nicht DEV, nicht AKESQL20); `__EFMigrationsHistory` führt 20261117154645_AddBfAuftraege + 20261117192807_AddSageFaArbeitsgangAnlagen bereits als angewendet → Tabellen machen die Kopie konsistent, Löschen würde sie brechen; leer, kein Repo-Verweis auf diese DB | offen Gerald (erledigt: bleiben) |
+| F-39 | Epic-QA N10 | FreshInstall ohne History-Zeile `20260910081155_AddProductionOrderMatchcode` (Altbestand) | nachtragen | widerlegt (Migration in 47de3ba2 entfernt, nie deployt – Zeile gehört NICHT in FreshInstall) |
