@@ -328,4 +328,6 @@ und Abteilung“, plus Eintrag in `secondbrain/tests/testszenarien-index.md`:
 5. NEU (aus 2/3): `Referenz` hat nur **31 Zeichen** – `WMS: SM#ATI#12345# Gerald Weichbold Abteilung:C1` passt nicht. Vorschlag:
    `Referenz` = **`<Abteilung> <Benutzer>`** gekürzt auf 31 (Abteilung zuerst, max. 10 wie DPS), voller Text
    `WMS: SM#…# <Benutzer> Abteilung:<x>` ins **Zeilen-`Memo`** (varchar(max)); die Kennung bleibt im Kopf-Memo (Wiedererkennung). Sage-WE:
-   voller Text ins Kopf-Memo (varchar(max), keine Kürzung nötig). →
+   voller Text ins Kopf-Memo (varchar(max), keine Kürzung nötig). → **ja, passt – inkl. ID vom WMS (Gerald 2026-11-25).**
+   Damit `Referenz` = `<Kennung> <Abteilung> <Benutzer>` (z. B. `SM#ATI#12345# C1 Gerald Weichbold`), auf 31 Zeichen gekürzt
+   (Kürzungsregel: erst Benutzer am Ende, dann Abteilung; die Kennung nie). Voller Text ins Zeilen-`Memo`.
