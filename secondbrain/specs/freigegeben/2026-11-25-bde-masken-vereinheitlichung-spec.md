@@ -2,14 +2,14 @@
 type: spec
 title: BDE-Masken vereinheitlichen - Teile- und FA-Sicht, AG-Status-Ampel, Teilfertigmeldung, BDE mobil kompakt
 slug: 2026-11-25-bde-masken-vereinheitlichung-spec
-status: Freigegeben
+status: InUmsetzung
 created: 2026-11-25
 updated: 2026-11-25
 source_backlog: "[[2026-11-25-bde-masken-vereinheitlichung]]"
 task: ""
 jira: ""
 worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"
-branch: ""
+branch: "feature/2026-08-07-ideal-teile-1-5"
 standort: beide
 affected_code:
   - IdealAkeWms/Controllers/BdeTeilelisteController.cs

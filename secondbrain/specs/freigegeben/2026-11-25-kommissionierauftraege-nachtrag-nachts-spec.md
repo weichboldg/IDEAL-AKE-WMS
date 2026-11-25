@@ -2,14 +2,14 @@
 type: spec
 title: Kommissionieraufträge – Nachtrag nachts im Dienst, Knopf „Fehlende … erzeugen“ nur für Admins
 slug: 2026-11-25-kommissionierauftraege-nachtrag-nachts-spec
-status: Freigegeben
+status: InUmsetzung
 created: 2026-11-25
 updated: 2026-11-25
 source_backlog: "[[2026-11-25-kommissionierauftraege-nachtrag-automatisch-knopf-nur-admin]]"
 task: ""
 jira: ""
-worktree: ""
-branch: ""
+worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"
+branch: "feature/2026-08-07-ideal-teile-1-5"
 standort: beide
 affected_code:
   - "IDEALAKEWMSService/Services/KommissionierNachtragService.cs (neu: Lauf, Fälligkeit, Zählung, Aktivitäts-Protokoll)"

@@ -2,14 +2,14 @@
 type: spec
 title: Lager und Lagerplätze im WMS erfassen und per Direkt-SQL in Sage anlegen (über die Outbox, austauschbar gegen SData)
 slug: 2026-11-24-lagerplatz-anlage-wms-nach-sage-spec
-status: Freigegeben
+status: InUmsetzung
 created: 2026-11-24
 updated: 2026-11-25
 source_backlog: "[[2026-11-20-lagerplatz-anlage-wms-nach-sage]]"
 task: ""
 jira: ""
-worktree: ""
-branch: ""
+worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"
+branch: "feature/2026-08-07-ideal-teile-1-5"
 standort: beide
 affected_code:
   - "Outbox-Helfer: IdealAkeWms/Data/SageStammdatenOutbox.cs:14 (TypLagerplatz), :18-27 (Vormerken, speichert nicht), :30-45 (ErledigenAsync -> Bestaetigt)"

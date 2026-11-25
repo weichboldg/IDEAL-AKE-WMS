@@ -2,14 +2,14 @@
 type: spec
 title: BDE-Teileliste – Material/Blechdicke/Bemerkung/Fertigungsinfo, Fräsen-Pfad je Artikel, Lagerbestell-Positionen an der Isolierungsfräse
 slug: 2026-11-20-bde-liste-isolierungsfraese-pfad-material-spec
-status: Freigegeben
+status: InUmsetzung
 created: 2026-11-20
 updated: 2026-11-25
 source_backlog: "[[2026-11-19-bde-liste-isolierungsfraese-pfad-material]]"
 task: ""
 jira: ""
 worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"
-branch: ""
+branch: "feature/2026-08-07-ideal-teile-1-5"
 standort: IDEAL
 version_vorschlag: "nächste freie nach 1.99.69 (Stand Bündel-Worktree 2026-11-25, AppVersion.cs:5; der frühere Vorschlag 1.99.49 ist vergeben; Dev-Lauf prüft erneut)"
 sql_vorschlag: "164 (Articles.CamPath) und 165 (Lagerbestell-Zeilen) – beide für diese Spec reserviert (bf-auftrag-baugruppen-Spec Z. 62, bde-masken-Spec Z. 440); belegt bis 167 im Bündel-Worktree, 168 an kommissionierauftraege-nachtrag vergeben; Dev-Lauf prüft erneut"
