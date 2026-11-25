@@ -2,7 +2,7 @@
 type: spec
 title: Kommissionieraufträge – Nachtrag nachts im Dienst, Knopf „Fehlende … erzeugen“ nur für Admins
 slug: 2026-11-25-kommissionierauftraege-nachtrag-nachts-spec
-status: InUmsetzung
+status: Testbereit
 created: 2026-11-25
 updated: 2026-11-25
 source_backlog: "[[2026-11-25-kommissionierauftraege-nachtrag-automatisch-knopf-nur-admin]]"
@@ -518,7 +518,7 @@ Kein Epic.
 
 ## Deploy
 
-*Vorläufig, der QA-Lauf bestätigt es gegen den echten Diff.*
+*QA 2026-11-25 gegen den echten Diff eff16911..fa1b754b bestätigt: web ja (IdealAkeWms/), service ja (IDEALAKEWMSService/), migration ja (IdealAkeWms/Migrations/20261125161741_AddPickingStatusStuecklisteKleiner.cs). Paket: `C:\Git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-07-ideal-teile-1-5\publish` v1.99.70 (Commit 6e426113), beide Komponenten zu deployen. Reihenfolge: DB-Backup (üblich) → SQL/168 (bzw. Update-Skript Phase Schema) → Web → Dienst. Nach dem Merge nur dann neu aus main publishen, wenn der Merge getestete Dateien mit parallelen main-Änderungen kombiniert hat.*
 
 - **Web-App:** ja (Leitstand-Filter/View, Badge, Stücklisten-Hinweis, Texte, gemeinsame Registrierung, Katalog-Seed der neuen ServiceSettings)
 - **Service:** ja (neuer Lauf, DI)
@@ -615,3 +615,82 @@ Abweichungen von der Spec:
 Befunde: Spec-Manifest und Diagnose nannten die falsche Tabelle `ProductionOrderPickingStatuses` (korrigiert). Fotos für die Doku (DEV, nur ansehen):
 Leitstand-Zeile mit Badge „⚠ Stückliste kleiner“, Leitstand als Nicht-Admin ohne die Knöpfe, Stückliste mit gelbem Hinweis, optional
 Aktivitätsprotokoll „Kommissionier-Nachtrag“.
+
+## QA-Nachweis (qa-agent, 2026-11-25)
+
+Geprüft: Diff `eff16911..fa1b754b` (Umsetzung) im Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5`. Fotos-Commit `6e426113` (nur Doku). Ergebnis: **Testbereit**.
+
+**1. Build und Tests (selbst gemessen):** `dotnet build IdealAkeWms.slnx` 0 Fehler, 30 Warnungen (Basis). `IdealAkeWms.Tests` 3551 bestanden / 1 übersprungen
+(vorbestehend `ProductionOrderEagerCreateAgentJobTests`) / 0 Fehler. `IDEALAKEWMSService.Tests` 801 / 0 / 0.
+
+**2. Code-Review (selbst, synchron).** Gelesen: `KommissionierNachtragService`, `DienstBenutzer`, `SyncWorker`-Schritt, Dienst-`Program.cs`,
+`PickingOrderRegistrierung` gegen die entfernten Web-Zeilen (1:1; keine Doppelregistrierung im Dienst, `ServiceSettingRepository`/`IProductionOrderRepository` gab es dort vorher nicht),
+`PickingOrderWorkflow` (Ueberdeckt in der Transaktion vor dem `OhneRest`-Return, Marker nur bei Änderung, `SollListe` als eine Stelle für Workflow und Stückliste),
+`PickingOrderRestmengen.Ueberdeckt/Text` (gleiche Regel `Abgedeckt`/`Schluessel` wie `Berechne`), `PickingLeitstandController` (`[RequireAdminAccess]`, `IsAdmin`, Altbestand-Pfad,
+TempData-Verkettung), `PickingController.BomSeiteAsync` (ungefiltertes `bomResult`), Views (`Index`, `_PickingLeitstandRow`, `Bom`, `Picking/Index`, Help), SQL/168, FreshInstall, Manifest,
+Katalog. Fehlerklassen der Agent-Definition: kein Wert in `<script>`, kein `hidden`+`d-*`, Tooltip-Text per Razor kodiert, Admin-Sperre serverseitig, Relevanz-Regel nur einmal (`SollListe`).
+Kein weiterer `ICurrentUserService`-Konsument im Dienst (Suche `ICurrentUserService` in `IDEALAKEWMSService/` und in den dort registrierten Web-Klassen).
+
+| Nr | Schwere | Befund | Behandlung |
+|---|---|---|---|
+| Q1 | niedrig | `PickingController.cs:258` `GetAktiveZeilenAsync(id) ?? new List<…>()`: stiller Fallback. Das Repository gibt nie null zurück (`PickingOrderRepository.cs:17-20`, `ToListAsync`); ohne Wirkung. | Belassen, nur Hinweis. |
+| Q2 | niedrig | Der Merker „Run gestartet“ entsteht auch, wenn der Lauf als Ganzes scheitert (FA-Liste nicht lesbar): Wiederholung erst am nächsten Tag. So in F2 gewollt (Muster `LetzteBestellungPlaner`); Fehlermail über `RunResilientAsync`. | Belassen, Spec-konform. |
+| Q3 | niedrig | „Altbestand geprüft“: wirft `ErzeugeOffeneAsync` (z. B. Stückliste nicht lesbar), ist das Kennzeichen schon gelöscht, und der Benutzer sieht eine Fehlerseite; der Nachtlauf holt den FA nach. Gleiches Verhalten wie die Einzelfreigabe. | Belassen, Hinweis. |
+| Q4 | mittel (Betrieb DEV, kein Code-Defekt) | Die DEV-Absicherung (`D:\Dev\scripts\dev-absicherung-*.sql:10`, `Sync:%Enabled` → false) schaltet auch `Sync:KommissionierNachtragEnabled` ab. Der Nachtlauf läuft auf DEV deshalb nie; „erster Dienststart läuft sofort“ trifft auf DEV nicht zu (0 Zeilen `SyncLogs` mit Service `KommissionierNachtrag` an AKE und IDEAL nach dem Deploy). Prod: Default `true`, erster Start läuft sofort. | Für den Menschen: Lauf auf dem Testsystem prüfen oder den Schalter auf DEV bewusst einschalten (der Agent darf das nicht). |
+
+**3. Nachweisart je AK:** AK1/2/3 automatisiert (`Faellig_UeberStartmerker_DryRunLaeuftNicht`), echter Dienst-Termin Manual-UAT; AK3 „Schalter aus“ auf DEV beobachtet (kein Lauf, kein Merker).
+AK4/5/6 automatisiert (`Lauf_FehlerEinesFa_…`, `ZeilenAngelegt_Gezaehlt`, Workflow-Tests InMemory), mit echter Stückliste Manual-UAT. AK7 automatisiert (DI-Test, `SyncLogServices`).
+AK8 über das bestehende `GetReleasedForPickingAsync`, Manual-UAT. AK9 automatisiert (`AuftraegeNachziehen_NurAdmin`) **und** DEV (191.8). AK10 DEV. AK11 DEV (Help, Stückliste) + Diff.
+AK12 Katalog-/Drift-Tests + `/ServiceSettings` auf DEV gesehen; Ablehnung >23 beim Speichern Manual-UAT. AK13 automatisiert (`DI_LoestAuf_…` mit ValidateOnBuild, `BomDiResolutionTests`) + Dienst startete auf DEV
+mit v1.99.70 ohne Fehler. AK14 automatisiert (`PickingOrderUeberdeckungTests`) + DEV. AK15 automatisiert + DEV (nicht freigegebener Fall nur automatisiert). AK16/17/18 automatisiert + DEV.
+AK19 DEV (SQL/168 zweimal). Gleichzeitigkeit (191.9) nur Manual-UAT (InMemory ohne Transaktion).
+
+**4. Geänderte bestehende Tests:** `NachlaufManifestDriftTests` (Liste um `SQL/168` ergänzt – gewollt, AK19/Manifest); `BomDiResolutionTests` (Spiegel durch die gemeinsame Methode
+ersetzt – gewollt, AK13; Mocks werden nach der Registrierung überschrieben). Keine Kategorie „andere“.
+
+**5. Checkliste:** Migration + `SQL/168` mit Guards, History im eigenen Batch; FreshInstall Spalte und MigrationId; AgentJobs nicht betroffen; Audit-Felder in
+`SetStuecklisteKleinerAsync`; Version 1.99.70 in beiden `AppVersion.cs`, `Changelog.cshtml`, Brain-Changelog [[2026-11-25-v1-99-70-kommissionierauftraege-nachtrag-nachts]];
+TS-191 in `docs/TESTSZENARIEN.md` und im Testindex; Manifest `nachlauf.psd1` (SQL/168, Einstellung, Info). **5a ADR 0020:** Bool-Schalter (Auswahl), Uhrzeit-Bereich 0–23,
+Anzeigename/Wirkung/Verwendung/Default/Standort (leer = beide), Warnhinweis beim Schalter – vollständig.
+
+**6. DEV-Deploy** (Standort `beide`, elevated): `dev-deploy.ps1 -Standort AKE` und `-Standort IDEAL` aus dem Worktree, beide Exit 0, „HTTP 200, Fusszeile v1.99.70“.
+Migration auf beiden DEV-DBs (`COL_LENGTH` 2000, History 1). Dienst-Log beider Standorte: „SyncWorker gestartet. Version 1.99.70“, keine Fehler.
+
+Testdaten (DEV AKE, FA 2621027 / Id 800, KO-2026-00016): Zeile 2314 SollMenge 1→5 (Überdeckung simuliert) und zurück auf 1; Zeile 2318 SollMenge 2→1 (Nachtrag simuliert, bleibt so);
+`AltbestandPruefen` an KO-2026-00016 gesetzt (vom Test wieder gelöscht); Rolle des eigenen Benutzers (UserRoles Id 40) kurz `admin`→`leitstand` und zurück auf `admin` (geprüft).
+Neu entstanden: KO-2026-00082 (Mcd351 Pos 1020, Menge 1).
+
+| TS | Durchgeführt | Ergebnis | Status |
+|---|---|---|---|
+| 191.1–191.4, 191.6 | – | Lauf auf DEV abgeschaltet (Q4) | NICHT MÖGLICH |
+| 191.5 | Schalter aus (DEV-Absicherung), Dienststart | kein Lauf, kein Eintrag in `SyncLogs`; DryRun-Teil nicht prüfbar | OK (Schalter aus) / NICHT MÖGLICH (DryRun) |
+| 191.7 | IDEAL: Leitstand und Stückliste FA 1059463 geladen | 200, 2 Admin-Knöpfe, kein Hinweis; Lauf selbst aus | NICHT MÖGLICH (Lauf) |
+| 191.8 | Als Admin: beide Knöpfe da. Als `leitstand` ohne `admin`: 0 Knöpfe; POST `/PickingLeitstand/AuftraegeNachziehen` mit Token, ids=800 | → `/Account/AccessDenied`, kein Auftrag | OK |
+| 191.9 | – | braucht laufenden Nachtlauf | NICHT MÖGLICH |
+| 191.10 | Zeile auf 5 erhöht; `Picking/Bom/800`; Admin-Knopf (markiert) | Hinweis „He266454 Pos 10: Stückliste 1, beauftragt 5“ sofort; Sammelmeldung mit Warnung; Marker gesetzt; Badge mit Tooltip; Zeile 2314 unverändert (5, Offen); kein neuer Auftrag. Nachtlauf-Teil NICHT MÖGLICH | OK |
+| 191.11 | Als `leitstand` ohne `admin`: „Altbestand geprüft“ bei FA 2621027 (mit Nachtrag Mcd351) | „Altbestand geprüft (KO-2026-00016). 1 Kommissionierauftrag/-aufträge für 1 FA angelegt (KO-2026-00082).“ + Überdeckungswarnung; Kennzeichen 0; kein Knopf-Verweis | OK |
+| 191.11a | – | nur automatisiert (`AltbestandGeprueft_NichtFreigegeben_NurKennzeichen`) | NICHT MÖGLICH (kein DEV-Fall) |
+| 191.12 | Help, Stückliste | Help nennt Nachtlauf, Knopf nur Admin-Notfall; leere Auftragsliste nur im Diff geprüft | OK |
+| 191.13 | Zweiter Aufruf mit gleichem Wert (Altbestand-Pfad); Zeile zurück auf 1, Admin-Knopf | `ModifiedAt` blieb 17:34:31; danach Marker NULL, Badge weg, Stücklisten-Hinweis weg. Umbuchungsteil nicht durchgespielt | OK (ohne Umbuchung) |
+| 191.14 | – | Freigabe-Rücknahme/Neufreigabe nicht durchgespielt | NICHT MÖGLICH (offen für Mensch) |
+| 191.15 | `SQL/168` zweimal gegen AKE_WMS_DEV | beide Exit 0, History 1 Eintrag | OK |
+| 191.16 | `/ServiceSettings` | beide Keys mit Anzeigename, Beschreibung, Verwendung; Speichern von 24 nicht probiert | OK (Anzeige) / offen (Ablehnung) |
+
+Fotos (Playwright, Edge headless, DEV AKE, 1440 px, Faktor 2), eingebunden in `docs/anwender/01-kommissionierung.md`: `01-19-leitstand-stueckliste-kleiner.jpg`,
+`01-20-leitstand-ohne-admin-knoepfe.jpg`, `01-21-stueckliste-kleiner-hinweis.jpg`. Ein Foto vom Aktivitäts-Protokoll „Kommissionier-Nachtrag“ fehlt, weil es auf DEV keinen Lauf gibt (Q4).
+
+**7. Publish:** `C:\Git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-07-ideal-teile-1-5\publish\` (`IDEALAKEWMSWeb`, `IDEALAKEWMSWebService`, `SQL`, `deploy`, `publish-info.txt`
+Version 1.99.70, Commit 6e426113). Manifest-Einträge für SQL/168, Einstellung und Leitstand-Info vorhanden.
+
+### Manuelle Checkliste für den Menschen (offen)
+
+1. Testsystem: Paket einspielen (Update-Skript, SQL/168), danach Aktivitäts-Protokoll „Kommissionier-Nachtrag“ prüfen: Der erste Dienststart läuft sofort; Zähler `fehler`/`altbestand_pruefen` ansehen (191.1/191.6).
+2. 191.1–191.4: Nachtrag mit echter Stücklistenänderung, `CreatedBy = KommissionierNachtrag`, zweiter Lauf `ohne_rest`.
+3. 191.5 DryRun (`WorkerSettings:SyncDryRun = true`): Log-Zeile, kein Lauf.
+4. 191.7 IDEAL hierarchisch: nur relevante Positionen, Sub-FAs nie.
+5. 191.9 Gleichzeitigkeit Nachtlauf + Admin-Knopf, Diagnose-Abfrage leer.
+6. 191.10/191.13 Nachtlauf-Teil: `stueckliste_kleiner` und Warnzeile; Über-Umbuchung ohne offene Zeile ohne Warnung.
+7. 191.11a nicht freigegebener FA mit „Altbestand prüfen“; 191.14 Freigabe mit Überdeckung.
+8. 191.16 `Sync:KommissionierNachtragUhrzeit` = 24 speichern → abgelehnt.
+9. Leitstand-Benutzer über die Knopf-Änderung informieren (Manifest-Info).
+10. Optional: Foto Aktivitäts-Protokoll nachholen, sobald ein Lauf existiert.
