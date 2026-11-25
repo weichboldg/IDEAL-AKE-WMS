@@ -15,7 +15,7 @@ Isolierfräse-Spec reserviert), höchstes TS 190, höchste ADR 0035, letztes Pak
 |---|---|---|---|---|---|---|---|
 | [[2026-11-25-kommissionierauftraege-nachtrag-nachts-spec]] | Spec | 168 | 1.99.70 | 191 | **Testbereit** | fa1b754b, Fotos+Publish 6e426113 | Nachtlauf auf DEV nicht beobachtbar (Q4) |
 | [[2026-11-24-lagerplatz-anlage-wms-nach-sage-spec]] | Spec | – (ADR 0036) | 1.99.71 | 192 (statt 189, vergeben) | **Testbereit** | 5b6fa696, Fotos 47a23d32, QA f085a8da | Live-Sage-Teil: Testlager + GRANTs fehlen (Gerald) |
-| [[2026-11-20-bde-liste-isolierungsfraese-pfad-material-spec]] | Spec | 164, 165 (reserviert) | 1.99.72 | 193 | offen | | |
+| [[2026-11-20-bde-liste-isolierungsfraese-pfad-material-spec]] | Spec | 164, 165 (reserviert) | 1.99.72 | 193 | umgesetzt, QA läuft | d49a3f39, Brain 6b8ced5d | |
 | [[2026-11-25-bde-masken-vereinheitlichung-spec]] | Epic (1, 2, 3, 4a, 4b, 5) | 169 (statt 168) | 1.99.73–1.99.78 | 194–199 | offen | | |
 
 ADR des Epics: 0037 (statt 0036, an die Lagerplatz-Spec vergeben).
@@ -32,6 +32,7 @@ ADR des Epics: 0037 (statt 0036, an die Lagerplatz-Spec vergeben).
 - v1.99.70 QA bestanden: DEV AKE+IDEAL v1.99.70, SQL/168 auf beiden DEV-DBs, Fotos 01-19/01-20/01-21 (6e426113). Befunde Q1–Q3 niedrig (belassen), Q4 mittel: DEV-Absicherung schaltet `Sync:KommissionierNachtragEnabled` (Muster `Sync:%Enabled`) ab → Nachtlauf auf DEV nicht beobachtbar, 191.1–191.7/191.9 NICHT MÖGLICH, bleibt Mensch. Prod-Default true = Sofortlauf beim ersten Dienststart. QA änderte kurz die eigene Rolle (UserRoles 40, DEV AKE) und setzte zurück.
 - Lagerplatz-Anlage v1.99.71: 5b6fa696 (Brain 58b0caf1), keine Migration, ADR 0036, Fallstrick §66, TS-192, neue Keys SageLagerplatzAnlageAktiv (false) + SageLagerAnlageLagertechniken (Aus), SyncLog-Service SageLagerplatzAnlage, Manifest 4 Einträge. Build 0 Fehler/28 Warnungen, Web 3586/1/0, Dienst 847/0. Zusatzfund: SageLagerplatzReader.cs:26 verbindet ohne Mandant (nicht gebaut). QA läuft (Live-Teil nur mit Testlager + GRANTs + V3).
 - v1.99.71 QA bestanden (f085a8da, Fotos 19-01..19-05 in 47a23d32): DEV beide v1.99.71, Build 0/32 Warnungen, Web 3586/1/0, Dienst 847/0. Befunde N1 (Abbruch beim Dienst-Stopp → Fehler statt Offen, Einzeiler vorgeschlagen), N2 (50014 ohne Sage-PlatzID, AK 13), H1/H2 Hinweise. V1/V2 (Testlager) und GRANTs fehlen in ake_TEST2026; V3 Teil 1+2 belegt (svc_idealakewms, DOTNET_ENVIRONMENT=DEV, AKESQL20/ake_TEST2026). Nichts in Sage angelegt (Tan 4378 unverändert), Schalter Endstand aus. Fotos 19-04/19-05 mit per SQL gesetzten Fehlerzuständen.
+- Isolierfräse v1.99.72: d49a3f39 (Brain 6b8ced5d), SQL/164 AddArticleCamPath + SQL/165 AddBdeTeilelisteLagerbestellungen, ADR 0038, Fallstrick §67, Rolle fraesenpfad_pflegen, AppSettings FraesenPfadAktiv/BdeTeilelisteLagerbestellungArbeitstage, TS-193 (statt 171), Einmal-Skript Fräsen-Pfad nur IDEAL. Index UX_BdeTeilMeldungen_Schluessel Filter `[IsCancelled]=0 AND [WarehouseRequisitionItemId] IS NULL` (Epic vereinigt mit IstAbschliessend=1). Build 0/32, Web 3631/1/0, Dienst 847/0. QA läuft.
 
 ## Sammel-Fixes für den Schlusslauf (Auftrag Gerald 2026-11-25)
 Alle Befunde der Specs werden gesammelt und nach der letzten Epic-Etappe in EINEM Fix-Lauf mit eigener Version + qa-agent behoben.
@@ -47,3 +48,9 @@ Alle Befunde der Specs werden gesammelt und nach der letzten Epic-Etappe in EINE
 | F-7 | v1.99.71 QA | Lagercode-Feld kürzt 11 Zeichen still auf 10 | maxlength entfernen/Hinweis, Server-Meldung zeigen |
 | F-8 | v1.99.71 Umsetzer | `SageLagerplatzReader.cs:26` verbindet ohne Mandant | Mandant wie Schreibweg |
 | F-9 | v1.99.71 H1/H2 | kurzzeitig „fehlend“ beim parallelen Abgleich; Fehlermail je Takt bei unerwarteter Ausnahme | Hinweise, prüfen |
+| F-10 | v1.99.72 Umsetzer | AK 9 Blechdicke: Sage-Feld nicht konfiguriert → Bestandswerte bleiben statt „–“ (`SdataArtikelReader.cs:360`) | Spec-Erwartung vs. Verhalten klären/angleichen |
+| F-11 | v1.99.72 Umsetzer | Lagerbestell-Zeilen ohne Bestellart-Filter (Glasbestellung mit IF-Artikel erscheint) | Filter auf Bestellart prüfen |
+| F-12 | v1.99.72 Umsetzer | Bestandsübersicht-Spaltenauswahl: Bestandsspalte nicht fixiert | fixieren |
+| F-13 | v1.99.72 Umsetzer | Werkbank-Prüfung „Lagerbestellungen nur mit BDE-Teileliste“ ohne Unit-Test | Test ergänzen |
+| F-14 | v1.99.72 Umsetzer | Einmal-Skript Fräsen-Pfad: Rückfrage 15 als Annahme (Y:\ → \idealfs1\Daten$\Produktion\CAM\), Rückfrage 16 Belegestation offen | Gerald vor SCHARF |
+| F-15 | v1.99.72 Umsetzer | Fußzeile „Stand“ in docs/TESTSZENARIEN.md veraltet | nachziehen |
