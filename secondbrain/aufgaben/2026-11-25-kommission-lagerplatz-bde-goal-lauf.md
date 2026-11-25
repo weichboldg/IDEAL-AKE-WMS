@@ -186,3 +186,60 @@ Zusätzlich für die Mail gebraucht: Seite „WMS – Fehler melden und Wünsche
 - SQL-Server-Version IDEAL für `STRING_AGG` (50014-Text mit PlatzID) ungeprüft: `SELECT @@VERSION`.
 - Kapitel 18 (Startseite und Menü) erwähnt Tageshistorie nicht; Bilder 11-02/11-03 unreferenziert (F-30); Fotos nicht neu erstellt.
 - Handy-Konten noch nicht angelegt (Manifest `v1.99.78-BdeHandyKontenInfo`).
+
+## QA Doku-Nachzug v1.99.80 (qa-agent, 2026-11-25)
+
+**Ergebnis: bestanden → Testbereit.** Geprüfter Bereich `a4feb6af..67868774`, QA-Korrektur `3c5a97df` (Worktree, Branch
+`feature/2026-08-07-ideal-teile-1-5`). Review synchron in diesem Lauf, nicht delegiert.
+
+1. **Build/Tests** (Worktree): `dotnet build IdealAkeWms.slnx` 0 Fehler / 32 Warnungen; `dotnet test` IdealAkeWms.Tests 3698 bestanden /
+   1 übersprungen / 0 Fehler, IDEALAKEWMSService.Tests 848 / 0 / 0 – wie Basis.
+2. **Review Diff (keine Logik):** geändert nur `AppVersion.cs` (Web + Dienst, 1.99.79 → 1.99.80), `Views/Help/Changelog.cshtml` (neue Karte,
+   statisches HTML), `Views/Help/Index.cshtml` (nur Text + zwei Tag-Helper-Links `BdeTerminal/Index`, `BdeTeileliste/Tageshistorie` – beide
+   Aktionen existieren: `BdeTerminalController.cs:39`, `BdeTeilelisteController.cs:222`), `docs/` und `docs/TESTSZENARIEN.md`. Kein
+   `<script>`, kein `@Html.Raw`, keine `hidden`/`d-*`-Kombination, keine Einstellung, keine Migration. Defektklassen der QA-Liste: nicht
+   betroffen. Geänderte bestehende Tests: keine. ADR 0020: keine neue/geänderte Einstellung. Nachlauf-Manifest: v1.99.80 braucht keinen
+   Eintrag (kein Deploy-Schritt).
+3. **Nachweisart:** TS-201 komplett Manual-UAT (nur Text); kein AK automatisiert beweisbar.
+4. **Befunde und Behandlung:**
+   - B-1 `docs/betrieb/03-installation-update-rollback.md` 5.3, Zeile „Nachher“: zwei Beleg-Zellen → Tabelle mit 5 statt 4 Spalten. **Behoben**
+     (Fundstellen in eine Zelle, `3c5a97df`).
+   - B-2 `docs/betrieb/05-schnittstellen.md` § 3 Blechteile-Nachlese: Pfad `IDEALAKEWMSService/Services/BlechteileFelderNachlese.cs` falsch,
+     richtig `…/Services/Sdata/BlechteileFelderNachlese.cs`. **Behoben** (`3c5a97df`).
+   - Hinweis (nicht korrigiert): 03 5.3 Zeile „Vorher“ nennt als Beleg weiter `nachlauf.psd1:127-130,…`, der neue Eintrag
+     `Pruefung/BdeNurFaMeldungAn` steht bei `:228-231` (in 04 § 5.5 richtig zitiert). Kosmetisch.
+5. **Stichproben (12, alle OK):** `BdeNurFaMeldung` Default `false`, Text „Altlast“ (`AppSettingDefinitions.cs:221`); `BdeTerminalMaxHauptFa`
+   entfernt, Kommentar `:235`; `Pruefung/BdeNurFaMeldungAn` Phase Vorher, beide (`nachlauf.psd1:228-231`); `Sync:KommissionierNachtragEnabled`
+   Default true / `…Uhrzeit` Default 2 (`ServiceSettingDefinitions.cs:292-293`); `SageLagerplatzAnlageAktiv` + `SageLagerAnlageLagertechniken`
+   Default aus (`:319-321`); Blechdicke-Hinweistext (`SdataArtikelReader.cs:359-364`, `BfArtikelFelder.Blechdicke = "USER_OSBlechdicke"`);
+   Nachlese-Warnung (`Sdata/BlechteileFelderNachlese.cs:48`); Konflikt 50014 mit PlatzID + `STRING_AGG … WITHIN GROUP`
+   (`SqlSageLagerplatzAnlage.cs:42-53`); Join Mandant + Lagerkennung (`SageLagerplatzReader.cs:25`) und „Lagerkennung … zu lang“
+   (`LagerplatzSyncService.cs:329-333`); Abbruchtext Fräsen-Pfad-Skript (`SQL/Einmalig/…FraesenPfad_Erstimport.sql:35-37`); Meldungen „kein
+   Terminal konfiguriert“, „Terminal nicht dem angemeldeten Benutzer zugeordnet“ (+ „– nichts gebucht.“ aus `bde-fa-sicht.js:88`), „Werkbank
+   ist nicht BDE-aktiv“, „Sollmenge erreicht – bitte Fertig melden“, „Aktueller Bestand“ gesperrt (`StockOverview/Index.cshtml:203`),
+   Altbestand-Warnung (`PickingLeitstandController.cs:581-584`). SQL-Reihenfolge im Manifest 164 → 165 → (166, 167) → 168 → 169 wie in 03 5.4a.
+   A-8.8 und A-8.9 lesend gegen `AKE_WMS_DEV` und `IDEAL_WMS_DEV` ausgeführt: laufen fehlerfrei (alle Spalten vorhanden; AKE ohne
+   Teilmeldungen, IDEAL mit stornierten QA-Zeilen; A-8.9 listet Terminals/Werkbänke).
+   Bildverweise `docs/anwender/*.md`: 120 eindeutige Pfade, alle vorhanden.
+6. **DEV-Deploy** (Standort beide, elevated, Quelle Worktree, Web + Dienst, Stand `67868774` – QA-Korrektur betrifft nur `docs/`):
+   `dev-deploy.ps1 -Standort AKE` Exit 0 „HTTP 200, Fusszeile v1.99.80“; `-Standort IDEAL` Exit 0 „HTTP 200, Fusszeile v1.99.80“.
+   **TS-201 auf DEV (claude-in-chrome):**
+   - 201.1 Fußzeile 1.99.80, Änderungen oberste Karte v1.99.80 „Doku-Nachzug“, darunter v1.99.79 – AKE OK, IDEAL OK.
+   - 201.2 Hilfe BDE: Abschnitte „BDE-Seite (seit v1.99.78 …)“, „Tageshistorie“, „BDE am Handy“, Teileliste; kein „Terminal-Bedienung“ – AKE OK, IDEAL OK.
+   - 201.3.1 Link „BDE › Terminal“ (`/BdeTerminal`) → `BdeTeileliste?workplaceId=…` Werker-Anmeldung – AKE OK (Stanzarei), IDEAL OK.
+   - 201.3.2 Link „BDE › Tageshistorie“ → Werker-Anmeldung; nach Anmeldung (AKE, Testwerker) direkt Tageshistorie – AKE OK, IDEAL OK (Anmeldung erscheint).
+   - 201.3.3 Benutzer ohne Terminal – NICHT MOEGLICH im Browser (Windows-Konto hat an beiden DEV ein Terminal); Meldungstext im Code belegt
+     (`BdeTerminalController.cs:47`).
+   - 201.3.4 Links der Hilfeseite: im View genau 4 Link-Ziele (`/SyncLog` 2×, `/BdeTerminal`, `/BdeTeileliste/Tageshistorie`), keine externen;
+     alle öffnen ohne 404 an beiden Standorten – OK.
+   - 201.4 Repo-Doku: README Zeile 1.99.80, 00-index Versionszeilen 1.99.70–1.99.80 lückenlos, AGENTS Stand v1.99.80, Statustabelle Kap. 17
+     durchgehend (6 Zeilen), Bildverweise vollständig – OK.
+7. **Publish:** `C:\Git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-07-ideal-teile-1-5\publish\` (IDEALAKEWMSWeb, IDEALAKEWMSWebService, SQL, deploy,
+   `publish-info.txt` Version 1.99.80, Commit `3c5a97df2454ccdef38ecebe2260bba72e630a48`). ZIP/Shares: Orchestrator.
+   **Deploy:** Web und Dienst (nur `AppVersion` + Hilfeseite), keine Migration, kein SQL, kein Einmal-Skript. Nach dem Merge nur neu publishen,
+   wenn der Merge getestete Dateien mit parallelen main-Änderungen kombiniert.
+
+**Manuelle Restprüfung (Mensch):**
+1. TS-201.3.3 mit einem Benutzer ohne Terminal-Zuordnung: Startseite mit gelber Meldung „kein Terminal konfiguriert“.
+2. TS-201.3.2 an IDEAL nach Werker-Anmeldung: direkt Tageshistorie.
+3. Hilfeseite und Änderungsseite am Testsystem einmal durchsehen (Text gegen Kenntnis der Werker).
