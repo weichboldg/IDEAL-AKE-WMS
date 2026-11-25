@@ -25,6 +25,7 @@ public class NachlaufManifestDriftTests
         "SQL/102", "SQL/103", "SQL/104", "SQL/105", "SQL/106", "SQL/107", "SQL/109", "SQL/112", "SQL/113", "SQL/133", "SQL/140", "SQL/141",
         "SQL/142", "SQL/143", "SQL/144", "SQL/145", "SQL/146", "SQL/148", "SQL/149", "SQL/150", "SQL/152", "SQL/155", "SQL/154", "SQL/153",
         "SQL/156", "SQL/157", "SQL/158", "SQL/159", "SQL/160", "SQL/161", "SQL/162", "SQL/163", "SQL/164", "SQL/165", "SQL/166", "SQL/167", "SQL/168",
+        "SQL/169",
     };
 
     private static readonly string Root;

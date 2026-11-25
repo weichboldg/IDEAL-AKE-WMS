@@ -6,7 +6,7 @@ namespace IdealAkeWms.Models;
 /// v1.99.32 (Spec 2026-11-13-bde-vereinfacht-teileliste-blechfertigung, ADR 0030): Fertigmeldung EINER Strukturzeile der BDE-Teileliste
 /// (Blechteil oder Baugruppe) fuer ein Kuerzel. Gehalten ueber den fachlichen Schluessel <c>(HauptFA, VaterFA, SubFA, Position, Artnr)</c>
 /// + <see cref="Kuerzel"/>, NIE ueber <c>FaHierarchyNode.Id</c> (der Struktur-Sync loescht und legt die Knoten neu an).
-/// Gefilterter UNIQUE <c>UX_BdeTeilMeldungen_Schluessel ... WHERE IsCancelled = 0</c> = Doppel-Schutz (ADR 0026).
+/// Gefilterter UNIQUE <c>UX_BdeTeilMeldungen_Schluessel ... WHERE IsCancelled = 0 AND IstAbschliessend = 1</c> = Doppel-Schutz (ADR 0026, 0037).
 /// Keine Meldung an Vater-Sub-FA oder Haupt-FA, nichts nach Sage.
 /// </summary>
 public class BdeTeilMeldung : AuditableEntity
@@ -52,6 +52,12 @@ public class BdeTeilMeldung : AuditableEntity
     /// (<c>UX_BdeTeilMeldungen_Lagerbestellung</c>); alle FA-Lesewege filtern <c>WarehouseRequisitionItemId IS NULL</c>.</summary>
     public int? WarehouseRequisitionItemId { get; set; }
     public WarehouseRequisitionItem? WarehouseRequisitionItem { get; set; }
+
+    /// <summary>v1.99.75 (Spec 2026-11-25-bde-masken-vereinheitlichung E3, ADR 0037): true = „Fertig melden“ (schliesst die Zeile),
+    /// false = „Teilfertig melden“ (Zeile bleibt offen). Eindeutig je Schluessel ist nur die abschliessende (gefilterte UNIQUE-Indizes).
+    /// DB-DEFAULT 1 (Bestand = abschliessend) NUR in Migration/SQL/169/FreshInstall – kein HasDefaultValue (fallstricke, bool-Sentinel);
+    /// jeder Schreiber setzt den Wert ausdruecklich.</summary>
+    public bool IstAbschliessend { get; set; }
 
     public bool IsCancelled { get; set; }
 

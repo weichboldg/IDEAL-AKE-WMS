@@ -57,6 +57,7 @@
                 <th data-filterable data-col-key="subfa">Sub-FA</th>
                 <th data-filterable data-col-key="position">Position</th>
                 <th data-filterable data-col-key="matchcode">Matchcode</th>
+                <th data-filterable data-col-key="art">Art</th>
                 <th class="text-end" data-filterable data-filter-type="number" data-col-key="gut">Gut</th>
                 <th class="text-end" data-filterable data-filter-type="number" data-col-key="ausschuss">Ausschuss</th>
                 <th data-filterable data-col-key="status">Status</th>
@@ -67,7 +68,7 @@
         <tbody>
             @if (!Model.Any())
             {
-                <tr><td colspan="14" class="text-center text-muted py-4">Keine Teilmeldungen im gewählten Zeitraum.</td></tr>
+                <tr><td colspan="15" class="text-center text-muted py-4">Keine Teilmeldungen im gewählten Zeitraum.</td></tr>
             }
             @foreach (var m in Model)
             {
@@ -81,6 +82,7 @@
                     <td>@(m.SubFA != 0 ? m.SubFA : m.VaterFA)</td>
                     <td>@m.Position</td>
                     <td>@m.Matchcode @if (m.SubFA != 0) { <span class="badge text-bg-dark ms-1">Baugruppe</span> }</td>
+                    <td>@BdeBookingsController.TeilmeldungSpalten["art"](m)</td>
                     <td class="text-end">@VormontageService.FormatMenge(m.GoodQuantity)</td>
                     <td class="text-end">@VormontageService.FormatMenge(m.ScrapQuantity)</td>
                     <td>@(m.IsCancelled ? "zurückgenommen" : "offen")</td>
@@ -135,6 +137,7 @@
     { "key": "subfa", "label": "Sub-FA", "locked": false, "defaultWidth": null },
     { "key": "position", "label": "Position", "locked": false, "defaultWidth": null },
     { "key": "matchcode", "label": "Matchcode", "locked": false, "defaultWidth": null },
+    { "key": "art", "label": "Art", "locked": false, "defaultWidth": null },
     { "key": "gut", "label": "Gut", "locked": false, "defaultWidth": null },
     { "key": "ausschuss", "label": "Ausschuss", "locked": false, "defaultWidth": null },
     { "key": "status", "label": "Status", "locked": false, "defaultWidth": null },

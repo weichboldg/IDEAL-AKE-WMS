@@ -2,6 +2,6 @@ namespace IdealAkeWms;
 
 public static class AppVersion
 {
-    public const string Version = "1.99.74";
+    public const string Version = "1.99.75";
     public const string Date = "2026-11-25";
 }

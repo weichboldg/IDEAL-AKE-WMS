@@ -19,7 +19,7 @@
             <label class="form-check-label" for="alleAuswaehlen">alle auf dieser Seite</label>
         </div>
         <button type="submit" class="btn btn-primary btn-lg" id="blockMelden" disabled>Auswahl fertigmelden</button>
-        <span class="small text-muted d-none d-lg-inline">volle Sollmenge je Zeile, Ausschuss 0</span>
+        <span class="small text-muted d-none d-lg-inline">Restmenge je Zeile, Ausschuss 0 – schließt die Zeilen ab</span>
     </form>
 
     <div class="d-flex justify-content-end mb-1" data-table-toolbar></div>
@@ -94,7 +94,7 @@
             {
                 <label class="tl-check">
                     <input class="form-check-input tl-auswahl" type="checkbox" form="blockForm" name="schluessel" value="@z.FormSchluessel"
-                           data-soll="@n.Sollmenge.ToString(System.Globalization.CultureInfo.InvariantCulture)" aria-label="@n.Matchcode auswählen" />
+                           data-soll="@z.Rest.ToString(System.Globalization.CultureInfo.InvariantCulture)" aria-label="@n.Matchcode auswählen" />
                 </label>
             }
         </td>
@@ -160,7 +160,8 @@
             {
                 <button type="button" class="btn btn-success bde-touch" data-bs-toggle="modal" data-bs-target="#meldenModal"
                         data-schluessel="@z.FormSchluessel" data-matchcode="@n.Matchcode"
-                        data-soll="@n.Sollmenge.ToString(System.Globalization.CultureInfo.InvariantCulture)">Fertig melden</button>
+                        data-soll="@n.Sollmenge.ToString(System.Globalization.CultureInfo.InvariantCulture)" data-rest="@z.Rest.ToString(System.Globalization.CultureInfo.InvariantCulture)"
+                        data-gemeldet="@z.Gemeldet.ToString(System.Globalization.CultureInfo.InvariantCulture)">Melden</button>
             }
         </td>
     }
@@ -170,7 +171,7 @@
     <div class="modal-dialog">
         <form class="modal-content" method="post" asp-action="Melden">
             <div class="modal-header">
-                <h5 class="modal-title" id="meldenModalTitel">Fertig melden: <span data-feld="matchcode"></span></h5>
+                <h5 class="modal-title" id="meldenModalTitel">Melden: <span data-feld="matchcode"></span></h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
             </div>
             <div class="modal-body bde-terminal">
@@ -181,16 +182,20 @@
                 <div class="mb-3">
                     <label for="meldenGut" class="form-label">Gut</label>
                     <input type="number" id="meldenGut" name="gut" class="form-control form-control-lg" min="0" step="any" inputmode="decimal" required />
-                    <div class="form-text">vorbelegt mit der Sollmenge <span data-feld="soll"></span></div>
+                    <div class="form-text">Soll <span data-feld="soll"></span>, bereits gemeldet <span data-feld="gemeldet"></span> –
+                        vorbelegt mit der Restmenge <span data-feld="rest"></span></div>
                 </div>
                 <div class="mb-1">
                     <label for="meldenAusschuss" class="form-label">Ausschuss</label>
                     <input type="number" id="meldenAusschuss" name="ausschuss" class="form-control form-control-lg" min="0" step="any" inputmode="decimal" />
                 </div>
+                @* v1.99.75 (E3-1, ADR 0037): Teilfertig laesst die Zeile offen, Fertig schliesst sie ab – die Art traegt der Knopftext, nicht die Farbe *@
+                <p class="small mb-0 mt-2">„Teilfertig melden“: Zeile bleibt offen. „Fertig melden“: Zeile ist danach abgeschlossen.</p>
             </div>
-            <div class="modal-footer">
+            <div class="modal-footer flex-wrap">
                 <button type="button" class="btn btn-outline-secondary btn-lg" data-bs-dismiss="modal">Abbrechen</button>
-                <button type="submit" class="btn btn-success btn-lg">Fertig melden</button>
+                <button type="submit" name="art" value="teil" class="btn btn-outline-success btn-lg">Teilfertig melden</button>
+                <button type="submit" name="art" value="fertig" class="btn btn-success btn-lg">Fertig melden</button>
             </div>
         </form>
     </div>

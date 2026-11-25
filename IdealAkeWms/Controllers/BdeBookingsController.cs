@@ -304,6 +304,7 @@ public class BdeBookingsController : Controller
             ["subfa"] = m => (m.SubFA != 0 ? m.SubFA : m.VaterFA)?.ToString(System.Globalization.CultureInfo.InvariantCulture),
             ["position"] = m => m.Position?.ToString(System.Globalization.CultureInfo.InvariantCulture),
             ["matchcode"] = m => m.Matchcode,
+            ["art"] = m => m.IstAbschliessend ? "Fertig" : "Teil", // v1.99.75 (E3, ADR 0037)
             ["gut"] = m => VormontageService.FormatMenge(m.GoodQuantity),
             ["ausschuss"] = m => VormontageService.FormatMenge(m.ScrapQuantity),
             ["status"] = m => m.IsCancelled ? "zurückgenommen" : "offen",

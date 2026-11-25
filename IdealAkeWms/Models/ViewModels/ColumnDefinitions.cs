@@ -500,6 +500,7 @@ public static class ColumnDefinitions
             new ColumnDef("subfa", "Sub-FA", Locked: false),
             new ColumnDef("position", "Position", Locked: false),
             new ColumnDef("matchcode", "Matchcode", Locked: false),
+            new ColumnDef("art", "Art", Locked: false), // v1.99.75 (E3): Teil / Fertig
             new ColumnDef("gut", "Gut", Locked: false),
             new ColumnDef("ausschuss", "Ausschuss", Locked: false),
             new ColumnDef("status", "Status", Locked: false),

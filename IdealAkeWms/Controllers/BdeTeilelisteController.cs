@@ -178,10 +178,13 @@ public class BdeTeilelisteController : Controller
     /// E3 (F8–F11): Fertigmelden. Ein Schluessel mit Mengen = Einzelmeldung; sonst je Schluessel volle Sollmenge (Block, Summiert —
     /// ein Summiert-Wert traegt mehrere Schluessel, getrennt durch Zeilenumbruch). Der Client sendet die Absicht (Schluessel), der Server
     /// prueft gegen den aktuellen Stand (ADR 0026). Terminal = Terminal des Web-Benutzers, nie aus dem Formular.
+    /// v1.99.75 (E3, ADR 0037): <paramref name="art"/> "teil" = Teilfertig (nur Einzelzeile, Gut Pflicht, Zeile bleibt offen), sonst Fertig
+    /// (abschliessend; ohne Menge = Restmenge je Zeile).
     /// </summary>
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Melden(int workplaceId, int operatorId, string[]? schluessel, string? gut, string? ausschuss, string? returnUrl)
+    public async Task<IActionResult> Melden(int workplaceId, int operatorId, string[]? schluessel, string? gut, string? ausschuss, string? returnUrl,
+        string? art = null)
     {
         var terminal = await TerminalAsync();
         if (terminal == null)
@@ -203,6 +206,13 @@ public class BdeTeilelisteController : Controller
             return LocalRedirect(zurueck);
         }
 
+        var teil = string.Equals(art, "teil", StringComparison.OrdinalIgnoreCase);
+        if (teil && keys.Count != 1)
+        {
+            TempData["WarningMessage"] = "Teilfertig geht nur für eine einzelne Zeile – nichts gemeldet.";
+            return LocalRedirect(zurueck);
+        }
+
         decimal? g = null, a = null;
         if (keys.Count == 1 && (!string.IsNullOrWhiteSpace(gut) || !string.IsNullOrWhiteSpace(ausschuss)))
         {
@@ -215,7 +225,7 @@ public class BdeTeilelisteController : Controller
         }
 
         var ergebnis = await _svc.MeldenAsync(operatorId, workplaceId, terminal.Id,
-            keys.Select(k => k! with { Gut = g, Ausschuss = a }).ToList());
+            keys.Select(k => k! with { Gut = g, Ausschuss = a, Abschliessend = !teil }).ToList());
         TempData[ergebnis.AllesGut ? "SuccessMessage" : "WarningMessage"] = ergebnis.Text();
         return LocalRedirect(zurueck);
     }

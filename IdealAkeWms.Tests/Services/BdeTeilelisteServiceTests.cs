@@ -48,11 +48,11 @@ public class BdeTeilelisteServiceTests
     {
         var node = Node(100, 200, 0, 5, "B1", "Blech 1", "KA");
         node.Id = 999; // Sync hat neu angelegt
-        var meldung = new BdeTeilMeldung { HauptFA = 100, VaterFA = 200, SubFA = 0, Position = 5, Artnr = "B1", Kuerzel = "KA", GoodQuantity = 1 };
+        var meldung = new BdeTeilMeldung { HauptFA = 100, VaterFA = 200, SubFA = 0, Position = 5, Artnr = "B1", Kuerzel = "KA", GoodQuantity = 1, IstAbschliessend = true };
 
         Bauen(new[] { node }, new[] { meldung }).Zeilen.Should().BeEmpty("gemeldete sind ausgeblendet");
         var z = Bauen(new[] { node }, new[] { meldung }, gemeldete: true).Zeilen.Single();
-        z.Meldung.Should().BeSameAs(meldung);
+        z.Abschluss.Should().BeSameAs(meldung);
         z.Meldbar.Should().BeFalse();
     }
 
@@ -60,9 +60,9 @@ public class BdeTeilelisteServiceTests
     public void LeereArtnr_IstGleichNull()
     {
         var node = Node(100, 200, 0, 5, "", "Blech", "KA");
-        var meldung = new BdeTeilMeldung { HauptFA = 100, VaterFA = 200, SubFA = 0, Position = 5, Artnr = null, Kuerzel = "KA" };
+        var meldung = new BdeTeilMeldung { HauptFA = 100, VaterFA = 200, SubFA = 0, Position = 5, Artnr = null, Kuerzel = "KA", IstAbschliessend = true };
 
-        Bauen(new[] { node }, new[] { meldung }, gemeldete: true).Zeilen.Single().Meldung.Should().NotBeNull();
+        Bauen(new[] { node }, new[] { meldung }, gemeldete: true).Zeilen.Single().Abschluss.Should().NotBeNull();
     }
 
     [Fact]
@@ -129,7 +129,7 @@ public class BdeTeilelisteServiceTests
             Node(101, 201, 0, 1, "B1", "Blech", "KA", 3),
             Node(101, 201, 0, 2, "B2", "Anderes", "KA", 5),
         };
-        var gemeldet = new BdeTeilMeldung { HauptFA = 101, VaterFA = 201, SubFA = 0, Position = 1, Artnr = "B1", Kuerzel = "KA" };
+        var gemeldet = new BdeTeilMeldung { HauptFA = 101, VaterFA = 201, SubFA = 0, Position = 1, Artnr = "B1", Kuerzel = "KA", IstAbschliessend = true };
         var d = Bauen(nodes, new[] { gemeldet }, gemeldete: true);
 
         var a = BdeTeilelisteService.Summieren(d.Zeilen, Array.Empty<FaHierarchyOrderInfo>(), null).Single(x => x.Matchcode == "Blech");

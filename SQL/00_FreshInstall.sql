@@ -364,6 +364,7 @@ BEGIN
         [BdeNurAgFertigmeldung]  BIT               NOT NULL CONSTRAINT [DF_ProductionWorkplaces_BdeNurAgFertigmeldung] DEFAULT (0),
         [BdeTeileliste]          BIT               NOT NULL CONSTRAINT [DF_ProductionWorkplaces_BdeTeileliste] DEFAULT (0),  -- v1.99.32 / SQL/154
         [BdeTeilelisteLagerbestellungen] BIT       NOT NULL CONSTRAINT [DF_ProductionWorkplaces_BdeTeilelisteLagerbestellungen] DEFAULT (0),  -- v1.99.72 / SQL/165
+        [BdeStandardsichtTeile]  BIT               NOT NULL CONSTRAINT [DF_ProductionWorkplaces_BdeStandardsichtTeile] DEFAULT (0),  -- v1.99.75 / SQL/169
         [SageBdeTerminalId]      NVARCHAR(20)      NULL,  -- v1.73.0 / SQL/102 (SData PpsArbeitsplaetzeInfo)
         [SageKostenstelle]       NVARCHAR(20)      NULL,  -- v1.73.0 / SQL/102
         [SageSchichtplannummer]  NVARCHAR(31)      NULL,  -- v1.73.0 / SQL/102
@@ -2683,6 +2684,7 @@ BEGIN
         [GemeldetAm]            DATETIME2         NOT NULL,
         [BdeBookingId]          INT               NULL CONSTRAINT [FK_BdeTeilMeldungen_BdeBookings_BdeBookingId] REFERENCES [dbo].[BdeBookings]([Id]),
         [WarehouseRequisitionItemId] INT          NULL CONSTRAINT [FK_BdeTeilMeldungen_WarehouseRequisitionItems_WarehouseRequisitionItemId] REFERENCES [dbo].[WarehouseRequisitionItems]([Id]),  -- v1.99.72 / SQL/165
+        [IstAbschliessend]      BIT               NOT NULL CONSTRAINT [DF_BdeTeilMeldungen_IstAbschliessend] DEFAULT (1),  -- v1.99.75 / SQL/169 (ADR 0037)
         [IsCancelled]           BIT               NOT NULL,
         [CancellationReason]    NVARCHAR(500)     NULL,
         [CreatedAt]             DATETIME2         NOT NULL,
@@ -2698,11 +2700,11 @@ GO
 
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'UX_BdeTeilMeldungen_Schluessel' AND object_id = OBJECT_ID(N'dbo.BdeTeilMeldungen'))
     CREATE UNIQUE INDEX [UX_BdeTeilMeldungen_Schluessel] ON [dbo].[BdeTeilMeldungen]([HauptFA],[VaterFA],[SubFA],[Position],[Artnr],[Kuerzel])
-        WHERE [IsCancelled] = 0 AND [WarehouseRequisitionItemId] IS NULL;  -- Filter seit v1.99.72 / SQL/165
+        WHERE [IsCancelled] = 0 AND [IstAbschliessend] = 1 AND [WarehouseRequisitionItemId] IS NULL;  -- Filter seit v1.99.75 / SQL/169 (ADR 0037)
 GO
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'UX_BdeTeilMeldungen_Lagerbestellung' AND object_id = OBJECT_ID(N'dbo.BdeTeilMeldungen'))
     CREATE UNIQUE INDEX [UX_BdeTeilMeldungen_Lagerbestellung] ON [dbo].[BdeTeilMeldungen]([WarehouseRequisitionItemId],[Kuerzel])
-        WHERE [IsCancelled] = 0 AND [WarehouseRequisitionItemId] IS NOT NULL;  -- v1.99.72 / SQL/165
+        WHERE [IsCancelled] = 0 AND [IstAbschliessend] = 1 AND [WarehouseRequisitionItemId] IS NOT NULL;  -- v1.99.72 / SQL/165, Filter v1.99.75 / SQL/169
 GO
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_BdeTeilMeldungen_Workplace_GemeldetAm' AND object_id = OBJECT_ID(N'dbo.BdeTeilMeldungen'))
     CREATE INDEX [IX_BdeTeilMeldungen_Workplace_GemeldetAm] ON [dbo].[BdeTeilMeldungen]([ProductionWorkplaceId],[GemeldetAm]);
@@ -3570,6 +3572,10 @@ IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] =
 IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20261125173021_AddBdeTeilelisteLagerbestellungen')
    AND COL_LENGTH(N'dbo.BdeTeilMeldungen', N'WarehouseRequisitionItemId') IS NOT NULL -- sonst steht SQL/165 noch aus
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20261125173021_AddBdeTeilelisteLagerbestellungen', '10.0.2');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20261125191311_AddBdeTeilMeldungIstAbschliessendUndStandardsicht')
+   AND COL_LENGTH(N'dbo.BdeTeilMeldungen', N'IstAbschliessend') IS NOT NULL -- sonst steht SQL/169 noch aus
+   AND COL_LENGTH(N'dbo.ProductionWorkplaces', N'BdeStandardsichtTeile') IS NOT NULL
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20261125191311_AddBdeTeilMeldungIstAbschliessendUndStandardsicht', '10.0.2');
 GO
 
 PRINT 'EF Migrations History initialisiert.';

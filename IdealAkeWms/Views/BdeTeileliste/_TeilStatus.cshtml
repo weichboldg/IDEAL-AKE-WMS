@@ -16,22 +16,36 @@
             <div class="small">@lb.Kommentar</div>
         }
     }
-    @if (z.Meldung != null)
+    @* v1.99.75 (E3-2, ADR 0037): alle Meldungen der Zeile, Art als Text (nie nur Farbe); Ruecknahme je eigener Meldung ueber das
+       Bestaetigungs-Modal (data-bestaetigen, bde-teileliste.js) statt browser-confirm. *@
+    @if (z.Meldungen.Count > 0)
     {
-        <span class="text-success-emphasis fw-semibold">&#10003; gemeldet</span>
-        <div class="small">von @z.Meldung.BdeOperator?.DisplayName, @z.Meldung.GemeldetAm.ToString("dd.MM. HH:mm"),
-            Gut @VormontageService.FormatMenge(z.Meldung.GoodQuantity) / Ausschuss @VormontageService.FormatMenge(z.Meldung.ScrapQuantity)</div>
-        @if (z.Meldung.BdeOperatorId == vm.Werker!.Id)
-        {
-            <form method="post" asp-action="Zuruecknehmen" class="mt-1"
-                  onsubmit="return confirm('Meldung zurücknehmen? Die Zeile ist danach wieder offen.');">
-                <input type="hidden" name="meldungId" value="@z.Meldung.Id" />
-                <input type="hidden" name="workplaceId" value="@vm.Werkbank.Id" />
-                <input type="hidden" name="operatorId" value="@vm.Werker.Id" />
-                <input type="hidden" name="returnUrl" value="@vm.ReturnUrl" />
-                <button type="submit" class="btn btn-outline-danger bde-touch">Zurücknehmen</button>
-            </form>
-        }
+        <div class="small">gemeldet @VormontageService.FormatMenge(z.Gemeldet) von @VormontageService.FormatMenge(n.Sollmenge)</div>
+        <ul class="list-unstyled small mb-1">
+            @foreach (var m in z.Meldungen)
+            {
+                <li class="mt-1">
+                    <span class="fw-semibold">@(m.IstAbschliessend ? "Fertig" : "Teil"):</span>
+                    Gut @VormontageService.FormatMenge(m.GoodQuantity) / Ausschuss @VormontageService.FormatMenge(m.ScrapQuantity),
+                    @m.BdeOperator?.DisplayName, @m.GemeldetAm.ToString("dd.MM. HH:mm")
+                    @if (m.BdeOperatorId == vm.Werker!.Id)
+                    {
+                        <form method="post" asp-action="Zuruecknehmen" class="mt-1"
+                              data-bestaetigen="@(m.IstAbschliessend ? "Fertigmeldung zurücknehmen? Die Zeile ist danach wieder offen." : "Teilmeldung zurücknehmen? Die gemeldete Menge sinkt entsprechend.")">
+                            <input type="hidden" name="meldungId" value="@m.Id" />
+                            <input type="hidden" name="workplaceId" value="@vm.Werkbank.Id" />
+                            <input type="hidden" name="operatorId" value="@vm.Werker.Id" />
+                            <input type="hidden" name="returnUrl" value="@vm.ReturnUrl" />
+                            <button type="submit" class="btn btn-outline-danger bde-touch">Zurücknehmen</button>
+                        </form>
+                    }
+                </li>
+            }
+        </ul>
+    }
+    @if (z.Abschluss != null)
+    {
+        <span class="text-success-emphasis fw-semibold">&#10003; fertig gemeldet</span>
     }
     else if (z.Verschwunden)
     {
@@ -41,6 +55,10 @@
     else if (!z.Eindeutig)
     {
         <span class="text-danger-emphasis fw-semibold">&#9888; Strukturzeile nicht eindeutig – bitte AV</span>
+    }
+    else if (z.Meldungen.Count > 0)
+    {
+        <span class="fw-semibold">teilgemeldet – Rest @VormontageService.FormatMenge(z.Rest)</span>
     }
     else
     {

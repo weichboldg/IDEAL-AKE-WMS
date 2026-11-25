@@ -57,7 +57,7 @@ weitere Spalten einblenden (z. B. Artikelnummer, Sub-FA, Position, Arbeitsschrit
 **Filter:**
 
 - **Kalenderwoche von / bis** filtert auf den FE-Termin des Hauptauftrags.
-- **gemeldete zeigen** blendet auch schon gemeldete Zeilen ein.
+- **gemeldete zeigen** blendet auch schon **fertig** gemeldete Zeilen ein. Teilgemeldete Zeilen (seit 1.99.75) sind immer sichtbar.
 - **Filtern** übernimmt, **Filter zurücksetzen** stellt den Standard wieder her.
 - Die Filter merkt sich das WMS **je Werker und Werkbank**. Erledigte oder stornierte Aufträge stehen nicht in der Liste.
 
@@ -66,7 +66,11 @@ weitere Spalten einblenden (z. B. Artikelnummer, Sub-FA, Position, Arbeitsschrit
 | Status | Bedeutung |
 |---|---|
 | offen | noch nicht gemeldet |
-| ✓ gemeldet, von …, Datum Uhrzeit, Gut/Ausschuss | fertig gemeldet; daneben ggf. **Zurücknehmen** |
+| teilgemeldet – Rest … | mit **Teilfertig** gemeldet, Zeile bleibt offen (seit 1.99.75) |
+| ✓ fertig gemeldet | mit **Fertig** abgeschlossen |
+
+Seit 1.99.75 steht über dem Status **gemeldet X von Soll** (Summe Gut aller Meldungen) und darunter jede Meldung einzeln:
+**Teil** oder **Fertig**, Gut/Ausschuss, Werker, Datum Uhrzeit; bei eigenen Meldungen der Knopf **Zurücknehmen**.
 | ⚠ Strukturzeile nicht eindeutig – bitte AV | das WMS kann die Zeile nicht sicher zuordnen; nicht melden, Arbeitsvorbereitung informieren |
 | kein WMS-Auftrag | zu diesem Hauptauftrag gibt es im WMS keinen offenen Auftrag |
 | nicht meldbar | die Zeile ist in Sage nicht mehr vorhanden, beendet oder inaktiv |
@@ -75,8 +79,8 @@ weitere Spalten einblenden (z. B. Artikelnummer, Sub-FA, Position, Arbeitsschrit
 
 | Zeichen | Bedeutung |
 |---|---|
-| Haken | erledigt – Arbeitsgang fertig gemeldet **oder** Teil an dieser Werkbank-Art gemeldet |
-| Sanduhr | läuft gerade |
+| Haken | erledigt – Arbeitsgang fertig gemeldet **oder** Teil an dieser Werkbank-Art mit **Fertig** gemeldet |
+| Sanduhr | läuft gerade – auch: Teil nur mit **Teilfertig** gemeldet (seit 1.99.75) |
 | Kreis | offen |
 | Dreieck | überfällig (Soll-Termin aus FE-Termin und Vorlauf überschritten) |
 | ohne Zeichen | kein BDE-Arbeitsgang für dieses Kürzel |
@@ -96,23 +100,34 @@ und das Zeichen **◆ Treffer**.
 
 - Die Filterkarte ist eingeklappt; der Knopf **Filter (…)** zeigt die Kurzfassung (Kalenderwochen, gemeldete sichtbar/ausgeblendet, Anzahl
   Spaltenfilter) und klappt sie auf.
-- Die Liste erscheint als **Karten**: je Zeile Beschriftung links, Wert rechts; Haken oben, **Fertig melden** unten.
+- Die Liste erscheint als **Karten**: je Zeile Beschriftung links, Wert rechts; Haken oben, **Melden** unten.
 - Spaltenfilter lassen sich dort nicht bedienen, wirken aber weiter – **Filter zurücksetzen** hebt sie auf.
 - Die **Hinweise zur Liste** sind aufklappbar. Alle Knöpfe und Haken sind mindestens 44 px groß.
 
-### 3. Einzeln fertig melden
+### 3. Einzeln melden: Teilfertig oder Fertig (seit 1.99.75)
 
-1. In der Zeile **Fertig melden** antippen.
-2. Das Fenster zeigt **Gut** (vorbelegt mit der Sollmenge) und **Ausschuss**. Mengen prüfen.
-3. **Fertig melden** – einmal antippen. **Abbrechen** schließt ohne Meldung.
+1. In der Zeile **Melden** antippen.
+2. Das Fenster zeigt **Soll**, **bereits gemeldet** und **Gut** (vorbelegt mit der **Restmenge** = Soll minus bereits gemeldet, mindestens 0)
+   sowie **Ausschuss**. Mengen prüfen.
+3. Einen der beiden Knöpfe einmal antippen:
+   - **Teilfertig melden** – meldet die Menge, die **Zeile bleibt offen** (z. B. 3 von 10 fertig, der Rest folgt später). Gut muss größer 0 sein.
+     Mehrere Teilmeldungen nacheinander sind möglich; die Zeile zeigt dann „gemeldet 7 von 10“.
+   - **Fertig melden** – meldet die Menge und **schließt die Zeile ab**, auch wenn weniger als der Rest gemeldet wird.
+4. **Abbrechen** schließt ohne Meldung.
 
-![Fenster „Fertig melden“ mit Gut und Ausschuss](bilder/17-05-fertig-melden-fenster.jpg)
+Erreicht eine Teilmeldung die Sollmenge (oder mehr – Mehrmenge kommt vor), wird sie gespeichert, die Zeile bleibt aber offen und oben steht
+**„Sollmenge erreicht – bitte Fertig melden“**. Danach **Melden → Fertig melden** (Vorgabe Gut 0) schließt die Zeile.
+
+**Baugruppen:** **Teilfertig** bucht die Teilmenge am Arbeitsgang der Sub-FA, der Arbeitsgang bleibt offen; **Fertig** meldet ihn fertig.
+
+![Fenster „Melden“ mit Gut, Ausschuss, Teilfertig melden und Fertig melden](bilder/17-05-fertig-melden-fenster.jpg)
 
 ### 4. Mehrere Zeilen auf einmal melden
 
 1. Links die Kästchen der Zeilen anhaken – oder **alle auf dieser Seite**.
 2. Der Knopf zeigt, was gemeldet wird: **Auswahl fertigmelden (2 Zeilen, Summe 2)**.
-3. Antippen und die Rückfrage bestätigen. Jede Zeile wird mit **voller Sollmenge, Ausschuss 0** gemeldet.
+3. Antippen und im Fenster **Fertig melden** bestätigen. Jede Zeile wird mit ihrer **Restmenge, Ausschuss 0** fertig gemeldet und abgeschlossen
+   (seit 1.99.75; vorher volle Sollmenge). Die Summe im Knopf ist die Summe der Restmengen.
 
 ![Zwei Zeilen angehakt, Knopf „Auswahl fertigmelden (2 Zeilen, Summe 2)“](bilder/17-04-auswahl-block.jpg)
 
@@ -130,12 +145,12 @@ Seit 1.99.74:
 - **Aufträge (n) ▸** neben dem Matchcode klappt die einzelnen Aufträge auf: eingerückte, grau hinterlegte Zeilen mit „↳“, sortiert nach
   **FE-Termin** (früheste zuerst, ohne Termin zuletzt). Jede Zeile hat Menge, Hauptauftrag, Abteilung, FE-Termin, AG-Status und Status wie in
   *Einzeln*. Nochmals antippen klappt zu (Zeichen ▾/▸).
-- **Haken auf der Summenzeile** = alle offenen Aufträge darunter mit voller Sollmenge fertig melden. Er setzt auch die Haken aller Aufträge
+- **Haken auf der Summenzeile** = alle offenen Aufträge darunter mit ihrer Restmenge fertig melden (seit 1.99.75; vorher volle Sollmenge). Er setzt auch die Haken aller Aufträge
   darunter.
 - **Reicht die Menge nicht für alle**, nur einzelne Aufträge anhaken (z. B. die mit dem frühesten FE-Termin). Gemeldet werden nur diese, die
   übrigen bleiben offen. Nimmt man bei gesetztem Summen-Haken einen Auftrags-Haken weg, ist auch der Summen-Haken weg – die anderen Aufträge
   bleiben angehakt. Der Knopf „Auswahl fertigmelden (n Zeilen …)“ zählt jeden Auftrag nur einmal.
-- Bereits gemeldete Aufträge (nur mit „gemeldete zeigen“ sichtbar) haben keinen Haken; ihre Statuszelle zeigt „✓ gemeldet“ und, bei eigenen,
+- Bereits gemeldete Aufträge (nur mit „gemeldete zeigen“ sichtbar) haben keinen Haken; ihre Statuszelle zeigt „✓ fertig gemeldet“ und, bei eigenen,
   „Zurücknehmen“.
 - **AG-Status der Summenzeile** zeigt je Kürzel den **schlechtesten Stand** der Aufträge: erledigt (Haken) nur, wenn alle erledigt sind; ist
   einer überfällig, steht das Dreieck; läuft einer und ein anderer ist überfällig, stehen Sanduhr und Dreieck. Aufträge ohne BDE-Arbeitsgang
@@ -145,8 +160,13 @@ Seit 1.99.74:
 
 ### 6. Meldung zurücknehmen
 
-Falsch gemeldet? In der Zeile (mit **gemeldete zeigen**) **Zurücknehmen** antippen und „Meldung zurücknehmen? Die Zeile ist danach wieder
-offen.“ bestätigen.
+Falsch gemeldet? In der Zeile bei der betreffenden Meldung **Zurücknehmen** antippen (abgeschlossene Zeilen nur mit **gemeldete zeigen**
+sichtbar). Seit 1.99.75 hat jede Meldung ihren eigenen Knopf, und die Rückfrage erscheint in einem eigenen Fenster:
+
+- bei einer **Fertig**-Meldung: „Fertigmeldung zurücknehmen? Die Zeile ist danach wieder offen.“
+- bei einer **Teil**-Meldung: „Teilmeldung zurücknehmen? Die gemeldete Menge sinkt entsprechend.“
+
+**Zurücknehmen** im Fenster bestätigt, **Abbrechen** lässt alles, wie es ist. Bei Baugruppen wird die zugehörige Arbeitsgang-Buchung storniert.
 
 - Nur **eigene** Meldungen, und nur bis **Schichtende** (ohne Schichtkalender: bis Ende des Meldetags).
 - Danach: „Frist abgelaufen (…) – Rücknahme nur noch über den BDE-Admin (BDE-Buchungen › Teilmeldungen).“
@@ -154,11 +174,12 @@ offen.“ bestätigen.
 ### 7. Für Schichtleiter und BDE-Admin: Teilmeldungen
 
 Menü **BDE → Buchungen**, Knopf **Teilmeldungen (BDE-Teileliste)**. Die Seite **BDE-Buchungen – Teilmeldungen** zeigt alle Meldungen eines
-Zeitraums (Standard: letzte 7 Tage) mit Werker, Werkbank, Kürzel, Haupt-FA, Sub-FA, Position und Matchcode. **zurückgenommene zeigen**
+Zeitraums (Standard: letzte 7 Tage) mit Werker, Werkbank, Kürzel, Haupt-FA, Sub-FA, Position, Matchcode und (seit 1.99.75) **Art**
+(**Teil** oder **Fertig**, filterbar). **zurückgenommene zeigen**
 blendet auch zurückgenommene ein. Der **BDE-Admin** kann eine Meldung mit Grund **stornieren**; bei Baugruppen wird die
 Arbeitsgang-Buchung mitstorniert.
 
-![BDE-Buchungen – Teilmeldungen](bilder/17-07-teilmeldungen-admin.jpg)
+![BDE-Buchungen – Teilmeldungen mit Spalte Art](bilder/17-07-teilmeldungen-admin.jpg)
 
 ### 8. Lagerbestellungen an der Werkbank (seit 1.99.72)
 
@@ -202,7 +223,8 @@ Voraussetzung (richtet die WMS-Betreuung ein): *Stammdaten → Werkbänke → Be
   mehr zur Struktur. Der Schichtleiter prüft sie unter *Teilmeldungen*.
 - **Baugruppe gemeldet:** Eine Baugruppe meldet auch ihren Arbeitsgang in der FA-Struktur fertig. Gibt es dort keinen Arbeitsgang mit dem
   Kürzel, wird nur die Teilmeldung gespeichert (Hinweis „Arbeitsgang … nicht vorhanden – nur die Teilmeldung gespeichert“).
-- **Gut ist mit der Sollmenge vorbelegt.** Vor dem Bestätigen prüfen, ob die Menge stimmt.
+- **Gut ist mit der Restmenge vorbelegt.** Vor dem Bestätigen prüfen, ob die Menge stimmt – und ob die Zeile offen bleiben (Teilfertig) oder
+  abgeschlossen werden soll (Fertig).
 - **Spaltenauswahl (Zahnrad)** gilt für den Terminal-Benutzer, nicht für den einzelnen Werker; die Filter dagegen je Werker.
 - **Lesbarkeit:** Seit Version 1.99.36 steht auf grünen und grauen Knöpfen am Terminal dunkle Schrift (besser lesbar bei schlechtem Licht).
 
@@ -213,8 +235,8 @@ Arbeitsschritten des Teils? Ist der Auftrag erledigt oder storniert, steht er ni
 
 **Ein Kollege hat dieselbe Zeile gleichzeitig gemeldet.** Das WMS speichert nur die erste Meldung; die zweite bekommt „Bereits gemeldet …“.
 
-**Kann ich eine Teilmenge melden?** Ja, einzeln über **Fertig melden** mit geänderter Gut-Menge. Die Block-Meldung meldet immer die volle
-Sollmenge.
+**Kann ich eine Teilmenge melden?** Ja: **Melden → Teilfertig melden** – die Zeile bleibt offen, der Rest kann später folgen. Die
+Block-Meldung und der Summen-Haken melden immer die Restmenge und schließen ab.
 
 **Wo sehe ich die Zeit?** Gar nicht – die Teileliste speichert nur, wer wann was gemeldet hat, keine Arbeitszeit.
 

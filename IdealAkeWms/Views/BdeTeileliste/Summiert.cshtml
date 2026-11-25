@@ -19,7 +19,7 @@
             <label class="form-check-label" for="alleAuswaehlen">alle auf dieser Seite</label>
         </div>
         <button type="submit" class="btn btn-primary btn-lg" id="blockMelden" disabled>Auswahl fertigmelden</button>
-        <span class="small text-muted d-none d-lg-inline">Haken am Matchcode meldet alle offenen Aufträge darunter, Haken am Auftrag nur diesen – volle Sollmenge</span>
+        <span class="small text-muted d-none d-lg-inline">Haken am Matchcode meldet alle offenen Aufträge darunter, Haken am Auftrag nur diesen – Restmenge, schließt ab</span>
     </form>
 
     <div class="d-flex justify-content-end mb-1" data-table-toolbar></div>
@@ -104,7 +104,7 @@
                                 @if (z.Meldbar)
                                 {
                                     <label class="tl-check"><input class="form-check-input tl-auswahl" type="checkbox" form="blockForm" name="schluessel"
-                                           value="@z.FormSchluessel" data-in-gruppe="@i" data-soll="@n.Sollmenge.ToString(System.Globalization.CultureInfo.InvariantCulture)"
+                                           value="@z.FormSchluessel" data-in-gruppe="@i" data-soll="@z.Rest.ToString(System.Globalization.CultureInfo.InvariantCulture)"
                                            aria-label="@n.Matchcode, @(z.Lager is { } l ? $"Lagerbestellung {l.RequisitionId}" : $"Haupt-FA {n.HauptFA} Pos. {n.Position}") auswählen" /></label>
                                 }
                             </td>

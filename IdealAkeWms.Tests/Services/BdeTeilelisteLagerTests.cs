@@ -117,9 +117,25 @@ public class BdeTeilelisteLagerTests
 
         // FA-Zeilen sehen die Lagerbestell-Meldung nicht (ADR 0038)
         var d = await l.U.Svc.LadenAsync("KA", null, true, null, mitLagerbestellungen: true);
-        d.Zeilen.Single(x => x.Lager == null && x.Node.Artnr == "B1").Meldung.Should().BeNull();
-        d.Zeilen.Single(x => x.Lager != null).Meldung.Should().NotBeNull();
+        d.Zeilen.Single(x => x.Lager == null && x.Node.Artnr == "B1").Meldungen.Should().BeEmpty();
+        d.Zeilen.Single(x => x.Lager != null).Abschluss.Should().NotBeNull();
         d.Waisen.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Melden_Lager_Teilfertig_DannFertigMitRest()
+    {
+        var l = await AufbauAsync();
+        var teil = await l.U.Svc.MeldenAsync(l.U.Ids.OperatorId, l.U.Ids.WorkplaceId, l.U.Ids.TerminalId,
+            new[] { new BdeTeilelisteService.MeldeAuftrag(null, 2, null, l.ItemKa, Abschliessend: false) });
+        teil.AllesGut.Should().BeTrue(teil.Text());
+        var z = (await l.U.Svc.LadenAsync("KA", null, true, null, mitLagerbestellungen: true)).Zeilen.Single(x => x.Lager != null);
+        (z.Meldbar, z.Rest).Should().Be((true, 3m));
+
+        (await MeldeLager(l, l.ItemKa)).AllesGut.Should().BeTrue();
+
+        l.U.Ctx.BdeTeilMeldungen.Single(m => m.IstAbschliessend).GoodQuantity.Should().Be(3, "Vorgabe = Rest (5 - 2)");
+        (await MeldeLager(l, l.ItemKa)).BereitsGemeldet.Should().ContainSingle();
     }
 
     [Fact]

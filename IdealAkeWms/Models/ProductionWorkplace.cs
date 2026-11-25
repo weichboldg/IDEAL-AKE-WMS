@@ -63,6 +63,12 @@ public class ProductionWorkplace : AuditableEntity
     [Display(Name = "Lagerbestellungen in der Teileliste")]
     public bool BdeTeilelisteLagerbestellungen { get; set; }
 
+    /// <summary>v1.99.75 (Spec 2026-11-25-bde-masken-vereinheitlichung, Antwort 3a): Startreiter der BDE-Seite (true = Teile, false = FA).
+    /// Nur Oberflaeche. Spalte entsteht mit SQL/169 (DEFAULT 0 nur dort, kein HasDefaultValue); Leser, Maske und EditableProperties
+    /// folgen in Etappe 4a.</summary>
+    [Display(Name = "BDE-Standardsicht")]
+    public bool BdeStandardsichtTeile { get; set; }
+
     // v1.73.0 (Spec 2026-11-06-sage-sdata-stammdaten-sync E6a, F8): nur der SData-Weg (PpsArbeitsplaetzeInfo) liefert diese Felder.
     // Der ProductionWorkplaceSyncService schreibt sie nur, wenn die Quelle sie liefert (nicht null) — ein View-Lauf laesst sie unveraendert.
 

@@ -273,7 +273,7 @@ public class BdeBookingService : IBdeBookingService
     /// (die BDE-Teileliste meldet Teilmeldung und Baugruppen-Arbeitsgang in EINER Transaktion). Wirksam an Werkbaenken mit „nur
     /// AG-Fertigmeldung“ oder BDE-Teileliste.</summary>
     public async Task<BdeBookingResult> ReportCompletionCoreAsync(int operatorId, int workOperationId, int workplaceId, int terminalId,
-        decimal? goodQty, decimal? scrapQty)
+        decimal? goodQty, decimal? scrapQty, bool istFinal = true)
     {
         // v1.99.23 (BDE-1, ADR 0026): zwei gleichzeitige Fertigmeldungen desselben Arbeitsgangs – die zweite wartet hier, bis die erste
         // committet, und sieht dann deren IsFinal-Buchung (Pruefung unten). Kein Index moeglich (IsFinal und Arbeitsgang in zwei Tabellen).
@@ -328,7 +328,7 @@ public class BdeBookingService : IBdeBookingService
         _ctx.BdeBookings.Add(booking);
         await _ctx.SaveChangesAsync();
         var quantity = CreatePartialQuantity(booking, goodQty ?? 0, scrapQty ?? 0);
-        quantity.IsFinal = true;
+        quantity.IsFinal = istFinal; // v1.99.75: false = Teil-Buchung der BDE-Teileliste (ADR 0037)
         quantity.ReportedAt = now;
         _ctx.BdeBookingQuantities.Add(quantity);
         await _ctx.SaveChangesAsync();

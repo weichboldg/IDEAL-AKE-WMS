@@ -51,7 +51,14 @@ public sealed class TeilelisteZeile
     public bool Eindeutig { get; init; } = true;
     /// <summary>Antwort 8: zum besitzenden Auftrag gibt es keinen WMS-Auftrag (meldbar, gekennzeichnet).</summary>
     public bool KeinWmsAuftrag { get; init; }
-    public BdeTeilMeldung? Meldung { get; init; }
+    /// <summary>v1.99.75 (E3-2, ADR 0037): alle nicht stornierten Meldungen der Zeile (Teil und Fertig), aelteste zuerst.</summary>
+    public IReadOnlyList<BdeTeilMeldung> Meldungen { get; init; } = Array.Empty<BdeTeilMeldung>();
+    /// <summary>Die abschliessende Meldung ("Fertig melden") - hoechstens eine (gefilterter UNIQUE).</summary>
+    public BdeTeilMeldung? Abschluss => Meldungen.FirstOrDefault(m => m.IstAbschliessend);
+    /// <summary>E3-2: "gemeldet X von Soll" = Summe Gut der nicht stornierten Meldungen.</summary>
+    public decimal Gemeldet => Meldungen.Sum(m => m.GoodQuantity);
+    /// <summary>E3-1: Vorgabe Gut bei "Fertig" = Soll - gemeldet, mindestens 0.</summary>
+    public decimal Rest => Math.Max(0, Node.Sollmenge - Gemeldet);
     /// <summary>v1.99.73 (E1-2): direkte Kinder einer Baugruppe als eigene Zeilen (nur Anzeige, dieselben Getter wie die Eltern).</summary>
     public IReadOnlyList<TeilelisteZeile> Kinder { get; init; } = Array.Empty<TeilelisteZeile>();
     /// <summary>v1.99.73 (E1-1): AG-Status je Arbeitsschritt-Token (WorkOperation oder Teilmeldung); ohne Lauf neutral.</summary>
@@ -62,7 +69,7 @@ public sealed class TeilelisteZeile
     public bool Aufgeklappt => Kinder.Any(k => k.Treffer);
     /// <summary>v1.99.37 (ADR 0032, Rueckfrage 3): in Sage verschwundene Zeile → angezeigt mit Badge, nicht meldbar.</summary>
     public bool Verschwunden => Node.VerschwundenSeit != null;
-    public bool Meldbar => Meldung == null && Eindeutig && !Verschwunden;
+    public bool Meldbar => Abschluss == null && Eindeutig && !Verschwunden;
 }
 
 /// <summary>Sicht „Summiert“: je Matchcode, mit den beitragenden meldbaren Schluesseln (F7).</summary>
@@ -151,8 +158,11 @@ public class BdeTeilelisteService
     /// Sonst bleibt der Status aus dem WorkOperation-Lauf („kein BDE-Arbeitsgang“ bzw. neutral).
     /// </summary>
     public static void TeilmeldungenAnwenden(IEnumerable<FaHierarchyStructure> structures, IReadOnlySet<(TeilSchluessel, string)> gemeldet,
-        IReadOnlySet<string> teilelisteKuerzel, IReadOnlyDictionary<string, int> offsets, Func<DateTime, int, DateTime> rechner, DateTime heute)
+        IReadOnlySet<string> teilelisteKuerzel, IReadOnlyDictionary<string, int> offsets, Func<DateTime, int, DateTime> rechner, DateTime heute,
+        IReadOnlySet<(TeilSchluessel, string)>? teilgemeldet = null)
     {
+        // v1.99.75 (E1-1 ab Etappe 3, ADR 0037): gemeldet = nur ABSCHLIESSENDE Meldungen (Erledigt); teilgemeldet = nur Teilfertig-Meldungen
+        // ohne Abschluss -> "laeuft" (eine erledigte WorkOperation gewinnt).
         foreach (var s in structures)
         {
             var bezug = s.OrderInfos.Select(o => o.FE_Termin).Min();
@@ -167,13 +177,14 @@ public class BdeTeilelisteService
                     var sym = t.Arbeitsgaenge[i];
                     var k = sym.Kuerzel.Trim().ToUpperInvariant();
                     var erledigt = gemeldet.Contains((schluessel, k));
+                    var teil = !erledigt && sym.Status != FaAgStatus.Erledigt && teilgemeldet?.Contains((schluessel, k)) == true;
                     var moeglich = (sym.Status is null or FaAgStatus.KeinBdeArbeitsgang) && teilelisteKuerzel.Contains(k);
-                    if (!erledigt && !moeglich) continue;
+                    if (!erledigt && !teil && !moeglich) continue;
                     var soll = sym.Soll ?? ArbeitsgangStatusRegel.Soll(bezug, k, offsets, rechner, out _);
                     t.Arbeitsgaenge[i] = sym with
                     {
                         Soll = soll,
-                        Status = erledigt ? FaAgStatus.Erledigt : ArbeitsgangStatusRegel.Ableiten(false, false, soll, heute),
+                        Status = erledigt ? FaAgStatus.Erledigt : ArbeitsgangStatusRegel.Ableiten(false, teil, soll, heute),
                     };
                 }
             }
@@ -280,12 +291,14 @@ public class BdeTeilelisteService
         var lauf = await _agStatus.ZuordnenAsync(structures);
         if (lauf != null)
         {
-            var gemeldet = (await _ctx.BdeTeilMeldungen.AsNoTracking()
+            var alle = (await _ctx.BdeTeilMeldungen.AsNoTracking()
                     .Where(m => !m.IsCancelled && m.WarehouseRequisitionItemId == null && hauptFas.Contains(m.HauptFA)).ToListAsync())
-                .Select(m => (TeilSchluessel.Von(m), m.Kuerzel.Trim().ToUpperInvariant())).ToHashSet();
+                .Select(m => (Key: (TeilSchluessel.Von(m), m.Kuerzel.Trim().ToUpperInvariant()), m.IstAbschliessend)).ToList();
+            var gemeldet = alle.Where(m => m.IstAbschliessend).Select(m => m.Key).ToHashSet();
+            var teilgemeldet = alle.Select(m => m.Key).Where(k => !gemeldet.Contains(k)).ToHashSet(); // E1-1: Teilfertig = laeuft
             var teileliste = lauf.Werkbaenke.Where(w => WerkbankKuerzelFamilie.TeilelisteWirksam(w, false))
                 .Select(w => WerkbankKuerzelFamilie.Kuerzel(w)!.ToUpperInvariant()).ToHashSet();
-            TeilmeldungenAnwenden(structures, gemeldet, teileliste, lauf.Offsets, lauf.Rechner, DateTime.Today);
+            TeilmeldungenAnwenden(structures, gemeldet, teileliste, lauf.Offsets, lauf.Rechner, DateTime.Today, teilgemeldet);
         }
         return structures.SelectMany(s => s.Roots)
             .ToDictionary(t => t.Node, t => (IReadOnlyList<FaArbeitsschrittSymbol>)t.Arbeitsgaenge, ReferenceEqualityComparer.Instance as IEqualityComparer<FaHierarchyNode>);
@@ -350,7 +363,7 @@ public class BdeTeilelisteService
                 Node = node, Schluessel = TeilSchluessel.Von(node),
                 Lager = new LagerPosition(i.Id, i.WarehouseRequisitionId, i.Position, i.Comment, i.Werkbank,
                     i.SubmittedAt is DateTime s ? _days.AddBusinessDays(s.Date, tage, feiertage) : null),
-                Meldung = meldungen.FirstOrDefault(m => m.WarehouseRequisitionItemId == i.Id),
+                Meldungen = meldungen.Where(m => m.WarehouseRequisitionItemId == i.Id).OrderBy(m => m.GemeldetAm).ToList(),
                 Arbeitsgaenge = NeutraleSymbole(node.Arbeitsschritte),
             };
         }).ToList();
@@ -382,12 +395,14 @@ public class BdeTeilelisteService
         var doppelt = nodes.GroupBy(TeilSchluessel.Von).Where(g => g.Count() > 1).Select(g => g.Key).ToHashSet();
         var kinder = nodes.Where(n => n.VaterFA.HasValue).ToLookup(n => n.VaterFA!.Value);
         meldungen = meldungen.Where(m => m.WarehouseRequisitionItemId == null).ToList(); // v1.99.72: nur FA-Meldungen (ADR 0038)
-        var meldungJeSchluessel = meldungen.GroupBy(TeilSchluessel.Von).ToDictionary(g => g.Key, g => g.First());
+        // v1.99.75 (E3, ADR 0037): mehrere Meldungen je Schluessel (Teil + hoechstens ein Fertig) statt .First()
+        var meldungJeSchluessel = meldungen.GroupBy(TeilSchluessel.Von)
+            .ToDictionary(g => g.Key, g => (IReadOnlyList<BdeTeilMeldung>)g.OrderBy(m => m.GemeldetAm).ToList());
         var kandidaten = nodes.Where(n => Traegt(n, kuerzel)).ToList();
 
         var treffer = kandidaten.Select(TeilSchluessel.Von).ToHashSet();
         var hauptFas = nodes.Select(n => n.HauptFA).ToHashSet();
-        var waisen = meldungen.Count(m => hauptFas.Contains(m.HauptFA) && !treffer.Contains(TeilSchluessel.Von(m)));
+        var waisen = meldungJeSchluessel.Keys.Count(k => hauptFas.Contains(k.HauptFA) && !treffer.Contains(k)); // E3: je Schluessel, nicht je Meldung
 
         IEnumerable<TeilelisteZeile> zeilen = kandidaten
             .Where(n => Besitzer(n) is not string b || !auftragOffen.TryGetValue(b, out var offen) || offen)
@@ -398,7 +413,7 @@ public class BdeTeilelisteService
                 {
                     Node = n, Schluessel = s, Eindeutig = !doppelt.Contains(s),
                     KeinWmsAuftrag = Besitzer(n) is not string b || !auftragOffen.ContainsKey(b),
-                    Meldung = meldungJeSchluessel.GetValueOrDefault(s),
+                    Meldungen = meldungJeSchluessel.GetValueOrDefault(s) ?? Array.Empty<BdeTeilMeldung>(),
                     Arbeitsgaenge = Symbole(n),
                     Kinder = n.SubFA != 0
                         ? kinder[n.SubFA].OrderBy(k => k.Position)
@@ -415,7 +430,7 @@ public class BdeTeilelisteService
             // F7: Lagerbestell-Zeilen ueber ihren Termin; ohne Termin fallen sie weg (wie ein Auftragsteil ohne FE-Termin).
             zeilen = zeilen.Where(z => z.Lager is { } l ? l.Termin >= von && l.Termin < bis : inKw.Contains(z.Node.HauptFA));
         }
-        if (!gemeldeteZeigen) zeilen = zeilen.Where(z => z.Meldung == null);
+        if (!gemeldeteZeigen) zeilen = zeilen.Where(z => z.Abschluss == null); // E3-4: nur abgeschlossene ausblenden
 
         // E1-3: Eltern bleiben, wenn sie selbst ODER ein Kind passt. Kind-Treffer nur, wenn die Eltern selbst nicht passen (sonst
         // waere z. B. ein Haupt-FA-Filter an jedem Kind ein „Treffer“); Pagination zaehlt weiter nur Elternzeilen.
@@ -465,7 +480,7 @@ public class BdeTeilelisteService
                     FeTermine = VormontageService.FormatDaten(hauptFas.SelectMany(h => infosJeHauptFa.TryGetValue(h, out var l) ? l : new List<FaHierarchyOrderInfo>())
                         .Select(i => i.FE_Termin).Concat(lager.Select(l => l.Termin))),
                     OffeneSchluessel = offen.Select(z => z.FormSchluessel).ToList(),
-                    SummeSollmengeOffen = offen.Sum(z => z.Node.Sollmenge),
+                    SummeSollmengeOffen = offen.Sum(z => z.Rest), // v1.99.75 E3-3: Summen-Haken meldet abschliessend mit Rest
                     Materialien = VormontageService.FormatTexte(g.Select(z => z.Node.Material)),
                     Blechdicken = VormontageService.FormatTexte(zus.Select(z => z?.Blechdicke)),
                     BemerkungenPn = VormontageService.FormatTexte(g.Select(z => z.Node.BemerkungPN)),
@@ -503,9 +518,11 @@ public class BdeTeilelisteService
 
     // ---------------------------------------------------------------- Melden (E3)
 
-    /// <summary>Gut/Ausschuss null = volle Sollmenge, Ausschuss 0 (Block und Summiert, F9). v1.99.72: <paramref name="LagerItemId"/> gesetzt =
-    /// Lagerbestell-Position (dann ist <paramref name="Schluessel"/> null).</summary>
-    public sealed record MeldeAuftrag(TeilSchluessel? Schluessel, decimal? Gut, decimal? Ausschuss, int? LagerItemId = null);
+    /// <summary>Gut/Ausschuss null = Restmenge (v1.99.75; vorher volle Sollmenge), Ausschuss 0 (Block und Summiert, F9). v1.99.72: <paramref name="LagerItemId"/> gesetzt =
+    /// Lagerbestell-Position (dann ist <paramref name="Schluessel"/> null).
+    /// v1.99.75 (E3-1, ADR 0037): <paramref name="Abschliessend"/> false = "Teilfertig" (Gut Pflicht &gt; 0, Zeile bleibt offen),
+    /// true = "Fertig" (schliesst die Zeile); Gut null bei Fertig = Restmenge (Soll - bisher gemeldet Gut).</summary>
+    public sealed record MeldeAuftrag(TeilSchluessel? Schluessel, decimal? Gut, decimal? Ausschuss, int? LagerItemId = null, bool Abschliessend = true);
 
     /// <summary>Sammelmeldung (F9): nie still — jede nicht gemeldete Zeile mit Grund.</summary>
     public sealed class MeldeErgebnis
@@ -606,33 +623,51 @@ public class BdeTeilelisteService
             e.Abgewiesen.Add($"{bezeichnung}: Artikel trägt das Kürzel {kuerzel} nicht (mehr)");
             return;
         }
-        var gut = a.Gut ?? item.QuantityRequested;
-        var ausschuss = a.Ausschuss ?? 0;
-        if (!MengenOk(gut, ausschuss, bezeichnung, e)) return;
-        if (await VorhandeneLagerMeldungAsync(itemId, kuerzel) is { } vorhanden)
+        var bisher = await LagerMeldungenAsync(itemId, kuerzel);
+        if (bisher.FirstOrDefault(m => m.IstAbschliessend) is { } vorhanden) // E3: nur die abschliessende sperrt
         {
             e.BereitsGemeldet.Add(BereitsText(bezeichnung, vorhanden));
             return;
         }
+        if (!MengenFuerArtOk(a, item.QuantityRequested, bisher, bezeichnung, e, out var gut, out var ausschuss)) return;
         var meldung = new BdeTeilMeldung
         {
             HauptFA = 0, VaterFA = null, SubFA = 0, Position = null, Artnr = item.ArticleNumber, Matchcode = item.Matchcode,
             WarehouseRequisitionItemId = itemId,
             Kuerzel = kuerzel, ProductionWorkplaceId = workplaceId, BdeOperatorId = operatorId, BdeTerminalId = terminalId,
             GoodQuantity = gut, ScrapQuantity = ausschuss, SollmengeBeiMeldung = item.QuantityRequested, GemeldetAm = DateTime.Now,
+            IstAbschliessend = a.Abschliessend, // immer ausdruecklich (DB-Default 1 nur fuer Bestand, ADR 0037)
             CreatedAt = DateTime.Now, CreatedBy = _userSvc.GetDisplayName(), CreatedByWindows = _userSvc.GetWindowsUserName(),
         };
-        if (await SpeichernAsync(meldung, bezeichnung, e, () => VorhandeneLagerMeldungAsync(itemId, kuerzel))) e.Gemeldet++;
+        if (await SpeichernAsync(meldung, bezeichnung, e, () => AbschlussAsync(LagerMeldungenAsync(itemId, kuerzel)))) e.Gemeldet++;
     }
 
-    private static bool MengenOk(decimal gut, decimal ausschuss, string bezeichnung, MeldeErgebnis e)
+    /// <summary>v1.99.75 (E3-1, ADR 0037): Mengen je Art. Teilfertig: Gut Pflicht &gt; 0; erreicht die Summe Gut das Soll, wird gespeichert mit
+    /// Hinweis "Sollmenge erreicht - bitte Fertig melden". Fertig: Vorgabe Gut = Rest; 0/0 nur, wenn schon Meldungen da sind (Abschluss nach Uebermeldung).</summary>
+    private static bool MengenFuerArtOk(MeldeAuftrag a, decimal soll, IReadOnlyList<BdeTeilMeldung> bisher, string bezeichnung, MeldeErgebnis e,
+        out decimal gut, out decimal ausschuss)
+    {
+        var summe = bisher.Sum(m => m.GoodQuantity);
+        gut = a.Gut ?? (a.Abschliessend ? Math.Max(0, soll - summe) : 0);
+        ausschuss = a.Ausschuss ?? 0;
+        if (!a.Abschliessend && gut <= 0)
+        {
+            e.Abgewiesen.Add($"{bezeichnung}: Teilfertig braucht eine Gut-Menge größer 0");
+            return false;
+        }
+        if (!MengenOk(gut, ausschuss, bezeichnung, e, nullErlaubt: a.Abschliessend && bisher.Count > 0)) return false;
+        if (!a.Abschliessend && summe + gut >= soll) e.Hinweise.Add($"{bezeichnung}: Sollmenge erreicht – bitte Fertig melden");
+        return true;
+    }
+
+    private static bool MengenOk(decimal gut, decimal ausschuss, string bezeichnung, MeldeErgebnis e, bool nullErlaubt = false)
     {
         if (gut < 0 || ausschuss < 0)
         {
             e.Abgewiesen.Add($"{bezeichnung}: Mengen dürfen nicht negativ sein");
             return false;
         }
-        if (gut + ausschuss == 0)
+        if (gut + ausschuss == 0 && !nullErlaubt)
         {
             e.Abgewiesen.Add($"{bezeichnung}: bitte eine Gut- oder Ausschussmenge angeben");
             return false;
@@ -708,24 +743,23 @@ public class BdeTeilelisteService
             }
         }
 
-        var gut = a.Gut ?? node.Sollmenge;
-        var ausschuss = a.Ausschuss ?? 0;
-        if (!MengenOk(gut, ausschuss, bezeichnung, e)) return;
-
-        if (await VorhandeneMeldungAsync(s, kuerzel) is { } vorhanden)
+        var bisher = await MeldungenAsync(s, kuerzel);
+        if (bisher.FirstOrDefault(m => m.IstAbschliessend) is { } vorhanden) // E3: nur die abschliessende sperrt die Zeile
         {
             e.BereitsGemeldet.Add(BereitsText(bezeichnung, vorhanden));
             return;
         }
+        if (!MengenFuerArtOk(a, node.Sollmenge, bisher, bezeichnung, e, out var gut, out var ausschuss)) return;
 
         var meldung = new BdeTeilMeldung
         {
             HauptFA = s.HauptFA, VaterFA = s.VaterFA, SubFA = s.SubFA, Position = s.Position, Artnr = s.Artnr, Matchcode = node.Matchcode,
             Kuerzel = kuerzel, ProductionWorkplaceId = workplaceId, BdeOperatorId = operatorId, BdeTerminalId = terminalId,
             GoodQuantity = gut, ScrapQuantity = ausschuss, SollmengeBeiMeldung = node.Sollmenge, GemeldetAm = DateTime.Now,
+            IstAbschliessend = a.Abschliessend, // immer ausdruecklich (DB-Default 1 nur fuer Bestand, ADR 0037)
             CreatedAt = DateTime.Now, CreatedBy = _userSvc.GetDisplayName(), CreatedByWindows = _userSvc.GetWindowsUserName(),
         };
-        if (!await SpeichernAsync(meldung, bezeichnung, e, () => VorhandeneMeldungAsync(s, kuerzel))) return;
+        if (!await SpeichernAsync(meldung, bezeichnung, e, () => AbschlussAsync(MeldungenAsync(s, kuerzel)))) return;
         e.Gemeldet++;
 
         if (node.SubFA == 0) return; // Blechteil: nur Teilmeldung (F10)
@@ -741,7 +775,8 @@ public class BdeTeilelisteService
             e.Hinweise.Add($"Arbeitsgang {kuerzel} an Sub-FA {subFa} nicht vorhanden – nur die Teilmeldung gespeichert");
             return;
         }
-        var r = await _booking.ReportCompletionCoreAsync(operatorId, agId.Value, workplaceId, terminalId, gut, ausschuss);
+        // E3-6: Teilfertig = Teil-Buchung (IsFinal = false), Fertig = Fertig-Buchung wie bisher
+        var r = await _booking.ReportCompletionCoreAsync(operatorId, agId.Value, workplaceId, terminalId, gut, ausschuss, istFinal: a.Abschliessend);
         if (r.Outcome == BdeBookingOutcome.Success)
         {
             meldung.BdeBookingId = r.Booking!.Id;
@@ -805,16 +840,20 @@ public class BdeTeilelisteService
         e.ModifiedByWindows = _userSvc.GetWindowsUserName();
     }
 
-    private Task<BdeTeilMeldung?> VorhandeneLagerMeldungAsync(int itemId, string kuerzel) =>
+    /// <summary>v1.99.75: alle nicht stornierten Meldungen (Teil + Fertig) am Schreibort - Rest und "bereits gemeldet" aus EINER Abfrage.</summary>
+    private Task<List<BdeTeilMeldung>> LagerMeldungenAsync(int itemId, string kuerzel) =>
         _ctx.BdeTeilMeldungen.AsNoTracking().Include(m => m.BdeOperator)
             .Where(m => !m.IsCancelled && m.Kuerzel == kuerzel && m.WarehouseRequisitionItemId == itemId)
-            .FirstOrDefaultAsync();
+            .ToListAsync();
 
-    private Task<BdeTeilMeldung?> VorhandeneMeldungAsync(TeilSchluessel s, string kuerzel) =>
+    private static async Task<BdeTeilMeldung?> AbschlussAsync(Task<List<BdeTeilMeldung>> meldungen) =>
+        (await meldungen).FirstOrDefault(m => m.IstAbschliessend);
+
+    private Task<List<BdeTeilMeldung>> MeldungenAsync(TeilSchluessel s, string kuerzel) =>
         _ctx.BdeTeilMeldungen.AsNoTracking().Include(m => m.BdeOperator)
             .Where(m => !m.IsCancelled && m.WarehouseRequisitionItemId == null && m.Kuerzel == kuerzel && m.HauptFA == s.HauptFA && m.VaterFA == s.VaterFA && m.SubFA == s.SubFA
                 && m.Position == s.Position && (s.Artnr == null ? m.Artnr == null || m.Artnr == "" : m.Artnr == s.Artnr))
-            .FirstOrDefaultAsync();
+            .ToListAsync();
 
     private static string BereitsText(string bezeichnung, BdeTeilMeldung m) =>
         $"{bezeichnung}: bereits gemeldet von {m.BdeOperator?.DisplayName ?? "?"} um {m.GemeldetAm:HH:mm}";

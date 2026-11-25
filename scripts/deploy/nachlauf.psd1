@@ -130,6 +130,8 @@ Eintraege = @(
    Datei='167_AddStockMovementAbteilung.sql'; MigrationId='20261125134408_AddStockMovementAbteilung'; Voraussetzung='additiv: StockMovements.Abteilung NVARCHAR(200) NULL (Lagerbewegungen: Spalte Abteilung bei Ausbuchung, geht als Referenz an Sage), kein Backfill'; Quelle='2026-11-25-v1-99-68-sage-buchung-referenz-benutzer-abteilung' }
 @{ Id='SQL/168'; Version='1.99.70'; Typ='Schema'; Firma='beide'; Phase='Schema'; Ausfuehrung='automatisch'
    Datei='168_AddPickingStatusStuecklisteKleiner.sql'; MigrationId='20261125161741_AddPickingStatusStuecklisteKleiner'; Voraussetzung='additiv: ProductionOrderPickingStatus.StuecklisteKleiner NVARCHAR(1000) NULL (Marker Stueckliste kleiner als offene Kommissionierzeilen, Leitstand-Badge), kein Backfill'; Quelle='2026-11-25-v1-99-70-kommissionierauftraege-nachtrag-nachts' }
+@{ Id='SQL/169'; Version='1.99.75'; Typ='Schema'; Firma='beide'; Phase='Schema'; Ausfuehrung='automatisch'
+   Datei='169_AddBdeTeilMeldungIstAbschliessendUndStandardsicht.sql'; MigrationId='20261125191311_AddBdeTeilMeldungIstAbschliessendUndStandardsicht'; Voraussetzung='SQL/165; additiv: BdeTeilMeldungen.IstAbschliessend bit NOT NULL DEFAULT 1 (Bestand = abschliessend), beide UNIQUE-Filter um IstAbschliessend = 1 erweitert (Index-Neuaufbau, Dubletten-Pruefung mit Warnung), ProductionWorkplaces.BdeStandardsichtTeile bit DEFAULT 0 mit Vorbelegung bei Erstanlage'; Quelle='2026-11-25-v1-99-75-bde-masken-etappe-3-teilfertigmeldung' }
 
 # ---------------------------------------------------------------- Pruefungen (jeder Lauf; Reparatur nur nach Bestaetigung) -------
 # v1.99.28 (ADR 0027): admin zaehlt nicht - der Web-Start stellt admin ohne Kennwort auf das Standard-Erstkennwort mit Pflichtwechsel um.
@@ -679,5 +681,8 @@ WHERE NOT EXISTS (SELECT 1 FROM dbo.Roles r WHERE r.[Key] = v.k);'
 @{ Id='v1.99.74-BdeTeilelisteSummiertInfo'; Version='1.99.74'; Typ='Info'; Firma='IDEAL'; Phase='Nachher'; Ausfuehrung='anzeigen'
    Text='BDE-Teileliste Summiert: Auftraege je Matchcode aufklappbar (eigener Haken je Auftrag), Haken auf der Summenzeile meldet alle offenen Auftraege darunter fertig, AG-Status je Kuerzel zeigt den schlechtesten Stand. Werker kurz informieren; Browser-Cache am Terminal ggf. leeren.'
    Quelle='2026-11-25-v1-99-74-bde-masken-etappe-2-teile-summiert' }
+@{ Id='v1.99.75-BdeTeilfertigInfo'; Version='1.99.75'; Typ='Info'; Firma='IDEAL'; Phase='Nachher'; Ausfuehrung='anzeigen'
+   Text='BDE-Teileliste: im Melden-Fenster jetzt Teilfertig melden (Zeile bleibt offen, gemeldet X von Soll) und Fertig melden (schliesst ab, Vorgabe = Restmenge). Auswahl fertigmelden und Summen-Haken melden die Restmenge. Werker kurz informieren; Browser-Cache am Terminal ggf. leeren.'
+   Quelle='2026-11-25-v1-99-75-bde-masken-etappe-3-teilfertigmeldung' }
 )
 }

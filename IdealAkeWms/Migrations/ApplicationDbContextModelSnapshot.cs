@@ -1178,6 +1178,9 @@ namespace IdealAkeWms.Migrations
                     b.Property<bool>("IsCancelled")
                         .HasColumnType("bit");
 
+                    b.Property<bool>("IstAbschliessend")
+                        .HasColumnType("bit");
+
                     b.Property<string>("Kuerzel")
                         .IsRequired()
                         .HasMaxLength(20)
@@ -1236,12 +1239,12 @@ namespace IdealAkeWms.Migrations
                     b.HasIndex("WarehouseRequisitionItemId", "Kuerzel")
                         .IsUnique()
                         .HasDatabaseName("UX_BdeTeilMeldungen_Lagerbestellung")
-                        .HasFilter("[IsCancelled] = 0 AND [WarehouseRequisitionItemId] IS NOT NULL");
+                        .HasFilter("[IsCancelled] = 0 AND [IstAbschliessend] = 1 AND [WarehouseRequisitionItemId] IS NOT NULL");
 
                     b.HasIndex("HauptFA", "VaterFA", "SubFA", "Position", "Artnr", "Kuerzel")
                         .IsUnique()
                         .HasDatabaseName("UX_BdeTeilMeldungen_Schluessel")
-                        .HasFilter("[IsCancelled] = 0 AND [WarehouseRequisitionItemId] IS NULL");
+                        .HasFilter("[IsCancelled] = 0 AND [IstAbschliessend] = 1 AND [WarehouseRequisitionItemId] IS NULL");
 
                     b.ToTable("BdeTeilMeldungen", "dbo");
                 });
@@ -4174,6 +4177,9 @@ namespace IdealAkeWms.Migrations
                         .HasColumnType("nvarchar(200)");
 
                     b.Property<bool>("BdeNurAgFertigmeldung")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("BdeStandardsichtTeile")
                         .HasColumnType("bit");
 
                     b.Property<bool>("BdeTeileliste")
