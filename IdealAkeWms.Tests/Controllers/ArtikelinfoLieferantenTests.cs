@@ -35,7 +35,7 @@ public class ArtikelinfoLieferantenTests
                 Mock.Of<IPurchaseProposalRepository>(r => r.GetOffeneLagerbestellungenAsync() == Task.FromResult(new List<OffenerBedarf>())
                     && r.GetOffeneBedarfsmeldungenAsync() == Task.FromResult(new List<OffenerBedarf>())),
                 Mock.Of<IAppSettingRepository>(), Mock.Of<IServiceSettingRepository>()),
-            Mock.Of<IStorageLocationRepository>(), creditors.Object)
+            Mock.Of<IStorageLocationRepository>(), creditors.Object, Mock.Of<IAppSettingRepository>())
         {
             ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() }
         };

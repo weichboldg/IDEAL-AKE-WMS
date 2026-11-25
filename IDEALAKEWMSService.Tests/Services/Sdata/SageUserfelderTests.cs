@@ -41,7 +41,7 @@ public class SageUserfelderTests
     [Fact]
     public void Katalog_vollstaendig_im_ServiceSetting_Katalog_mit_Muster_und_Metadaten()
     {
-        SageUserfelder.Katalog.Should().HaveCount(27);
+        SageUserfelder.Katalog.Should().HaveCount(28);
         SageUserfelder.Katalog.Select(k => k.Key).Should().OnlyHaveUniqueItems();
         foreach (var u in SageUserfelder.Katalog)
         {

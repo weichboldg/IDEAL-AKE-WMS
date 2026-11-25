@@ -95,6 +95,19 @@
                         <dt class="col-sm-4">Kategorie</dt>
                         <dd class="col-sm-8">@(Model.CategoryName ?? "—")</dd>
 
+                        @if (ViewBag.FraesenPfadAktiv == true)
+                        {
+                            @* v1.99.72 F13: Fräsen-Pfad (WMS-Feld, nicht aus Sage) *@
+                            <dt class="col-sm-4">Fräsen-Pfad</dt>
+                            <dd class="col-sm-8">
+                                <partial name="_FraesenPfad" model="Model.CamPath" />
+                                @if (ViewBag.FraesenPfadPflegen == true)
+                                {
+                                    <partial name="_FraesenPfadPflegen" model="new FraesenPfadPflegenModel(Model.ArticleNumber, Model.CamPath, Context.Request.Path + Context.Request.QueryString)" />
+                                }
+                            </dd>
+                        }
+
                         @if (Model.AttributeDisplayValues.Any())
                         {
                             @foreach (var attr in Model.AttributeDisplayValues)

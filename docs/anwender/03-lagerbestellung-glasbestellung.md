@@ -189,6 +189,13 @@ Die Glasbestellung funktioniert genau wie die Lagerbestellung, nur im Reiter **G
 
 Die Masken sind an beiden Standorten gleich. Welche Artikelgruppen als Glas gelten und wer die Mails bekommt, ist je Standort eingestellt.
 
+### 8. Spalte Fräsen-Pfad (seit 1.99.72, nur IDEAL wenn eingeschaltet)
+
+Auf der Bestellseite (Entwurf und abgeschickt) und auf der Lager-Detailseite lässt sich über das **Zahnrad** die Spalte **Fräsen-Pfad**
+einblenden (Standard ausgeblendet). Die Bestellseite hat dafür seit 1.99.72 eine Spaltenauswahl. Bestellte Isolierungen mit dem Kürzel der
+Isolierungsfräse erscheinen außerdem in der BDE-Teileliste der Fräse ([Kapitel 17](17-bde-teileliste-werkbank.md), Abschnitt 8) – das
+ändert an der Lagerbestellung nichts. Der Druck der Lager-Detailseite zeigt den Pfad nicht.
+
 ## Hinweise und Stolperfallen
 
 **Bekannte Fehler (Stand 14.11.2026, Behebung geplant):**

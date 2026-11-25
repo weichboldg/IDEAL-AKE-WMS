@@ -245,6 +245,19 @@
                 </td>
             </tr>
             <tr>
+                <td><code>fraesenpfad_pflegen</code></td>
+                <td>Fräsen-Pfad pflegen</td>
+                <td>v1.99.72: Fräsen-Pfad am Artikel ändern (Artikelinfo, Artikel bearbeiten). <strong>Braucht zusätzlich Stammdaten lesen</strong> – sonst ist die Artikelinfo nicht erreichbar; sonst keine Rechte.</td>
+                <td>
+                    <ul class="mb-0 small">
+                        <li>Stammdaten → Artikelinfo / Artikel bearbeiten: Formular „Fräsen-Pfad“ (POST <code>/Articles/FraesenPfad</code>, Action-Filter <code>RequireFraesenPfadPflegenAccess</code>, admin und Stammdaten-Bearbeiter eingeschlossen)</li>
+                        <li>Sichtbar nur wenn AppSetting <code>FraesenPfadAktiv</code> aktiv ist (Filter <code>RequireFraesenPfadAktiv</code>, Default aus – auch für admin)</li>
+                        <li>Anzeige des Pfads (Teileliste, Bestandsübersicht, Lagerbestellung) braucht diese Rolle nicht</li>
+                        <li>Anlage der Rolle über das Update-Skript (Prüfung <code>Pruefung/RolleFraesenpfadPflegen</code>), Zuweisen unter /Roles; Prüfung <code>Pruefung/FraesenpfadOhneStammdatenLesen</code> meldet fehlendes Stammdaten lesen</li>
+                    </ul>
+                </td>
+            </tr>
+            <tr>
                 <td><code>bde_user</code></td>
                 <td>BDE-Benutzer</td>
                 <td>Terminal-Buchung.</td>

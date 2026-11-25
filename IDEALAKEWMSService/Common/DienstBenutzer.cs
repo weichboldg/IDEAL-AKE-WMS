@@ -40,6 +40,7 @@ public sealed class DienstBenutzer : ICurrentUserService
     public Task<bool> CanOrderGlasAsync() => KeineRollen();
     public Task<bool> CanSchachtelnAsync() => KeineRollen();
     public Task<bool> CanBfBestellenAsync() => KeineRollen();
+    public Task<bool> CanPflegeFraesenPfadAsync() => KeineRollen();
     public Task<bool> CanProcessLagerAsync() => KeineRollen();
     public Task<bool> CanTransferStockAsync() => KeineRollen();
     public Task<bool> CanManagePickingReleaseAsync() => KeineRollen();

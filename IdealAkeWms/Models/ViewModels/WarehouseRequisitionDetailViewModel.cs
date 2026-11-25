@@ -39,4 +39,7 @@ public class WarehouseRequisitionDetailViewModel
 
     /// <summary>v1.99.53: Schalter <c>LagerbestellungVerbrauchsbuchungAktiv</c>; aus = Seite wie bisher.</summary>
     public bool VerbrauchsbuchungAktiv { get; set; }
+
+    /// <summary>v1.99.72 (F13): Artikelnummer (getrimmt) → Fraesen-Pfad; null = Schalter FraesenPfadAktiv aus (keine Spalte).</summary>
+    public Dictionary<string, string>? FraesenPfade { get; set; }
 }

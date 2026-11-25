@@ -24,4 +24,15 @@
         }
         <span asp-validation-for="BdeTeileliste" class="text-danger d-block"></span>
     </div>
+    @* v1.99.72 (F6): Lagerbestell-Positionen in der Teileliste (Werkbank IF); Server prueft „nur mit BDE-Teileliste“. *@
+    <div class="form-check form-switch mb-3">
+        <input asp-for="BdeTeilelisteLagerbestellungen" class="form-check-input" role="switch" />
+        <label asp-for="BdeTeilelisteLagerbestellungen" class="form-check-label"></label>
+        <div class="form-text">
+            Die Teileliste zeigt zusätzlich die Positionen abgeschickter oder teilgelieferter Lagerbestellungen, deren Artikel das Kürzel
+            dieser Werkbank im Merkmal Arbeitsschritte trägt. Fertig melden bucht nichts im Lager und ändert die Lagerbestellung nicht.
+            Termin = Abschickdatum + Arbeitstage aus Einstellungen › BDE. Nur zusammen mit „BDE-Teileliste“ und „Lagerbestellung aktiv“. Standard: aus.
+        </div>
+        <span asp-validation-for="BdeTeilelisteLagerbestellungen" class="text-danger d-block"></span>
+    </div>
 }

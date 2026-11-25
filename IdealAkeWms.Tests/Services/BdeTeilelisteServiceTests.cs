@@ -137,7 +137,7 @@ public class BdeTeilelisteServiceTests
         a.SummeSollmenge.Should().Be(5);
         a.Anzahl.Should().Be(2);
         a.HauptFas.Should().Be("100, 101");
-        a.OffeneSchluessel.Should().ContainSingle().Which.Should().Be(new TeilSchluessel(100, 200, 0, 1, "B1"));
+        a.OffeneSchluessel.Should().ContainSingle().Which.Should().Be(new TeilSchluessel(100, 200, 0, 1, "B1").Text);
         a.SummeSollmengeOffen.Should().Be(2);
     }
 
@@ -170,7 +170,7 @@ public class BdeTeilelisteServiceTests
             new ProductionOrder { OrderNumber = "400", SubOrderNumber = "400", CreatedBy = "t", CreatedByWindows = "t" });
         await ctx.SaveChangesAsync();
         var svc = new BdeTeilelisteService(Mock.Of<IFaHierarchyNodeRepository>(), Mock.Of<IFaHierarchyOrderInfoRepository>(), ctx,
-            Mock.Of<IBdeBookingService>(), Mock.Of<ICurrentUserService>(), Mock.Of<IAppSettingRepository>(), Mock.Of<IBdeShiftCalendarService>());
+            Mock.Of<IBdeBookingService>(), Mock.Of<ICurrentUserService>(), Mock.Of<IAppSettingRepository>(), Mock.Of<IBdeShiftCalendarService>(), Mock.Of<IArticleRepository>(), Mock.Of<IBusinessDayService>(), Mock.Of<IHolidayRepository>());
 
         var r = await svc.AuftragOffenAsync(new[] { "100", "200", "300", "400", "999" });
 

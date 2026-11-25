@@ -191,6 +191,7 @@ BEGIN
         [ArticleGroup]      NVARCHAR(100)     NULL,
         [PrimaryStorageLocationId]   INT           NULL,
         [SagePrimaryStorageLocation] NVARCHAR(100) NULL,
+        [CamPath]           NVARCHAR(500)     NULL,  -- v1.99.72 / SQL/164 (Fräsen-Pfad, reines WMS-Feld)
         [CreatedAt]         DATETIME2         NOT NULL DEFAULT GETDATE(),
         [CreatedBy]         NVARCHAR(200)     NOT NULL,
         [CreatedByWindows]  NVARCHAR(200)     NOT NULL,
@@ -362,6 +363,7 @@ BEGIN
         [SageMissingSince]       DATETIME2         NULL,
         [BdeNurAgFertigmeldung]  BIT               NOT NULL CONSTRAINT [DF_ProductionWorkplaces_BdeNurAgFertigmeldung] DEFAULT (0),
         [BdeTeileliste]          BIT               NOT NULL CONSTRAINT [DF_ProductionWorkplaces_BdeTeileliste] DEFAULT (0),  -- v1.99.32 / SQL/154
+        [BdeTeilelisteLagerbestellungen] BIT       NOT NULL CONSTRAINT [DF_ProductionWorkplaces_BdeTeilelisteLagerbestellungen] DEFAULT (0),  -- v1.99.72 / SQL/165
         [SageBdeTerminalId]      NVARCHAR(20)      NULL,  -- v1.73.0 / SQL/102 (SData PpsArbeitsplaetzeInfo)
         [SageKostenstelle]       NVARCHAR(20)      NULL,  -- v1.73.0 / SQL/102
         [SageSchichtplannummer]  NVARCHAR(31)      NULL,  -- v1.73.0 / SQL/102
@@ -2680,6 +2682,7 @@ BEGIN
         [SollmengeBeiMeldung]   DECIMAL(18,4)     NOT NULL,
         [GemeldetAm]            DATETIME2         NOT NULL,
         [BdeBookingId]          INT               NULL CONSTRAINT [FK_BdeTeilMeldungen_BdeBookings_BdeBookingId] REFERENCES [dbo].[BdeBookings]([Id]),
+        [WarehouseRequisitionItemId] INT          NULL CONSTRAINT [FK_BdeTeilMeldungen_WarehouseRequisitionItems_WarehouseRequisitionItemId] REFERENCES [dbo].[WarehouseRequisitionItems]([Id]),  -- v1.99.72 / SQL/165
         [IsCancelled]           BIT               NOT NULL,
         [CancellationReason]    NVARCHAR(500)     NULL,
         [CreatedAt]             DATETIME2         NOT NULL,
@@ -2694,7 +2697,12 @@ END
 GO
 
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'UX_BdeTeilMeldungen_Schluessel' AND object_id = OBJECT_ID(N'dbo.BdeTeilMeldungen'))
-    CREATE UNIQUE INDEX [UX_BdeTeilMeldungen_Schluessel] ON [dbo].[BdeTeilMeldungen]([HauptFA],[VaterFA],[SubFA],[Position],[Artnr],[Kuerzel]) WHERE [IsCancelled] = 0;
+    CREATE UNIQUE INDEX [UX_BdeTeilMeldungen_Schluessel] ON [dbo].[BdeTeilMeldungen]([HauptFA],[VaterFA],[SubFA],[Position],[Artnr],[Kuerzel])
+        WHERE [IsCancelled] = 0 AND [WarehouseRequisitionItemId] IS NULL;  -- Filter seit v1.99.72 / SQL/165
+GO
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'UX_BdeTeilMeldungen_Lagerbestellung' AND object_id = OBJECT_ID(N'dbo.BdeTeilMeldungen'))
+    CREATE UNIQUE INDEX [UX_BdeTeilMeldungen_Lagerbestellung] ON [dbo].[BdeTeilMeldungen]([WarehouseRequisitionItemId],[Kuerzel])
+        WHERE [IsCancelled] = 0 AND [WarehouseRequisitionItemId] IS NOT NULL;  -- v1.99.72 / SQL/165
 GO
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_BdeTeilMeldungen_Workplace_GemeldetAm' AND object_id = OBJECT_ID(N'dbo.BdeTeilMeldungen'))
     CREATE INDEX [IX_BdeTeilMeldungen_Workplace_GemeldetAm] ON [dbo].[BdeTeilMeldungen]([ProductionWorkplaceId],[GemeldetAm]);
@@ -3556,6 +3564,12 @@ IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] =
 IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20261125161741_AddPickingStatusStuecklisteKleiner')
    AND COL_LENGTH(N'dbo.ProductionOrderPickingStatus', N'StuecklisteKleiner') IS NOT NULL -- sonst steht SQL/168 noch aus
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20261125161741_AddPickingStatusStuecklisteKleiner', '10.0.2');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20261125173002_AddArticleCamPath')
+   AND COL_LENGTH(N'dbo.Articles', N'CamPath') IS NOT NULL -- sonst steht SQL/164 noch aus
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20261125173002_AddArticleCamPath', '10.0.2');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20261125173021_AddBdeTeilelisteLagerbestellungen')
+   AND COL_LENGTH(N'dbo.BdeTeilMeldungen', N'WarehouseRequisitionItemId') IS NOT NULL -- sonst steht SQL/165 noch aus
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20261125173021_AddBdeTeilelisteLagerbestellungen', '10.0.2');
 GO
 
 PRINT 'EF Migrations History initialisiert.';

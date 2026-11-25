@@ -278,3 +278,25 @@ window.tableToolbarHost = function (table) {
         if (el instanceof HTMLInputElement && el.type === 'number' && el === document.activeElement) el.blur();
     }, { passive: true, capture: true });
 })();
+
+// v1.99.72 (Spec 2026-11-20-bde-liste-isolierungsfraese-pfad-material F4): „Pfad kopieren“ am Baustein _FraesenPfad – delegiert, reagiert NUR
+// auf [data-pfad-kopieren]. Zwischenablage; geht sie nicht (http ohne Recht), wird der Pfad markiert und der Hinweis gezeigt (Muster hardware-scanner.js).
+(function () {
+    document.addEventListener('click', function (e) {
+        var knopf = e.target instanceof Element ? e.target.closest('[data-pfad-kopieren]') : null;
+        if (!knopf) return;
+        e.preventDefault();
+        var huelle = knopf.closest('.fraesen-pfad');
+        var hinweis = huelle ? huelle.querySelector('.fraesen-pfad-hinweis') : null;
+        var zeige = function (t) { if (hinweis) hinweis.textContent = t; };
+        var markieren = function () {
+            var ziel = huelle ? huelle.querySelector('.fraesen-pfad-text') : null;
+            if (ziel) { var r = document.createRange(); r.selectNodeContents(ziel); var s = window.getSelection(); s.removeAllRanges(); s.addRange(r); }
+            zeige('Text markiert – mit Strg+C kopieren');
+        };
+        var text = knopf.getAttribute('data-pfad-kopieren') || '';
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text).then(function () { zeige('Kopiert.'); }, markieren);
+        } else markieren();
+    });
+})();

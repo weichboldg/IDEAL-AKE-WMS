@@ -85,7 +85,7 @@ public class ArtikelNachbesserungV185Tests
         }
 
         var cfg = ColumnDefinitions.GetByViewKey("Articles");
-        cfg!.Columns.Where(c => c.DefaultHidden).Select(c => c.Key).Should().Equal("hauptlieferant", "letzter-lieferant");
+        cfg!.Columns.Where(c => c.DefaultHidden).Select(c => c.Key).Should().Equal("hauptlieferant", "letzter-lieferant", "fraesen-pfad"); // v1.99.72: Fraesen-Pfad Standard aus
     }
 
     [Fact]

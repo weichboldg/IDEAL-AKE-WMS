@@ -17,13 +17,15 @@ public static class BfArtikelFelder
     public const string FertigungsInfoPN = "USER_OSFertigungsInfoPN";
     public const string Arbeitsschritte = "USER_OSArbeitsschritte";
     public const string Abteilung = "USER_OSAbteilung";
+    /// <summary>v1.99.72 (Spec 2026-11-20-bde-liste-isolierungsfraese-pfad-material, Antwort 1): Blechdicke fuer die BDE-Teileliste.</summary>
+    public const string Blechdicke = "USER_OSBlechdicke";
 
     /// <summary>Sage-Bestellmenge (Grundvariante) als Merkmal; kein USER-Feld, sondern <c>ArtikelVariantenExtended.Bestellmenge</c>.</summary>
     public const string Bestellmenge = "Bestellmenge";
 
     /// <summary>USER-Felder am Sage-Artikel (Namen belegt L10, sage-sdata-benutzerfelder-lesetest). Arbeitsschritte/Abteilung fuer spaetere BDE.</summary>
     public static readonly string[] SageFelder =
-        { IstLagerartikel, Artikeltyp, Material, Materialnummer, FertigungsInfoPN, Arbeitsschritte, Abteilung };
+        { IstLagerartikel, Artikeltyp, Material, Materialnummer, FertigungsInfoPN, Arbeitsschritte, Abteilung, Blechdicke };
 
     /// <summary>Bestellbare Teilearten (Backlog Antwort 3: ZK nie).</summary>
     public static readonly string[] Teilearten = { "BG", "FT" };

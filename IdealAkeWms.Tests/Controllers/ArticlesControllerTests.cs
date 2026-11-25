@@ -56,7 +56,7 @@ public class ArticlesControllerTests
         var ctrl = new ArticlesController(
             article.Object, stock.Object, user.Object, attr.Object,
             category.Object, planned, storageLocations.Object,
-            Mock.Of<ICreditorRepository>());
+            Mock.Of<ICreditorRepository>(), Mock.Of<IAppSettingRepository>());
         ctrl.ControllerContext = new ControllerContext
         {
             HttpContext = new DefaultHttpContext()

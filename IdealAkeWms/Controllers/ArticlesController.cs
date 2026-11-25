@@ -18,6 +18,7 @@ public class ArticlesController : Controller
     private readonly IPlannedConsumptionService _plannedConsumption;
     private readonly IStorageLocationRepository _storageLocationRepository;
     private readonly ICreditorRepository _creditorRepository;
+    private readonly IAppSettingRepository _appSettings;
 
     public ArticlesController(
         IArticleRepository articleRepository,
@@ -27,8 +28,10 @@ public class ArticlesController : Controller
         IArticleCategoryRepository categoryRepository,
         IPlannedConsumptionService plannedConsumption,
         IStorageLocationRepository storageLocationRepository,
-        ICreditorRepository creditorRepository)
+        ICreditorRepository creditorRepository,
+        IAppSettingRepository appSettings)
     {
+        _appSettings = appSettings;
         _articleRepository = articleRepository;
         _stockMovementRepository = stockMovementRepository;
         _currentUserService = currentUserService;
@@ -47,6 +50,9 @@ public class ArticlesController : Controller
         var rawPageSize = IdealAkeWms.Services.PageSize.ResolveRaw(pageSize, userDefaultPageSize);
 
         var columnFilters = IdealAkeWms.Services.ColumnFilterHelper.ReadFromQuery(HttpContext?.Request);
+        // v1.99.72 F15: Schalter aus = Spalte und Filter „Fräsen-Pfad“ gibt es nicht (auch kein manipulierter colf).
+        ViewBag.FraesenPfadAktiv = await RequireFraesenPfadAktivFilter.IstAktivAsync(_appSettings);
+        if (ViewBag.FraesenPfadAktiv != true) columnFilters.Remove("fraesen-pfad");
         var (items, totalCount) = await _articleRepository.GetPaginatedAsync(page, effectivePageSize, search, columnFilters);
 
         // Load active attribute definitions + batch-load values for displayed articles
@@ -135,8 +141,49 @@ public class ArticlesController : Controller
             IsPrimarySageControlled = !string.IsNullOrWhiteSpace(article.SagePrimaryStorageLocation),
             SageKarten = await SageKartenAsync(article.Id),
         };
+        await FraesenPfadFlagsAsync();
 
         return View(vm);
+    }
+
+    /// <summary>v1.99.72 (F13/F14): Schalter und Pflegerecht fuer Artikelinfo/„Artikel bearbeiten“ (Baustein + Pflegeformular).</summary>
+    private async Task FraesenPfadFlagsAsync()
+    {
+        ViewBag.FraesenPfadAktiv = await RequireFraesenPfadAktivFilter.IstAktivAsync(_appSettings);
+        ViewBag.FraesenPfadPflegen = ViewBag.FraesenPfadAktiv == true && await _currentUserService.CanPflegeFraesenPfadAsync();
+    }
+
+    /// <summary>
+    /// v1.99.72 (Spec 2026-11-20-bde-liste-isolierungsfraese-pfad-material F14): EINZIGER Schreibweg des Fraesen-Pfads. Schreibt nur
+    /// <c>CamPath</c> + Modified* (der Edit-POST fasst <c>CamPath</c> nie an). Pruefregel <see cref="Helpers.FraesenPfad.Pruefen"/>.
+    /// </summary>
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [RequireFraesenPfadAktiv]
+    [RequireFraesenPfadPflegenAccess]
+    public async Task<IActionResult> FraesenPfad(string articleNumber, string? camPath, string? returnUrl)
+    {
+        var nr = articleNumber?.Trim() ?? string.Empty;
+        var article = nr.Length == 0 ? null : await _articleRepository.GetByArticleNumberAsync(nr);
+        if (article == null)
+            TempData["WarningMessage"] = $"Artikel {nr} nicht gefunden – Pfad nicht gespeichert.";
+        else
+        {
+            var (wert, fehler) = Helpers.FraesenPfad.Pruefen(camPath);
+            if (fehler != null)
+                TempData["WarningMessage"] = $"Fräsen-Pfad nicht gespeichert: {fehler}";
+            else
+            {
+                article.CamPath = wert;
+                article.ModifiedAt = DateTime.Now;
+                article.ModifiedBy = _currentUserService.GetDisplayName();
+                article.ModifiedByWindows = _currentUserService.GetWindowsUserName();
+                await _articleRepository.UpdateAsync(article);
+                TempData["SuccessMessage"] = "Fräsen-Pfad gespeichert.";
+            }
+        }
+        if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl)) return Redirect(returnUrl);
+        return RedirectToAction(nameof(Info), new { articleNumber = article?.ArticleNumber ?? nr });
     }
 
     [HttpPost]
@@ -303,7 +350,9 @@ public class ArticlesController : Controller
             AttributeDisplayValues = attrDisplayValues,
             UsedInOrders = usedInOrders,
             Hierarchical = hierarchical,
+            CamPath = article.CamPath,
         };
+        await FraesenPfadFlagsAsync();
         var karten = await SageKartenAsync(article.Id);
         vm.SageDetail = karten.SageDetail;
         vm.Lieferanten = karten.Lieferanten;

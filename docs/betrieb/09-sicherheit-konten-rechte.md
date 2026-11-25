@@ -139,7 +139,9 @@ Fehlerbilder rund um Anmeldung (400 bei POST, Button ohne Wirkung): [07-troubles
 
 - **Feste Rollen-Keys** im Code (`IdealAkeWms/Models/RoleKeys.cs:5-29`): `admin`, `masterdata`, `masterdata_read`, `picking`, `stock`,
   `stock_keyuser`, `stock_read`, `tracking`, `reporting`, `leitstand`, `fa_completion`, `vorbau`, `lagerbestellung`, `glasbestellung`,
-  `bde_user`, `bde_shiftlead`, `bde_admin`, `beschichtungsauftrag`, `beschichtungsauftrag_schreiben`, `einkauf`.
+  `bde_user`, `bde_shiftlead`, `bde_admin`, `beschichtungsauftrag`, `beschichtungsauftrag_schreiben`, `einkauf`; seit v1.99.72
+  `fraesenpfad_pflegen` (nur Fräsen-Pfad am Artikel ändern; braucht zusätzlich `masterdata_read`, sonst ist die Artikelinfo gesperrt –
+  Manifest-Prüfung `Pruefung/FraesenpfadOhneStammdatenLesen`; Anlage per `Pruefung/RolleFraesenpfadPflegen`, Quelle `IdealAkeWms/Models/RoleKeys.cs:35`).
 - **`admin` ist Wildcard:** jede Berechtigungsprüfung lässt `admin` zu. (Quelle: `IdealAkeWms/Services/CurrentUserService.cs:83-111`,
   [[0006-rollenkonzept-statische-keys-mit-admin-wildcard]])
 - **Nur für `admin`:** Benutzer, Rollen, Arbeitsplätze, Einstellungen (`/Settings`), Service-Einstellungen (`/ServiceSettings`),

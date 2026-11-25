@@ -578,6 +578,15 @@
                         Standorteinstellungen unter &bdquo;Vault (Zeichnungen)&ldquo; die Vault-Links eingeschaltet sind und eine Adresse
                         eingetragen ist &ndash; ebenso das Zeichnungs-Symbol an den Artikelnummern der Listen.</dd>
 
+                    <dt>Fraesen-Pfad (seit v1.99.72, nur mit Schalter <code>FraesenPfadAktiv</code>)</dt>
+                    <dd>Ordner des Fraesprogramms (WMS-Feld, kommt nicht aus Sage). Anzeige als Link plus &bdquo;Pfad kopieren&ldquo;; dieselbe Spalte
+                        gibt es (Standard ausgeblendet) in Artikel-Liste, BDE-Teileliste, Bestandsuebersicht und Lagerbestellung.
+                        Pflegen: Formular &bdquo;Fraesen-Pfad&ldquo; hier bzw. auf &bdquo;Artikel bearbeiten&ldquo;, Knopf &bdquo;Fraesen-Pfad speichern&ldquo;.
+                        Erlaubt ist nur ein UNC-Pfad (<code>\\server\freigabe\...</code>; Laufwerk Y: an der Fraese =
+                        <code>\\idealfs1\Daten$\Produktion\CAM</code>), hoechstens 500 Zeichen; leer = kein Pfad. Pflegen duerfen Admin, Stammdaten
+                        und die Rolle <em>Fraesen-Pfad pflegen</em> &ndash; diese braucht zusaetzlich <em>Stammdaten lesen</em>, sonst ist die
+                        Artikelinfo nicht erreichbar.</dd>
+
                     <dt>Fertigungsauftraege (BOM-Cache)</dt>
                     <dd>Wenn der BOM-Cache aktiv ist, zeigt die Artikelinfo eine Tabelle
                         &bdquo;Teil enthalten in folgenden Fertigungsauftraegen&ldquo; — diese listet alle offenen
@@ -2025,6 +2034,21 @@
                     <li><strong>Arbeitsgang-Erkennung:</strong> fuer Kuerzel einer Werkbank mit Option entsteht kein Arbeitsgang mehr an der
                         Baugruppe, wenn das Kuerzel nur an ihren Blechteilen steht (Zaehler <code>teileliste_blatt_uebersprungen</code> im
                         Aktivitaets-Protokoll). Der Dienst liest dafuer nur die Werkbank-Option, nicht <code>BdeNurFaMeldung</code>.</li>
+                    <li><strong>Spalten (seit v1.99.72):</strong> <em>Blechdicke</em> (Sage <code>USER_OSBlechdicke</code>, Spaltenfilter als Zahl),
+                        Material sichtbar; Bemerkung PN und Fertigungsinfo PN ueber das Zahnrad einblendbar. <em>Summiert</em> zeigt je Matchcode die
+                        verschiedenen Werte der beitragenden Positionen, kommagetrennt. Der CSV-Export nimmt die sichtbaren Spalten und aendert den
+                        gespeicherten Werker-Filter nicht.</li>
+                    <li><strong>Lagerbestellungen (seit v1.99.72):</strong> mit der Werkbank-Option &bdquo;Lagerbestellungen in der Teileliste&ldquo;
+                        (nur zusammen mit &bdquo;BDE-Teileliste&ldquo;; wirkt nur bei eingeschalteter Lagerbestellung) zeigt die Liste auch jede
+                        Position einer <em>abgeschickten</em> oder <em>teilgelieferten</em> Lagerbestellung, deren Artikel das Kuerzel im Merkmal
+                        Arbeitsschritte traegt. Kennzeichen: Badge &bdquo;Lagerbestellung &lt;Nr&gt;&ldquo; mit dem Kommentar der Bestellung;
+                        Abteilung = bestellende Werkbank; Termin (Spalte FE-Termin, auch fuer den KW-Filter) = Abschicken + 10 Arbeitstage
+                        (Einstellung <code>BdeTeilelisteLagerbestellungArbeitstage</code>). Fertig melden wie ein Blechteil: keine Lagerbuchung,
+                        die Lagerbestellung bleibt unveraendert, nichts an Sage. In <em>Summiert</em> zaehlen sie je Matchcode mit (&bdquo;LB &lt;Nr&gt;&ldquo;).
+                        Unter <em>BDE-Buchungen &rarr; Teilmeldungen</em> stehen sie mit Spalte &bdquo;Lagerbestellung&ldquo; (Nr. / Pos.).</li>
+                    <li><strong>Fraesen-Pfad (seit v1.99.72, Schalter <code>FraesenPfadAktiv</code>):</strong> Spalte ueber das Zahnrad einblenden
+                        (Standard ausgeblendet, Wahl gilt je Benutzer). Der Link oeffnet den Ordner; oeffnet er nicht: &bdquo;Pfad kopieren&ldquo;, im
+                        Explorer Strg+L, einfuegen, Enter. In der Teileliste nur Anzeige &ndash; gepflegt wird in der Artikelinfo.</li>
                 </ul>
 
                 <h6 class="mt-3">Werkbank fuer BDE konfigurieren</h6>

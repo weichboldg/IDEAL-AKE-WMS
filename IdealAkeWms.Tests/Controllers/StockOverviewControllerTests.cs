@@ -26,7 +26,7 @@ public class StockOverviewControllerTests
         settings.Setup(s => s.GetValueAsync(AppSettingKeys.QrMitFaNummer)).ReturnsAsync("true");
         var user = new Mock<ICurrentUserService>();
         user.Setup(u => u.GetDefaultPageSizeAsync()).ReturnsAsync((int?)null);
-        return new StockOverviewController(stock.Object, locations.Object, settings.Object, user.Object, po ?? Mock.Of<IProductionOrderRepository>())
+        return new StockOverviewController(stock.Object, locations.Object, settings.Object, user.Object, po ?? Mock.Of<IProductionOrderRepository>(), Mock.Of<IArticleRepository>())
         {
             ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() }
         };

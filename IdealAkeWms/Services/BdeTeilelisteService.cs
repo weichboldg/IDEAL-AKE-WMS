@@ -30,11 +30,22 @@ public sealed record TeilSchluessel(int HauptFA, int? VaterFA, int SubFA, int? P
     }
 }
 
-/// <summary>Eine Zeile der Teileliste: Blechteil (Blatt) oder Baugruppe (eigene Sub-FA) mit dem Kuerzel der Werkbank.</summary>
+/// <summary>v1.99.72 (Spec 2026-11-20-bde-liste-isolierungsfraese-pfad-material, Loesung 1): Artikel-Zusatzwerte je Artikelnummer –
+/// Sage-Merkmale der Blechteile-Nachlese (logischer Name) und, nur bei <c>FraesenPfadAktiv</c>, der Fraesen-Pfad (<c>Articles.CamPath</c>).</summary>
+public sealed record ArtikelZusatz(string? Material, string? FertigungsInfo, string? Arbeitsschritte, string? Blechdicke, string? Pfad);
+
+/// <summary>v1.99.72 (F7, ADR 0038): Herkunft einer Lagerbestell-Zeile. <see cref="Termin"/> = SubmittedAt + N Arbeitstage (ohne SubmittedAt: kein Termin).</summary>
+public sealed record LagerPosition(int ItemId, int RequisitionId, int Position, string? Kommentar, string? Werkbank, DateTime? Termin);
+
+/// <summary>Eine Zeile der Teileliste: Blechteil (Blatt) oder Baugruppe (eigene Sub-FA) mit dem Kuerzel der Werkbank – seit v1.99.72
+/// auch eine Lagerbestell-Position (<see cref="Lager"/> gesetzt; <see cref="Node"/> ist dann eine nicht gespeicherte Projektion mit HauptFA 0).</summary>
 public sealed class TeilelisteZeile
 {
     public required FaHierarchyNode Node { get; init; }
     public required TeilSchluessel Schluessel { get; init; }
+    public LagerPosition? Lager { get; init; }
+    /// <summary>Formularwert: FA-Zeile = <see cref="TeilSchluessel.Text"/>, Lagerbestell-Zeile = <c>LB|&lt;ItemId&gt;</c>.</summary>
+    public string FormSchluessel => Lager is { } l ? BdeTeilelisteService.LagerSchluessel(l.ItemId) : Schluessel.Text;
     public bool IstBaugruppe => Node.SubFA != 0;
     /// <summary>F16: Schluessel kommt in der Struktur mehrfach vor → angezeigt, nicht meldbar.</summary>
     public bool Eindeutig { get; init; } = true;
@@ -56,12 +67,21 @@ public sealed class TeilelisteAggregat
     public string? HauptFas { get; init; }
     public string? Abteilungen { get; init; }
     public string? FeTermine { get; init; }
-    public IReadOnlyList<TeilSchluessel> OffeneSchluessel { get; init; } = Array.Empty<TeilSchluessel>();
+    /// <summary>Formularwerte (<see cref="TeilelisteZeile.FormSchluessel"/>) der offenen, meldbaren Zeilen beider Arten (F10).</summary>
+    public IReadOnlyList<string> OffeneSchluessel { get; init; } = Array.Empty<string>();
     public decimal SummeSollmengeOffen { get; init; }
+    // v1.99.72 (F2): verschiedene Werte der beitragenden Positionen, sortiert, kommagetrennt (FormatTexte wie Abteilungen).
+    public string? Materialien { get; init; }
+    public string? Blechdicken { get; init; }
+    public string? BemerkungenPn { get; init; }
+    public string? FertigungsinfosPn { get; init; }
+    /// <summary>Verschiedene Fraesen-Pfade (je Wert ein Baustein <c>_FraesenPfad</c>); Zelltext = kommagetrennt.</summary>
+    public IReadOnlyList<string> Pfade { get; init; } = Array.Empty<string>();
 }
 
 /// <param name="Waisen">F15: offene Meldungen dieses Kuerzels, deren Schluessel keine Zeile mehr trifft (HauptFA noch in der Struktur).</param>
-public sealed record TeilelisteDaten(IReadOnlyList<TeilelisteZeile> Zeilen, int Waisen);
+/// <param name="Zusatz">v1.99.72: Artikel-Zusatzwerte (Blechdicke, Pfad) fuer die Zellen der View – dieselben Getter wie der Filter.</param>
+public sealed record TeilelisteDaten(IReadOnlyList<TeilelisteZeile> Zeilen, int Waisen, IReadOnlyDictionary<string, ArtikelZusatz>? Zusatz = null);
 
 /// <summary>
 /// v1.99.32 (Spec 2026-11-13-bde-vereinfacht-teileliste-blechfertigung, ADR 0030): BDE-Teileliste der Blechfertigung. Zeile = jeder
@@ -80,16 +100,33 @@ public class BdeTeilelisteService
     private readonly ICurrentUserService _userSvc;
     private readonly IAppSettingRepository _settings;
     private readonly IBdeShiftCalendarService _schichten;
+    private readonly IArticleRepository _articles;
+    private readonly IBusinessDayService _days;
+    private readonly IHolidayRepository _holidays;
 
     public BdeTeilelisteService(IFaHierarchyNodeRepository nodes, IFaHierarchyOrderInfoRepository orderInfos, ApplicationDbContext ctx,
-        IBdeBookingService booking, ICurrentUserService userSvc, IAppSettingRepository settings, IBdeShiftCalendarService schichten)
+        IBdeBookingService booking, ICurrentUserService userSvc, IAppSettingRepository settings, IBdeShiftCalendarService schichten,
+        IArticleRepository articles, IBusinessDayService days, IHolidayRepository holidays)
     {
         _nodes = nodes; _orderInfos = orderInfos; _ctx = ctx; _booking = booking; _userSvc = userSvc; _settings = settings; _schichten = schichten;
+        _articles = articles; _days = days; _holidays = holidays;
     }
 
     /// <summary>F2: ein Token (Leerzeichen-Trennung wie Dienst und FA-Baum) ist das Kuerzel, Gross/Klein egal.</summary>
-    public static bool Traegt(FaHierarchyNode n, string kuerzel) =>
-        FaArbeitsschrittSymbole.Tokenize(n.Arbeitsschritte).Contains(kuerzel, StringComparer.OrdinalIgnoreCase);
+    public static bool Traegt(FaHierarchyNode n, string kuerzel) => TraegtText(n.Arbeitsschritte, kuerzel);
+
+    /// <summary>v1.99.72 (F7): dieselbe Token-Regel auf den Text des Artikel-Merkmals Arbeitsschritte (Lagerbestell-Zeilen).</summary>
+    public static bool TraegtText(string? arbeitsschritte, string kuerzel) =>
+        FaArbeitsschrittSymbole.Tokenize(arbeitsschritte).Contains(kuerzel, StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>v1.99.72: Formular-Schluessel einer Lagerbestell-Zeile (der Controller trennt ihn vor <see cref="TeilSchluessel.Parse"/>).</summary>
+    public const string LagerPraefix = "LB|";
+    public static string LagerSchluessel(int itemId) => LagerPraefix + itemId.ToString(Inv);
+
+    /// <summary>"LB|&lt;ItemId&gt;" → ItemId; alles andere null (dann FA-Schluessel oder ungueltig).</summary>
+    public static int? ParseLagerSchluessel(string? text) =>
+        text != null && text.StartsWith(LagerPraefix, StringComparison.Ordinal)
+        && int.TryParse(text.AsSpan(LagerPraefix.Length), NumberStyles.None, Inv, out var id) && id > 0 ? id : null;
 
     /// <summary>Besitzender Auftrag (Antwort 8): Baugruppe = eigene Sub-FA, Blechteil = Vater-Sub-FA.</summary>
     public static string? Besitzer(FaHierarchyNode n) => n.SubFA != 0 ? n.SubFA.ToString(Inv) : n.VaterFA?.ToString(Inv);
@@ -114,6 +151,30 @@ public class BdeTeilelisteService
         return map;
     }
 
+    /// <summary>v1.99.72: Zeilen-Getter (Zelle = Filter) fuer beide Zeilenarten: FA-Zeilen ueber <see cref="SpaltenEinzeln"/>, Lagerbestell-Zeilen
+    /// mit leerem Hauptauftrag/Kunde/Beschichtet, Abteilung = bestellende Werkbank, FE-Termin = Termin (F7); Blechdicke/Pfad aus dem Artikel.</summary>
+    public static Dictionary<string, Func<TeilelisteZeile, string?>> SpaltenZeile(IReadOnlyDictionary<int, VormontageService.KopfWerte> kopf,
+        Func<FaHierarchyNode, string?>? beschichtet, IReadOnlyDictionary<string, ArtikelZusatz>? zusatz)
+    {
+        var map = SpaltenEinzeln(kopf, beschichtet).ToDictionary(e => e.Key, e => (Func<TeilelisteZeile, string?>)(z => e.Value(z.Node)));
+        void Lager(string key, Func<LagerPosition, string?> g)
+        {
+            if (!map.TryGetValue(key, out var fa)) return;
+            map[key] = z => z.Lager is { } l ? g(l) : fa(z);
+        }
+        Lager("hauptfa", _ => null);
+        Lager("kunde", _ => null);
+        Lager("beschichtet", _ => null);
+        Lager("montage-abteilung", l => l.Werkbank);
+        Lager("fe-termin", l => VormontageService.FormatDaten(new[] { l.Termin }));
+        map["blechdicke"] = z => Zusatz(zusatz, z.Node.Artnr)?.Blechdicke;
+        map["fraesen-pfad"] = z => Zusatz(zusatz, z.Node.Artnr)?.Pfad;
+        return map;
+    }
+
+    public static ArtikelZusatz? Zusatz(IReadOnlyDictionary<string, ArtikelZusatz>? zusatz, string? artnr) =>
+        zusatz != null && !string.IsNullOrWhiteSpace(artnr) && zusatz.TryGetValue(artnr.Trim(), out var z) ? z : null;
+
     /// <summary>Summiert: Filter auf der Aggregat-Projektion; alle anderen Spalten filtern je Position VOR dem Zusammenzaehlen.</summary>
     public static readonly IReadOnlyDictionary<string, Func<TeilelisteAggregat, string?>> SpaltenSummiert =
         new Dictionary<string, Func<TeilelisteAggregat, string?>>
@@ -124,16 +185,86 @@ public class BdeTeilelisteService
         };
 
     /// <summary>Laedt Struktur, Kopfwerte, offene Meldungen des Kuerzels und Auftragsstatus; Rest in <see cref="Bauen"/>.</summary>
+    /// <param name="mitPfad">v1.99.72: <c>FraesenPfadAktiv</c> (sonst bleibt der Pfad leer, F15).</param>
+    /// <param name="mitLagerbestellungen">v1.99.72 (F6): Werkbank-Option wirksam und <c>LagerbestellungAktiv</c>.</param>
     public async Task<TeilelisteDaten> LadenAsync(string kuerzel, (DateTime StartInclusive, DateTime EndExclusive)? kw, bool gemeldeteZeigen,
-        IReadOnlyDictionary<string, string>? colf, Func<FaHierarchyNode, string?>? beschichtet = null)
+        IReadOnlyDictionary<string, string>? colf, Func<FaHierarchyNode, string?>? beschichtet = null, bool mitPfad = false,
+        bool mitLagerbestellungen = false)
     {
         var nodes = await _nodes.GetAllAsync();
         var infos = await _orderInfos.GetAllAsync();
         var hauptFas = nodes.Select(n => n.HauptFA).Distinct().ToList();
+        // v1.99.72 (ADR 0038): FA-Lesewege filtern Lagerbestell-Meldungen ausdruecklich aus (nicht auf „HauptFA 0 kommt nie vor“ verlassen).
         var meldungen = await _ctx.BdeTeilMeldungen.AsNoTracking().Include(m => m.BdeOperator)
-            .Where(m => !m.IsCancelled && m.Kuerzel == kuerzel && hauptFas.Contains(m.HauptFA)).ToListAsync();
+            .Where(m => !m.IsCancelled && m.WarehouseRequisitionItemId == null && m.Kuerzel == kuerzel && hauptFas.Contains(m.HauptFA)).ToListAsync();
         var besitzer = nodes.Where(n => Traegt(n, kuerzel)).Select(Besitzer).OfType<string>().Distinct().ToList();
-        return Bauen(nodes, infos, kuerzel, meldungen, await AuftragOffenAsync(besitzer), kw, gemeldeteZeigen, colf, beschichtet);
+        var zusatz = await ZusatzAsync(mitPfad);
+        var lager = mitLagerbestellungen ? await LagerZeilenAsync(kuerzel, zusatz) : null;
+        return Bauen(nodes, infos, kuerzel, meldungen, await AuftragOffenAsync(besitzer), kw, gemeldeteZeigen, colf, beschichtet, zusatz, lager);
+    }
+
+    /// <summary>v1.99.72 (Loesung 1): eine Abfrage je Quelle, ohne Artikelnummer-Liste (keine 2100-Parameter-Grenze). Schluessel getrimmt,
+    /// Gross/Klein egal (B18).</summary>
+    public async Task<Dictionary<string, ArtikelZusatz>> ZusatzAsync(bool mitPfad)
+    {
+        string[] felder = { BfArtikelFelder.Material, BfArtikelFelder.FertigungsInfoPN, BfArtikelFelder.Arbeitsschritte, BfArtikelFelder.Blechdicke };
+        var werte = await _ctx.ArticleAttributeValues.AsNoTracking()
+            .Where(v => v.ArticleAttributeDefinition.SyncSource == "Sage" && felder.Contains(v.ArticleAttributeDefinition.SyncFieldName!)
+                        && v.TextValue != null && v.TextValue != "")
+            .Select(v => new { v.Article.ArticleNumber, v.ArticleAttributeDefinition.SyncFieldName, v.TextValue })
+            .ToListAsync();
+        var pfade = mitPfad ? await _articles.GetFraesenPfadeAsync() : new Dictionary<string, string>();
+        var ergebnis = new Dictionary<string, ArtikelZusatz>(StringComparer.OrdinalIgnoreCase);
+        foreach (var g in werte.GroupBy(w => w.ArticleNumber.Trim(), StringComparer.OrdinalIgnoreCase))
+        {
+            string? F(string feld) => g.FirstOrDefault(w => w.SyncFieldName == feld)?.TextValue?.Trim() is { Length: > 0 } t ? t : null;
+            ergebnis[g.Key] = new ArtikelZusatz(F(BfArtikelFelder.Material), F(BfArtikelFelder.FertigungsInfoPN), F(BfArtikelFelder.Arbeitsschritte),
+                F(BfArtikelFelder.Blechdicke), pfade.GetValueOrDefault(g.Key));
+        }
+        foreach (var (nr, pfad) in pfade)
+            ergebnis.TryAdd(nr, new ArtikelZusatz(null, null, null, null, pfad));
+        return ergebnis;
+    }
+
+    /// <summary>
+    /// v1.99.72 (F7, ADR 0038): Positionen abgeschickter/teilgelieferter Lagerbestellungen, deren Artikel das Kuerzel im Merkmal Arbeitsschritte
+    /// traegt, als Teileliste-Zeilen (Projektion, nicht gespeichert). Termin = <c>AddBusinessDays(SubmittedAt.Date, N, Feiertage)</c>.
+    /// </summary>
+    public async Task<List<TeilelisteZeile>> LagerZeilenAsync(string kuerzel, IReadOnlyDictionary<string, ArtikelZusatz> zusatz)
+    {
+        var items = await _ctx.WarehouseRequisitionItems.AsNoTracking()
+            .Where(i => i.WarehouseRequisition.Status == WarehouseRequisitionStatus.Submitted
+                        || i.WarehouseRequisition.Status == WarehouseRequisitionStatus.PartiallyDelivered)
+            .Select(i => new
+            {
+                i.Id, i.WarehouseRequisitionId, i.Position, i.ArticleNumber, i.ArticleDescription, i.QuantityRequested,
+                i.WarehouseRequisition.Comment, i.WarehouseRequisition.SubmittedAt, Werkbank = i.WarehouseRequisition.ProductionWorkplace.Name,
+                Matchcode = _ctx.Articles.Where(a => a.ArticleNumber == i.ArticleNumber).Select(a => a.Matchcode).FirstOrDefault(),
+            })
+            .ToListAsync();
+        var treffer = items.Where(i => TraegtText(Zusatz(zusatz, i.ArticleNumber)?.Arbeitsschritte, kuerzel)).ToList();
+        if (treffer.Count == 0) return new List<TeilelisteZeile>();
+
+        var meldungen = await _ctx.BdeTeilMeldungen.AsNoTracking().Include(m => m.BdeOperator)
+            .Where(m => !m.IsCancelled && m.WarehouseRequisitionItemId != null && m.Kuerzel == kuerzel).ToListAsync();
+        var tage = await _settings.GetIntValueAsync(AppSettingKeys.BdeTeilelisteLagerbestellungArbeitstage, 10);
+        var feiertage = await _holidays.GetHolidayDatesAsync() ?? new HashSet<DateTime>();
+        return treffer.Select(i =>
+        {
+            var z = Zusatz(zusatz, i.ArticleNumber);
+            var node = new FaHierarchyNode
+            {
+                HauptFA = 0, SubFA = 0, Artnr = i.ArticleNumber, Matchcode = i.Matchcode ?? i.ArticleNumber, Sollmenge = i.QuantityRequested,
+                Material = z?.Material, FertigungsInfoPN = z?.FertigungsInfo, Arbeitsschritte = z?.Arbeitsschritte, Bezeichnung1 = i.ArticleDescription,
+            };
+            return new TeilelisteZeile
+            {
+                Node = node, Schluessel = TeilSchluessel.Von(node),
+                Lager = new LagerPosition(i.Id, i.WarehouseRequisitionId, i.Position, i.Comment, i.Werkbank,
+                    i.SubmittedAt is DateTime s ? _days.AddBusinessDays(s.Date, tage, feiertage) : null),
+                Meldung = meldungen.FirstOrDefault(m => m.WarehouseRequisitionItemId == i.Id),
+            };
+        }).ToList();
     }
 
     /// <summary>Besitzer-Nummer → mindestens ein WMS-Auftrag weder erledigt noch storniert. Fehlt die Nummer = kein WMS-Auftrag.
@@ -152,12 +283,14 @@ public class BdeTeilelisteService
     public static TeilelisteDaten Bauen(IReadOnlyCollection<FaHierarchyNode> nodes, IEnumerable<FaHierarchyOrderInfo> infos, string kuerzel,
         IReadOnlyCollection<BdeTeilMeldung> meldungen, IReadOnlyDictionary<string, bool> auftragOffen,
         (DateTime StartInclusive, DateTime EndExclusive)? kw, bool gemeldeteZeigen, IReadOnlyDictionary<string, string>? colf,
-        Func<FaHierarchyNode, string?>? beschichtet = null)
+        Func<FaHierarchyNode, string?>? beschichtet = null, IReadOnlyDictionary<string, ArtikelZusatz>? zusatz = null,
+        IReadOnlyList<TeilelisteZeile>? lager = null)
     {
         var infoListe = infos.ToList();
         var kopf = VormontageService.BuildKopfLookup(infoListe);
         var doppelt = nodes.GroupBy(TeilSchluessel.Von).Where(g => g.Count() > 1).Select(g => g.Key).ToHashSet();
         var kinder = nodes.Where(n => n.VaterFA.HasValue).ToLookup(n => n.VaterFA!.Value);
+        meldungen = meldungen.Where(m => m.WarehouseRequisitionItemId == null).ToList(); // v1.99.72: nur FA-Meldungen (ADR 0038)
         var meldungJeSchluessel = meldungen.GroupBy(TeilSchluessel.Von).ToDictionary(g => g.Key, g => g.First());
         var kandidaten = nodes.Where(n => Traegt(n, kuerzel)).ToList();
 
@@ -177,27 +310,29 @@ public class BdeTeilelisteService
                     Meldung = meldungJeSchluessel.GetValueOrDefault(s),
                     Kinder = n.SubFA != 0 ? kinder[n.SubFA].OrderBy(k => k.Position).ToList() : Array.Empty<FaHierarchyNode>(),
                 };
-            });
+            })
+            .Concat(lager ?? Array.Empty<TeilelisteZeile>());
 
         if (kw is not null)
         {
             var inKw = IsoWeekRange.HauptFasInRange(infoListe, o => o.FE_Termin, kw.Value);
-            zeilen = zeilen.Where(z => inKw.Contains(z.Node.HauptFA));
+            var (von, bis) = kw.Value;
+            // F7: Lagerbestell-Zeilen ueber ihren Termin; ohne Termin fallen sie weg (wie ein Auftragsteil ohne FE-Termin).
+            zeilen = zeilen.Where(z => z.Lager is { } l ? l.Termin >= von && l.Termin < bis : inKw.Contains(z.Node.HauptFA));
         }
         if (!gemeldeteZeigen) zeilen = zeilen.Where(z => z.Meldung == null);
 
-        var spalten = SpaltenEinzeln(kopf, beschichtet).ToDictionary(e => e.Key, e => (Func<TeilelisteZeile, string?>)(z => e.Value(z.Node)));
-        zeilen = ColumnFilterHelper.Apply(zeilen, colf, spalten, ColumnFilterTypes.For("BdeTeileliste/Index"));
+        zeilen = ColumnFilterHelper.Apply(zeilen, colf, SpaltenZeile(kopf, beschichtet, zusatz), ColumnFilterTypes.For("BdeTeileliste/Index"));
 
         return new TeilelisteDaten(zeilen
             .OrderBy(z => z.Node.Matchcode, StringComparer.OrdinalIgnoreCase).ThenBy(z => z.Node.HauptFA)
-            .ThenBy(z => z.Node.VaterFA).ThenBy(z => z.Node.Position).ToList(), waisen);
+            .ThenBy(z => z.Node.VaterFA).ThenBy(z => z.Node.Position).ThenBy(z => z.Lager?.ItemId).ToList(), waisen, zusatz);
     }
 
     /// <summary>F7: je Matchcode (getrimmt, ordinal wie Vormontage). Die Zeilen sind schon je Position gefiltert (Einzeln-Spalten);
     /// hier wirken nur Matchcode, Summe und Anzahl auf der Aggregat-Projektion.</summary>
     public static List<TeilelisteAggregat> Summieren(IEnumerable<TeilelisteZeile> zeilen, IEnumerable<FaHierarchyOrderInfo> infos,
-        IReadOnlyDictionary<string, string>? colf)
+        IReadOnlyDictionary<string, string>? colf, IReadOnlyDictionary<string, ArtikelZusatz>? zusatz = null)
     {
         var infosJeHauptFa = infos.GroupBy(o => o.HauptFA).ToDictionary(g => g.Key, g => g.ToList());
         var kopf = infosJeHauptFa.ToDictionary(e => e.Key, e => VormontageService.BuildKopfWerte(e.Value));
@@ -205,19 +340,30 @@ public class BdeTeilelisteService
             .GroupBy(z => (z.Node.Matchcode ?? string.Empty).Trim(), StringComparer.Ordinal)
             .Select(g =>
             {
-                var hauptFas = g.Select(z => z.Node.HauptFA).Distinct().OrderBy(h => h).ToList();
+                var hauptFas = g.Where(z => z.Lager == null).Select(z => z.Node.HauptFA).Distinct().OrderBy(h => h).ToList();
+                var lager = g.Select(z => z.Lager).OfType<LagerPosition>().ToList();
                 var offen = g.Where(z => z.Meldbar).ToList();
+                var zus = g.Select(z => Zusatz(zusatz, z.Node.Artnr)).ToList();
                 return new TeilelisteAggregat
                 {
                     Matchcode = g.Key,
                     SummeSollmenge = g.Sum(z => z.Node.Sollmenge),
                     Anzahl = g.Count(),
-                    HauptFas = string.Join(", ", hauptFas.Select(h => h.ToString(Inv))),
-                    Abteilungen = VormontageService.FormatTexte(hauptFas.Select(h => kopf.TryGetValue(h, out var k) ? k.Abteilung : null)),
+                    // F10: Lagerbestellungen zusaetzlich als „LB <Nr>“
+                    HauptFas = string.Join(", ", hauptFas.Select(h => h.ToString(Inv))
+                        .Concat(lager.Select(l => l.RequisitionId).Distinct().OrderBy(n => n).Select(n => "LB " + n.ToString(Inv)))),
+                    Abteilungen = VormontageService.FormatTexte(hauptFas.Select(h => kopf.TryGetValue(h, out var k) ? k.Abteilung : null)
+                        .Concat(lager.Select(l => l.Werkbank))),
                     FeTermine = VormontageService.FormatDaten(hauptFas.SelectMany(h => infosJeHauptFa.TryGetValue(h, out var l) ? l : new List<FaHierarchyOrderInfo>())
-                        .Select(i => i.FE_Termin)),
-                    OffeneSchluessel = offen.Select(z => z.Schluessel).ToList(),
+                        .Select(i => i.FE_Termin).Concat(lager.Select(l => l.Termin))),
+                    OffeneSchluessel = offen.Select(z => z.FormSchluessel).ToList(),
                     SummeSollmengeOffen = offen.Sum(z => z.Node.Sollmenge),
+                    Materialien = VormontageService.FormatTexte(g.Select(z => z.Node.Material)),
+                    Blechdicken = VormontageService.FormatTexte(zus.Select(z => z?.Blechdicke)),
+                    BemerkungenPn = VormontageService.FormatTexte(g.Select(z => z.Node.BemerkungPN)),
+                    FertigungsinfosPn = VormontageService.FormatTexte(g.Select(z => z.Node.FertigungsInfoPN)),
+                    Pfade = zus.Select(z => z?.Pfad).OfType<string>().Distinct(StringComparer.OrdinalIgnoreCase)
+                        .OrderBy(p => p, StringComparer.OrdinalIgnoreCase).ToList(),
                 };
             })
             .OrderBy(a => a.Matchcode, StringComparer.OrdinalIgnoreCase);
@@ -226,8 +372,9 @@ public class BdeTeilelisteService
 
     // ---------------------------------------------------------------- Melden (E3)
 
-    /// <summary>Gut/Ausschuss null = volle Sollmenge, Ausschuss 0 (Block und Summiert, F9).</summary>
-    public sealed record MeldeAuftrag(TeilSchluessel Schluessel, decimal? Gut, decimal? Ausschuss);
+    /// <summary>Gut/Ausschuss null = volle Sollmenge, Ausschuss 0 (Block und Summiert, F9). v1.99.72: <paramref name="LagerItemId"/> gesetzt =
+    /// Lagerbestell-Position (dann ist <paramref name="Schluessel"/> null).</summary>
+    public sealed record MeldeAuftrag(TeilSchluessel? Schluessel, decimal? Gut, decimal? Ausschuss, int? LagerItemId = null);
 
     /// <summary>Sammelmeldung (F9): nie still — jede nicht gemeldete Zeile mit Grund.</summary>
     public sealed class MeldeErgebnis
@@ -269,14 +416,120 @@ public class BdeTeilelisteService
             return ergebnis;
         }
         var kuerzel = WerkbankKuerzelFamilie.Kuerzel(wp)!;
-        foreach (var a in auftraege.DistinctBy(a => a.Schluessel))
-            await InTransaktionAsync(() => MeldeZeileAsync(a, kuerzel, operatorId, workplaceId, terminalId, ergebnis));
+        var lagerWirksam = wp.BdeTeilelisteLagerbestellungen && await LagerbestellungAktivAsync();
+        foreach (var a in auftraege.DistinctBy(a => (a.Schluessel, a.LagerItemId)))
+            await InTransaktionAsync(() => a.LagerItemId is int itemId
+                ? MeldeLagerZeileAsync(itemId, a, kuerzel, lagerWirksam, operatorId, workplaceId, terminalId, ergebnis)
+                : MeldeZeileAsync(a, kuerzel, operatorId, workplaceId, terminalId, ergebnis));
         return ergebnis;
+    }
+
+    /// <summary>Default-Semantik wie <c>RequireLagerbestellungAktivFilter</c>: nur "false" sperrt.</summary>
+    private async Task<bool> LagerbestellungAktivAsync() =>
+        !string.Equals(await _settings.GetValueAsync(AppSettingKeys.LagerbestellungAktiv), "false", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// v1.99.72 (F8, ADR 0038): Lagerbestell-Position fertig melden – wie ein Blechteil, ohne Lagerbuchung, ohne Statusaenderung der Bestellung,
+    /// ohne Arbeitsgang, nichts an Sage. Pruefung am Schreibort gegen den aktuellen Stand; App-Guard + gefilterter UNIQUE
+    /// <c>UX_BdeTeilMeldungen_Lagerbestellung</c> als letzte Wache.
+    /// </summary>
+    private async Task MeldeLagerZeileAsync(int itemId, MeldeAuftrag a, string kuerzel, bool lagerWirksam, int operatorId, int workplaceId,
+        int terminalId, MeldeErgebnis e)
+    {
+        var bezeichnung = $"Lagerbestell-Position {itemId.ToString(Inv)}";
+        if (!lagerWirksam)
+        {
+            e.Abgewiesen.Add($"{bezeichnung}: Lagerbestellungen sind in der Teileliste dieser Werkbank nicht aktiv");
+            return;
+        }
+        if (!await BdeBookingService.AnwendungssperreAsync(_ctx, LagerSperre(itemId, kuerzel)))
+        {
+            e.Abgewiesen.Add($"{bezeichnung}: wird gerade an einem anderen Terminal gemeldet – bitte erneut versuchen");
+            return;
+        }
+        var item = await _ctx.WarehouseRequisitionItems.AsNoTracking().Where(i => i.Id == itemId)
+            .Select(i => new
+            {
+                i.ArticleNumber, i.QuantityRequested, i.Position, i.WarehouseRequisitionId, i.WarehouseRequisition.Status,
+                Matchcode = _ctx.Articles.Where(x => x.ArticleNumber == i.ArticleNumber).Select(x => x.Matchcode).FirstOrDefault(),
+            })
+            .FirstOrDefaultAsync();
+        if (item == null)
+        {
+            e.Abgewiesen.Add($"{bezeichnung}: nicht mehr vorhanden");
+            return;
+        }
+        bezeichnung = $"{item.Matchcode ?? item.ArticleNumber} (Lagerbestellung #{item.WarehouseRequisitionId.ToString(Inv)} Pos. {item.Position.ToString(Inv)})";
+        if (item.Status is not (WarehouseRequisitionStatus.Submitted or WarehouseRequisitionStatus.PartiallyDelivered))
+        {
+            e.Abgewiesen.Add($"{bezeichnung}: Lagerbestellung ist nicht mehr abgeschickt oder teilgeliefert");
+            return;
+        }
+        var nr = item.ArticleNumber.Trim();
+        var arbeitsschritte = await _ctx.ArticleAttributeValues.AsNoTracking()
+            .Where(v => v.Article.ArticleNumber == nr && v.ArticleAttributeDefinition.SyncSource == "Sage"
+                        && v.ArticleAttributeDefinition.SyncFieldName == BfArtikelFelder.Arbeitsschritte)
+            .Select(v => v.TextValue).FirstOrDefaultAsync();
+        if (!TraegtText(arbeitsschritte, kuerzel))
+        {
+            e.Abgewiesen.Add($"{bezeichnung}: Artikel trägt das Kürzel {kuerzel} nicht (mehr)");
+            return;
+        }
+        var gut = a.Gut ?? item.QuantityRequested;
+        var ausschuss = a.Ausschuss ?? 0;
+        if (!MengenOk(gut, ausschuss, bezeichnung, e)) return;
+        if (await VorhandeneLagerMeldungAsync(itemId, kuerzel) is { } vorhanden)
+        {
+            e.BereitsGemeldet.Add(BereitsText(bezeichnung, vorhanden));
+            return;
+        }
+        var meldung = new BdeTeilMeldung
+        {
+            HauptFA = 0, VaterFA = null, SubFA = 0, Position = null, Artnr = item.ArticleNumber, Matchcode = item.Matchcode,
+            WarehouseRequisitionItemId = itemId,
+            Kuerzel = kuerzel, ProductionWorkplaceId = workplaceId, BdeOperatorId = operatorId, BdeTerminalId = terminalId,
+            GoodQuantity = gut, ScrapQuantity = ausschuss, SollmengeBeiMeldung = item.QuantityRequested, GemeldetAm = DateTime.Now,
+            CreatedAt = DateTime.Now, CreatedBy = _userSvc.GetDisplayName(), CreatedByWindows = _userSvc.GetWindowsUserName(),
+        };
+        if (await SpeichernAsync(meldung, bezeichnung, e, () => VorhandeneLagerMeldungAsync(itemId, kuerzel))) e.Gemeldet++;
+    }
+
+    private static bool MengenOk(decimal gut, decimal ausschuss, string bezeichnung, MeldeErgebnis e)
+    {
+        if (gut < 0 || ausschuss < 0)
+        {
+            e.Abgewiesen.Add($"{bezeichnung}: Mengen dürfen nicht negativ sein");
+            return false;
+        }
+        if (gut + ausschuss == 0)
+        {
+            e.Abgewiesen.Add($"{bezeichnung}: bitte eine Gut- oder Ausschussmenge angeben");
+            return false;
+        }
+        return true;
+    }
+
+    /// <summary>Insert; DB-Gleichstand (ADR 0026): der gefilterte UNIQUE weist die zweite Meldung ab → „bereits gemeldet“ statt Fehler.</summary>
+    private async Task<bool> SpeichernAsync(BdeTeilMeldung meldung, string bezeichnung, MeldeErgebnis e, Func<Task<BdeTeilMeldung?>> gewinnerLaden)
+    {
+        _ctx.BdeTeilMeldungen.Add(meldung);
+        try
+        {
+            await _ctx.SaveChangesAsync();
+            return true;
+        }
+        catch (DbUpdateException ex) when (Nummernkreis.IstSqlFehler(ex, 2601, 2627))
+        {
+            _ctx.Entry(meldung).State = EntityState.Detached;
+            var gewinner = await gewinnerLaden();
+            e.BereitsGemeldet.Add(gewinner != null ? BereitsText(bezeichnung, gewinner) : $"{bezeichnung}: bereits gemeldet");
+            return false;
+        }
     }
 
     private async Task MeldeZeileAsync(MeldeAuftrag a, string kuerzel, int operatorId, int workplaceId, int terminalId, MeldeErgebnis e)
     {
-        var s = a.Schluessel;
+        var s = a.Schluessel!;
         var bezeichnung = $"Haupt-FA {s.HauptFA} Pos. {s.Position?.ToString(Inv) ?? "–"}";
         if (!await BdeBookingService.AnwendungssperreAsync(_ctx, Sperre(s, kuerzel)))
         {
@@ -326,16 +579,7 @@ public class BdeTeilelisteService
 
         var gut = a.Gut ?? node.Sollmenge;
         var ausschuss = a.Ausschuss ?? 0;
-        if (gut < 0 || ausschuss < 0)
-        {
-            e.Abgewiesen.Add($"{bezeichnung}: Mengen dürfen nicht negativ sein");
-            return;
-        }
-        if (gut + ausschuss == 0)
-        {
-            e.Abgewiesen.Add($"{bezeichnung}: bitte eine Gut- oder Ausschussmenge angeben");
-            return;
-        }
+        if (!MengenOk(gut, ausschuss, bezeichnung, e)) return;
 
         if (await VorhandeneMeldungAsync(s, kuerzel) is { } vorhanden)
         {
@@ -350,19 +594,7 @@ public class BdeTeilelisteService
             GoodQuantity = gut, ScrapQuantity = ausschuss, SollmengeBeiMeldung = node.Sollmenge, GemeldetAm = DateTime.Now,
             CreatedAt = DateTime.Now, CreatedBy = _userSvc.GetDisplayName(), CreatedByWindows = _userSvc.GetWindowsUserName(),
         };
-        _ctx.BdeTeilMeldungen.Add(meldung);
-        try
-        {
-            await _ctx.SaveChangesAsync();
-        }
-        catch (DbUpdateException ex) when (Nummernkreis.IstSqlFehler(ex, 2601, 2627))
-        {
-            // DB-Gleichstand (ADR 0026): der gefilterte UNIQUE hat die zweite Meldung abgewiesen.
-            _ctx.Entry(meldung).State = EntityState.Detached;
-            var gewinner = await VorhandeneMeldungAsync(s, kuerzel);
-            e.BereitsGemeldet.Add(gewinner != null ? BereitsText(bezeichnung, gewinner) : $"{bezeichnung}: bereits gemeldet");
-            return;
-        }
+        if (!await SpeichernAsync(meldung, bezeichnung, e, () => VorhandeneMeldungAsync(s, kuerzel))) return;
         e.Gemeldet++;
 
         if (node.SubFA == 0) return; // Blechteil: nur Teilmeldung (F10)
@@ -442,9 +674,14 @@ public class BdeTeilelisteService
         e.ModifiedByWindows = _userSvc.GetWindowsUserName();
     }
 
+    private Task<BdeTeilMeldung?> VorhandeneLagerMeldungAsync(int itemId, string kuerzel) =>
+        _ctx.BdeTeilMeldungen.AsNoTracking().Include(m => m.BdeOperator)
+            .Where(m => !m.IsCancelled && m.Kuerzel == kuerzel && m.WarehouseRequisitionItemId == itemId)
+            .FirstOrDefaultAsync();
+
     private Task<BdeTeilMeldung?> VorhandeneMeldungAsync(TeilSchluessel s, string kuerzel) =>
         _ctx.BdeTeilMeldungen.AsNoTracking().Include(m => m.BdeOperator)
-            .Where(m => !m.IsCancelled && m.Kuerzel == kuerzel && m.HauptFA == s.HauptFA && m.VaterFA == s.VaterFA && m.SubFA == s.SubFA
+            .Where(m => !m.IsCancelled && m.WarehouseRequisitionItemId == null && m.Kuerzel == kuerzel && m.HauptFA == s.HauptFA && m.VaterFA == s.VaterFA && m.SubFA == s.SubFA
                 && m.Position == s.Position && (s.Artnr == null ? m.Artnr == null || m.Artnr == "" : m.Artnr == s.Artnr))
             .FirstOrDefaultAsync();
 
@@ -455,6 +692,10 @@ public class BdeTeilelisteService
     internal static string Sperre(TeilSchluessel s, string kuerzel) =>
         "BDE-Teilmeldung:" + Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(
             System.Text.Encoding.UTF8.GetBytes(s.Text + "|" + kuerzel.ToUpperInvariant())));
+
+    /// <summary>v1.99.72: Sperre je Lagerbestell-Position und Kuerzel (kurz, kein Hash noetig).</summary>
+    internal static string LagerSperre(int itemId, string kuerzel) =>
+        "BDE-Teilmeldung-LB:" + itemId.ToString(Inv) + "|" + kuerzel.ToUpperInvariant();
 
     private async Task InTransaktionAsync(Func<Task> aktion)
     {

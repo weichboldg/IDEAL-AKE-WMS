@@ -3,6 +3,8 @@ namespace IdealAkeWms.Models.ViewModels;
 public class StockOverviewViewModel
 {
     public List<StockOverviewItem> Items { get; set; } = new();
+    /// <summary>v1.99.72 (F13): Artikelnummer (getrimmt) → Fraesen-Pfad; null = Schalter FraesenPfadAktiv aus (keine Spalte).</summary>
+    public Dictionary<string, string>? FraesenPfade { get; set; }
     /// <summary>v1.87.0: Aufloesung des FA-Filters fuer den FA-Kopf; null ohne FA-Filter.</summary>
     public IdealAkeWms.Data.Repositories.FaAufloesung? FaKopf { get; set; }
     public string? FilterArticle { get; set; }

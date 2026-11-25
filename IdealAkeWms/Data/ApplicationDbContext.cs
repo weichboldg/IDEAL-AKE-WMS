@@ -1589,10 +1589,16 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.CreatedByWindows).HasMaxLength(200).IsRequired();
             entity.Property(e => e.ModifiedBy).HasMaxLength(200);
             entity.Property(e => e.ModifiedByWindows).HasMaxLength(200);
+            // v1.99.72 (ADR 0038): FA-Schluessel nur fuer FA-Meldungen; Lagerbestell-Meldungen haben einen eigenen UNIQUE.
+            entity.HasOne(e => e.WarehouseRequisitionItem).WithMany().HasForeignKey(e => e.WarehouseRequisitionItemId).OnDelete(DeleteBehavior.Restrict);
             entity.HasIndex(e => new { e.HauptFA, e.VaterFA, e.SubFA, e.Position, e.Artnr, e.Kuerzel })
                 .IsUnique()
-                .HasFilter("[IsCancelled] = 0")
+                .HasFilter("[IsCancelled] = 0 AND [WarehouseRequisitionItemId] IS NULL")
                 .HasDatabaseName("UX_BdeTeilMeldungen_Schluessel");
+            entity.HasIndex(e => new { e.WarehouseRequisitionItemId, e.Kuerzel })
+                .IsUnique()
+                .HasFilter("[IsCancelled] = 0 AND [WarehouseRequisitionItemId] IS NOT NULL")
+                .HasDatabaseName("UX_BdeTeilMeldungen_Lagerbestellung");
             entity.HasIndex(e => new { e.ProductionWorkplaceId, e.GemeldetAm }).HasDatabaseName("IX_BdeTeilMeldungen_Workplace_GemeldetAm");
             entity.HasIndex(e => new { e.BdeOperatorId, e.GemeldetAm }).HasDatabaseName("IX_BdeTeilMeldungen_Operator_GemeldetAm");
         });

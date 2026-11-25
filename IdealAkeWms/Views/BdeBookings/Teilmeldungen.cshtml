@@ -1,6 +1,7 @@
 @model List<IdealAkeWms.Models.BdeTeilMeldung>
 @inject IdealAkeWms.Services.ICurrentUserService CurrentUserService
 @using IdealAkeWms.Services
+@using IdealAkeWms.Controllers
 @{
     ViewData["Title"] = "BDE-Buchungen – Teilmeldungen";
     var filter = ViewBag.Filter;
@@ -52,6 +53,7 @@
                 <th data-filterable data-col-key="werkbank">Werkbank</th>
                 <th data-filterable data-col-key="kuerzel">Kürzel</th>
                 <th data-filterable data-col-key="hauptfa">Haupt-FA</th>
+                <th data-filterable data-col-key="lagerbestellung">Lagerbestellung</th>
                 <th data-filterable data-col-key="subfa">Sub-FA</th>
                 <th data-filterable data-col-key="position">Position</th>
                 <th data-filterable data-col-key="matchcode">Matchcode</th>
@@ -65,7 +67,7 @@
         <tbody>
             @if (!Model.Any())
             {
-                <tr><td colspan="13" class="text-center text-muted py-4">Keine Teilmeldungen im gewählten Zeitraum.</td></tr>
+                <tr><td colspan="14" class="text-center text-muted py-4">Keine Teilmeldungen im gewählten Zeitraum.</td></tr>
             }
             @foreach (var m in Model)
             {
@@ -74,7 +76,8 @@
                     <td>@m.BdeOperator?.DisplayName</td>
                     <td>@m.ProductionWorkplace?.Name</td>
                     <td>@m.Kuerzel</td>
-                    <td>@m.HauptFA</td>
+                    <td>@BdeBookingsController.TeilmeldungSpalten["hauptfa"](m)</td>
+                    <td>@BdeBookingsController.LagerbestellungText(m)</td>
                     <td>@(m.SubFA != 0 ? m.SubFA : m.VaterFA)</td>
                     <td>@m.Position</td>
                     <td>@m.Matchcode @if (m.SubFA != 0) { <span class="badge text-bg-dark ms-1">Baugruppe</span> }</td>
@@ -128,6 +131,7 @@
     { "key": "werkbank", "label": "Werkbank", "locked": false, "defaultWidth": null },
     { "key": "kuerzel", "label": "Kürzel", "locked": false, "defaultWidth": null },
     { "key": "hauptfa", "label": "Haupt-FA", "locked": false, "defaultWidth": null },
+    { "key": "lagerbestellung", "label": "Lagerbestellung", "locked": false, "defaultWidth": null },
     { "key": "subfa", "label": "Sub-FA", "locked": false, "defaultWidth": null },
     { "key": "position", "label": "Position", "locked": false, "defaultWidth": null },
     { "key": "matchcode", "label": "Matchcode", "locked": false, "defaultWidth": null },

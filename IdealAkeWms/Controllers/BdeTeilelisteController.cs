@@ -119,7 +119,7 @@ public class BdeTeilelisteController : Controller
                 return RedirectToAction(nameof(Index), AlsQuery(workplaceId, vm.Werker.Id, gespeichert, DateTime.Today));
             (kwVon, kwBis) = (IsoWoche(DateTime.Today), IsoWoche(DateTime.Today.AddDays(7)));
         }
-        else if (uid is int u)
+        else if (uid is int u && IstNavigation(Request))
         {
             var f = new GespeicherterFilter(sicht, WochenOffset(kwVon, DateTime.Today), WochenOffset(kwBis, DateTime.Today), gemeldete, pageSize,
                 colf.Count > 0 ? colf : null);
@@ -137,21 +137,26 @@ public class BdeTeilelisteController : Controller
         vm.Beschichtet = await BeschichtetZelleAsync();
         var infos = await _orderInfos.GetAllAsync();
         vm.Kopf = VormontageService.BuildKopfLookup(infos);
+        vm.FraesenPfadAktiv = await RequireFraesenPfadAktivFilter.IstAktivAsync(_settings);
+        // v1.99.72 (F6): Lagerbestell-Zeilen nur bei Werkbank-Option (Teileliste ist hier schon wirksam) und LagerbestellungAktiv (nur "false" sperrt)
+        var mitLager = wp.BdeTeilelisteLagerbestellungen
+                       && !string.Equals(await _settings.GetValueAsync(AppSettingKeys.LagerbestellungAktiv), "false", StringComparison.OrdinalIgnoreCase);
 
         int total;
         if (vm.Summiert)
         {
             // Summiert: Positions-Spalten filtern vor dem Zusammenzaehlen, Matchcode/Summe/Anzahl auf dem Aggregat (wie Vormontage).
             var vorfilter = colf.Where(c => !BdeTeilelisteService.SpaltenSummiert.ContainsKey(c.Key)).ToDictionary(c => c.Key, c => c.Value);
-            var daten = await _svc.LadenAsync(vm.Kuerzel, kw, gemeldete, vorfilter, vm.Beschichtet);
-            var aggregate = BdeTeilelisteService.Summieren(daten.Zeilen, infos, colf);
+            var daten = await _svc.LadenAsync(vm.Kuerzel, kw, gemeldete, vorfilter, vm.Beschichtet, vm.FraesenPfadAktiv, mitLager);
+            var aggregate = BdeTeilelisteService.Summieren(daten.Zeilen, infos, colf, daten.Zusatz);
             vm.Waisen = daten.Waisen;
             total = aggregate.Count;
             vm.Aggregate = aggregate.Skip((page - 1) * size).Take(size).ToList();
         }
         else
         {
-            var daten = await _svc.LadenAsync(vm.Kuerzel, kw, gemeldete, colf, vm.Beschichtet);
+            var daten = await _svc.LadenAsync(vm.Kuerzel, kw, gemeldete, colf, vm.Beschichtet, vm.FraesenPfadAktiv, mitLager);
+            vm.Spalten = BdeTeilelisteService.SpaltenZeile(vm.Kopf, vm.Beschichtet, daten.Zusatz);
             vm.Waisen = daten.Waisen;
             total = daten.Zeilen.Count;
             vm.Zeilen = daten.Zeilen.Skip((page - 1) * size).Take(size).ToList();
@@ -162,6 +167,11 @@ public class BdeTeilelisteController : Controller
         };
         return View(vm.Summiert ? "Summiert" : "Index", vm);
     }
+
+    /// <summary>v1.99.72 (F12): der CSV-Export holt dieselbe URL per fetch (<c>pageSize=0</c>) – das ist keine Navigation und darf den
+    /// gespeicherten Werker-Filter nicht ueberschreiben. Fehlt der Header (alte Browser), wird wie bisher gespeichert.</summary>
+    internal static bool IstNavigation(HttpRequest request) =>
+        !request.Headers.TryGetValue("Sec-Fetch-Mode", out var mode) || string.Equals(mode.ToString(), "navigate", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
     /// E3 (F8–F11): Fertigmelden. Ein Schluessel mit Mengen = Einzelmeldung; sonst je Schluessel volle Sollmenge (Block, Summiert —
@@ -180,7 +190,11 @@ public class BdeTeilelisteController : Controller
         }
         var texte = (schluessel ?? Array.Empty<string>()).SelectMany(t => t.Split('\n', StringSplitOptions.RemoveEmptyEntries))
             .Select(t => t.TrimEnd('\r')).Where(t => t.Length > 0).ToList(); // Formular-Versand macht aus LF ein CRLF; Artnr nicht trimmen
-        var keys = texte.Select(TeilSchluessel.Parse).ToList();
+        // v1.99.72 (Loesung 5): "LB|<ItemId>" = Lagerbestell-Position, vor TeilSchluessel.Parse getrennt; ungueltig bleibt Abweisung der ganzen Anfrage.
+        var keys = texte.Select(t => t.StartsWith(BdeTeilelisteService.LagerPraefix, StringComparison.Ordinal)
+                ? (BdeTeilelisteService.ParseLagerSchluessel(t) is int id ? new BdeTeilelisteService.MeldeAuftrag(null, null, null, id) : null)
+                : (TeilSchluessel.Parse(t) is { } s ? new BdeTeilelisteService.MeldeAuftrag(s, null, null) : null))
+            .ToList();
         var zurueck = Url.IsLocalUrl(returnUrl) ? returnUrl! : Url.Action(nameof(Index), new { workplaceId, operatorId })!;
         if (keys.Count == 0 || keys.Any(k => k == null))
         {
@@ -200,7 +214,7 @@ public class BdeTeilelisteController : Controller
         }
 
         var ergebnis = await _svc.MeldenAsync(operatorId, workplaceId, terminal.Id,
-            keys.Select(k => new BdeTeilelisteService.MeldeAuftrag(k!, g, a)).ToList());
+            keys.Select(k => k! with { Gut = g, Ausschuss = a }).ToList());
         TempData[ergebnis.AllesGut ? "SuccessMessage" : "WarningMessage"] = ergebnis.Text();
         return LocalRedirect(zurueck);
     }

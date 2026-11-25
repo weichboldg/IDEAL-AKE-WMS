@@ -121,6 +121,9 @@ public class CurrentUserService : ICurrentUserService
     public async Task<bool> CanSchachtelnAsync()
         => await HasAnyRoleAsync(RoleKeys.Admin, RoleKeys.Schachtler);
 
+    public async Task<bool> CanPflegeFraesenPfadAsync()
+        => await HasAnyRoleAsync(RoleKeys.Admin, RoleKeys.MasterData, RoleKeys.FraesenpfadPflegen);
+
     public async Task<bool> CanBfBestellenAsync()
         => await CanOrderLagerAsync() || await HasRoleAsync(RoleKeys.Schachtler);
 

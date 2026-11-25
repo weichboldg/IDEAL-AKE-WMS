@@ -77,6 +77,10 @@
                 <th data-col-key="note-lager">Notiz Lager</th>
                 <th data-col-key="note-ek">Notiz EK</th>
                 <th data-col-key="shortage" title="Fehlteil-Status">Fehlteil-Status</th>
+                @if (Model.FraesenPfade != null)
+                {
+                    <th data-col-key="fraesen-pfad" data-filterable>Fräsen-Pfad</th>
+                }
             </tr>
         </thead>
         <tbody>
@@ -189,6 +193,11 @@
                             }
                         }
                     </td>
+                    @if (Model.FraesenPfade != null)
+                    {
+                        var pfad = Model.FraesenPfade.GetValueOrDefault(i.ArticleNumber.Trim());
+                        <td data-filter-text="@pfad" data-csv-value="@pfad"><partial name="_FraesenPfad" model="pfad" /></td>
+                    }
                 </tr>
             }
         </tbody>
@@ -240,7 +249,15 @@
     { "key": "storage", "label": "Lagerplatz", "locked": false, "defaultWidth": null },
     { "key": "note-lager", "label": "Notiz Lager", "locked": false, "defaultWidth": null },
     { "key": "note-ek", "label": "Notiz EK", "locked": false, "defaultWidth": null },
-    { "key": "shortage", "label": "Fehlteil-Status", "locked": false, "defaultWidth": null }
+    @if (Model.FraesenPfade != null)
+    {
+        @:{ "key": "shortage", "label": "Fehlteil-Status", "locked": false, "defaultWidth": null },
+        @:{ "key": "fraesen-pfad", "label": "Fräsen-Pfad", "locked": false, "defaultWidth": null, "defaultHidden": true }
+    }
+    else
+    {
+        @:{ "key": "shortage", "label": "Fehlteil-Status", "locked": false, "defaultWidth": null }
+    }
 ]
 </script>
 

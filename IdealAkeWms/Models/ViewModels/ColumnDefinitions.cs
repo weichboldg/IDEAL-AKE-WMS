@@ -319,6 +319,7 @@ public static class ColumnDefinitions
             new ColumnDef("note-lager",     "Notiz Lager",     Locked: false),
             new ColumnDef("note-ek",        "Notiz EK",        Locked: false),
             new ColumnDef("shortage",       "Fehlteil-Status", Locked: false),
+            new ColumnDef("fraesen-pfad",   "Fräsen-Pfad",     Locked: false, DefaultHidden: true), // v1.99.72, nur bei FraesenPfadAktiv in der View
         ]
     };
 
@@ -466,6 +467,8 @@ public static class ColumnDefinitions
             new ColumnDef("montage-abteilung", "Abteilung", Locked: false),
             new ColumnDef("fe-termin", "FE-Termin", Locked: false),
             new ColumnDef("material", "Material", Locked: false),
+            new ColumnDef("blechdicke", "Blechdicke", Locked: false),                       // v1.99.72
+            new ColumnDef("fraesen-pfad", "Fräsen-Pfad", Locked: false, DefaultHidden: true), // v1.99.72, nur bei FraesenPfadAktiv in der View
             new ColumnDef("beschichtet", "Beschichtet", Locked: false),
             new ColumnDef("artnr", "Artikelnummer", Locked: false, DefaultHidden: true),
             new ColumnDef("subfa", "Sub-FA", Locked: false, DefaultHidden: true),
@@ -492,6 +495,7 @@ public static class ColumnDefinitions
             new ColumnDef("werkbank", "Werkbank", Locked: false),
             new ColumnDef("kuerzel", "Kürzel", Locked: false),
             new ColumnDef("hauptfa", "Haupt-FA", Locked: false),
+            new ColumnDef("lagerbestellung", "Lagerbestellung", Locked: false), // v1.99.72 (F11)
             new ColumnDef("subfa", "Sub-FA", Locked: false),
             new ColumnDef("position", "Position", Locked: false),
             new ColumnDef("matchcode", "Matchcode", Locked: false),
@@ -515,6 +519,11 @@ public static class ColumnDefinitions
             new ColumnDef("hauptfa", "Hauptaufträge", Locked: false),
             new ColumnDef("montage-abteilung", "Abteilung", Locked: false),
             new ColumnDef("fe-termin", "FE-Termine", Locked: false),
+            new ColumnDef("material", "Material", Locked: false),                             // v1.99.72 (F2)
+            new ColumnDef("blechdicke", "Blechdicke", Locked: false),
+            new ColumnDef("bemerkungpn", "Bemerkung PN", Locked: false, DefaultHidden: true),
+            new ColumnDef("fertigungsinfopn", "Fertigungsinfo PN", Locked: false, DefaultHidden: true),
+            new ColumnDef("fraesen-pfad", "Fräsen-Pfad", Locked: false, DefaultHidden: true), // nur bei FraesenPfadAktiv in der View
             new ColumnDef("status", "Offen", Locked: true),
         ]
     };
@@ -691,6 +700,7 @@ public static class ColumnDefinitions
             new ColumnDef("category",         "Kategorie",         Locked: false),
             new ColumnDef("hauptlieferant",   "Hauptlieferant",    Locked: false, DefaultHidden: true),
             new ColumnDef("letzter-lieferant","Letzter Lieferant", Locked: false, DefaultHidden: true),
+            new ColumnDef("fraesen-pfad",     "Fräsen-Pfad",       Locked: false, DefaultHidden: true), // v1.99.72, nur bei FraesenPfadAktiv in der View
             new ColumnDef("created-at",       "Erstellt am",       Locked: false),
             new ColumnDef("actions",          "",                  Locked: true,  DefaultWidth: 100),
         ]
@@ -805,6 +815,42 @@ public static class ColumnDefinitions
     /// Breite. Gesperrt sind alle Spalten, die zum Buchen oder Melden noetig sind (Pflichteingaben, Rest/Einheit, Status mit Fehlertext);
     /// ausblendbar nur bestellt, offen (Sage), im WMS erfasst, Positionsmemo. Umsortieren seit v1.99.55 an (Eingaben wandern mit der Zelle, der Server ordnet ueber BelPosId zu).
     /// </summary>
+    /// <summary>v1.99.72 (Spec 2026-11-20-bde-liste-isolierungsfraese-pfad-material F13): Bestandsuebersicht – Spaltenauswahl neu.
+    /// Server-Filter in-memory (<c>StockOverviewController._stockOverviewColMap</c>); fraesen-pfad nur bei FraesenPfadAktiv in der View.</summary>
+    public static readonly ViewConfig StockOverview = new(
+        "StockOverview", "Bestandsübersicht",
+        SupportsReorder: true, SupportsSortDefault: false)
+    {
+        Columns =
+        [
+            new ColumnDef("article-number",   "Artikelnummer",     Locked: true),
+            new ColumnDef("description",      "Bezeichnung",       Locked: false),
+            new ColumnDef("storage-location", "Lagerplatz",        Locked: false),
+            new ColumnDef("unit",             "Einheit",           Locked: false),
+            new ColumnDef("reorder-level",    "Meldebestand",      Locked: false),
+            new ColumnDef("current-stock",    "Aktueller Bestand", Locked: false),
+            new ColumnDef("fraesen-pfad",     "Fräsen-Pfad",       Locked: false, DefaultHidden: true),
+        ]
+    };
+
+    /// <summary>v1.99.72 (F13, Antwort 24): Lagerbestellung Besteller-Seite (<c>WarehouseRequisitions/Edit</c>) – Spaltenauswahl neu, ohne
+    /// Filter/CSV (kleine, unpaginierte Positionstabelle einer Bestellung). Knopf-Spalte ohne Key.</summary>
+    public static readonly ViewConfig WarehouseRequisitionItems = new(
+        "WarehouseRequisitionItems", "Lagerbestellung – Positionen (Besteller)",
+        SupportsReorder: false, SupportsSortDefault: false)
+    {
+        Columns =
+        [
+            new ColumnDef("pos",            "Pos",          Locked: true),
+            new ColumnDef("article-number", "Artikel-Nr",   Locked: true),
+            new ColumnDef("description",    "Bezeichnung",  Locked: false),
+            new ColumnDef("quantity",       "Menge",        Locked: false),
+            new ColumnDef("unit",           "ME",           Locked: false),
+            new ColumnDef("storage",        "Lagerplatz",   Locked: false),
+            new ColumnDef("fraesen-pfad",   "Fräsen-Pfad",  Locked: false, DefaultHidden: true),
+        ]
+    };
+
     public static readonly ViewConfig PurchaseOrderReceive = new(
         "PurchaseOrderReceive", "Wareneingang zu Bestellung – Positionen",
         SupportsReorder: true, SupportsSortDefault: false)
@@ -932,6 +978,8 @@ public static class ColumnDefinitions
         "Debitors"                       => Debitors,
         "PurchaseOrders"                 => PurchaseOrders,
         "PurchaseOrderReceive"           => PurchaseOrderReceive,
+        "StockOverview"                  => StockOverview,             // v1.99.72
+        "WarehouseRequisitionItems"      => WarehouseRequisitionItems, // v1.99.72
         "SageBookingQueue"               => SageBookingQueue,
         _                  => null
     };

@@ -145,6 +145,11 @@ public static class AppSettingKeys
     public const string BfSchachtelterminArbeitstage = "BfSchachtelterminArbeitstage";
     public const string BfFeTerminArbeitstage = "BfFeTerminArbeitstage";
 
+    // v1.99.72 (Spec 2026-11-20-bde-liste-isolierungsfraese-pfad-material): Fraesen-Pfad (Articles.CamPath) anzeigen und pflegen
+    // (Default aus, nur exakt "true") und Termin der Lagerbestell-Zeilen der BDE-Teileliste (Abschicken + N Arbeitstage). Kein Seed.
+    public const string FraesenPfadAktiv = "FraesenPfadAktiv";
+    public const string BdeTeilelisteLagerbestellungArbeitstage = "BdeTeilelisteLagerbestellungArbeitstage";
+
     /// <summary>Feste Werte von <see cref="EinkaufOffeneBedarfe"/> (geschachtelt: keine eigenen Keys).</summary>
     public static class EinkaufBedarfWerte
     {

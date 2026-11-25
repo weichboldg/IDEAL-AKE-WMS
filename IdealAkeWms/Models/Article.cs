@@ -54,6 +54,13 @@ public class Article : AuditableEntity
     [StringLength(100)]
     public string? SagePrimaryStorageLocation { get; set; }
 
+    /// <summary>v1.99.72 (Spec 2026-11-20-bde-liste-isolierungsfraese-pfad-material, Antwort 19): reines WMS-Feld, UNC-Pfad zum
+    /// Fraesprogramm. Der Sage-Artikelabgleich und der AgentJob schreiben nur feste Spaltenlisten und fassen es nie an. Einziger
+    /// Schreibweg der Anwendung: <c>ArticlesController.FraesenPfad</c> (Pruefregel <c>Helpers.FraesenPfad.Pruefen</c>).</summary>
+    [StringLength(500)]
+    [Display(Name = "Fräsen-Pfad")]
+    public string? CamPath { get; set; }
+
     /// <summary>Sage-Zusatzfelder (nur ueber SData gelesen, v1.73.0 E3a); null = nie ueber SData gelesen.</summary>
     public ArticleSageDetail? SageDetail { get; set; }
 

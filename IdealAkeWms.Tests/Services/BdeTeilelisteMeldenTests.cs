@@ -32,10 +32,12 @@ public class BdeTeilelisteMeldenTests
         user.Setup(u => u.GetWindowsUserName()).Returns("AKE\\terminal");
         var settings = new Mock<IAppSettingRepository>();
         settings.Setup(s => s.GetValueAsync(AppSettingKeys.BdeNurFaMeldung)).ReturnsAsync(nurFa ? "true" : "false");
+        settings.Setup(s => s.GetIntValueAsync(AppSettingKeys.BdeTeilelisteLagerbestellungArbeitstage, 10)).ReturnsAsync(10); // v1.99.72
         var booking = new BdeBookingService(ctx, user.Object, settings.Object);
-        var svc = new BdeTeilelisteService(Mock.Of<IFaHierarchyNodeRepository>(), Mock.Of<IFaHierarchyOrderInfoRepository>(), ctx,
+        var svc = new BdeTeilelisteService(new FaHierarchyNodeRepository(ctx), new FaHierarchyOrderInfoRepository(ctx), ctx,
             booking, user.Object, settings.Object,
-            Mock.Of<IBdeShiftCalendarService>(c => c.GetShiftEndForBookingAsync(It.IsAny<int>(), It.IsAny<DateTime>()) == Task.FromResult(schichtende)));
+            Mock.Of<IBdeShiftCalendarService>(c => c.GetShiftEndForBookingAsync(It.IsAny<int>(), It.IsAny<DateTime>()) == Task.FromResult(schichtende)),
+            new ArticleRepository(ctx), new BusinessDayService(), Mock.Of<IHolidayRepository>());
         return new Umgebung(ctx, svc, ids);
     }
 

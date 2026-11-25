@@ -2,7 +2,9 @@
 @using IdealAkeWms.Services
 @{
     ViewData["Title"] = "BDE-Teileliste";
-    const int colCount = 20;
+    ViewData["FraesenPfadTouch"] = true; // v1.99.72: Knopf „Pfad kopieren“ ≥ 44 px am Terminal
+    var colCount = 21 + (Model.FraesenPfadAktiv ? 1 : 0);
+    var sp = Model.Spalten;
 }
 <link rel="stylesheet" href="~/css/bde.css" asp-append-version="true" />
 
@@ -33,6 +35,11 @@
                     <th data-filterable data-col-key="montage-abteilung">Abteilung</th>
                     <th class="text-nowrap" data-filterable data-col-key="fe-termin" data-date-filter>FE-Termin</th>
                     <th data-filterable data-col-key="material">Material</th>
+                    <th class="text-end" data-filterable data-filter-type="number" data-col-key="blechdicke">Blechdicke</th>
+                    @if (Model.FraesenPfadAktiv)
+                    {
+                        <th data-filterable data-col-key="fraesen-pfad">Fräsen-Pfad</th>
+                    }
                     <th data-filterable data-col-key="beschichtet" title="Kennzeichen Beschichtet der Position aus der FA-Struktur (– = Quelle kennt kein Positions-Kennzeichen)">Beschichtet</th>
                     <th data-filterable data-col-key="artnr">Artikelnummer</th>
                     <th data-filterable data-col-key="subfa">Sub-FA</th>
@@ -57,12 +64,11 @@
                 {
                     var z = Model.Zeilen[i];
                     var n = z.Node;
-                    var k = Model.Kopf.GetValueOrDefault(n.HauptFA);
                     <tr>
                         <td>
                             @if (z.Meldbar)
                             {
-                                <input class="form-check-input tl-auswahl" type="checkbox" form="blockForm" name="schluessel" value="@z.Schluessel.Text"
+                                <input class="form-check-input tl-auswahl" type="checkbox" form="blockForm" name="schluessel" value="@z.FormSchluessel"
                                        data-soll="@n.Sollmenge.ToString(System.Globalization.CultureInfo.InvariantCulture)" aria-label="@n.Matchcode auswählen" />
                             }
                         </td>
@@ -74,22 +80,37 @@
                             }
                         </td>
                         <td class="text-end">@VormontageService.FormatMenge(n.Sollmenge)</td>
-                        <td>@n.HauptFA</td>
-                        <td>@k?.Abteilung</td>
-                        <td>@k?.FeTermin</td>
+                        <td>@sp["hauptfa"](z)</td>
+                        <td>@sp["montage-abteilung"](z)</td>
+                        <td>@sp["fe-termin"](z)</td>
                         <td>@n.Material</td>
-                        <td>@(Model.Beschichtet?.Invoke(n) ?? "–")</td>
+                        <td class="text-end">@(sp["blechdicke"](z) ?? "–")</td>
+                        @if (Model.FraesenPfadAktiv)
+                        {
+                            var pfad = sp["fraesen-pfad"](z);
+                            <td><partial name="_FraesenPfad" model="pfad" /></td>
+                        }
+                        <td>@(z.Lager != null ? "–" : Model.Beschichtet?.Invoke(n) ?? "–")</td>
                         <td>@n.Artnr</td>
                         <td>@(n.SubFA == 0 ? null : n.SubFA)</td>
                         <td>@n.VaterFA</td>
                         <td>@n.Position</td>
                         <td>@n.Arbeitsschritte</td>
                         <td>@n.Arbeitsbereich</td>
-                        <td>@k?.Kunde</td>
+                        <td>@sp["kunde"](z)</td>
                         <td>@n.BemerkungPN</td>
                         <td>@n.FertigungsInfoPN</td>
                         <td>@n.Bezeichnung1</td>
                         <td>
+                            @if (z.Lager is { } lb)
+                            {
+                                @* v1.99.72 (F7): Lagerbestell-Zeile sicher von Auftragsteilen unterscheidbar *@
+                                <span class="badge text-bg-warning">Lagerbestellung #@lb.RequisitionId</span>
+                                @if (!string.IsNullOrWhiteSpace(lb.Kommentar))
+                                {
+                                    <div class="small">@lb.Kommentar</div>
+                                }
+                            }
                             @if (z.Meldung != null)
                             {
                                 <span class="text-success-emphasis fw-semibold">&#10003; gemeldet</span>
@@ -129,7 +150,7 @@
                             @if (z.Meldbar)
                             {
                                 <button type="button" class="btn btn-success bde-touch me-1" data-bs-toggle="modal" data-bs-target="#meldenModal"
-                                        data-schluessel="@z.Schluessel.Text" data-matchcode="@n.Matchcode"
+                                        data-schluessel="@z.FormSchluessel" data-matchcode="@n.Matchcode"
                                         data-soll="@n.Sollmenge.ToString(System.Globalization.CultureInfo.InvariantCulture)">Fertig melden</button>
                             }
                             @if (z.IstBaugruppe)
@@ -210,6 +231,11 @@
     { "key": "montage-abteilung", "label": "Abteilung", "locked": false, "defaultWidth": null },
     { "key": "fe-termin", "label": "FE-Termin", "locked": false, "defaultWidth": null },
     { "key": "material", "label": "Material", "locked": false, "defaultWidth": null },
+    { "key": "blechdicke", "label": "Blechdicke", "locked": false, "defaultWidth": null },
+    @if (Model.FraesenPfadAktiv)
+    {
+        @:{ "key": "fraesen-pfad", "label": "Fräsen-Pfad", "locked": false, "defaultWidth": null, "defaultHidden": true },
+    }
     { "key": "beschichtet", "label": "Beschichtet", "locked": false, "defaultWidth": null },
     { "key": "artnr", "label": "Artikelnummer", "locked": false, "defaultWidth": null, "defaultHidden": true },
     { "key": "subfa", "label": "Sub-FA", "locked": false, "defaultWidth": null, "defaultHidden": true },

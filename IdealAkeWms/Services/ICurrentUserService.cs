@@ -31,6 +31,8 @@ public interface ICurrentUserService
     Task<bool> CanSchachtelnAsync();
     /// <summary>v1.99.35: BF-Auftrag bestellen/lesen = Rollen der Lagerbestellung (<see cref="CanOrderLagerAsync"/>) ODER schachtler.</summary>
     Task<bool> CanBfBestellenAsync();
+    /// <summary>v1.99.72: Fraesen-Pfad am Artikel pflegen (admin, masterdata, fraesenpfad_pflegen).</summary>
+    Task<bool> CanPflegeFraesenPfadAsync();
     Task<bool> CanProcessLagerAsync();
     Task<bool> CanTransferStockAsync();
     Task<bool> CanManagePickingReleaseAsync();

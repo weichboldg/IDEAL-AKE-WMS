@@ -25,6 +25,12 @@ public class BdeTeilelisteViewModel
     /// <summary>E6: Zelltext „Beschichtet“ je Position (null = Spalte ohne Quelle, Zelle „–“).</summary>
     public Func<FaHierarchyNode, string?>? Beschichtet { get; set; }
 
+    /// <summary>v1.99.72: Zeilen-Getter (Zelle = Filter) fuer beide Zeilenarten, <see cref="BdeTeilelisteService.SpaltenZeile"/>.</summary>
+    public IReadOnlyDictionary<string, Func<TeilelisteZeile, string?>> Spalten { get; set; } = new Dictionary<string, Func<TeilelisteZeile, string?>>();
+
+    /// <summary>v1.99.72 (F15): Fraesen-Pfad-Spalte nur bei Schalter an.</summary>
+    public bool FraesenPfadAktiv { get; set; }
+
     /// <summary>Aktuelle URL (Pfad + Query) fuer die Rueckkehr nach dem Melden.</summary>
     public string ReturnUrl { get; set; } = string.Empty;
 }

@@ -16,15 +16,17 @@ public class WarehouseRequisitionsController : Controller
     private readonly IOrderRecipientRepository _groups;
     private readonly ICurrentUserService _user;
     private readonly IAppSettingRepository _settings;
+    private readonly IArticleRepository _articles;
 
     public WarehouseRequisitionsController(
         IWarehouseRequisitionRepository repo,
         IProductionWorkplaceRepository workplaces,
         IOrderRecipientRepository groups,
         ICurrentUserService user,
-        IAppSettingRepository settings)
+        IAppSettingRepository settings,
+        IArticleRepository articles)
     {
-        _repo = repo; _workplaces = workplaces; _groups = groups; _user = user; _settings = settings;
+        _repo = repo; _workplaces = workplaces; _groups = groups; _user = user; _settings = settings; _articles = articles;
     }
 
     /// <summary>
@@ -182,7 +184,8 @@ public class WarehouseRequisitionsController : Controller
             Comment = r.Comment,
             RowVersion = r.RowVersion,
             Items = r.Items.OrderBy(i => i.Position).Select(i =>
-                new WarehouseRequisitionEditItemViewModel(i.Id, i.Position, i.ArticleNumber, i.ArticleDescription, i.Unit, i.QuantityRequested)).ToList()
+                new WarehouseRequisitionEditItemViewModel(i.Id, i.Position, i.ArticleNumber, i.ArticleDescription, i.Unit, i.QuantityRequested)).ToList(),
+            FraesenPfade = await RequireFraesenPfadAktivFilter.IstAktivAsync(_settings) ? await _articles.GetFraesenPfadeAsync() : null,
         };
         return View(vm);
     }

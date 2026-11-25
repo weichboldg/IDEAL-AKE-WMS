@@ -68,7 +68,7 @@ public class FehlteileKarteV181Tests
         user.Setup(u => u.CanOrderLagerAsync()).ReturnsAsync(true);
         user.Setup(u => u.CanOrderGlasAsync()).ReturnsAsync(true);
         var ctrl = new WarehouseRequisitionsController(repo.Object, wp.Object, Mock.Of<IOrderRecipientRepository>(), user.Object,
-            Mock.Of<IAppSettingRepository>())
+            Mock.Of<IAppSettingRepository>(), Mock.Of<IArticleRepository>())
         {
             ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() }
         };

@@ -52,7 +52,8 @@
 @{
     var attrDefs = Model.AttributeDefinitions;
     var attrValues = Model.AttributeValuesByArticle;
-    var totalColCount = 9 + attrDefs.Count + 1; // base cols + category + 2 Lieferanten (v1.85.0) + dynamic attrs
+    var fraesenPfadAktiv = ViewBag.FraesenPfadAktiv == true; // v1.99.72 F13: Spalte nur bei Schalter an
+    var totalColCount = 9 + attrDefs.Count + 1 + (fraesenPfadAktiv ? 1 : 0); // base cols + category + 2 Lieferanten (v1.85.0) + dynamic attrs + Fräsen-Pfad
 }
 
 <div class="table-responsive">
@@ -67,6 +68,10 @@
                 <th data-filterable data-col-key="category">Kategorie</th>
                 <th data-filterable data-col-key="hauptlieferant">Hauptlieferant</th>
                 <th data-filterable data-col-key="letzter-lieferant">Letzter Lieferant</th>
+                @if (fraesenPfadAktiv)
+                {
+                    <th data-filterable data-col-key="fraesen-pfad">Fräsen-Pfad</th>
+                }
                 @foreach (var def in attrDefs)
                 {
                     @* Kein data-filterable: ApplyArticleColumnFilter mappt attr-Spalten nicht — Filter-Input waere tot *@
@@ -94,6 +99,10 @@
                     @{ Model.LieferantTexte.TryGetValue(article.Id, out var lt); }
                     <td>@lt.Haupt</td>
                     <td>@lt.Letzter</td>
+                    @if (fraesenPfadAktiv)
+                    {
+                        <td><partial name="_FraesenPfad" model="article.CamPath" /></td>
+                    }
                     @foreach (var def in attrDefs)
                     {
                         var val = articleAttrs?.FirstOrDefault(v => v.ArticleAttributeDefinitionId == def.Id);
@@ -151,6 +160,10 @@
     { "key": "category", "label": "Kategorie", "locked": false, "defaultWidth": null },
     { "key": "hauptlieferant", "label": "Hauptlieferant", "locked": false, "defaultWidth": null, "defaultHidden": true },
     { "key": "letzter-lieferant", "label": "Letzter Lieferant", "locked": false, "defaultWidth": null, "defaultHidden": true },
+    @if (fraesenPfadAktiv)
+    {
+        @:{ "key": "fraesen-pfad", "label": "Fräsen-Pfad", "locked": false, "defaultWidth": null, "defaultHidden": true },
+    }
     @foreach (var def in attrDefs)
     {
         @:{ "key": "attr-@def.Id", "label": @Json.Serialize(def.Name), "locked": false, "defaultWidth": null },

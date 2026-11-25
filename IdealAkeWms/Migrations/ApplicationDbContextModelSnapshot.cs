@@ -63,6 +63,10 @@ namespace IdealAkeWms.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
+                    b.Property<string>("CamPath")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
@@ -1214,6 +1218,9 @@ namespace IdealAkeWms.Migrations
                     b.Property<int?>("VaterFA")
                         .HasColumnType("int");
 
+                    b.Property<int?>("WarehouseRequisitionItemId")
+                        .HasColumnType("int");
+
                     b.HasKey("Id");
 
                     b.HasIndex("BdeBookingId");
@@ -1226,10 +1233,15 @@ namespace IdealAkeWms.Migrations
                     b.HasIndex("ProductionWorkplaceId", "GemeldetAm")
                         .HasDatabaseName("IX_BdeTeilMeldungen_Workplace_GemeldetAm");
 
+                    b.HasIndex("WarehouseRequisitionItemId", "Kuerzel")
+                        .IsUnique()
+                        .HasDatabaseName("UX_BdeTeilMeldungen_Lagerbestellung")
+                        .HasFilter("[IsCancelled] = 0 AND [WarehouseRequisitionItemId] IS NOT NULL");
+
                     b.HasIndex("HauptFA", "VaterFA", "SubFA", "Position", "Artnr", "Kuerzel")
                         .IsUnique()
                         .HasDatabaseName("UX_BdeTeilMeldungen_Schluessel")
-                        .HasFilter("[IsCancelled] = 0");
+                        .HasFilter("[IsCancelled] = 0 AND [WarehouseRequisitionItemId] IS NULL");
 
                     b.ToTable("BdeTeilMeldungen", "dbo");
                 });
@@ -4167,6 +4179,9 @@ namespace IdealAkeWms.Migrations
                     b.Property<bool>("BdeTeileliste")
                         .HasColumnType("bit");
 
+                    b.Property<bool>("BdeTeilelisteLagerbestellungen")
+                        .HasColumnType("bit");
+
                     b.Property<bool>("BdeUseCustomShiftPlan")
                         .HasColumnType("bit");
 
@@ -6398,6 +6413,11 @@ namespace IdealAkeWms.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("IdealAkeWms.Models.WarehouseRequisitionItem", "WarehouseRequisitionItem")
+                        .WithMany()
+                        .HasForeignKey("WarehouseRequisitionItemId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.Navigation("BdeBooking");
 
                     b.Navigation("BdeOperator");
@@ -6405,6 +6425,8 @@ namespace IdealAkeWms.Migrations
                     b.Navigation("BdeTerminal");
 
                     b.Navigation("ProductionWorkplace");
+
+                    b.Navigation("WarehouseRequisitionItem");
                 });
 
             modelBuilder.Entity("IdealAkeWms.Models.BdeTerminal", b =>

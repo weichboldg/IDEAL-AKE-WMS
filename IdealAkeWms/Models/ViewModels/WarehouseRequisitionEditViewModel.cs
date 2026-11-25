@@ -12,4 +12,7 @@ public class WarehouseRequisitionEditViewModel
     public string? Comment { get; set; }
     public byte[] RowVersion { get; set; } = Array.Empty<byte>();
     public List<WarehouseRequisitionEditItemViewModel> Items { get; set; } = new();
+
+    /// <summary>v1.99.72 (F13, Antwort 24): Artikelnummer (getrimmt) → Fraesen-Pfad; null = Schalter FraesenPfadAktiv aus (keine Spalte).</summary>
+    public Dictionary<string, string>? FraesenPfade { get; set; }
 }

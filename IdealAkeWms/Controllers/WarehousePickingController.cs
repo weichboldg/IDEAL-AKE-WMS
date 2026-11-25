@@ -250,7 +250,8 @@ public class WarehousePickingController : Controller
             Type = r.Type,
             RowVersion = r.RowVersion,
             Items = detailItems,
-            VerbrauchsbuchungAktiv = aktiv
+            VerbrauchsbuchungAktiv = aktiv,
+            FraesenPfade = await RequireFraesenPfadAktivFilter.IstAktivAsync(_settings) ? await _articles.GetFraesenPfadeAsync() : null,
         };
         return View(vm);
     }

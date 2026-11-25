@@ -274,7 +274,8 @@ public class BdeBookingsController : Controller
         var userDefault = await _userSvc.GetDefaultPageSizeAsync();
         var size = IdealAkeWms.Services.PageSize.Resolve(pageSize, userDefault);
 
-        var q = _ctx.BdeTeilMeldungen.AsNoTracking().Include(m => m.BdeOperator).Include(m => m.ProductionWorkplace).AsQueryable();
+        var q = _ctx.BdeTeilMeldungen.AsNoTracking().Include(m => m.BdeOperator).Include(m => m.ProductionWorkplace)
+            .Include(m => m.WarehouseRequisitionItem).AsQueryable(); // v1.99.72 (F11): Lagerbestell-Meldungen
         if (from.HasValue) q = q.Where(m => m.GemeldetAm >= from.Value.Date);
         if (to.HasValue) q = q.Where(m => m.GemeldetAm < to.Value.Date.AddDays(1));
         if (!zurueckgenommene) q = q.Where(m => !m.IsCancelled);
@@ -298,7 +299,8 @@ public class BdeBookingsController : Controller
             ["werker"] = m => m.BdeOperator?.DisplayName,
             ["werkbank"] = m => m.ProductionWorkplace?.Name,
             ["kuerzel"] = m => m.Kuerzel,
-            ["hauptfa"] = m => m.HauptFA.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            ["hauptfa"] = m => m.WarehouseRequisitionItemId != null ? "–" : m.HauptFA.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            ["lagerbestellung"] = m => LagerbestellungText(m),
             ["subfa"] = m => (m.SubFA != 0 ? m.SubFA : m.VaterFA)?.ToString(System.Globalization.CultureInfo.InvariantCulture),
             ["position"] = m => m.Position?.ToString(System.Globalization.CultureInfo.InvariantCulture),
             ["matchcode"] = m => m.Matchcode,
@@ -307,6 +309,11 @@ public class BdeBookingsController : Controller
             ["status"] = m => m.IsCancelled ? "zurückgenommen" : "offen",
             ["grund"] = m => m.CancellationReason,
         };
+
+    /// <summary>v1.99.72 (F11): „&lt;Nr&gt; / Pos. &lt;n&gt;“ bei Lagerbestell-Meldungen, sonst leer.</summary>
+    internal static string? LagerbestellungText(BdeTeilMeldung m) => m.WarehouseRequisitionItem is { } i
+        ? $"{i.WarehouseRequisitionId.ToString(System.Globalization.CultureInfo.InvariantCulture)} / Pos. {i.Position.ToString(System.Globalization.CultureInfo.InvariantCulture)}"
+        : null;
 
     [HttpPost]
     [RequireBdeAdminAccess]

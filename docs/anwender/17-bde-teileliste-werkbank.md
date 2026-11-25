@@ -1,6 +1,6 @@
 # 17 BDE-Teileliste an der Werkbank (vereinfachte Fertigmeldung)
 
-Stand: Version 1.99.43 · nur Standort IDEAL · Bilder aus dem IDEAL-Testsystem
+Stand: Version 1.99.72 (Abschnitte 8 und 9, Text; Fotos folgen) bzw. 1.99.43 · nur Standort IDEAL · Bilder aus dem IDEAL-Testsystem
 
 ## Zweck
 
@@ -116,6 +116,32 @@ blendet auch zurückgenommene ein. Der **BDE-Admin** kann eine Meldung mit Grund
 Arbeitsgang-Buchung mitstorniert.
 
 ![BDE-Buchungen – Teilmeldungen](bilder/17-07-teilmeldungen-admin.jpg)
+
+### 8. Lagerbestellungen an der Werkbank (seit 1.99.72)
+
+An der Werkbank der Isolierungsfräse (Kürzel **IF**) zeigt die Teileliste auch **bestellte Isolierungen** aus Lagerbestellungen.
+Voraussetzung (richtet die WMS-Betreuung ein): *Stammdaten → Werkbänke → Bearbeiten*, Schalter **Lagerbestellungen in der Teileliste** an
+(geht nur zusammen mit **BDE-Teileliste**), Lagerbestellung eingeschaltet.
+
+- Es erscheint jede Position einer **abgeschickten** oder **teilgelieferten** Lagerbestellung, deren Artikel das Kürzel der Werkbank in den
+  Arbeitsschritten trägt. Entwürfe, abgeschlossene und stornierte Bestellungen erscheinen nicht.
+- Kennzeichen in der Spalte Status: **Lagerbestellung <Nr>**, darunter klein der Kommentar der Bestellung.
+- **Menge** = bestellte Menge, **Abteilung** = die bestellende Werkbank, **Hauptauftrag** leer.
+- **FE-Termin** = Tag des Abschickens + **10 Arbeitstage** (ohne Wochenende und Feiertage). Die Kalenderwoche filtert auf diesen Termin.
+- **Fertig melden** wie ein Teil (einzeln, als Block oder in *Summiert*, dort als „LB <Nr>“ bei den Hauptaufträgen). Es wird **nichts
+  gebucht**: kein Lagerbestand, keine Änderung an der Lagerbestellung, nichts an Sage. Das Lager schließt die Bestellung wie gewohnt ab.
+- Ist die Bestellung inzwischen abgeschlossen, oder trägt der Artikel das Kürzel nicht mehr, weist das WMS die Meldung mit Grund ab.
+- Unter **Teilmeldungen** steht bei solchen Meldungen die Spalte **Lagerbestellung** (Nr. / Pos.), Hauptauftrag „–“.
+
+### 9. Neue Spalten: Blechdicke und Fräsen-Pfad (seit 1.99.72)
+
+- **Blechdicke** (aus Sage) ist sichtbar; der Spaltenfilter rechnet mit Zahlen (`3,00` trifft 3,00). *Summiert* zeigt jetzt auch
+  **Material** und **Blechdicke**; Bemerkung PN und Fertigungsinfo PN lassen sich dort über das Zahnrad einblenden.
+- **Fräsen-Pfad** (nur wenn eingeschaltet): über das **Zahnrad** einblenden – die Wahl bleibt für den Terminal-Benutzer gespeichert.
+  Der Link öffnet den Ordner des Fräsprogramms. Öffnet er nicht: **Pfad kopieren**, im Explorer **Strg+L**, einfügen, **Enter**.
+  In der Teileliste wird der Pfad nur angezeigt; gepflegt wird er in der *Artikelinfo* (Rolle **Fräsen-Pfad pflegen** mit eigenem Konto,
+  zusätzlich **Stammdaten lesen**).
+- Der Knopf **CSV** exportiert die sichtbaren Spalten und ändert die gemerkten Filter nicht mehr.
 
 ## Hinweise und Stolperfallen
 

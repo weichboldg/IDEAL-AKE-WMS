@@ -1,0 +1,29 @@
+@model string?
+@* v1.99.72 (Spec 2026-11-20-bde-liste-isolierungsfraese-pfad-material F4): gemeinsamer Baustein Fraesen-Pfad. Leer → „–“; UNC → file://-Link
+   (Helpers.FraesenPfad.FileUri) + Knopf „Pfad kopieren“ (delegierter Handler in site.js, [data-pfad-kopieren]); kein UNC (Altbestand) → nur Text +
+   Kopieren. Aufrufer binden das Partial nur bei FraesenPfadAktiv ein. ViewData["FraesenPfadTouch"] = true → Knopf ≥ 44 px (BDE-Terminal). *@
+@{
+    var pfad = Model?.Trim();
+    var uri = IdealAkeWms.Helpers.FraesenPfad.FileUri(pfad);
+    var touch = ViewData["FraesenPfadTouch"] is true;
+    const string Tipp = "Öffnet der Link nicht: Pfad kopieren, im Explorer Strg+L, einfügen, Enter.";
+}
+@if (string.IsNullOrEmpty(pfad))
+{
+    <span class="text-muted">–</span>
+}
+else
+{
+    <span class="fraesen-pfad d-inline-flex flex-wrap align-items-center gap-1">
+        @if (uri != null)
+        {
+            <a href="@uri" class="fraesen-pfad-text text-break" title="@Tipp">@pfad</a>
+        }
+        else
+        {
+            <span class="fraesen-pfad-text text-break">@pfad</span>
+        }
+        <button type="button" class="btn btn-sm btn-outline-secondary text-nowrap@(touch ? " bde-touch" : "")" data-pfad-kopieren="@pfad" title="@Tipp">Pfad kopieren</button>
+        <span class="fraesen-pfad-hinweis small" role="status" aria-live="polite"></span>
+    </span>
+}

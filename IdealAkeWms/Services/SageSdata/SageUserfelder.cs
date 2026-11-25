@@ -54,6 +54,7 @@ public sealed class SageUserfelder
         new(Blechfertigung, "USER_OSFertigungsInfoPN", "Blechfertigung: Fertigungsinfo", BfWirkung, "IDEAL"),
         new(Blechfertigung, "USER_OSArbeitsschritte", "Blechfertigung: Arbeitsschritte", BfWirkung, "IDEAL"),
         new(Blechfertigung, "USER_OSAbteilung", "Blechfertigung: Abteilung", BfWirkung, "IDEAL"),
+        new(Blechfertigung, "USER_OSBlechdicke", "Blechfertigung: Blechdicke", BfWirkung + " Spalte Blechdicke der BDE-Teileliste.", "IDEAL"), // v1.99.72
         new(FaStruktur, "USER_OSBemerkungPN", "FA-Struktur: Bemerkung", FaWirkung, "IDEAL"),
         new(FaStruktur, "USER_OSFertigungsInfoPN", "FA-Struktur: Fertigungsinfo", FaWirkung, "IDEAL"),
         new(FaStruktur, "USER_OSKommissionieren", "FA-Struktur: Kommissionieren", FaWirkung, "IDEAL"),

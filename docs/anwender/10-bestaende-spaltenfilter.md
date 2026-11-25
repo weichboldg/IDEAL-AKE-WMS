@@ -127,6 +127,9 @@ neben CSV ein gelber Hinweis „Spaltenauswahl konnte nicht gespeichert werden �
 Nicht jede Liste hat ein Zahnrad: In **Bestände**, **Bewegungshistorie**, Lagerbestellungen, Fehlteilen, Bedarfsmeldungen und einigen weiteren
 Listen gibt es nur **CSV**. Ein Rechtsklick auf einen Spaltenkopf öffnet in Listen mit Zahnrad die Auswahl ebenfalls.
 
+**Seit 1.99.72** hat auch **Lager → Bestände** ein Zahnrad. Bei IDEAL (wenn eingeschaltet) lässt sich dort die Spalte **Fräsen-Pfad**
+einblenden (Standard ausgeblendet; Spaltenfilter z. B. `gerhard\listen`).
+
 ### 4. Liste als CSV für Excel exportieren
 
 1. Liste öffnen und filtern (Filterkarte und/oder Spaltenfilter).

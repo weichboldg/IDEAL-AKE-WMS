@@ -33,6 +33,9 @@ public class ArticleInfoViewModel
     /// <summary>Hierarchischer Modus → „Teil enthalten in"-Zaehlung als „N Aufträge · M Sub-FAs".</summary>
     public bool Hierarchical { get; set; }
 
+    /// <summary>v1.99.72: Fraesen-Pfad (<c>Articles.CamPath</c>); angezeigt nur bei <c>FraesenPfadAktiv</c>.</summary>
+    public string? CamPath { get; set; }
+
     /// <summary>Sage-Zusatzfelder (v1.73.0 E3a, nur lesend); null = Artikel wurde nie ueber SData gelesen → seit v1.80.0 Hinweis statt Karte.</summary>
     public ArticleSageDetail? SageDetail { get; set; }
 
@@ -65,3 +68,6 @@ public class AttributeDisplayValue
     public string Name { get; set; } = string.Empty;
     public string DisplayValue { get; set; } = string.Empty;
 }
+
+/// <summary>v1.99.72 (F14): Model des Pflegeformulars <c>Views/Articles/_FraesenPfadPflegen.cshtml</c> (Artikelinfo, „Artikel bearbeiten“).</summary>
+public record FraesenPfadPflegenModel(string ArticleNumber, string? CamPath, string ReturnUrl);

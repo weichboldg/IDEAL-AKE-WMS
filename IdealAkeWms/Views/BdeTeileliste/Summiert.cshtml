@@ -2,7 +2,8 @@
 @using IdealAkeWms.Services
 @{
     ViewData["Title"] = "BDE-Teileliste – Summiert";
-    const int colCount = 8;
+    ViewData["FraesenPfadTouch"] = true; // v1.99.72: Knopf „Pfad kopieren“ ≥ 44 px am Terminal
+    var colCount = 12 + (Model.FraesenPfadAktiv ? 1 : 0);
 }
 <link rel="stylesheet" href="~/css/bde.css" asp-append-version="true" />
 
@@ -33,6 +34,14 @@
                     <th data-filterable data-col-key="hauptfa">Hauptaufträge</th>
                     <th data-filterable data-col-key="montage-abteilung">Abteilung</th>
                     <th class="text-nowrap" data-filterable data-col-key="fe-termin" data-date-filter>FE-Termine</th>
+                    <th data-filterable data-col-key="material">Material</th>
+                    <th data-filterable data-filter-type="number" data-col-key="blechdicke">Blechdicke</th>
+                    <th data-filterable data-col-key="bemerkungpn">Bemerkung PN</th>
+                    <th data-filterable data-col-key="fertigungsinfopn">Fertigungsinfo PN</th>
+                    @if (Model.FraesenPfadAktiv)
+                    {
+                        <th data-filterable data-col-key="fraesen-pfad">Fräsen-Pfad</th>
+                    }
                     <th data-col-key="status">Offen</th>
                 </tr>
             </thead>
@@ -48,7 +57,7 @@
                             @if (a.OffeneSchluessel.Count > 0)
                             {
                                 <input class="form-check-input tl-auswahl" type="checkbox" form="blockForm" name="schluessel"
-                                       value="@string.Join("\n", a.OffeneSchluessel.Select(k => k.Text))" data-anzahl="@a.OffeneSchluessel.Count"
+                                       value="@string.Join("\n", a.OffeneSchluessel)" data-anzahl="@a.OffeneSchluessel.Count"
                                        data-soll="@a.SummeSollmengeOffen.ToString(System.Globalization.CultureInfo.InvariantCulture)" aria-label="@a.Matchcode auswählen" />
                             }
                         </td>
@@ -58,6 +67,23 @@
                         <td>@a.HauptFas</td>
                         <td>@a.Abteilungen</td>
                         <td>@a.FeTermine</td>
+                        <td>@a.Materialien</td>
+                        <td>@(a.Blechdicken ?? "–")</td>
+                        <td>@a.BemerkungenPn</td>
+                        <td>@a.FertigungsinfosPn</td>
+                        @if (Model.FraesenPfadAktiv)
+                        {
+                            <td>
+                                @if (a.Pfade.Count == 0)
+                                {
+                                    <span class="text-muted">–</span>
+                                }
+                                @foreach (var p in a.Pfade)
+                                {
+                                    <div><partial name="_FraesenPfad" model="p" /></div>
+                                }
+                            </td>
+                        }
                         <td>@a.OffeneSchluessel.Count offen</td>
                     </tr>
                 }
@@ -80,6 +106,14 @@
     { "key": "hauptfa", "label": "Hauptaufträge", "locked": false, "defaultWidth": null },
     { "key": "montage-abteilung", "label": "Abteilung", "locked": false, "defaultWidth": null },
     { "key": "fe-termin", "label": "FE-Termine", "locked": false, "defaultWidth": null },
+    { "key": "material", "label": "Material", "locked": false, "defaultWidth": null },
+    { "key": "blechdicke", "label": "Blechdicke", "locked": false, "defaultWidth": null },
+    { "key": "bemerkungpn", "label": "Bemerkung PN", "locked": false, "defaultWidth": null, "defaultHidden": true },
+    { "key": "fertigungsinfopn", "label": "Fertigungsinfo PN", "locked": false, "defaultWidth": null, "defaultHidden": true },
+    @if (Model.FraesenPfadAktiv)
+    {
+        @:{ "key": "fraesen-pfad", "label": "Fräsen-Pfad", "locked": false, "defaultWidth": null, "defaultHidden": true },
+    }
     { "key": "status", "label": "Offen", "locked": true, "defaultWidth": null }
 ]
 </script>

@@ -73,7 +73,7 @@ public class PurchaseProposalsNachbesserungE4Tests
         repo.Setup(r => r.GetOffeneBedarfsmeldungenAsync()).ReturnsAsync(meldungen);
         var planned = new PlannedConsumptionService(bom.Object, orders.Object, stock.Object, repo.Object, Mock.Of<IAppSettingRepository>(), ss.Object);
         return new ArticlesController(article.Object, stock.Object, Mock.Of<ICurrentUserService>(), attr.Object, Mock.Of<IArticleCategoryRepository>(),
-            planned, Mock.Of<IStorageLocationRepository>(), Mock.Of<ICreditorRepository>())
+            planned, Mock.Of<IStorageLocationRepository>(), Mock.Of<ICreditorRepository>(), Mock.Of<IAppSettingRepository>())
         {
             ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() }
         };

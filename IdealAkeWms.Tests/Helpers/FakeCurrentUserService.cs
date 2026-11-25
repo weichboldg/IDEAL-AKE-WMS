@@ -25,6 +25,7 @@ public class FakeCurrentUserService : ICurrentUserService
     public Task<bool> CanOrderLagerAsync() => Task.FromResult(true);
     public Task<bool> CanSchachtelnAsync() => Task.FromResult(true);
     public Task<bool> CanBfBestellenAsync() => Task.FromResult(true);
+    public Task<bool> CanPflegeFraesenPfadAsync() => Task.FromResult(true);
     public Task<bool> CanOrderGlasAsync() => Task.FromResult(true);
     public Task<bool> CanProcessLagerAsync() => Task.FromResult(true);
     public Task<bool> CanTransferStockAsync() => Task.FromResult(true);

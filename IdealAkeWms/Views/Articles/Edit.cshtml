@@ -145,6 +145,20 @@
                 </form>
             </div>
         </div>
+        @if (ViewBag.FraesenPfadAktiv == true)
+        {
+            @* v1.99.72 F13/F14: eigene Karte AUSSERHALB des Edit-Formulars – der Edit-POST fasst CamPath nie an. *@
+            <div class="card mb-3">
+                <div class="card-header">Fräsen-Pfad</div>
+                <div class="card-body">
+                    <partial name="_FraesenPfad" model="Model.Article.CamPath" />
+                    @if (ViewBag.FraesenPfadPflegen == true)
+                    {
+                        <partial name="_FraesenPfadPflegen" model="new FraesenPfadPflegenModel(Model.Article.ArticleNumber, Model.Article.CamPath, Context.Request.Path + Context.Request.QueryString)" />
+                    }
+                </div>
+            </div>
+        }
     </div>
 </div>
 

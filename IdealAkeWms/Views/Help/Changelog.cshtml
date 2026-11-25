@@ -8,6 +8,35 @@
     <div class="col-lg-8">
         <div class="card mb-3">
             <div class="card-header text-white" style="background-color: var(--ake-primary);">
+                <strong>v1.99.72</strong> <span class="text-white-50 ms-2">25.11.2026</span>
+            </div>
+            <div class="card-body">
+                <h6>Neue Funktionen</h6>
+                <ul>
+                    <li>BDE-Teileliste: neue Spalte &bdquo;Blechdicke&ldquo; (aus Sage <code>USER_OSBlechdicke</code>); Summiert zeigt zusätzlich
+                        Material und Blechdicke, Bemerkung PN und Fertigungsinfo PN über das Zahnrad einblendbar.</li>
+                    <li>Werkbank-Option &bdquo;Lagerbestellungen in der Teileliste&ldquo;: die Teileliste zeigt dann auch abgeschickte und
+                        teilgelieferte Lagerbestell-Positionen, deren Artikel das Kürzel der Werkbank in den Arbeitsschritten trägt (Badge
+                        &bdquo;Lagerbestellung&ldquo;, Termin = Abschicken + 10 Arbeitstage, Einstellung
+                        <code>BdeTeilelisteLagerbestellungArbeitstage</code>). Fertig melden wie ein Blechteil – keine Lagerbuchung, die
+                        Lagerbestellung bleibt unverändert.</li>
+                    <li>BDE-Buchungen › Teilmeldungen: neue Spalte &bdquo;Lagerbestellung&ldquo;; Hauptauftrag bei Lagerbestell-Meldungen &bdquo;–&ldquo;.</li>
+                    <li>Fräsen-Pfad (Schalter <code>FraesenPfadAktiv</code>, Default aus): Ordner des Fräsprogramms am Artikel. Spalte
+                        &bdquo;Fräsen-Pfad&ldquo; (Standard ausgeblendet, über das Zahnrad) in Artikel-Liste, BDE-Teileliste, Bestandsübersicht und
+                        Lagerbestellung (Lager- und Besteller-Seite); Link öffnet den Ordner, daneben &bdquo;Pfad kopieren&ldquo;.</li>
+                    <li>Pflegen auf Artikelinfo bzw. &bdquo;Artikel bearbeiten&ldquo; (nur UNC-Pfade) mit der neuen Rolle &bdquo;Fräsen-Pfad
+                        pflegen&ldquo; (braucht zusätzlich Stammdaten lesen), Stammdaten oder Admin.</li>
+                    <li>Bestandsübersicht und Besteller-Seite der Lagerbestellung haben jetzt eine Spaltenauswahl.</li>
+                </ul>
+                <h6>Fehlerbehebungen</h6>
+                <ul>
+                    <li>BDE-Teileliste: der CSV-Export verändert den gespeicherten Werker-Filter nicht mehr.</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header text-white" style="background-color: var(--ake-primary);">
                 <strong>v1.99.71</strong> <span class="text-white-50 ms-2">25.11.2026</span>
             </div>
             <div class="card-body">

@@ -47,6 +47,12 @@ public class BdeTeilMeldung : AuditableEntity
     public int? BdeBookingId { get; set; }
     public BdeBooking? BdeBooking { get; set; }
 
+    /// <summary>v1.99.72 (Spec 2026-11-20-bde-liste-isolierungsfraese-pfad-material, ADR 0038): gesetzt = Meldung einer
+    /// Lagerbestell-Position (HauptFA 0, SubFA 0, VaterFA/Position null, Artnr = Artikelnummer). Eigener gefilterter UNIQUE
+    /// (<c>UX_BdeTeilMeldungen_Lagerbestellung</c>); alle FA-Lesewege filtern <c>WarehouseRequisitionItemId IS NULL</c>.</summary>
+    public int? WarehouseRequisitionItemId { get; set; }
+    public WarehouseRequisitionItem? WarehouseRequisitionItem { get; set; }
+
     public bool IsCancelled { get; set; }
 
     [StringLength(500)]

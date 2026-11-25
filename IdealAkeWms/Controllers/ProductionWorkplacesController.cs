@@ -124,6 +124,7 @@ public class ProductionWorkplacesController : Controller
             ArbeitsschrittCode = NormalizeCode(vm.ArbeitsschrittCode),
             BdeNurAgFertigmeldung = vm.BdeNurAgFertigmeldung,
             BdeTeileliste = vm.BdeTeileliste,
+            BdeTeilelisteLagerbestellungen = vm.BdeTeilelisteLagerbestellungen,
             CreatedAt = DateTime.Now,
             CreatedBy = _currentUserService.GetDisplayName(),
             CreatedByWindows = _currentUserService.GetWindowsUserName()
@@ -173,6 +174,7 @@ public class ProductionWorkplacesController : Controller
             ArbeitsschrittCode = workplace.ArbeitsschrittCode,
             BdeNurAgFertigmeldung = workplace.BdeNurAgFertigmeldung,
             BdeTeileliste = workplace.BdeTeileliste,
+            BdeTeilelisteLagerbestellungen = workplace.BdeTeilelisteLagerbestellungen,
             SageMissingSince = workplace.SageMissingSince,
             CustomShifts = await _ctx.BdeShifts
                 .Where(s => s.ProductionWorkplaceId == workplace.Id)
@@ -222,6 +224,7 @@ public class ProductionWorkplacesController : Controller
         existing.BdeUseCustomShiftPlan = vm.BdeUseCustomShiftPlan;
         existing.BdeNurAgFertigmeldung = vm.BdeNurAgFertigmeldung;
         existing.BdeTeileliste = vm.BdeTeileliste;
+        existing.BdeTeilelisteLagerbestellungen = vm.BdeTeilelisteLagerbestellungen;
         // FA-a8: Kuerzel nur an Werkbaenken OHNE Sage-Nummer — entschieden am gespeicherten Wert, nie am Formular
         // (die Sage-Nummer kommt als readonly-Input zurueck und ist manipulierbar). Repository schuetzt zusaetzlich.
         if (existing.SageArbeitsplatznummer == null)
@@ -258,6 +261,9 @@ public class ProductionWorkplacesController : Controller
     /// sonst ModelState-Fehler, nichts gespeichert (auch ein manipulierter POST an AKE ohne Feld).</summary>
     private async Task ValidateTeilelisteAsync(ProductionWorkplaceEditViewModel vm, bool bdeAktiv, string? code)
     {
+        // v1.99.72 (F6): Lagerbestellungen nur zusammen mit der Teileliste
+        if (vm.BdeTeilelisteLagerbestellungen && !vm.BdeTeileliste)
+            ModelState.AddModelError(nameof(vm.BdeTeilelisteLagerbestellungen), "„Lagerbestellungen in der Teileliste“ braucht „BDE-Teileliste“.");
         if (!vm.BdeTeileliste) return;
         if (!await IsHierarchicalMasterAsync())
             ModelState.AddModelError(string.Empty, "Die BDE-Teileliste gibt es nur bei hierarchischen Produktionsaufträgen (IDEAL).");

@@ -83,4 +83,28 @@ public class ViewKeyDriftGuardTests
         // v1.99.62: Streifen/Hover/Fokus-Zeile/Links kommen aus den globalen Tabellenregeln (TabellenZeilenfarbeTests); keine Ausnahme hier.
         html.Should().NotContain("table-plain");
     }
+
+    /// <summary>v1.99.72 (Spec 2026-11-20 F13): Fraesen-Pfad-Spalte in Bestandsuebersicht (Spaltenauswahl neu), Lager-Detailseite und
+    /// Besteller-Seite (Spaltenauswahl neu) – drei Quellen gleich (bedingte Razor-Zweige zaehlen einmal), Pfad Standard aus, JS ueber data-article.</summary>
+    [Theory]
+    [InlineData("StockOverview", "Index.cshtml", "StockOverview")]
+    [InlineData("WarehousePicking", "Details.cshtml", "WarehousePickingDetails")]
+    [InlineData("WarehouseRequisitions", "Edit.cshtml", "WarehouseRequisitionItems")]
+    public void FraesenPfad_DreiQuellenGleich_StandardAus(string ordner, string datei, string viewKey)
+    {
+        var html = File.ReadAllText(Path.Combine(ViewsDir().FullName, ordner, datei));
+        var cfg = ColumnDefinitions.GetByViewKey(viewKey)!;
+        var katalog = cfg.Columns.Select(c => c.Key).ToList();
+        KommissionierSpaltenKonsistenzTests.ExtractThDataColKeys(html).Distinct().Should().Equal(katalog);
+        Regex.Matches(Regex.Match(html, "id=\"column-config\">(.*?)</script>", RegexOptions.Singleline).Groups[1].Value, "\"key\": \"([^\"]+)\"")
+            .Select(m => m.Groups[1].Value).Distinct().Should().Equal(katalog);
+        cfg.Columns.Single(c => c.Key == "fraesen-pfad").DefaultHidden.Should().BeTrue();
+        html.Should().Contain("\"key\": \"fraesen-pfad\", \"label\": \"Fräsen-Pfad\", \"locked\": false, \"defaultWidth\": null, \"defaultHidden\": true");
+        if (viewKey == "WarehouseRequisitionItems")
+        {
+            html.Should().Contain("data-article=\"@i.ArticleNumber\"").And.Contain("row.dataset.article").And.NotContain("row.cells[").And.Contain("data-table-toolbar").And.Contain("\"supportsReorder\": false");
+            cfg.SupportsReorder.Should().BeFalse();
+            cfg.Columns.Where(c => c.Locked).Select(c => c.Key).Should().Equal("pos", "article-number");
+        }
+    }
 }

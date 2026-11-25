@@ -97,7 +97,8 @@
 }
 
 <div class="table-responsive">
-    <table class="table table-striped mb-0 filterable-table" data-server-column-filter="true">
+    @* v1.99.72 (F13): Spaltenauswahl (Zahnrad) neu; Fräsen-Pfad nur bei Schalter an, Standard ausgeblendet *@
+    <table class="table table-striped mb-0 filterable-table" data-server-column-filter="true" data-view-key="StockOverview">
         <thead>
             <tr>
                 <th data-filterable data-col-key="article-number">Artikelnummer</th>
@@ -106,6 +107,10 @@
                 <th data-filterable data-col-key="unit">Einheit</th>
                 <th class="text-end" data-filterable data-filter-type="number" data-col-key="reorder-level">Meldebestand</th>
                 <th class="text-end" data-filterable data-filter-type="number" data-col-key="current-stock">Aktueller Bestand</th>
+                @if (Model.FraesenPfade != null)
+                {
+                    <th data-filterable data-col-key="fraesen-pfad">Fräsen-Pfad</th>
+                }
             </tr>
         </thead>
         <tbody>
@@ -164,12 +169,17 @@
                     <td>@item.Unit</td>
                     <td class="text-end">@(item.ReorderLevel.HasValue ? item.ReorderLevel.Value.ToString("N3") : "–")</td>
                     <td class="text-end @qtyClass @stockColorClass">@item.CurrentQuantity.ToString("N3")</td>
+                    @if (Model.FraesenPfade != null)
+                    {
+                        var pfad = Model.FraesenPfade.GetValueOrDefault(item.ArticleNumber.Trim());
+                        <td><partial name="_FraesenPfad" model="pfad" /></td>
+                    }
                 </tr>
             }
             @if (!Model.Items.Any())
             {
                 <tr>
-                    <td colspan="6" class="text-center text-muted py-4">Keine Bestände gefunden.</td>
+                    <td colspan="@(Model.FraesenPfade != null ? 7 : 6)" class="text-center text-muted py-4">Keine Bestände gefunden.</td>
                 </tr>
             }
         </tbody>
@@ -178,7 +188,30 @@
 
 <partial name="_Pagination" model="Model.Pagination" />
 
+<script type="application/json" id="view-config">
+{ "viewKey": "StockOverview", "supportsReorder": true, "supportsSortDefault": false }
+</script>
+<script type="application/json" id="column-config">
+[
+    { "key": "article-number", "label": "Artikelnummer", "locked": true, "defaultWidth": null },
+    { "key": "description", "label": "Bezeichnung", "locked": false, "defaultWidth": null },
+    { "key": "storage-location", "label": "Lagerplatz", "locked": false, "defaultWidth": null },
+    { "key": "unit", "label": "Einheit", "locked": false, "defaultWidth": null },
+    { "key": "reorder-level", "label": "Meldebestand", "locked": false, "defaultWidth": null },
+    @if (Model.FraesenPfade != null)
+    {
+        @:{ "key": "current-stock", "label": "Aktueller Bestand", "locked": false, "defaultWidth": null },
+        @:{ "key": "fraesen-pfad", "label": "Fräsen-Pfad", "locked": false, "defaultWidth": null, "defaultHidden": true }
+    }
+    else
+    {
+        @:{ "key": "current-stock", "label": "Aktueller Bestand", "locked": false, "defaultWidth": null }
+    }
+]
+</script>
+
 @section Scripts {
+    <script src="~/js/column-preferences.js" asp-append-version="true"></script>
     <script src="~/js/table-filter.js" asp-append-version="true"></script>
     <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
     <script src="~/js/barcode-scanner.js" asp-append-version="true"></script>

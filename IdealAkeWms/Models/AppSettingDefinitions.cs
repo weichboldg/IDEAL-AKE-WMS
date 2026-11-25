@@ -234,6 +234,11 @@ public static class AppSettingDefinitions
             "BDE-Schichtkalender; Dienst Auto-Pause", Beide, seed: true, warn: "Pausiert laufende Buchungen am Schichtende automatisch (Dienst)."),
         I(AppSettingKeys.BdeTerminalMaxHauptFa, "5", GBde, "BDE-Terminal: Haupt-FAs in der Liste",
             "Anzahl Haupt-FAs in der Arbeitsgang-Liste; der Rest über „Weitere anzeigen“.", "BDE-Terminal (hierarchisch)", "IDEAL", seed: true, "Haupt-FAs"),
+        // v1.99.72 (Spec 2026-11-20-bde-liste-isolierungsfraese-pfad-material): Termin der Lagerbestell-Zeilen der BDE-Teileliste. Kein Seed.
+        I(AppSettingKeys.BdeTeilelisteLagerbestellungArbeitstage, "10", GBde, "Teileliste: Termin Lagerbestellung (Arbeitstage nach Abschicken)",
+            "Termin der Lagerbestell-Zeilen in der BDE-Teileliste = Abschickdatum + so viele Arbeitstage (Mo–Fr, ohne Feiertage); der KW-Filter wirkt auf diesen Termin.",
+            "BDE-Teileliste (Werkbank-Option „Lagerbestellungen in der Teileliste“)", "IDEAL (ohne Wirkung, solange keine Werkbank die Option hat)", seed: false,
+            "Arbeitstage", min: 0, max: 60),
 
         // ---- Teileverfolgung und OSEON (AKE) ----
         B("TeileverfolgungAktiv", "false", GOseon, "Teileverfolgung", "Schaltet das Teileverfolgungs-Modul (OSEON) ein.", "Menü, Startseite, Teileverfolgung",
@@ -247,6 +252,10 @@ public static class AppSettingDefinitions
             "Tage in die Vergangenheit für den Bereich „Überfällig“.", "OSEON-Reporting", "AKE", seed: true, "Tage", min: 1, max: 365),
 
         // ---- IDEAL FA-Hierarchie ----
+        // v1.99.72 (Spec 2026-11-20-bde-liste-isolierungsfraese-pfad-material, Antwort 20): Fraesen-Pfad am Artikel. Kein Seed.
+        B(AppSettingKeys.FraesenPfadAktiv, "false", GIdeal, "Fräsen-Pfad anzeigen und pflegen",
+            "An = Spalte „Fräsen-Pfad“ (über die Spaltenauswahl, Standard ausgeblendet) in Artikel-Liste, BDE-Teileliste, Lagerbestellung und Bestandsübersicht, Zeile in Artikelinfo und Karte auf „Artikel bearbeiten“ mit Pflegeformular für admin, Stammdaten und Rolle „Fräsen-Pfad pflegen“. Aus = nirgends sichtbar, Pflege gesperrt; gespeicherte Pfade bleiben erhalten.",
+            "Artikel-Liste, Artikelinfo, Artikel bearbeiten, BDE-Teileliste, Lagerbestellung, Bestandsübersicht", Ideal, seed: false),
         B(AppSettingKeys.FaHierarchyKommissionierlistenAktiv, "false", GIdeal, "Kommissionierlisten", "Schaltet das Kommissionierlisten-Modul ein.",
             "Menü, Kommissionierlisten", "IDEAL", seed: true),
         new(AppSettingKeys.FaHierarchyKommissionierlisteVorfilterZiele, SettingType.MultiChoice, "K-01,K-02", GIdeal,

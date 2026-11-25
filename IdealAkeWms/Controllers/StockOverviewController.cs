@@ -16,6 +16,7 @@ public class StockOverviewController : Controller
     private readonly IAppSettingRepository _settingRepository;
     private readonly ICurrentUserService _currentUserService;
     private readonly IProductionOrderRepository _productionOrderRepository;
+    private readonly IArticleRepository _articleRepository;
 
     // Mapping data-col-key -> Property fuer Server-Side-Column-Filter
     private static readonly Dictionary<string, Func<StockOverviewItem, string?>> _stockOverviewColMap = new()
@@ -33,8 +34,10 @@ public class StockOverviewController : Controller
         IStorageLocationRepository storageLocationRepository,
         IAppSettingRepository settingRepository,
         ICurrentUserService currentUserService,
-        IProductionOrderRepository productionOrderRepository)
+        IProductionOrderRepository productionOrderRepository,
+        IArticleRepository articleRepository)
     {
+        _articleRepository = articleRepository;
         _productionOrderRepository = productionOrderRepository;
         _stockMovementRepository = stockMovementRepository;
         _storageLocationRepository = storageLocationRepository;
@@ -70,7 +73,16 @@ public class StockOverviewController : Controller
 
         // Server-Side Column Filter (in-memory ueber das schon geladene Set)
         var columnFilters = IdealAkeWms.Services.ColumnFilterHelper.ReadFromQuery(HttpContext?.Request);
-        items = IdealAkeWms.Services.ColumnFilterHelper.Apply(items, columnFilters, _stockOverviewColMap, ColumnFilterTypes.For("StockOverview/Index")).ToList();
+        // v1.99.72 (F13): Fraesen-Pfad nur bei Schalter an; Getter = Zelltext (eine Abfrage, nur gepflegte Pfade)
+        var fraesenPfadAktiv = await RequireFraesenPfadAktivFilter.IstAktivAsync(_settingRepository);
+        var pfade = fraesenPfadAktiv ? await _articleRepository.GetFraesenPfadeAsync() : new Dictionary<string, string>();
+        var colMap = fraesenPfadAktiv
+            ? new Dictionary<string, Func<StockOverviewItem, string?>>(_stockOverviewColMap)
+            {
+                ["fraesen-pfad"] = i => pfade.GetValueOrDefault(i.ArticleNumber.Trim()),
+            }
+            : _stockOverviewColMap;
+        items = IdealAkeWms.Services.ColumnFilterHelper.Apply(items, columnFilters, colMap, ColumnFilterTypes.For("StockOverview/Index")).ToList();
 
         var totalCount = items.Count;
         var pagedItems = items.Skip((page - 1) * effectivePageSize).Take(effectivePageSize).ToList();
@@ -83,6 +95,7 @@ public class StockOverviewController : Controller
             FilterMinQuantity = filterMinQuantity,
             FilterMaxQuantity = filterMaxQuantity,
             FilterProductionOrder = filterProductionOrder,
+            FraesenPfade = fraesenPfadAktiv ? pfade : null,
             StorageLocations = await _storageLocationRepository.GetAllOrderedAsync(),
             WarningThresholdPercent = await _settingRepository.GetIntValueAsync("WarningThresholdPercent", 150),
             CriticalThresholdPercent = await _settingRepository.GetIntValueAsync("CriticalThresholdPercent", 100),

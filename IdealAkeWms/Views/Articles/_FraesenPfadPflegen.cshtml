@@ -1,0 +1,13 @@
+@model IdealAkeWms.Models.ViewModels.FraesenPfadPflegenModel
+@* v1.99.72 (Spec 2026-11-20-bde-liste-isolierungsfraese-pfad-material F14): Pflegeformular Fraesen-Pfad, EIN Schreibweg (POST Articles/FraesenPfad).
+   Eingebunden nur bei FraesenPfadAktiv und CanPflegeFraesenPfadAsync (Artikelinfo, „Artikel bearbeiten“ als eigene Karte nach dem Edit-Formular). *@
+@{ const string feldId = "fraesenPfadFeld"; }
+<form asp-controller="Articles" asp-action="FraesenPfad" method="post" class="mt-3">
+    <input type="hidden" name="articleNumber" value="@Model.ArticleNumber" />
+    <input type="hidden" name="returnUrl" value="@Model.ReturnUrl" />
+    <label for="@feldId" class="form-label">Fräsen-Pfad</label>
+    <input id="@feldId" name="camPath" value="@Model.CamPath" maxlength="@IdealAkeWms.Helpers.FraesenPfad.MaxLaenge" class="form-control"
+           autocomplete="off" spellcheck="false" aria-describedby="@(feldId)-hilfe" />
+    <div id="@(feldId)-hilfe" class="form-text">UNC-Pfad, Y: = \\idealfs1\Daten$\Produktion\CAM; leer = kein Pfad</div>
+    <button type="submit" class="btn btn-primary mt-2">Fräsen-Pfad speichern</button>
+</form>

@@ -49,6 +49,10 @@ public class ProductionWorkplaceEditViewModel
     [Display(Name = "BDE-Teileliste (vereinfacht)")]
     public bool BdeTeileliste { get; set; }
 
+    /// <summary>v1.99.72 (Spec 2026-11-20-bde-liste-isolierungsfraese-pfad-material F6): Lagerbestell-Positionen in der Teileliste; nur mit BdeTeileliste.</summary>
+    [Display(Name = "Lagerbestellungen in der Teileliste")]
+    public bool BdeTeilelisteLagerbestellungen { get; set; }
+
     /// <summary>Nur Anzeige: seit wann die Sage-Nummer nicht mehr in der Quelle steht (v1.63.0).</summary>
     [ValidateNever]
     public DateTime? SageMissingSince { get; set; }

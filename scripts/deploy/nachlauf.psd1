@@ -120,6 +120,10 @@ Eintraege = @(
    Datei='162_AddUserKuerzelUndBfBestellerKuerzel.sql'; MigrationId='20261118144836_AddUserKuerzelUndBfBestellerKuerzel'; Voraussetzung='additiv: Users.Kuerzel (gefiltert UNIQUE), BfAuftraege.BestellerKuerzel; danach Kuerzel der BF-Besteller pflegen, sonst ist die Freigabe gesperrt'; Quelle='2026-11-18-v1-99-42-nachbesserungen' }
 @{ Id='SQL/163'; Version='1.99.42'; Typ='Schema'; Firma='beide'; Phase='Schema'; Ausfuehrung='automatisch'
    Datei='163_AddBfPositionArbeitsschritte.sql'; MigrationId='20261118145602_AddBfPositionArbeitsschritte'; Voraussetzung='additiv: BfAuftragPositionen.Arbeitsschritte, Nachtrag nur leerer Felder aus dem Artikel-Merkmal USER_OSArbeitsschritte'; Quelle='2026-11-18-v1-99-42-nachbesserungen' }
+@{ Id='SQL/164'; Version='1.99.72'; Typ='Schema'; Firma='beide'; Phase='Schema'; Ausfuehrung='automatisch'
+   Datei='164_AddArticleCamPath.sql'; MigrationId='20261125173002_AddArticleCamPath'; Voraussetzung='additiv: Articles.CamPath NVARCHAR(500) NULL (Fraesen-Pfad, WMS-Feld), kein Backfill'; Quelle='2026-11-25-v1-99-72-bde-liste-isolierungsfraese-pfad-material' }
+@{ Id='SQL/165'; Version='1.99.72'; Typ='Schema'; Firma='beide'; Phase='Schema'; Ausfuehrung='automatisch'
+   Datei='165_AddBdeTeilelisteLagerbestellungen.sql'; MigrationId='20261125173021_AddBdeTeilelisteLagerbestellungen'; Voraussetzung='additiv: Werkbank-Option BdeTeilelisteLagerbestellungen (Default 0), BdeTeilMeldungen.WarehouseRequisitionItemId NULL + FK, UNIQUE-Filter erweitert (Index-Neuaufbau), zweiter gefilterter UNIQUE'; Quelle='2026-11-25-v1-99-72-bde-liste-isolierungsfraese-pfad-material' }
 @{ Id='SQL/166'; Version='1.99.53'; Typ='Schema'; Firma='beide'; Phase='Schema'; Ausfuehrung='automatisch'
    Datei='166_AddStockMovementWarehouseRequisitionItem.sql'; MigrationId='20261123124036_AddStockMovementWarehouseRequisitionItem'; Voraussetzung='additiv: StockMovements.WarehouseRequisitionItemId (NULL, FK NO ACTION, Index), kein Backfill'; Quelle='2026-11-23-v1-99-53-lagerbestellung-verbrauchsbuchung' }
 @{ Id='SQL/167'; Version='1.99.68'; Typ='Schema'; Firma='beide'; Phase='Schema'; Ausfuehrung='automatisch'
@@ -291,6 +295,27 @@ WHERE NOT EXISTS (SELECT 1 FROM dbo.Roles r WHERE r.[Key] = v.k);'
    Text='Seit v1.99.25 setzt der Sage-Import das Lack-Kennzeichen neuer Auftraege nur mit Sync:CoatingDetectionEnabled. Hier ist BomCache an, Lackierteil-Erkennung aus: neue Auftraege bekommen KEIN Lack-Kennzeichen mehr. Unter /ServiceSettings einschalten, falls Lackierteile erkannt werden sollen.'
    Quelle='2026-11-16-v1-99-25-beschichtungslogik-je-standort' }
 
+@{ Id='Pruefung/RolleFraesenpfadPflegen'; Version='1.99.72'; Typ='Pruefung'; Firma='beide'; Phase='Haltepunkt'; Ausfuehrung='Reparatur'
+   Pruefung='SELECT COUNT(*) FROM (VALUES (N''fraesenpfad_pflegen'')) v(k) WHERE NOT EXISTS (SELECT 1 FROM dbo.Roles r WHERE r.[Key] = v.k)'
+   Reparatur='INSERT INTO dbo.Roles ([Key], [Name], [Description], [IsSystem], [SortOrder], [CreatedAt], [CreatedBy], [CreatedByWindows])
+SELECT v.k, v.n, v.d, 1, (SELECT ISNULL(MAX(SortOrder), 0) FROM dbo.Roles) + v.o, SYSDATETIME(), N''Update-Skript'', LEFT(SUSER_SNAME(), 200)
+FROM (VALUES (N''fraesenpfad_pflegen'', N''Fr'' + NCHAR(228) + N''sen-Pfad pflegen'', N''Fr'' + NCHAR(228) + N''sen-Pfad am Artikel '' + NCHAR(228) + N''ndern (Artikelinfo, Artikel bearbeiten); braucht zus'' + NCHAR(228) + N''tzlich Stammdaten lesen; sonst keine Rechte.'', 1)) v(k, n, d, o)
+WHERE NOT EXISTS (SELECT 1 FROM dbo.Roles r WHERE r.[Key] = v.k);'
+   Text='Rolle fraesenpfad_pflegen fehlt (kein Seed). Zuweisen an das persoenliche Konto des Pflegers (zusammen mit Stammdaten lesen) bleibt Hand-Schritt unter /Roles.'
+   Quelle='2026-11-25-v1-99-72-bde-liste-isolierungsfraese-pfad-material' }
+@{ Id='Pruefung/FraesenpfadOhneStammdatenLesen'; Version='1.99.72'; Typ='Pruefung'; Firma='IDEAL'; Phase='Nachher'; Ausfuehrung='anzeigen'
+   Pruefung='SELECT COUNT(*) FROM dbo.UserRoles ur JOIN dbo.Roles r ON r.Id = ur.RoleId WHERE r.[Key] = N''fraesenpfad_pflegen'' AND NOT EXISTS (SELECT 1 FROM dbo.UserRoles u2 JOIN dbo.Roles r2 ON r2.Id = u2.RoleId WHERE u2.UserId = ur.UserId AND r2.[Key] IN (N''admin'', N''masterdata'', N''masterdata_read''))'
+   Text='Benutzer mit Fraesen-Pfad pflegen ohne Stammdaten lesen erreichen die Artikelinfo nicht - unter /Roles zusaetzlich Stammdaten lesen zuweisen.'
+   Quelle='2026-11-25-v1-99-72-bde-liste-isolierungsfraese-pfad-material' }
+@{ Id='Pruefung/BlechteileNachleseAus'; Version='1.99.72'; Typ='Pruefung'; Firma='IDEAL'; Phase='Nachher'; Ausfuehrung='anzeigen'
+   Pruefung='SELECT CASE WHEN EXISTS (SELECT 1 FROM dbo.ServiceSettings WHERE [Key] = N''Sync:BlechteileFelderNachlesen'' AND LOWER([Value]) IN (N''true'', N''1'')) THEN 0 ELSE 1 END'
+   Text='Blechteile-Nachlese aus: Arbeitsschritte/Material/Blechdicke am Artikel fehlen, Lagerbestell-Positionen erscheinen nicht an der Fraese. /ServiceSettings einschalten (liest nur aus Sage).'
+   Quelle='2026-11-25-v1-99-72-bde-liste-isolierungsfraese-pfad-material' }
+@{ Id='Pruefung/TeilelisteLagerbestellungenOhneWerkbank'; Version='1.99.72'; Typ='Pruefung'; Firma='IDEAL'; Phase='Nachher'; Ausfuehrung='anzeigen'
+   Pruefung='SELECT CASE WHEN COL_LENGTH(N''dbo.ProductionWorkplaces'', N''BdeTeilelisteLagerbestellungen'') IS NULL THEN 0 WHEN EXISTS (SELECT 1 FROM dbo.ProductionWorkplaces WHERE BdeTeilelisteLagerbestellungen = 1 AND BdeTeileliste = 1 AND BdeAktiv = 1) THEN 0 ELSE 1 END'
+   Text='Keine Werkbank zeigt Lagerbestellungen in der Teileliste: an der Werkbank der Isolierungsfraese (Kuerzel IF) unter Werkbaenke > Bearbeiten "BDE-Teileliste" und "Lagerbestellungen in der Teileliste" einschalten.'
+   Quelle='2026-11-25-v1-99-72-bde-liste-isolierungsfraese-pfad-material' }
+
 # ---------------------------------------------------------------- Daten und Einmal-Skripte (nur mit Eingabe am Zielserver, ADR 0023)
 @{ Id='Einmalig/2026-11-08_v1.88.0_Kommissionierauftraege_Altbestand'; Version='1.88.0'; Typ='Einmalig'; Firma='beide'; Phase='Haltepunkt'; Ausfuehrung='Trockenlauf'
    Datei='Einmalig\2026-11-08_v1.88.0_Kommissionierauftraege_Altbestand.sql'; Braucht=@('SQL/133','SQL/141')
@@ -336,6 +361,13 @@ WHERE NOT EXISTS (SELECT 1 FROM dbo.Roles r WHERE r.[Key] = v.k);'
    Spur='SELECT CASE WHEN OBJECT_ID(N''dbo.Articles_Bereinigung00er_Sicherung'') IS NULL THEN 0 ELSE 1 END'
    Text='Laut Gerald 2026-11-11 auf keinem System gelaufen: nur IDEAL-Test und nur wenn P7 Treffer zeigt. Zuerst Listenmodus @Loeschen = 0 in SSMS, dann entscheidet Gerald (bleibt Hand-Schritt: @Behalten-Liste, P7 auf Sage). Danach fragt das Skript, ob es lief (Marker VonHand). Entfaellt an IDEAL-Prod.'
    Quelle='2026-10-15-v1-60-0-ideal-sage-views-umstellung' }
+
+@{ Id='Einmalig/2026-11-25_v1.99.72_FraesenPfad_Erstimport'; Version='1.99.72'; Typ='Einmalig'; Firma='IDEAL'; Phase='Nachher'; Ausfuehrung='Trockenlauf'
+   Datei='Einmalig\2026-11-25_v1.99.72_FraesenPfad_Erstimport.sql'; Braucht=@('SQL/164')
+   Voraussetzung='Web >= 1.99.72, DB-Backup; vor SCHARF Antworten auf Rueckfragen 15/16 pruefen'
+   Spur='SELECT COUNT(*) FROM dbo.Articles WHERE ModifiedBy LIKE N''Einmal-Skript Fr_sen-Pfad'''
+   Text='Uebernimmt die Fraesen-Pfade aus WICAM-Pfade.xlsx je eindeutigem Matchcode in Articles.CamPath (nur leere; Y:\ -> \\idealfs1\Daten$\Produktion\CAM). Trockenlauf automatisch (Zaehlung, Schreibliste, Meldeliste ins Protokoll). TREFFER 0 -> entfaellt. Sonst Zaehlung freigeben, SCHARF eintippen (Backup aus diesem Lauf Pflicht); zweiter Trockenlauf muss 0 liefern. Unbekannte, mehrdeutige, doppelte Matchcodes und Zeilen ohne gueltigen Pfad stehen in der Meldeliste - von Hand pflegen.'
+   Quelle='2026-11-25-v1-99-72-bde-liste-isolierungsfraese-pfad-material' }
 
 # ---------------------------------------------------------------- Ordner und Rechte (Schritt 5a, jeder Lauf) ------------------
 @{ Id='v1.96.0-FotosOrdner'; Version='1.96.0'; Typ='Ordner'; Firma='beide'; Phase='Vorher'; Ausfuehrung='automatisch'
@@ -635,5 +667,11 @@ WHERE NOT EXISTS (SELECT 1 FROM dbo.Roles r WHERE r.[Key] = v.k);'
 @{ Id='v1.99.71-SageLagerAnlageLagertechniken'; Version='1.99.71'; Typ='Einstellung'; Firma='beide'; Phase='Nachher'; Ausfuehrung='anzeigen'
    Text='SageLagerAnlageLagertechniken bleibt Aus. Mitschnitt bzw. Alle erst nach Abnahmevergleich der Lager-Anlage am Testmandanten dieses Standorts; Aus lassen bei USER_-Pflichtfeld ohne Default in KHKLagerorte.'
    Quelle='2026-11-25-v1-99-71-lagerplatz-anlage-wms-nach-sage' }
+@{ Id='Einstellung/1.99.72-FraesenPfadAktiv'; Version='1.99.72'; Typ='Einstellung'; Firma='IDEAL'; Phase='Nachher'; Ausfuehrung='anzeigen'
+   Text='/Settings > IDEAL: "Fraesen-Pfad anzeigen und pflegen" einschalten (nach dem Erstimport). AKE bleibt aus.'
+   Quelle='2026-11-25-v1-99-72-bde-liste-isolierungsfraese-pfad-material' }
+@{ Id='v1.99.72-FraesePfadInfo'; Version='1.99.72'; Typ='Info'; Firma='IDEAL'; Phase='Nachher'; Ausfuehrung='anzeigen'
+   Text='Clemens/Walter informieren: Teileliste der Isolierungsfraese zeigt bestellte Isolierungen (Badge Lagerbestellung, Termin = Abschicken + 10 Arbeitstage), Spalte Fraesen-Pfad ueber das Zahnrad einblenden, Link oeffnet den Ordner (sonst Pfad kopieren -> Explorer Strg+L). Pfad pflegen: der zustaendige Pfleger mit eigenem Konto (Rollen Fraesen-Pfad pflegen + Stammdaten lesen) ueber Stammdaten > Artikelinfo, Stammdaten-Benutzer auch unter Artikel bearbeiten; in der Teileliste nur Anzeige; nur UNC-Pfade. Meldeliste des Erstimports nachpflegen. Browser-Cache am Terminal ggf. leeren.'
+   Quelle='2026-11-25-v1-99-72-bde-liste-isolierungsfraese-pfad-material' }
 )
 }

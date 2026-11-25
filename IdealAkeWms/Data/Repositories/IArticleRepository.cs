@@ -11,6 +11,9 @@ public interface IArticleRepository : IRepository<Article>
         int page, int pageSize, string? search,
         IReadOnlyDictionary<string, string>? columnFilters = null);
     Task<Dictionary<string, string?>> GetMatchcodesByArticleNumbersAsync(IReadOnlyCollection<string> articleNumbers);
+    /// <summary>v1.99.72: Fraesen-Pfad aller Artikel mit <c>CamPath IS NOT NULL</c> – Artikelnummer getrimmt → Pfad, OrdinalIgnoreCase.
+    /// Eine Abfrage ohne Parameterliste (Teileliste, Bestandsuebersicht, Lagerbestellung).</summary>
+    Task<Dictionary<string, string>> GetFraesenPfadeAsync();
     /// <summary>v1.99.52: Hauptlagerplatz (<c>PrimaryStorageLocationId</c>) je ArticleId, nur Artikel mit gesetztem FK – eine Abfrage.</summary>
     Task<Dictionary<int, int>> GetPrimaryStorageLocationIdsAsync(IReadOnlyCollection<int> articleIds);
     /// <summary>Exakt, getrimmt, ohne Gross/Klein; DUMMY ausgeschlossen. Bis zu <paramref name="limit"/> Treffer nach Artikelnummer -

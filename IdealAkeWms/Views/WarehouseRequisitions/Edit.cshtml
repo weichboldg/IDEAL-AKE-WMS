@@ -31,18 +31,26 @@
     </div>
 </div>
 
+@* v1.99.72 (F13, Antwort 24): Spaltenauswahl (Zahnrad) neu, ohne Filter/CSV; Fräsen-Pfad nur bei Schalter an, Standard ausgeblendet *@
+<div class="d-flex justify-content-end mb-1" data-table-toolbar></div>
 <div class="table-responsive">
-    <table class="table table-sm" id="items-table">
+    <table class="table table-sm" id="items-table" data-view-key="WarehouseRequisitionItems">
         <thead>
             <tr>
-                <th>Pos</th><th>Artikel-Nr</th><th>Bezeichnung</th><th>Menge</th><th>ME</th><th>Lagerplatz</th><th></th>
+                <th data-col-key="pos">Pos</th><th data-col-key="article-number">Artikel-Nr</th><th data-col-key="description">Bezeichnung</th>
+                <th data-col-key="quantity">Menge</th><th data-col-key="unit">ME</th><th data-col-key="storage">Lagerplatz</th>
+                @if (Model.FraesenPfade != null)
+                {
+                    <th data-col-key="fraesen-pfad">Fräsen-Pfad</th>
+                }
+                <th></th>
             </tr>
         </thead>
         <tbody>
             @foreach (var i in Model.Items)
             {
                 var requestedInt = (int)Math.Round(i.QuantityRequested, MidpointRounding.AwayFromZero);
-                <tr data-item-id="@i.Id">
+                <tr data-item-id="@i.Id" data-article="@i.ArticleNumber">
                     <td>@i.Position</td>
                     <td>@i.ArticleNumber</td>
                     <td>@i.ArticleDescription</td>
@@ -58,6 +66,11 @@
                     </td>
                     <td>@i.Unit</td>
                     <td class="stock-cell"><span class="text-muted small">…</span></td>
+                    @if (Model.FraesenPfade != null)
+                    {
+                        var pfad = Model.FraesenPfade.GetValueOrDefault(i.ArticleNumber.Trim());
+                        <td><partial name="_FraesenPfad" model="pfad" /></td>
+                    }
                     <td>
                         @if (isDraft)
                         {
@@ -130,13 +143,37 @@
     </div>
 }
 
+<script type="application/json" id="view-config">
+{ "viewKey": "WarehouseRequisitionItems", "supportsReorder": false, "supportsSortDefault": false }
+</script>
+<script type="application/json" id="column-config">
+[
+    { "key": "pos", "label": "Pos", "locked": true, "defaultWidth": null },
+    { "key": "article-number", "label": "Artikel-Nr", "locked": true, "defaultWidth": null },
+    { "key": "description", "label": "Bezeichnung", "locked": false, "defaultWidth": null },
+    { "key": "quantity", "label": "Menge", "locked": false, "defaultWidth": null },
+    { "key": "unit", "label": "ME", "locked": false, "defaultWidth": null },
+    @if (Model.FraesenPfade != null)
+    {
+        @:{ "key": "storage", "label": "Lagerplatz", "locked": false, "defaultWidth": null },
+        @:{ "key": "fraesen-pfad", "label": "Fräsen-Pfad", "locked": false, "defaultWidth": null, "defaultHidden": true }
+    }
+    else
+    {
+        @:{ "key": "storage", "label": "Lagerplatz", "locked": false, "defaultWidth": null }
+    }
+]
+</script>
+
 @section Scripts {
+<script src="~/js/column-preferences.js" asp-append-version="true"></script>
 <script>
 (function() {
     const reqId = @Model.Id;
 
     function loadStock(row) {
-        const articleNumber = row.cells[1].innerText.trim();
+        // v1.99.72: ueber data-article statt cells[1] – die Spaltenauswahl darf Spalten aus-/umstellen
+        const articleNumber = (row.dataset.article || '').trim();
         if (!articleNumber) return;
         fetch(`/api/warehouserequisitions/stock?articleNumber=${encodeURIComponent(articleNumber)}`)
             .then(r => r.json())

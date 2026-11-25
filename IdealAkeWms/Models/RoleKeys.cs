@@ -30,4 +30,7 @@ public static class RoleKeys
     /// <summary>v1.99.35 (Spec 2026-11-13-blechfertigung-bf-auftraege-wicam-csv): Schachtler (Blechfertigung) – BF-Auftraege pruefen, freigeben
     /// (= an WiCAM uebergeben), fertig melden, stornieren. Bestellen darf er auch.</summary>
     public const string Schachtler = "schachtler";
+    /// <summary>v1.99.72 (Spec 2026-11-20-bde-liste-isolierungsfraese-pfad-material, Antworten 12/22/23/25): nur den Fraesen-Pfad am Artikel
+    /// aendern (Aktion Articles/FraesenPfad). Braucht zusaetzlich masterdata_read fuer den Zugang zur Artikelinfo; sonst keine Rechte.</summary>
+    public const string FraesenpfadPflegen = "fraesenpfad_pflegen";
 }

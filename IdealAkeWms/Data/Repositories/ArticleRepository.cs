@@ -131,6 +131,15 @@ public class ArticleRepository : Repository<Article>, IArticleRepository
             .ToDictionaryAsync(a => a.Id, a => a.PrimaryStorageLocationId!.Value);
     }
 
+    public async Task<Dictionary<string, string>> GetFraesenPfadeAsync()
+    {
+        var rows = await _dbSet.AsNoTracking().Where(a => a.CamPath != null)
+            .Select(a => new { a.ArticleNumber, a.CamPath }).ToListAsync();
+        var d = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var r in rows) d.TryAdd(r.ArticleNumber.Trim(), r.CamPath!);
+        return d;
+    }
+
     public async Task<Dictionary<string, string?>> GetMatchcodesByArticleNumbersAsync(IReadOnlyCollection<string> articleNumbers)
     {
         var wanted = articleNumbers.Where(n => !string.IsNullOrEmpty(n)).Distinct().ToList();
@@ -184,6 +193,7 @@ public class ArticleRepository : Repository<Article>, IArticleRepository
             "unit" => ColumnFilterSql.Predicate<Article>(f, a => a.Unit),
             "article-group" => ColumnFilterSql.Predicate<Article>(f, a => a.ArticleGroup),
             "category" => ColumnFilterSql.Predicate<Article>(f, a => a.ArticleCategory!.Name),
+            "fraesen-pfad" => ColumnFilterSql.Predicate<Article>(f, a => a.CamPath), // v1.99.72
             _ => null
         };
         return pred == null ? q : q.Where(pred);
