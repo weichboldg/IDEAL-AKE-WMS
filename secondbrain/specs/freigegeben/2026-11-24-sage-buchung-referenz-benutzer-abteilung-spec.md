@@ -2,7 +2,9 @@
 type: spec
 title: "Sage-Übergabe: Referenz mit Kennung, WMS-Benutzer und Abteilung (Ausbuchung)"
 slug: 2026-11-24-sage-buchung-referenz-benutzer-abteilung-spec
-status: Entwurf
+status: Freigegeben
+freigabe_von: Gerald
+freigabe_am: 2026-11-25
 created: 2026-11-24
 updated: 2026-11-24
 source_backlog: "[[2026-11-24-sage-buchung-abteilung-und-benutzer]]"
@@ -330,4 +332,4 @@ und Abteilung“, plus Eintrag in `secondbrain/tests/testszenarien-index.md`:
    `WMS: SM#…# <Benutzer> Abteilung:<x>` ins **Zeilen-`Memo`** (varchar(max)); die Kennung bleibt im Kopf-Memo (Wiedererkennung). Sage-WE:
    voller Text ins Kopf-Memo (varchar(max), keine Kürzung nötig). → **ja, passt – inkl. ID vom WMS (Gerald 2026-11-25).**
    Damit `Referenz` = `<Kennung> <Abteilung> <Benutzer>` (z. B. `SM#ATI#12345# C1 Gerald Weichbold`), auf 31 Zeichen gekürzt
-   (Kürzungsregel: erst Benutzer am Ende, dann Abteilung; die Kennung nie). Voller Text ins Zeilen-`Memo`.
+   (Kürzungsregel: erst Benutzer am Ende, dann Abteilung; die Kennung nie – bestätigt Gerald 2026-11-25). Voller Text ins Zeilen-`Memo`.

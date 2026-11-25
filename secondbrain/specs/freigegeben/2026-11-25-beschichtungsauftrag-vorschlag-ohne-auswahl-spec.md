@@ -2,7 +2,9 @@
 type: spec
 title: "Bugfix Beschichtungsauftrag: Vorschlag ohne Auswahl, Verpackt-Prüfung bei Übergeben, Entfernen nur im Entwurf, Verpackt oder Entfernen"
 slug: 2026-11-25-beschichtungsauftrag-vorschlag-ohne-auswahl-spec
-status: Entwurf
+status: Freigegeben
+freigabe_von: Gerald
+freigabe_am: 2026-11-25
 created: 2026-11-25
 updated: 2026-11-25
 source_backlog: "[[2026-11-25-beschichtungsauftrag-vorschlag-ohne-auswahl-bug]]"
