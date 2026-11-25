@@ -16,7 +16,7 @@ Isolierfräse-Spec reserviert), höchstes TS 190, höchste ADR 0035, letztes Pak
 | [[2026-11-25-kommissionierauftraege-nachtrag-nachts-spec]] | Spec | 168 | 1.99.70 | 191 | **Testbereit** | fa1b754b, Fotos+Publish 6e426113 | Nachtlauf auf DEV nicht beobachtbar (Q4) |
 | [[2026-11-24-lagerplatz-anlage-wms-nach-sage-spec]] | Spec | – (ADR 0036) | 1.99.71 | 192 (statt 189, vergeben) | **Testbereit** | 5b6fa696, Fotos 47a23d32, QA f085a8da | Live-Sage-Teil: Testlager + GRANTs fehlen (Gerald) |
 | [[2026-11-20-bde-liste-isolierungsfraese-pfad-material-spec]] | Spec | 164, 165 (reserviert) | 1.99.72 | 193 | **Testbereit** | d49a3f39, Fotos 4e8a344c, QA 557f1a9f | P-1 USER_OSBlechdicke (IDEAL-Sage), Rückfragen 15/16 Einmal-Skript |
-| [[2026-11-25-bde-masken-vereinheitlichung-spec]] | Epic (1, 2, 3, 4a, 4b, 5) | 169 (statt 168) | 1.99.73–1.99.78 | 194–199 | offen | | |
+| [[2026-11-25-bde-masken-vereinheitlichung-spec]] | Epic (1, 2, 3, 4a, 4b, 5) | 169 (statt 168) | 1.99.73–1.99.78 | 194–199 | E1 erledigt, E2 läuft | E1 219a69c3 | |
 
 ADR des Epics: 0037 (statt 0036, an die Lagerplatz-Spec vergeben).
 
@@ -34,6 +34,7 @@ ADR des Epics: 0037 (statt 0036, an die Lagerplatz-Spec vergeben).
 - v1.99.71 QA bestanden (f085a8da, Fotos 19-01..19-05 in 47a23d32): DEV beide v1.99.71, Build 0/32 Warnungen, Web 3586/1/0, Dienst 847/0. Befunde N1 (Abbruch beim Dienst-Stopp → Fehler statt Offen, Einzeiler vorgeschlagen), N2 (50014 ohne Sage-PlatzID, AK 13), H1/H2 Hinweise. V1/V2 (Testlager) und GRANTs fehlen in ake_TEST2026; V3 Teil 1+2 belegt (svc_idealakewms, DOTNET_ENVIRONMENT=DEV, AKESQL20/ake_TEST2026). Nichts in Sage angelegt (Tan 4378 unverändert), Schalter Endstand aus. Fotos 19-04/19-05 mit per SQL gesetzten Fehlerzuständen.
 - Isolierfräse v1.99.72: d49a3f39 (Brain 6b8ced5d), SQL/164 AddArticleCamPath + SQL/165 AddBdeTeilelisteLagerbestellungen, ADR 0038, Fallstrick §67, Rolle fraesenpfad_pflegen, AppSettings FraesenPfadAktiv/BdeTeilelisteLagerbestellungArbeitstage, TS-193 (statt 171), Einmal-Skript Fräsen-Pfad nur IDEAL. Index UX_BdeTeilMeldungen_Schluessel Filter `[IsCancelled]=0 AND [WarehouseRequisitionItemId] IS NULL` (Epic vereinigt mit IstAbschliessend=1). Build 0/32, Web 3631/1/0, Dienst 847/0. QA läuft.
 - v1.99.72 QA bestanden (557f1a9f, Fotos 17-08..17-12, 03-09, 10-08 in 4e8a344c): DEV beide v1.99.72, Build 0/32, Web 3631/1/0, Dienst 847/0; Einmal-Skript Trockenlauf DEV IDEAL ok (6 Zeilen ohne gültigen Pfad, AK 20). Endstand Schalter/Werkbank 75/User 8 zurückgesetzt.
+- Epic E1 v1.99.73 (219a69c3, Brain 192e3253): FaAgStatusService + _FaAgSymbole, AG-Status vor Spaltenfilter, Baugruppen-Kinder als Zeilen, Mobil nur unter .bde-tl-seite; TS-194; Build 0/32, Web 3636/1/0, Dienst 847/0.
 
 ## Sammel-Fixes für den Schlusslauf (Auftrag Gerald 2026-11-25)
 Alle Befunde der Specs werden gesammelt und nach der letzten Epic-Etappe in EINEM Fix-Lauf mit eigener Version + qa-agent behoben.
@@ -59,3 +60,4 @@ Alle Befunde der Specs werden gesammelt und nach der letzten Epic-Etappe in EINE
 | F-17 | v1.99.72 QA F-5 | Artikel bearbeiten: bei Validierungsfehler verschwindet die Fräsen-Pfad-Karte | Karte im Fehlerfall wieder rendern |
 | F-18 | v1.99.72 QA F-7 | Einmal-Skript Fräsen-Pfad ohne eigene Standortprüfung (nur Manifest) | DB-Namen-/Standort-Guard im Skript |
 | F-19 | v1.99.72 QA F-9 | vorbestehendes `innerHTML` in WarehouseRequisitions/Edit | auf textContent prüfen |
+| F-20 | Epic E1 | CSV-Export der Teileliste enthält Teile-Zeilen (gemeinsames csv-export.js) | entscheiden; ggf. Kinder-Zeilen im Export ausnehmen |
