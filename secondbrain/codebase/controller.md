@@ -255,3 +255,17 @@ Beschichtungsauftrag-Muster); Zuweisung an den Einkauf ist Hand-Schritt unter `/
   `Close`/`PrintAndClose` nehmen optional `int?[] storageLocationIds` und laufen über `AbschliessenAsync`: Status-Guard (nur
   Submitted/PartiallyDelivered, auch bei Schalter aus), Abschluss + Ausbuchungen in einer Transaktion. Keine neue Rolle
   (`RequireLagerProcessingAccess`: admin, stock, stock_keyuser).
+
+## Nachtrag goal-Lauf 2026-11-25 (v1.99.65–v1.99.69)
+
+Ergänzt die QA-Einträge vom 2026-11-25 (Filter `[RequireStockReadOrEinkaufAccess]`, 301 der alten WE-Routen) – nicht doppelt.
+
+- `StockMovementsController` (v1.99.68, [[2026-11-24-sage-buchung-referenz-benutzer-abteilung-spec]]): zusätzliche Ctor-Abhängigkeit
+  `IProductionWorkplaceRepository`. `AbteilungenAsync` = Werkbank-Namen ohne „nicht in Sage“ (eine Stelle), `AbteilungPruefenAsync` prüft serverseitig
+  (leer = keine, unbekannt = abgewiesen, gespeichert wird der Listen-Name). `Outbound` POST → ModelState-Fehler, `OutboundAllConfirm(…, string? abteilung)`
+  → `WarningMessage` „Unbekannte Abteilung … nichts ausgebucht“; alle Zeilen erhalten dieselbe Abteilung.
+- `BeschichtungsauftraegeController.Bearbeiten` (v1.99.67/69, [[2026-11-25-beschichtungsauftrag-vorschlag-ohne-auswahl-spec]]): Parameter
+  `[Bind(Prefix = "mengen")] Dictionary<int, string>? mengen` (Fix N-1, [[fallstricke]] §64) und reicht `ziel` an `BearbeitenAsync` durch
+  (Übergeben mit 0 Positionen wird vor dem Speichern abgelehnt).
+- `SageBookingQueueController.Index` (v1.99.69, [[2026-11-23-sage-buchungen-gesamtsicht-spec]] B3): `zeigtWe = weModul && (stockRead || Einkauf)` –
+  Modul „Wareneingang zu Bestellung“ aus = keine WE-Zeilen, auch für den Einkauf. Der Zugang selbst (`[RequireStockReadOrEinkaufAccess]`) ist unverändert.

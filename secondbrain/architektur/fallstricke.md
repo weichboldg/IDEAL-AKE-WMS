@@ -2243,3 +2243,19 @@ Code: `hardware-scanner.js` Block „Scannen ohne Feld“, CSS `.hw-scan-bereit`
 - **Regel:** WMS-seitige Verbrauchs-/Entnahmebuchungen (Lagerbestellung v1.99.53) bieten Sage-Plätze nur an, wenn die Entnahme an Sage geht
   (`WarehousePickingController.EntnahmeErlaubt`), und weisen sie serverseitig mit klarer Meldung ab. Gilt für jeden neuen Buchungsweg.
 - **Warum:** Sage bleibt die Quelle für Sage-Plätze; sonst stimmen WMS-Bestand und Bewegungshistorie nicht mehr überein, ohne dass es jemand merkt.
+
+## 64. `Dictionary<int,…>` als Action-Parameter braucht `[Bind(Prefix=…)]` (v1.99.69, [[2026-11-25-beschichtungsauftrag-vorschlag-ohne-auswahl-spec]])
+
+- **Problem:** Ein Action-Parameter `Dictionary<int, string>? mengen` ohne festes Präfix bindet nur, solange das Formular Felder `mengen[<id>]` sendet.
+  Fehlen sie (Beschichtungsauftrag-Entwurf mit 0 Positionen), fällt der Binder auf das **leere Präfix** zurück, liest die übrigen Formularschlüssel
+  (`id`, `rowVersion`, `ziel`, …) als int-Schlüssel und setzt einen ModelState-Fehler unter dem Schlüssel `""`. Die Action meldet dann
+  „Eingabe nicht gespeichert: ungültiger Wert in .“ – jedes Speichern des leeren Entwurfs scheiterte (QA-Befund N-1, Altbestand seit v1.99.41).
+- **Beleg:** `IdealAkeWms.Tests/ModelBinding/DictionaryIntKeyBindingTests.cs` (echter `ParameterBinder` + `FormValueProvider`, ohne TestServer):
+  zwei Formulare ohne Felder → Fehler unter `""`, eins mit Feldern → bindet. Gleicher Testweg wie `NullableIntArrayBindingTests` (§8, `int?[]`).
+- **Fix:** `[Bind(Prefix = "mengen")] Dictionary<int, string>? mengen` in `BeschichtungsauftraegeController.Bearbeiten`.
+- **Latent:** `StockMovementsController.OutboundAllConfirm(… Dictionary<int,string>? stueckGezeigt …)` hat dasselbe Muster; im Weg ohne FA-Filter
+  sendet das Formular keine `stueckGezeigt[..]`-Felder. Heute folgenlos, weil die Action `ModelState.IsValid` nicht prüft – wer dort eine
+  ModelState-Prüfung ergänzt, legt den Fehler frei. Folgearbeit [[2026-11-25-folgearbeit-goal-lauf-sage-beschichtung]].
+- **Regel:** Jeder `Dictionary<int,…>`- (und `int[]`-Index-)Parameter, dessen Felder im Formular fehlen dürfen, bekommt `[Bind(Prefix = "<name>")]`.
+- **Warum:** Der Fehler zeigt sich nur im Randfall „keine Zeilen“ und mit einer Meldung ohne Feldnamen; Tests mit direktem Action-Aufruf binden nicht
+  und sehen ihn nie. Nur die echte Bindung belegt ihn.

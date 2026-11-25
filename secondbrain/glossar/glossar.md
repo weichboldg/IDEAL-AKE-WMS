@@ -219,3 +219,11 @@ Kommissionierwagen, Sage-Wareneingangsbeleg (ELL), Rahmenabruf (EBZ), Kreditor/D
 |---|---|
 | AG-Anlage (Sage-FA) | Ein Arbeitsgang (Sage-AG eines Kürzels), den der Dienst als AG-Position im Sage-Fertigungsauftrag anlegt; Tabelle `SageFaArbeitsgangAnlagen`, Schalter `SageFaArbeitsgaengeAnlegenAktiv`. v1.99.38 |
 | in Sage vorhanden (AG-Anlage) | Der Dienst fand die Sage-AG vor dem Senden schon am FA und hat nichts gesendet (`SageFaArbeitsgangStatus.InSageVorhanden` = 4). |
+
+| Begriff | Bedeutung |
+|---|---|
+| Sage-Buchungen | Seite `/SageBookingQueue` (Lager), seit v1.99.66 die eine Liste für alles, was an Sage geht: vormals „Sage-Lagerbuchungen“ (Queue) **und** „Sage-Wareneingänge“ (WE-Belege). [[2026-11-23-sage-buchungen-gesamtsicht-spec]] |
+| Herkunft (Sage-Buchungen) | Woher eine Zeile stammt: Einbuchung, Ausbuchung, Umbuchung, Lagerbestellung, Wareneingang (`SageBuchungHerkunft`); Lagerbestellung hat Vorrang vor der Bewegungsart. |
+| Anzeigestatus (Sage-Buchungen) | Gemeinsamer Status beider Wege: wartet, gesendet, übergeben, Fehler, klären (`SageBuchungAnzeige`); nur Anzeige, keine DB-Spalte. Offen = alles außer übergeben. |
+| Status im Weg | Spalte der Sage-Buchungen mit dem Originalstatus des jeweiligen Wegs (Queue-Status bzw. Sage-WE-Status), neben dem Anzeigestatus. |
+| Abteilung (Sage-Referenz) | Werkbank-Name, optional bei Ausbuchung und Lagerplatz ausbuchen gewählt, als Schnappschuss in `StockMovements.Abteilung`; geht in die Sage-`Referenz` (≤ 31 Zeichen) und das Zeilen-Memo. Nicht die Abteilung der Vormontage-Listen. v1.99.68, [[2026-11-24-sage-buchung-referenz-benutzer-abteilung-spec]] |

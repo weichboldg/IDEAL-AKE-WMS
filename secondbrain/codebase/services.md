@@ -525,3 +525,31 @@ Quellen-Weiche je Abgleich: [[0019-quellen-weiche-view-sdata-je-abgleich]]. Ordn
 - `Services/AusbuchungBestandsregel.PruefeAsync` – eine Regel für Warenausgang und Lagerbestellung: `NegativeBuchungErlaubt` → Fehlbestand auf
   `NegativeBuchungLagerplatz`, sonst Zeile abweisen.
 - Kein Dienst-Code geändert; die Sage-Entnahme läuft über den bestehenden Decorator → Queue → `SageBookingWorker`.
+
+## Sage-Buchungen Gesamtsicht und Sage-Referenz (v1.99.66–v1.99.69, Lauf [[2026-11-25-goal-lauf-beschichtung-sage-buchungen]])
+
+- `Services/SageBuchungenGesamtsicht.cs` (Web, **statisch**, DB-frei, v1.99.66, [[2026-11-23-sage-buchungen-gesamtsicht-spec]]): Enums
+  `SageBuchungAnzeige` (Wartet, Gesendet, Uebergeben, Fehler, Klaeren) und `SageBuchungHerkunft` (Einbuchung, Ausbuchung, Umbuchung,
+  Lagerbestellung, Wareneingang); `Anzeige(SageBookingQueueStatus)`/`Anzeige(SageWareneingangStatus)` (NichtNoetig/NurInSage = null, nicht anzeigen),
+  `Herkunft(StockMovement)` (Lagerbestellung vor Bewegungsart), `ErfasstVon` (Nacherfassung mit „(nacherfasst)“), `ImZeitraum` (bis = ganzer Tag),
+  `Build`, `MarkiereErsteJeVorgang` (WE-Knöpfe nur an der ersten Zeile eines Vorgangs), `Spalten` (Zelltexte für View **und** Server-Spaltenfilter).
+  `StandardTage = 30`.
+- Repository-Signaturen seit v1.99.66: `ISageBookingQueueRepository.GetForMonitoringAsync(DateTime von, DateTime? bis)` (Zeitraum + alle offenen,
+  statt Status-Parameter) und `IPurchaseOrderReceiptRepository.GetSageWareneingaengeAsync(string? bestellung, DateTime von, DateTime? bis)`
+  (ohne NichtNoetig/NurInSage, Übergebene nur im Zeitraum, Status filtert die Seite). `PurchaseOrdersController.SageWeListeAsync` entfällt.
+- `IDEALAKEWMSService/Services/SageReferenz.cs` (v1.99.68, statisch, [[2026-11-24-sage-buchung-referenz-benutzer-abteilung-spec]]):
+  `Kurz(kennung, abteilung, benutzer)` = `<Kennung> <Abteilung> <Benutzer>`, `ReferenzMaxLaenge = 31` (`KHKLagerplatzbuchungen.Referenz`
+  varchar(31)), am Ende gekürzt (erst Benutzer, dann Abteilung, Kennung nie); `Voll(kennung, benutzer, abteilung)` = `WMS: <Kennung> <Benutzer>[ Abteilung:<x>]`.
+- Lagerbuchungs-Payload (`SageLagerbuchungPayloadBuilder`): je Zeile `Referenz` = `Kurz`, `Memo` = `Voll`; das **Kopf-Memo bleibt unverändert**
+  `SageBookingCorrelation.Memo(kennung)` (Korrelation/Lookup). Benutzer und Abteilung kommen aus der Bewegung (`CreatedBy`, `Abteilung`), nie aus dem
+  Queue-Eintrag – Requeue/Recovery/Nacherfassung senden denselben Text.
+- Sage-WE-Kopf-Memo (`SageWareneingangPayload`): `WMS: WE#…# <Benutzer>` über `SageReferenz.Voll`, Benutzer aus `PurchaseOrderReceipt.CreatedBy`;
+  `WE#…#` bleibt enthalten, Memo-Suche und Wiedererkennung gültig.
+- Offen (P-2, nur Mensch am Sage-Testsystem): ob Sage die gesendete Zeilen-`Referenz` übernimmt (heute füllt Sage sie aus dem Kopf-Memo) und das Zeilen-Memo zeigt.
+
+## Beschichtungsauftrag-Workflow (v1.99.65/v1.99.67, [[2026-11-25-beschichtungsauftrag-vorschlag-ohne-auswahl-spec]])
+
+- `BeschichtungsauftragWorkflow.Entfernbar(status, verpackt)`: eine Regel für Server und Detailseite – Entfernen im Entwurf immer, in Übergeben nur
+  mit gespeichertem Haken „offen“. `AnlegenAsync` mit `auswahl` null/leer = alle freien Positionen, offen.
+- `PositionBezeichnung` (internal) seit v1.99.67 mit VaterFA: `Artnr (Pos. n, VaterFA v)`, ohne FA `(ohne FA)`. `BearbeitenAsync(…, ziel)` lehnt
+  Übergeben mit 0 verbleibenden Positionen vor dem Speichern ab.

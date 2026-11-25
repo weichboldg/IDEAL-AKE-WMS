@@ -308,3 +308,9 @@ oben ist durch SQL/149 ueberholt (jetzt 45).
   int NULL, FK → `WarehouseRequisitionItems` (NO ACTION), Index. Kennzeichnet die Entnahme einer Lagerbestellungs-Position; Summe je Position
   über `IStockMovementRepository.GetAusgebuchtJeLagerbestellPositionAsync` (Basis für „Ist minus schon gebucht“).
   [[2026-11-23-lagerbestellung-verbrauchsbuchung-bei-lieferung-spec]]
+
+- `StockMovements.Abteilung` (v1.99.68, SQL/167, Migration `20261125134408_AddStockMovementAbteilung`): nvarchar(200) NULL, additiv, kein Backfill.
+  Schnappschuss des Werkbank-Namens (`ProductionWorkplace.Name`, nur Werkbänke ohne „nicht in Sage“), gesetzt **nur** bei Ausbuchung und Lagerplatz
+  ausbuchen (`StockMovementsController.Outbound`/`OutboundAllConfirm`, serverseitig gegen die Liste geprüft); alle anderen Schreibwege lassen NULL.
+  Kein Update-Weg. Gelesen nur von `SageLagerbuchungPayloadBuilder` (Sage-Referenz) und der Spalte „Abteilung“ in Sage-Buchungen.
+  [[2026-11-24-sage-buchung-referenz-benutzer-abteilung-spec]]
