@@ -84,5 +84,5 @@ Alle Befunde der Specs werden gesammelt und nach der letzten Epic-Etappe in EINE
 | F-35 | Epic-QA N4 | „Meine Buchungen“ ohne Sub-FA (wie altes Terminal) | Sub-FA ergänzen |
 | F-36 | Epic-QA N6 | Alle Einzel-Haken wieder gesetzt → Summen-Haken kommt nicht zurück | koppeln |
 | F-37 | Epic-QA N7 | Kollisionsdialog: Fokus auf Dialog statt „OK“ | Fokus auf OK |
-| F-38 | Epic-QA N9 | QA legte 3 Tabellen in lokaler DB `.`/IDEAL_AKE_WMS an (BfAuftraege, BfAuftragPositionen, SageFaArbeitsgangAnlagen) | Gerald entscheidet, nicht löschen |
+| F-38 | Epic-QA N9 | QA legte 3 Tabellen in lokaler DB `.`/IDEAL_AKE_WMS an (BfAuftraege, BfAuftragPositionen, SageFaArbeitsgangAnlagen) | **Erledigt 2026-11-25: bleiben.** Lokale DB PC-WEICHBOLD/MSSQLSERVER (nicht DEV, nicht AKESQL20); `__EFMigrationsHistory` führt 20261117154645_AddBfAuftraege + 20261117192807_AddSageFaArbeitsgangAnlagen bereits als angewendet → Tabellen machen die Kopie konsistent, Löschen würde sie brechen; leer, kein Repo-Verweis auf diese DB |
 | F-39 | Epic-QA N10 | FreshInstall ohne History-Zeile `20260910081155_AddProductionOrderMatchcode` (Altbestand) | nachtragen |
