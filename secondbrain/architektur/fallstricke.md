@@ -2244,6 +2244,25 @@ Code: `hardware-scanner.js` Block „Scannen ohne Feld“, CSS `.hw-scan-bereit`
   (`WarehousePickingController.EntnahmeErlaubt`), und weisen sie serverseitig mit klarer Meldung ab. Gilt für jeden neuen Buchungsweg.
 - **Warum:** Sage bleibt die Quelle für Sage-Plätze; sonst stimmen WMS-Bestand und Bewegungshistorie nicht mehr überein, ohne dass es jemand merkt.
 
+## 63. Sage-SData mit `select`: jedes `orderBy`-Feld muss auch im `select` stehen (AKE-Prod 2026-11-24, [[2026-11-24-hotfix-deploy-ake-test-startkennwort]])
+
+- **Problem:** AKE-Prod-SData baut bei gesetztem `select` ein `GROUP BY <select-Felder>` in die Paging-CTE
+  (`WITH PGCTE AS (SELECT "Ressourcenummer", ROW_NUMBER() OVER (ORDER BY "Ressourcenummer" asc, "BelPosID" asc) ... GROUP BY Ressourcenummer)`).
+  Ein `orderBy`-Feld ausserhalb des `select` ergibt dann HTTP 500 („... ist in der Auswahlliste ungültig, da sie nicht in einer Aggregatfunktion
+  und nicht in der GROUP BY-Klausel enthalten ist“). Getroffen: Artikel-Sync `PpsRessourcenPositionenInfo` (select `Ressourcenummer`, orderBy
+  `+BelPosID`) und Artikel-Lieferanten `ArtikelVariantenExtended` (select `Artikelnummer,Hauptlieferant`, orderBy `+AuspraegungID`, SyncLogs Id 4883802).
+- **Tückisch:** Der AKE-Test (`sagetest01`, `ake_TEST2026;1`) gruppiert NICHT – dieselbe Abfrage lief dort am 2026-11-13 mit 240.552 Zeilen in
+  49 Seiten (DEV-Dienstlog `service-20261113.log`). Der Fehler ist am Testsystem nicht nachstellbar.
+- **Folge des Gruppierens:** Bei `select` ohne eindeutigen Schlüssel liefert Prod nur die verschiedenen Wertkombinationen (DISTINCT), nicht jede Zeile.
+  Wer echte Zeilen braucht (Mengen summieren, Positionen zählen), muss den Schlüssel ins `select` nehmen.
+- **Regel:** `orderBy`-Felder ⊆ `select`-Felder, oder ohne `select` lesen. **Zentral umgesetzt (`f420e23e`):**
+  `SageSdataReadClient.BuildQueryUrl` hängt über `MitSortfeldern` jedes fehlende Sortfeld an das `select` an (Vergleich ohne Gross/Klein, Trim,
+  `asc`/`desc` abgeschnitten) – gilt für `QueryAllAsync`; `QueryPageAsync` liest ohne `select`. Der RealTimeData-Weg (`GetAsync`, eigener URL-Bau)
+  ist NICHT abgedeckt – dort heute überall `BelID` in Feldliste und Sortierung. Mit eindeutigem Sortschlüssel im `select` ist die Gruppierung
+  wirkungslos und `$totalResults` zählt dieselben Zeilen, die geliefert werden. Deshalb Sortierung immer mit eindeutigem Schlüssel lassen
+  (der Einzel-Fix `c505688f` wurde mit `c476a628` zurückgenommen).
+- **Warum:** Ein einzelnes Sage-Verhalten auf Prod liess zwei Abgleiche komplett fehlschlagen, obwohl sie am Test grün waren.
+
 ## 64. `Dictionary<int,…>` als Action-Parameter braucht `[Bind(Prefix=…)]` (v1.99.69, [[2026-11-25-beschichtungsauftrag-vorschlag-ohne-auswahl-spec]])
 
 - **Problem:** Ein Action-Parameter `Dictionary<int, string>? mengen` ohne festes Präfix bindet nur, solange das Formular Felder `mengen[<id>]` sendet.
