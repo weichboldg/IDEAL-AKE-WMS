@@ -2314,3 +2314,14 @@ Code: `hardware-scanner.js` Block „Scannen ohne Feld“, CSS `.hw-scan-bereit`
   trägt denselben Filter (SQL/165). Neuer Leseweg = Art ausdrücklich wählen.
 - **Regel:** Der Formular-Schlüssel `LB|<Id>` wird vor `TeilSchluessel.Parse` abgetrennt; ein ungültiger Schlüssel weist die ganze Anfrage ab.
 - **Warum:** Ein Platzhalter-Wert (0) ist kein Filter – „HauptFA 0 kommt nie vor“ war schon bei `SubFA = 0` falsch (ADR [[0038-teilmeldung-auch-fuer-lagerbestell-positionen]]).
+
+## 68. Kartenansicht per CSS: `display` an Zeilen schlägt Bootstraps `.collapse` (v1.99.73, [[2026-11-25-bde-masken-vereinheitlichung-spec]])
+
+- **Problem:** Die Baugruppen-Teile der BDE-Teileliste sind `<tr class="collapse">`. Eine Kartenregel wie `.bde-tl-seite tr { display: flex }`
+  hat höhere Spezifität (0,1,1 + Scope) als Bootstraps `.collapse:not(.show) { display: none }` (0,2,0 nur bei gleichem Scope) und macht damit
+  **alle zugeklappten Teile sichtbar** – die Liste sieht am Handy „voll“ aus, obwohl nichts aufgeklappt ist (Mobil-Spec Befund B7).
+- **Regel:** Karten-`display` nur an `tr:not(.collapse)` und `tr.collapse.show` setzen, nie an `tr` allgemein. Zellen-`display` **ohne**
+  `!important` (B6): die Spaltenauswahl blendet Zellen per Inline-Stil `display:none` aus, `!important` würde sie wieder zeigen.
+- **Warum:** Sichtbarkeit steuern hier zwei Mechanismen (Bootstrap-Collapse per Klasse, Zahnrad per Inline-Stil); eine Layout-Regel, die
+  `display` setzt, überschreibt beide still. Der Fehler zeigt sich nur unter der Kartenschwelle und nur mit zugeklappten Kinderzeilen –
+  kein Test sieht ihn (TS-194.4 Schritt 5 prüft ihn von Hand).

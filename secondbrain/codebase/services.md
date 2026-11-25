@@ -460,6 +460,10 @@ Quellen-Weiche je Abgleich: [[0019-quellen-weiche-view-sdata-je-abgleich]]. Ordn
   `BdeTL:W{wp}:O{op}`); `BeschichtungResolver.BeschichtetPosition` für die Spalte „Beschichtet“.
 - Dienst: `WorkOperationStructureDetectionService` überspringt Blatt-Kürzel von Teileliste-Werkbänken, Count `teileliste_blatt_uebersprungen`.
   Kein neuer ServiceSetting-Key.
+- v1.99.73 (AG-Status, [[2026-11-25-bde-masken-vereinheitlichung-spec]] Etappe 1): `IdealAkeWms/Services/FaAgStatusService.cs` lädt die
+  Arbeitsgang-Symbole an EINEM Ort (Namen immer, Status nur bei `BdeAktiv`) – genutzt von `FaHierarchyController` und `BdeTeilelisteService`
+  (dort je Haupt-FA flache Struktur, danach `TeilmeldungenAnwenden`: Teilmeldung = erledigt). Markup `Views/Shared/_FaAgSymbole.cshtml`.
+  `TeilelisteZeile.Kinder` sind Zeilen (Symbole, `Treffer`, `Aufgeklappt`).
 
 ## OperationConfigSync: Sage-Arbeitsgangnummer (v1.99.27)
 

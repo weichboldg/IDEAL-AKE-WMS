@@ -59,12 +59,12 @@ affected_code:
 open_questions: []
 epic: true
 etappen:
-  - "1 Teile Einzeln: AG-Status, Baugruppen-Kinder als Zeilen, Filter auf Kinder, Teile-Knopf vorn, BDE mobil kompakt (v1.99.70, TS-191, keine Migration)"
-  - "2 Teile Summiert: Einzelauftraege aufklappbar, Summen-Haken, aggregierte Ampel (v1.99.71, TS-192, keine Migration)"
-  - "3 Teilfertigmeldung mit Restmenge, ADR 0036, Baugruppe als Teil-Buchung; SQL/168 legt zusaetzlich die Spalte BdeStandardsichtTeile an (ohne Leser bis Etappe 4a) (v1.99.72, TS-193, SQL/168)"
-  - "4a Wirksamkeits-Helfer, Feld/Maske BDE-Standardsicht, Reiter, FA-Tabelle + Anstempeln je Zeile, FA-Sicht auch an AKE (v1.99.73, TS-194, keine weitere Migration)"
-  - "4b FA-Sicht Kopf-Buchungen, Modals (Mengen/Kollision/Gruppe/Close-Others), Scan, Taetigkeit, NurAg-Fertig je Zeile (v1.99.74, TS-195, keine Migration)"
-  - "5 Tageshistorie eigene Seite + Knopf, alte Terminal-Seite an beiden Standorten abgeloest und entfernt (v1.99.75, TS-196, keine Migration)"
+  - "1 Teile Einzeln: AG-Status, Baugruppen-Kinder als Zeilen, Filter auf Kinder, Teile-Knopf vorn, BDE mobil kompakt (v1.99.73, TS-194, keine Migration)"
+  - "2 Teile Summiert: Einzelauftraege aufklappbar, Summen-Haken, aggregierte Ampel (v1.99.74, TS-195, keine Migration)"
+  - "3 Teilfertigmeldung mit Restmenge, ADR 0037, Baugruppe als Teil-Buchung; SQL/169 legt zusaetzlich die Spalte BdeStandardsichtTeile an (ohne Leser bis Etappe 4a) (v1.99.75, TS-196, SQL/169)"
+  - "4a Wirksamkeits-Helfer, Feld/Maske BDE-Standardsicht, Reiter, FA-Tabelle + Anstempeln je Zeile, FA-Sicht auch an AKE (v1.99.76, TS-197, keine weitere Migration)"
+  - "4b FA-Sicht Kopf-Buchungen, Modals (Mengen/Kollision/Gruppe/Close-Others), Scan, Taetigkeit, NurAg-Fertig je Zeile (v1.99.77, TS-198, keine Migration)"
+  - "5 Tageshistorie eigene Seite + Knopf, alte Terminal-Seite an beiden Standorten abgeloest und entfernt (v1.99.78, TS-199, keine Migration)"
 deploy:
   web: true
   service: true
@@ -694,34 +694,34 @@ Seite ab, `BdeTeilelisteController.cs:87-91`). Konten sind noch nicht angelegt. 
 Nummern vorlaeufig (letztes TS-190, `docs/TESTSZENARIEN.md:13864`; der Dev-Lauf prueft neu). Bestehendes TS-152 (Teileliste) bleibt und bekommt Verweise.
 Die geplante TS-165 der Mobil-Spec entfaellt.
 
-- **TS-191 Teileliste AG-Status, Baugruppen-Kinder, mobil** – Vorbedingung IDEAL-DEV, Werkbank mit Kuerzel und `BdeTeileliste` an, Baugruppe mit ≥ 2 Kindern,
+- **TS-194 Teileliste AG-Status, Baugruppen-Kinder, mobil** – Vorbedingung IDEAL-DEV, Werkbank mit Kuerzel und `BdeTeileliste` an, Baugruppe mit ≥ 2 Kindern,
   ein AG ueberfaellig. Schritte: Spalte pruefen (Symbole, Screenreader-Text), aufklappen, Filter auf Kind-Matchcode, sortieren, Zahnrad, Handy-Breite 360 px
   (Filter eingeklappt, Karten, 44 px). Negativ: Filter ohne Treffer → Leerzustand; Terminal-Seite optisch unveraendert.
-- **TS-192 Summiert aufklappen, Summen-Haken, Ampel** – Gruppe mit 3 Auftraegen verschiedener FE-Termine. Schritte: Reihenfolge, Summen-Haken,
+- **TS-195 Summiert aufklappen, Summen-Haken, Ampel** – Gruppe mit 3 Auftraegen verschiedener FE-Termine. Schritte: Reihenfolge, Summen-Haken,
   Teilauswahl, Fertigmelden. Negativ: Summen-Haken + einzelnes Abwaehlen; bereits gemeldeter Auftrag erscheint nicht als waehlbar.
-- **TS-193 Teilfertigmeldung** – Teilfertig 3/10, 4/10, Fertig mit Rest, Ruecknahmen, Baugruppe Teil/Fertig (Buchung in BDE-Buchungen pruefen),
+- **TS-196 Teilfertigmeldung** – Teilfertig 3/10, 4/10, Fertig mit Rest, Ruecknahmen, Baugruppe Teil/Fertig (Buchung in BDE-Buchungen pruefen),
   Admin-Liste Art; nach Teilfertig bzw. Fertig per SQL auf DEV pruefen: `IstAbschliessend = 0` bzw. `1` (AK 18a, Antwort 16 – nur gegen SQL Server
   aussagekraeftig). Uebermeldung (Antwort 18, AK 15a): bei 7/10 Teilfertig 5 → gespeichert, Zeile offen, „gemeldet 12 von 10“, Hinweis „Sollmenge
   erreicht – bitte Fertig melden“ sichtbar; danach Fertig (Vorgabe 0) schliesst. Negativ: Teilfertig ohne Menge; zweites Fertig; paralleles Fertig von
   zwei Geraeten (nur eines gewinnt); Ruecknahme nach Frist.
-- ~~**TS-194 FA-Sicht** – IDEAL-DEV: Anstempeln, Kopf-Buchungen, Pause/Fortsetzen, Teilfertig, Fertig mit Gruppenpflicht, Close-Others, Kollision,
-  Taetigkeit, Scan (exakt/mehrdeutig/unbekannt), …~~ *(ueberholt, Antwort 19: geteilt in TS-194 (4a) und TS-195 (4b))*
-- **TS-194 FA-Sicht Tabelle, Anstempeln, Standardsicht (Etappe 4a)** – IDEAL-DEV: FA-Reiter, Reihenfolge, fremd/eigen laufend, Anstempeln Ruesten/Produktion,
+- ~~**TS-197 FA-Sicht** – IDEAL-DEV: Anstempeln, Kopf-Buchungen, Pause/Fortsetzen, Teilfertig, Fertig mit Gruppenpflicht, Close-Others, Kollision,
+  Taetigkeit, Scan (exakt/mehrdeutig/unbekannt), …~~ *(ueberholt, Antwort 19: geteilt in TS-197 (4a) und TS-198 (4b))*
+- **TS-197 FA-Sicht Tabelle, Anstempeln, Standardsicht (Etappe 4a)** – IDEAL-DEV: FA-Reiter, Reihenfolge, fremd/eigen laufend, Anstempeln Ruesten/Produktion,
   Kollision als sichtbare Meldung (nichts gebucht), neue Auswahl „BDE-Standardsicht“ neben dem unveraenderten Schalter „BDE-Teileliste“, gemerkte Sicht,
   Werkbank ohne Kuerzel (Teile-Reiter deaktiviert), ~~Werkbank mit Kuerzel aber `BdeTeileliste` aus (Teile-Reiter mit Banner, Baugruppen-Teilmeldung
   wird gebucht)~~ *(ueberholt, Antwort 15)* Werkbank mit Kuerzel aber `BdeTeileliste` aus (Teile-Reiter deaktiviert mit Hinweis, nur FA; direkter POST
-  auf `Melden` abgewiesen, AK 31), Pruefung nach SQL/168: vorbelegte Standardsicht an den bisherigen Teileliste-Werkbaenken. AKE-DEV (Worktree-Stand, nie main):
+  auf `Melden` abgewiesen, AK 31), Pruefung nach SQL/169: vorbelegte Standardsicht an den bisherigen Teileliste-Werkbaenken. AKE-DEV (Worktree-Stand, nie main):
   BDE an einer Werkbank aktivieren, FA-Sicht oeffnen, keine Teile-Reiter, Anstempeln. Negativ: „Teile“ ohne Kuerzel bzw. ohne `BdeTeileliste`
   speichern; `BdeTeileliste` ausschalten bei Standardsicht „Teile“ (Fehler, nichts gespeichert); manipulierter
   POST „Teile“ an AKE; `workplaceId` einer nicht BDE-aktiven Werkbank (kein Redirect-Kreis); `BdeNurFaMeldung = true` auf DEV setzen → FA-Sicht
   unveraendert, Server-Abweisungen aus den NurFA-Alt-Zweigen sind erwartete Restabweichung (Antwort 22, AK 32c), danach zuruecksetzen.
-- **TS-195 FA-Sicht Kopf-Buchungen, Dialoge, Scan, Taetigkeit (Etappe 4b)** – IDEAL-DEV und AKE-DEV (Worktree-Stand): Kopf-Buchungen laufend/pausiert,
+- **TS-198 FA-Sicht Kopf-Buchungen, Dialoge, Scan, Taetigkeit (Etappe 4b)** – IDEAL-DEV und AKE-DEV (Worktree-Stand): Kopf-Buchungen laufend/pausiert,
   Teilfertig/Pause/Fertig/Fortsetzen, Detailangaben-Schalter (gemerkt), NurAg-„Fertig melden“ je Zeile mit Mengen-Dialog, Taetigkeit starten/beenden,
   Scan (exakt/mehrdeutig/unbekannt). Je ein Fall nach AK 26: Kollision (Dialog mit Werkername, Werkbank, Uhrzeit; nichts gebucht), Gruppenpflicht
   (Tabelle aller FAs der Gruppe, „Alle fertig melden“ bucht je FA die Menge mit `IsFinal` laut Haken), Close-Others (Liste der anderen Werker, „Ja, alle
   beenden“ beendet deren Buchungen). Negativ: Gruppen-Dialog „Abbrechen“ bucht nichts; Close-Others „Nein, nur meine“ laesst die anderen laufen;
   Doppelklick auf Start bucht nur einmal.
-- ~~**TS-195 Tageshistorie und Abloesung**~~ *(umnummeriert, Antwort 19)* **TS-196 Tageshistorie und Abloesung (Etappe 5)** – Menue, Knopf, Inhalt (Buchungen + Teilmeldungen), Pagination; Aufruf `BdeTerminal/Index` an IDEAL- **und**
+- ~~**TS-198 Tageshistorie und Abloesung**~~ *(umnummeriert, Antwort 19)* **TS-199 Tageshistorie und Abloesung (Etappe 5)** – Menue, Knopf, Inhalt (Buchungen + Teilmeldungen), Pagination; Aufruf `BdeTerminal/Index` an IDEAL- **und**
   AKE-DEV → Redirect auf die neue Seite; `/Settings` zeigt `BdeTerminalMaxHauptFa` nur noch als verwaist; Anmeldung am Android-Handy mit lokalem
   WMS-Konto + Terminal (sobald ein Konto angelegt ist, sonst als offen vermerken). Negativ: Benutzer ohne Terminal → Hinweis wie heute.
 
@@ -736,13 +736,53 @@ Jede Etappe: `frontend-design` explizit aufrufen, Kontrast messen, Ampel nie nur
 
 | # | Etappe | Status | Commit |
 |---|--------|--------|--------|
-| 1 | Teile Einzeln: AG-Status (Status-Ladung und Symbol-Partial aus FA-Struktur herausgezogen), Kinder als Zeilen, Filter auf Kinder, Teile-Knopf vorn, BDE mobil kompakt (992 px, 44 px, Spaltenfilter in Karten nicht bedienbar – Antworten 8–10). Doku: Kapitel 17 Abschnitt 2 + Fotos `17-03`, Handy-Foto. v1.99.70, TS-191, keine Migration. | offen | |
-| 2 | Teile Summiert: Einzelauftraege aufklappbar, Summen-Haken, aggregierte Ampel ueber `Ableiten` (Antwort 11). Doku: Kapitel 17 Abschnitt 5 + Foto `17-06`. v1.99.71, TS-192, keine Migration. | offen | |
-| 3 | Teilfertigmeldung: Migration + SQL/168 + FreshInstall, Service/Controller/Dialog, Ruecknahme, Waisen, Baugruppe `istFinal`, Admin-Spalte Art, ADR 0036. **Dieselbe Migration legt `ProductionWorkplaces.BdeStandardsichtTeile` an und belegt sie vor** (Antwort 3a; Model-Property ohne Leser bis Etappe 4a – Reihenfolge geprueft, siehe Etappe-3-Entwurf). Defaults beider Spalten nur in Migration/SQL/FreshInstall, kein `HasDefaultValue`, `IstAbschliessend` immer explizit gesetzt (Antwort 16, AK 18a). Index nach Antwort 12: wer zweitens baut, vereinigt den Filter mit SQL/164 – der Dev-Lauf prueft beim Start, ob SQL/164 schon im Branch liegt. Uebermeldung bei Teilfertig erlaubt mit Hinweis (Antwort 18, AK 15a). Doku: Kapitel 17 Abschnitte 3/4/6/7 + Fotos `17-05`, `17-07`. v1.99.72, TS-193. | offen | |
-| 4 | ~~FA-Sicht an beiden Standorten: Wirksamkeits-Helfer … `TeilelisteWirksam` entfernt, `BdeBookingService` mit Master-Lesung, … Banner, …~~ *(ueberholt, Antwort 15)* FA-Sicht an beiden Standorten: Wirksamkeits-Helfer ohne NurFA (`SeiteVerfuegbar`, `TeilelisteWirksam(w)` ohne `nurFa`, `TeileSichtVerfuegbar` = Master && `TeilelisteWirksam`, `TeileStandard` ueber `BdeStandardsichtTeile`), Gate `BdeBookingService.cs:288` inhaltlich wie heute (ohne `nurFa`, ohne Master, kein neuer Ctor-Parameter), Zeilenquelle als gemeinsame Service-Methode, View `Fa`, AG-Status aller AG der Sub-FA (Antwort 4), Kopf-Buchungen, Modal-Partials, Scan, Standardsicht-Auswahl neben `BdeTeileliste` („Teile“ nur mit `BdeTeileliste`), Teile-Reiter nur mit `BdeTeileliste` (sonst deaktiviert mit Hinweis, kein Banner), gemerkte Sicht, Pagination statt MaxHauptFa (Antwort 14). Doku: Kapitel 17 (Maske, Reiter, Foto `17-01`) + Kapitel 11 FA-Sicht (neue Fotos). v1.99.73, TS-194, keine weitere Migration. *(ueberholt, Antwort 19: aufgeteilt in 4a und 4b)* | – | |
-| 4a | FA-Sicht Grundgeruest an beiden Standorten (Antwort 19): Wirksamkeits-Helfer ohne NurFA (`SeiteVerfuegbar`, `TeilelisteWirksam(w)` ohne `nurFa`, `TeileSichtVerfuegbar` = Master && `TeilelisteWirksam`, `TeileStandard` ueber `BdeStandardsichtTeile`) samt Aufrufer-Umstellung, Gate `BdeBookingService.cs:288` inhaltlich wie heute (ohne `nurFa`, ohne Master, kein neuer Ctor-Parameter), Zeilenquelle als gemeinsame Service-Methode, View `Fa` mit Spalten/Filter/Pagination statt MaxHauptFa (Antwort 14), AG-Status aller AG der Sub-FA (Antwort 4), Anstempeln Ruesten/Produktion je Zeile (Kollision als sichtbare Meldung), Werkbank-Maske mit Standardsicht-Auswahl neben `BdeTeileliste` („Teile“ nur mit `BdeTeileliste`), Liste `ProductionWorkplaces`, Teile-Reiter nur mit `BdeTeileliste` (sonst deaktiviert mit Hinweis), gemerkte Sicht. AK 23, 24 (4a-Teil), 28–32d. Doku: Kapitel 17 (Maske, Reiter, Foto `17-01`) + Kapitel 11 FA-Sicht (Foto `11-05`). v1.99.73, TS-194, keine weitere Migration. | offen | |
-| 4b | FA-Sicht Bedienung (Antwort 19): Kopf-Buchungen laufend/pausiert mit Teilfertig/Pause/Fertig/Fortsetzen und Detailangaben-Schalter, `bde-fa-sicht.js`, Modal-Partials aus `Views/BdeTerminal/Index.cshtml` (Mengen, Kollision, Gruppe, Close-Others; beide Seiten nutzen sie bis Etappe 5), Scanzeile, Taetigkeit, NurAg-„Fertig melden“ je Zeile. AK 24 (4b-Teil), 25, 26, 27. Doku: Kapitel 11 Kopf/Dialoge/Scan (Foto `11-06`). v1.99.74, TS-195, keine Migration. | offen | |
-| 5 | Tageshistorie inkl. Teilmeldungen (Seite, Knopf, NavZiel; Antwort 5), `BdeTerminal/Index` leitet an beiden Standorten immer um, alte View + `bde-terminal.js` geloescht, `BdeTerminalMaxHauptFa` entfernt, Katalogtext `BdeNurFaMeldung`, Betriebsdoku Handy-Konten (Antworten 1, 2, 6). Doku: Kapitel 11 umgeschrieben, Terminal-Fotos `11-01`–`11-04` ersetzt, Tageshistorie-Foto, Index-Titel 11/17 (Antwort 17). v1.99.75, TS-196, keine Migration (vor Antwort 19: v1.99.74, TS-195). | offen | |
+| 1 | Teile Einzeln: AG-Status (Status-Ladung und Symbol-Partial aus FA-Struktur herausgezogen), Kinder als Zeilen, Filter auf Kinder, Teile-Knopf vorn, BDE mobil kompakt (992 px, 44 px, Spaltenfilter in Karten nicht bedienbar – Antworten 8–10). Doku: Kapitel 17 Abschnitt 2 + Fotos `17-03`, Handy-Foto. v1.99.73, TS-194, keine Migration. | erledigt (2026-11-25, Umsetzung siehe unten) | `219a69c3` |
+| 2 | Teile Summiert: Einzelauftraege aufklappbar, Summen-Haken, aggregierte Ampel ueber `Ableiten` (Antwort 11). Doku: Kapitel 17 Abschnitt 5 + Foto `17-06`. v1.99.74, TS-195, keine Migration. | offen | |
+| 3 | Teilfertigmeldung: Migration + SQL/169 + FreshInstall, Service/Controller/Dialog, Ruecknahme, Waisen, Baugruppe `istFinal`, Admin-Spalte Art, ADR 0037. **Dieselbe Migration legt `ProductionWorkplaces.BdeStandardsichtTeile` an und belegt sie vor** (Antwort 3a; Model-Property ohne Leser bis Etappe 4a – Reihenfolge geprueft, siehe Etappe-3-Entwurf). Defaults beider Spalten nur in Migration/SQL/FreshInstall, kein `HasDefaultValue`, `IstAbschliessend` immer explizit gesetzt (Antwort 16, AK 18a). Index nach Antwort 12: wer zweitens baut, vereinigt den Filter mit SQL/164 – der Dev-Lauf prueft beim Start, ob SQL/164 schon im Branch liegt. Uebermeldung bei Teilfertig erlaubt mit Hinweis (Antwort 18, AK 15a). Doku: Kapitel 17 Abschnitte 3/4/6/7 + Fotos `17-05`, `17-07`. v1.99.75, TS-196. | offen | |
+| 4 | ~~FA-Sicht an beiden Standorten: Wirksamkeits-Helfer … `TeilelisteWirksam` entfernt, `BdeBookingService` mit Master-Lesung, … Banner, …~~ *(ueberholt, Antwort 15)* FA-Sicht an beiden Standorten: Wirksamkeits-Helfer ohne NurFA (`SeiteVerfuegbar`, `TeilelisteWirksam(w)` ohne `nurFa`, `TeileSichtVerfuegbar` = Master && `TeilelisteWirksam`, `TeileStandard` ueber `BdeStandardsichtTeile`), Gate `BdeBookingService.cs:288` inhaltlich wie heute (ohne `nurFa`, ohne Master, kein neuer Ctor-Parameter), Zeilenquelle als gemeinsame Service-Methode, View `Fa`, AG-Status aller AG der Sub-FA (Antwort 4), Kopf-Buchungen, Modal-Partials, Scan, Standardsicht-Auswahl neben `BdeTeileliste` („Teile“ nur mit `BdeTeileliste`), Teile-Reiter nur mit `BdeTeileliste` (sonst deaktiviert mit Hinweis, kein Banner), gemerkte Sicht, Pagination statt MaxHauptFa (Antwort 14). Doku: Kapitel 17 (Maske, Reiter, Foto `17-01`) + Kapitel 11 FA-Sicht (neue Fotos). v1.99.76, TS-197, keine weitere Migration. *(ueberholt, Antwort 19: aufgeteilt in 4a und 4b)* | – | |
+| 4a | FA-Sicht Grundgeruest an beiden Standorten (Antwort 19): Wirksamkeits-Helfer ohne NurFA (`SeiteVerfuegbar`, `TeilelisteWirksam(w)` ohne `nurFa`, `TeileSichtVerfuegbar` = Master && `TeilelisteWirksam`, `TeileStandard` ueber `BdeStandardsichtTeile`) samt Aufrufer-Umstellung, Gate `BdeBookingService.cs:288` inhaltlich wie heute (ohne `nurFa`, ohne Master, kein neuer Ctor-Parameter), Zeilenquelle als gemeinsame Service-Methode, View `Fa` mit Spalten/Filter/Pagination statt MaxHauptFa (Antwort 14), AG-Status aller AG der Sub-FA (Antwort 4), Anstempeln Ruesten/Produktion je Zeile (Kollision als sichtbare Meldung), Werkbank-Maske mit Standardsicht-Auswahl neben `BdeTeileliste` („Teile“ nur mit `BdeTeileliste`), Liste `ProductionWorkplaces`, Teile-Reiter nur mit `BdeTeileliste` (sonst deaktiviert mit Hinweis), gemerkte Sicht. AK 23, 24 (4a-Teil), 28–32d. Doku: Kapitel 17 (Maske, Reiter, Foto `17-01`) + Kapitel 11 FA-Sicht (Foto `11-05`). v1.99.76, TS-197, keine weitere Migration. | offen | |
+| 4b | FA-Sicht Bedienung (Antwort 19): Kopf-Buchungen laufend/pausiert mit Teilfertig/Pause/Fertig/Fortsetzen und Detailangaben-Schalter, `bde-fa-sicht.js`, Modal-Partials aus `Views/BdeTerminal/Index.cshtml` (Mengen, Kollision, Gruppe, Close-Others; beide Seiten nutzen sie bis Etappe 5), Scanzeile, Taetigkeit, NurAg-„Fertig melden“ je Zeile. AK 24 (4b-Teil), 25, 26, 27. Doku: Kapitel 11 Kopf/Dialoge/Scan (Foto `11-06`). v1.99.77, TS-198, keine Migration. | offen | |
+| 5 | Tageshistorie inkl. Teilmeldungen (Seite, Knopf, NavZiel; Antwort 5), `BdeTerminal/Index` leitet an beiden Standorten immer um, alte View + `bde-terminal.js` geloescht, `BdeTerminalMaxHauptFa` entfernt, Katalogtext `BdeNurFaMeldung`, Betriebsdoku Handy-Konten (Antworten 1, 2, 6). Doku: Kapitel 11 umgeschrieben, Terminal-Fotos `11-01`–`11-04` ersetzt, Tageshistorie-Foto, Index-Titel 11/17 (Antwort 17). v1.99.78, TS-199, keine Migration (vor Antwort 19: v1.99.74, TS-195). | offen | |
+
+## Umsetzung Etappe 1 (2026-11-25)
+
+Commit `219a69c3` im Worktree `feature/2026-08-07-ideal-teile-1-5` (auf v1.99.72 `4e8a344c`). **v1.99.73, TS-194, keine Migration.** Build 0 Fehler /
+32 Warnungen (Basis), Tests Web 3636/1/0 (+5 `BdeTeilelisteAgStatusTests`), Dienst 847/0/0. qa-agent steht aus (nicht in diesem Lauf).
+Plan `docs/superpowers/plans/2026-11-25-bde-masken-etappe-1-teile-einzeln.md` (Worktree). Changelog [[2026-11-25-v1-99-73-bde-masken-etappe-1-teile-einzeln]].
+
+**Nummern-Umstellung** (TS-191–193 und v1.99.70–72 waren beim Start vergeben): E1 v1.99.73/TS-194 · E2 v1.99.74/TS-195 · E3 v1.99.75/TS-196/**SQL/169**/
+**ADR 0037** · E4a v1.99.76/TS-197 · E4b v1.99.77/TS-198 · E5 v1.99.78/TS-199. Nachgezogen in Frontmatter `etappen:`, Test-Szenarien, Etappen-Tabelle
+und Deploy-Tabelle; Fliesstext im Rumpf (z. B. „SQL/168“, „ADR 0036“, „TS-191“ in Etappe-Abschnitten) gilt mit dieser Zuordnung. Manifest-Info
+als `v1.99.73-BdeTeilelisteAgStatusMobilInfo` in `scripts/deploy/nachlauf.psd1` eingetragen.
+
+**Bauweise:**
+- Status-Ladung an einem Ort: `Services/FaAgStatusService.cs` (`ZuordnenAsync` → `FaAgStatusLauf` mit Offsets/Rechner/Werkbänken), aus
+  `FaHierarchyController` herausgezogen (vier Ctor-Parameter weniger); Symbol-Markup als `Views/Shared/_FaAgSymbole.cshtml` (FA-Baum unverändert).
+- Teileliste: je Haupt-FA eine flache `FaHierarchyStructure` aus allen Zeilen, `FaArbeitsgangStatus.Zuordnen` **unverändert** wiederverwendet; die
+  Teilmeldung als zweite Quelle ist ein eigener Schritt `BdeTeilelisteService.TeilmeldungenAnwenden` nur in der Teileliste – die FA-Struktur bleibt
+  unberührt (Antwort 7). Teilmeldungen **aller** Kürzel (nicht stornierte FA-Meldungen) zählen; ein Token ohne Arbeitsgang, dessen Kürzel an einer
+  Teileliste-wirksamen Werkbank steht, ist offen/überfällig (Soll aus FE-Termin), sonst „kein BDE-Arbeitsgang“.
+- `TeilelisteZeile.Kinder` sind jetzt `TeilelisteZeile` (mit eigenen Symbolen, `Treffer`, Eltern `Aufgeklappt`); der Status wird **vor** dem
+  Spaltenfilter berechnet → Spalte `ag-status` serverseitig filterbar (Text = `aria-label`, z. B. „KA – offen“).
+- Sortieren: `bde-teileliste.js` hängt nach `table-sorted` jede `tr[data-eltern]` hinter ihre `tr[data-tl-eltern-id]`; `table-filter.js`,
+  `column-preferences.js`, `site.css/js`, `_Pagination.cshtml` unverändert. Mobil nur unter `.bde-tl-seite` in `bde.css` (B1, B3, B6, B7).
+
+**Abweichungen von der Spec:**
+- E1-3: Ein Kind wird nur „Treffer“, wenn die Baugruppe selbst den Filter **nicht** erfüllt (sonst bei Haupt-FA-Filter jede Baugruppe aufgeklappt).
+  Kennzeichen: sichtbarer Text „◆ Treffer“ (Abzeichen schwarz auf weiß) plus Balken links – statt nur visually-hidden-Text (stärker als gefordert).
+- Lagerbestell-Zeilen (v1.99.72) zeigen die Zeichen neutral (kein Status – keine FA-Struktur).
+- Die W-4-Mehrfach-Warnung wird nur in der FA-Struktur protokolliert, nicht in der Teileliste.
+- Summiert bekam `data-label` und `label.tl-check` mit (Karten auch dort, sonst wäre die Kartenansicht dort ohne Beschriftung).
+- Filter-Kurzfassung: „KW ww/jjjj bis …“ bzw. „alle Wochen“, „gemeldete sichtbar/ausgeblendet“, „n Spaltenfilter“ nur bei n > 0.
+
+**Befunde:**
+- CSV-Export (`csv-export.js`, alle Zeilen ohne `td[colspan]`) exportiert die Kinderzeilen mit – bewusst nicht geändert (gemeinsamer Code); in TS-194.2
+  als erwartet beschrieben. Falls unerwünscht: eigenes Merkmal zum Ausschließen in `csv-export.js` (Folgearbeit, nicht gebaut).
+- Index nach Antwort 12 für Etappe 3: im Bündel baut **SQL/165** (nicht SQL/164) `UX_BdeTeilMeldungen_Schluessel` mit Filter
+  `[IsCancelled] = 0 AND [WarehouseRequisitionItemId] IS NULL` neu – SQL/169 muss diesen Filter um `IstAbschliessend` vereinigen.
+- Kontrast (gerechnet): Kinder-Grund #eef1f4 mit Text #212529 ≈ 14:1; Treffer-Balken/Abzeichen #212529 auf Weiß 15,4:1; Filter-Knopf
+  `btn-outline-secondary` 4,7:1 (Bootstrap). Messung im Browser steht für die QA aus.
+- Fotos nicht aufgenommen: `docs/anwender/bilder/17-03-teileliste-einzeln.jpg` ersetzen, `17-08-teileliste-handy.jpg` (360 px) neu.
 
 ## Deploy
 
@@ -751,25 +791,25 @@ Jede Etappe: `frontend-design` explizit aufrufen, Kontrast messen, Ampel nie nur
 - **Web-App:** ja (alle Etappen).
 - **Service:** kein Dienst-Code (Antwort 3a: Erkennung bleibt an `BdeTeileliste`); Versionsnummer in `AppVersion.cs` (beide). Weil der Dienst das
   EF-Modell des Web-Projekts teilt (`IDEALAKEWMSService.csproj:33`), kennt der neue Dienst-Build die Spalte `BdeStandardsichtTeile` → neue
-  Dienst-Binaries **erst nach** SQL/168 starten (Regelreihenfolge des Update-Skripts: Schema vor Start).
-- **Migration:** ja (Etappe 3, SQL/168, zwei Spalten + Index + Vorbelegung). Reihenfolge: SQL vor Web- und Dienst-Start. Der laufende alte Dienst
+  Dienst-Binaries **erst nach** SQL/169 starten (Regelreihenfolge des Update-Skripts: Schema vor Start).
+- **Migration:** ja (Etappe 3, SQL/169, zwei Spalten + Index + Vorbelegung). Reihenfolge: SQL vor Web- und Dienst-Start. Der laufende alte Dienst
   stoert nicht (er kennt die neuen Spalten nicht; `BdeTeilMeldung` liest er nirgends – grep 2026-11-25 ohne Treffer).
 - **Manifest-Eintraege** (`scripts/deploy/nachlauf.psd1`):
 
 | Id | Version | Typ | Firma | Phase | Ausfuehrung | Text |
 |---|---|---|---|---|---|---|
-| `v1.99.70-BdeTeilelisteAgStatusMobilInfo` | 1.99.70 | Info | IDEAL | Nachher | – | „BDE-Teileliste: neue Spalte AG-Status, Baugruppen-Teile als Zeilen, kompakte Ansicht am Handy. Werker kurz informieren.“ (ersetzt den Info-Eintrag `v1.99.44-BdeTeilelisteMobilInfo` der ueberholten Mobil-Spec) |
-| `v1.99.71-BdeTeilelisteSummiertInfo` | 1.99.71 | Info | IDEAL | Nachher | – | „Summiert: Auftraege aufklappbar, Haken auf Summenzeile meldet alle darunter fertig.“ |
-| `v1.99.72-SQL168` | 1.99.72 | Schema | beide | Schema | automatisch | `SQL/168_AddBdeTeilMeldungIstAbschliessendUndStandardsicht.sql` – Spalte `IstAbschliessend` + gefilterter UNIQUE neu, Spalte `ProductionWorkplaces.BdeStandardsichtTeile` mit Vorbelegung bei Erstanlage; Reihenfolge nach SQL/164, falls diese im selben Paket ist (Antwort 12) |
-| `v1.99.72-BdeTeilfertigInfo` | 1.99.72 | Info | IDEAL | Nachher | – | „Teilfertig/Fertig melden in der Teileliste; Teilfertig laesst die Zeile offen.“ |
-| `Pruefung/BdeNurFaMeldungAn` | 1.99.73 | Pruefung | beide | Vorher | anzeigen | `SELECT COUNT(*) FROM dbo.AppSettings WHERE [Key] = N'BdeNurFaMeldung' AND LOWER(LTRIM(RTRIM([Value]))) IN (N'true', N'1', N'on')` – Treffer > 0: „BdeNurFaMeldung ist an; die neue BDE-Seite beachtet die Einstellung nicht (Antwort 2), der Buchungsdienst aber weiter in seinen Alt-Zweigen (Starts koennen abgewiesen werden, Antwort 22) – vor dem Update mit Gerald klaeren.“ Sichert die Restabweichung aus G5/AK 32c ab. |
-| `Pruefung/BdeStandardsichtOhneTeileSicht` | 1.99.73 | Pruefung | IDEAL | Nachher | anzeigen | ~~`… WHERE BdeStandardsichtTeile = 1 AND (BdeAktiv = 0 OR ISNULL(LTRIM(RTRIM(ArbeitsschrittCode)), N'') = N'')`~~ *(ueberholt, Antwort 15)* `SELECT COUNT(*) FROM dbo.ProductionWorkplaces WHERE BdeStandardsichtTeile = 1 AND (BdeAktiv = 0 OR BdeTeileliste = 0 OR ISNULL(LTRIM(RTRIM(ArbeitsschrittCode)), N'') = N'')` – Treffer > 0: „Werkbaenke mit Standardsicht Teile ohne BDE aktiv, ohne BDE-Teileliste bzw. ohne Kuerzel – oeffnen FA; in den Werkbank-Stammdaten korrigieren.“ (Nach SQL/168 erwartet 0, weil die Vorbelegung dieselbe Bedingung nutzt.) |
-| `v1.99.73-BdeStandardsichtEinstellung` | 1.99.73 | Einstellung | IDEAL | Nachher | – | „Werkbank-Stammdaten: neue Auswahl BDE-Standardsicht (Teile / FA) je BDE-Werkbank pruefen; vorbelegt mit Teile, wo bisher die Teileliste wirkte. Der Schalter BDE-Teileliste bleibt in der Maske unveraendert (steuert die Arbeitsgang-Erkennung) und schaltet die Teile-Sicht frei; ohne ihn nur FA-Sicht.“ |
-| `v1.99.73-BdeFaSichtAkeInfo` | 1.99.73 | Info | AKE | Nachher | – | „BDE-Seite mit FA-Sicht gilt auch an AKE (derzeit ohne BDE-Nutzung); keine Aktion noetig.“ |
-| `v1.99.75-BdeTerminalAbloesungInfo` | 1.99.75 | Info | beide | Nachher | – | „BDE-Terminal oeffnet an beiden Standorten die neue Seite mit Reitern; alte Terminal-Seite entfernt; Tageshistorie im Menue. Einstellung BdeTerminalMaxHauptFa entfaellt (in /Settings als verwaist sichtbar).“ |
-| `v1.99.75-BdeHandyKontenInfo` | 1.99.75 | Info | beide | Nachher | – | „BDE am Android-Handy: je Geraet lokales WMS-Konto (Formular-Login) + Terminal-Zuordnung anlegen (docs/betrieb/09). Konten sind noch nicht angelegt.“ |
+| `v1.99.73-BdeTeilelisteAgStatusMobilInfo` | 1.99.73 | Info | IDEAL | Nachher | – | „BDE-Teileliste: neue Spalte AG-Status, Baugruppen-Teile als Zeilen, kompakte Ansicht am Handy. Werker kurz informieren.“ (ersetzt den Info-Eintrag `v1.99.44-BdeTeilelisteMobilInfo` der ueberholten Mobil-Spec) |
+| `v1.99.74-BdeTeilelisteSummiertInfo` | 1.99.74 | Info | IDEAL | Nachher | – | „Summiert: Auftraege aufklappbar, Haken auf Summenzeile meldet alle darunter fertig.“ |
+| `v1.99.75-SQL169` | 1.99.75 | Schema | beide | Schema | automatisch | `SQL/169_AddBdeTeilMeldungIstAbschliessendUndStandardsicht.sql` – Spalte `IstAbschliessend` + gefilterter UNIQUE neu, Spalte `ProductionWorkplaces.BdeStandardsichtTeile` mit Vorbelegung bei Erstanlage; Reihenfolge nach SQL/164, falls diese im selben Paket ist (Antwort 12) |
+| `v1.99.75-BdeTeilfertigInfo` | 1.99.75 | Info | IDEAL | Nachher | – | „Teilfertig/Fertig melden in der Teileliste; Teilfertig laesst die Zeile offen.“ |
+| `Pruefung/BdeNurFaMeldungAn` | 1.99.76 | Pruefung | beide | Vorher | anzeigen | `SELECT COUNT(*) FROM dbo.AppSettings WHERE [Key] = N'BdeNurFaMeldung' AND LOWER(LTRIM(RTRIM([Value]))) IN (N'true', N'1', N'on')` – Treffer > 0: „BdeNurFaMeldung ist an; die neue BDE-Seite beachtet die Einstellung nicht (Antwort 2), der Buchungsdienst aber weiter in seinen Alt-Zweigen (Starts koennen abgewiesen werden, Antwort 22) – vor dem Update mit Gerald klaeren.“ Sichert die Restabweichung aus G5/AK 32c ab. |
+| `Pruefung/BdeStandardsichtOhneTeileSicht` | 1.99.76 | Pruefung | IDEAL | Nachher | anzeigen | ~~`… WHERE BdeStandardsichtTeile = 1 AND (BdeAktiv = 0 OR ISNULL(LTRIM(RTRIM(ArbeitsschrittCode)), N'') = N'')`~~ *(ueberholt, Antwort 15)* `SELECT COUNT(*) FROM dbo.ProductionWorkplaces WHERE BdeStandardsichtTeile = 1 AND (BdeAktiv = 0 OR BdeTeileliste = 0 OR ISNULL(LTRIM(RTRIM(ArbeitsschrittCode)), N'') = N'')` – Treffer > 0: „Werkbaenke mit Standardsicht Teile ohne BDE aktiv, ohne BDE-Teileliste bzw. ohne Kuerzel – oeffnen FA; in den Werkbank-Stammdaten korrigieren.“ (Nach SQL/169 erwartet 0, weil die Vorbelegung dieselbe Bedingung nutzt.) |
+| `v1.99.76-BdeStandardsichtEinstellung` | 1.99.76 | Einstellung | IDEAL | Nachher | – | „Werkbank-Stammdaten: neue Auswahl BDE-Standardsicht (Teile / FA) je BDE-Werkbank pruefen; vorbelegt mit Teile, wo bisher die Teileliste wirkte. Der Schalter BDE-Teileliste bleibt in der Maske unveraendert (steuert die Arbeitsgang-Erkennung) und schaltet die Teile-Sicht frei; ohne ihn nur FA-Sicht.“ |
+| `v1.99.76-BdeFaSichtAkeInfo` | 1.99.76 | Info | AKE | Nachher | – | „BDE-Seite mit FA-Sicht gilt auch an AKE (derzeit ohne BDE-Nutzung); keine Aktion noetig.“ |
+| `v1.99.78-BdeTerminalAbloesungInfo` | 1.99.78 | Info | beide | Nachher | – | „BDE-Terminal oeffnet an beiden Standorten die neue Seite mit Reitern; alte Terminal-Seite entfernt; Tageshistorie im Menue. Einstellung BdeTerminalMaxHauptFa entfaellt (in /Settings als verwaist sichtbar).“ |
+| `v1.99.78-BdeHandyKontenInfo` | 1.99.78 | Info | beide | Nachher | – | „BDE am Android-Handy: je Geraet lokales WMS-Konto (Formular-Login) + Terminal-Zuordnung anlegen (docs/betrieb/09). Konten sind noch nicht angelegt.“ |
 
-  SQL/168 ist ein Schema-Skript (kein Trockenlauf/Transaktion noetig; die Vorbelegung laeuft nur im Erstanlage-Zweig der Spalte). Keine Daten-/Einmal-Skripte.
+  SQL/169 ist ein Schema-Skript (kein Trockenlauf/Transaktion noetig; die Vorbelegung laeuft nur im Erstanlage-Zweig der Spalte). Keine Daten-/Einmal-Skripte.
 - **Publish-Befehle** (im Worktree):
   `dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWMSWeb`
   `dotnet publish IDEALAKEWMSService/IDEALAKEWMSService.csproj -c Release -o .\publish\IDEALAKEWMSWebService` (nur Versionsnummer + geteiltes Modell)
