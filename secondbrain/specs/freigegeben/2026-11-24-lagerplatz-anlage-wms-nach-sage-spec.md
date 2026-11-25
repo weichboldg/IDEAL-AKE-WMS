@@ -2,7 +2,7 @@
 type: spec
 title: Lager und Lagerplätze im WMS erfassen und per Direkt-SQL in Sage anlegen (über die Outbox, austauschbar gegen SData)
 slug: 2026-11-24-lagerplatz-anlage-wms-nach-sage-spec
-status: InUmsetzung
+status: Testbereit
 created: 2026-11-24
 updated: 2026-11-25
 source_backlog: "[[2026-11-20-lagerplatz-anlage-wms-nach-sage]]"
@@ -853,7 +853,15 @@ Lager danach** (jeder Schritt baut und testet grün):
 
 ## Deploy
 
-**Vorläufig** (QA-Lauf bestätigt am echten Diff).
+**Final (QA 2026-11-25, aus dem echten Diff `6e426113..5b6fa696`, 37 Dateien):** `deploy.web = ja` (IdealAkeWms/), `deploy.service = ja`
+(IDEALAKEWMSService/), `deploy.migration = nein` (keine Datei unter `*/Migrations/`, kein `SQL/`-Skript). Publish fertig in
+`C:\Git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-07-ideal-teile-1-5\publish` (v1.99.71, Commit `47a23d32`, beide Komponenten + `SQL\` + `deploy\`,
+`publish-info.txt`); beide Komponenten müssen deployt werden. Ablauf Mensch: Publish aus dem Worktree → Testsystem → Test → Merge. Nach dem
+Merge nur dann neu aus `main` publishen, wenn der Merge getestete Dateien mit parallelen `main`-Änderungen zusammengeführt hat:
+`dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWMSWeb` und
+`dotnet publish IDEALAKEWMSService/IDEALAKEWMSService.csproj -c Release -o .\publish\IDEALAKEWMSWebService`.
+Reihenfolge Produktiv: Deploy Web + Dienst mit beiden Schaltern **aus** → DBA-GRANT (unten) → P-4 aus dem Dienstkontext → Sage-DB-Backup →
+erst dann einschalten. Die folgenden Punkte (Vorfassung des Spec-Agenten) sind geprüft und gelten weiter.
 
 - **Web-App:** ja (Formular, Liste, Hinweistexte, „Erneut senden“, Hilfe)
 - **Service:** ja (Worker-Schritt, Schreibstelle, Fehlend-Schleife im Lagerplatz-Abgleich); `appsettings.json` des Dienstes **unverändert**
@@ -1149,3 +1157,118 @@ Eingearbeitet 2026-11-24: B1 (Antwort 7), B2 (Antwort 8, als Auslegung), S1 (Joi
   - Manifest-Eintrag `Pruefung/LagerorteFuerSageAnlage` mit `Firma = 'beide'`, braucht SQL/98.
   - Mandant fest 1 in `SqlSageLagerplatzAnlage` (`ponytail:`-Kommentar), wie der Lese-Abgleich.
   - Zusatzfund bestätigt, nicht gebaut: `SageLagerplatzReader.cs:26` verbindet ohne `Mandant`.
+
+## QA-Nachweis (qa-agent, 2026-11-25)
+
+Geprüft: Implementierungs-Commit `5b6fa696` (Bereich `6e426113..5b6fa696`), Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5`.
+QA-Commit im Worktree: `47a23d32` (nur `docs/anwender/19-lagerplaetze-in-sage-anlegen.md` + Fotos 19-01..19-05, Knopftext angeglichen).
+
+### 1. Build und Tests (selbst gemessen)
+
+- `dotnet build IdealAkeWms.slnx`: 0 Fehler, 32 Warnungen (inkrementell; keine neue Warnung in den geänderten Dateien gefunden).
+- `dotnet test`: IdealAkeWms.Tests 3586 bestanden / 1 übersprungen / 0 fehlgeschlagen (3587); IDEALAKEWMSService.Tests 847 / 0 / 0.
+
+### 2. Code-Review (selbst, synchron in diesem Lauf)
+
+Untersucht: `SqlSageLagerplatzAnlage` (Platz-/Lager-SQL, Parameter, Fehlerklassen), `SageLagerplatzAnlageService`, `SageBookingWorker`
+(Schritt + Melde-Merker), Fehlend-Schleife `LagerplatzSyncService`, `StorageLocationsController` (CreateInSage, Edit F7, Create, Erneut
+senden), `StorageLocationRepository.AddSageAnlageAsync`/`ErneutSendenAsync`, `SageStammdatenOutbox`, `SageLagerplatzAnlage` (Code-Format),
+`ServiceSettingDefinitions`, Views `CreateInSage`/`Index`/`Edit`, `nachlauf.psd1`, Tests. Gegen `ake_TEST2026` nur per SELECT: alle im SQL
+genannten Spalten existieren (kein 207-Risiko), keine NOT-NULL-Spalte ohne Default fehlt im INSERT, nur DELETE-Trigger (P-2), `spSysTan`/`KHKTan`
+gehören `dbo` (P-4), `spSysTan` liefert kein Resultset (der Reader liest das Ergebnis-SELECT nach COMMIT richtig), P-5/P-9/P-10 wie in der Spec.
+
+| # | Schwere | Befund | Behandlung |
+|---|---|---|---|
+| N1 | niedrig | Abbruch beim Dienst-Stopp während `ExecuteReaderAsync`: SqlClient wirft `SqlException` „Operation cancelled by user“ (Nummer 0, Klasse 11); `IstTechnisch` stuft sie fachlich ein → Eintrag geht auf **Fehler** statt Offen und braucht „Erneut senden“ (danach „vorhanden – übernommen“; kein Datenverlust, `XACT_ABORT` rollt zurück). Fix-Vorschlag in beiden catch-Blöcken: `catch (SqlException ex) when (!ct.IsCancellationRequested && !IstTechnisch(ex))`. | Nicht gefixt (kein Datenschaden, manuell behebbar); Mensch entscheidet, Beobachtung in Testschritt .m. |
+| N2 | niedrig | AK 13/F5 verlangen, dass der Konflikttext PlatzID/Kurzbezeichnung nennt; `THROW 50014` ist statischer Text (wie im Spec-SQL) → Spalte „Übergabe-Fehler“ nennt die belegende PlatzID nicht. Vorschlag: Meldung per `CONCAT` in eine Variable, `THROW 50014, @msg, 1`. | Nicht gefixt (ändert das nur live prüfbare Sage-SQL); AK 13 Textteil offen für Manual-UAT. |
+| H1 | Hinweis | Rennen im Abgleich: Abgleich liest den Feed vor der Sage-Anlage, der Worker bestätigt dazwischen, die Fehlend-Schleife markiert das neue Lager als fehlend; der nächste Abgleich reaktiviert es (Update-Zweig setzt IsActive/SageMissingSince zurück). Selbstheilend, Plätze nicht betroffen. | Akzeptiert. |
+| H2 | Hinweis | Unerwartete Ausnahme (z. B. DB-Fehler bei SaveChanges) → fehlgeschlagener Lauf + Worker-Mail je Takt; gleiches Muster wie die übrigen Worker-Schritte. | Akzeptiert. |
+
+Ohne Befund geprüft: Parametrisierung (typisierte VarChar/Int/SmallInt/Bit, keine String-Verkettung → keine Injection); Transaktion mit
+`XACT_ABORT ON` (rollt auch bei Attention/Timeout zurück), `DEADLOCK_PRIORITY LOW`, 1205/1222 technisch; `spSysTan` in der Transaktion;
+Idempotenz bei Doppelausführung (UPDLOCK/HOLDLOCK auf `KHKLagerorte` serialisiert, „vorhanden“/Konflikt-Logik, Gesendet-Hänger nach
+Stuck-Minuten); Fehlend-Schleife überspringt nur nicht bestätigte StorageArea-Outbox; Mandant fest 1 mit `ponytail:`-Kommentar; Script-Blöcke
+ohne Serverwerte; `hidden` ohne `d-*`-Konflikt; keine stillen Fallbacks; keine positionsgebundenen Arrays; alle Regeln serverseitig
+(live belegt, siehe 6); Code-Format an einer Stelle (`SageLagerplatzAnlage`) für Web und Dienst; Überposting-Schutz in Create.
+
+### 3. Beweisart je AK
+
+- **Automatisiert:** AK 1–8 (Web-Seite), 12, 15–19, 22a–e, 24, 25, 26 (nur Ablauf/DbUpdateException), 28, 29, 30–31 (Status-Automat, SQL-Text), 34, 35, 37–39.
+- **Manual-UAT (nicht grün gezählt):** AK 9–11, 13/14/27/30–33 (Sage-Seite), 36 (Code-Review bestätigt DEADLOCK LOW/VarChar/SELECT nach COMMIT, Laufzeit offen), 40 (V3 Teil 3), echte Atomarität von 26 (auf DEV per SQL gesehen: 1 Lager + 6 Plätze + 7 Outbox in einem Absenden, siehe .p).
+
+### 4. Geänderte bestehende Tests
+
+- `SageUebergabeTests.cs` (2 Zeilen), `StorageLocationsControllerTests.cs` (6 Zeilen): nur neues Ctor-Argument → Typ-/Compile-Anpassung.
+- `LagerplatzSdataTests.cs`: nur ein neuer Test angehängt, kein bestehender geändert. Kategorie „sonstige“: keine.
+
+### 5. Checkliste / ADR 0020
+
+Keine Migration nötig (kein Schema); beide `AppVersion.cs` 1.99.71, `Changelog.cshtml` + Brain-Changelog vorhanden; ADR 0036, fallstricke §66;
+TS-192 in `docs/TESTSZENARIEN.md`, Index-Eintrag vorhanden; README/Hilfe/`docs/anwender`+`docs/betrieb` nachgezogen. Manifest:
+`Pruefung/LagerorteFuerSageAnlage`, `v1.99.71-SageLagerplatzRechte`, `-SageLagerplatzAnlageAktiv`, `-SageLagerAnlageLagertechniken` vorhanden.
+ADR 0020: beide Einstellungen mit Anzeigename/Wirkung/Verwendung/Standort/Default/Warnhinweis; `SageLagerAnlageLagertechniken` als Choice mit
+`Werte` (Aus/Mitschnitt/Alle), Server-Validierung über `SettingValidator` (Choice). Kein Befund.
+
+### 6. DEV-Deploy und TS-192
+
+Deploy (erhöhte Shell, Quelle Worktree, Web + Dienst): **AKE** „Fertig: AKE v1.99.71 auf http://localhost:8081/“, Exit 0, Fußzeile v1.99.71;
+**IDEAL** „Fertig: IDEAL v1.99.71 auf http://localhost:8082/“, Exit 0.
+
+Vorbedingungen Live-Teil:
+- **V3 belegt (Teil 1+2):** `AKE_WMS_DEV_Service` läuft als `svc_idealakewms@ake.at`, `DOTNET_ENVIRONMENT=DEV`; `D:\Dev\AKE\Service\appsettings.DEV.json:4`
+  SageConnection `Server=AKESQL20.ake.at;Database=ake_TEST2026`; `SELECT @@SERVERNAME, DB_NAME()` = `AKESQL20` / `ake_TEST2026`. Teil 3 offen (kein Lauf).
+- **V1/V2 fehlt:** in `ake_TEST2026` keine Testlager `TS-WMS`/`TS-SAGE`/`TL-SAGE`/`TL-*` (nur `TEST`, `TEST1`, beide inaktiv).
+- **V4/GRANT fehlt:** `sys.database_permissions` zeigt keinen GRANT für `svc_idealakewms`; kein gleichnamiger DB-Benutzer (evtl. implizit über
+  eine Gruppe, unbelegt); nur `EXECUTE spSysTan` an `public`.
+- ⇒ **Live-Schreibtest gegen Sage NICHT MOEGLICH.** Kein Schreibzugriff auf Sage; `ake_TEST2026` nach dem Lauf unverändert
+  (`KHKTan` KHKLagerplaetze/Mandant 1 = 4378 = MAX(PlatzID), 0 Lager/Plätze `QA%`). **In Sage-Test angelegte Datensätze: keine.**
+
+Vorgehen WMS-Seite (Auslegung QA): `AKE_WMS_DEV_Service` **gestoppt** (Stopped belegt), damit nichts nach Sage gehen kann; QA-Lager `QA-LP`
+(LTD2SF), `QA-HR` (LTD3HR) per INSERT in `AKE_WMS_DEV.StorageAreas` (Audit `qa-agent`); Schalter nur in `AKE_WMS_DEV` an; Browser per Playwright
+(Edge headless, Windows-Anmeldung); Fehlerzustände für .j/.u per UPDATE in der DEV-DB gesetzt. Danach Schalter zurück, QA-Testdaten (4 Lager,
+12 Plätze, 14 Outbox-Zeilen) aus `AKE_WMS_DEV` entfernt, damit ein späterer Live-Lauf sie nicht nach Sage schreibt; Dienst wieder gestartet (Running).
+
+| Schritt | Ergebnis | Status |
+|---|---|---|
+| .a | AKE + IDEAL: kein Knopf, Spalte Übergabe-Fehler da, Hinweis „Das WMS sendet nichts an Sage“, Direktaufruf → „ist ausgeschaltet … nichts angelegt“ | OK |
+| .b | Benutzer R: nur ein Windows-Konto verfügbar; Filter `RequireMasterDataAccess` im Code + Tests | NICHT MOEGLICH (Browser) |
+| .c | QA-LP D1 1–3, D2 1–2, D3 0 → „6 Lagerplätze angelegt“, 6 Plätze `QA-LP;1;1;0`… Status Offen, 6 Outbox Status 0 | OK |
+| .d, .d2, .e, .f, .h, .i, .k, .l, .m, .q, .r, .s, .v | brauchen den Sage-Schreibweg (V1/V2/GRANT fehlen) bzw. Sage-Dialog/Abgleich/DBA (Mensch) | NICHT MOEGLICH |
+| .g | gleicher Bereich nochmals → „0 angelegt, 6 übersprungen (Code im WMS schon vorhanden: …)“ | OK |
+| .j (WMS-Teil) | Fehler-Platz zeigt Status Fehler + Text in Spalte, „Erneut senden“ → „Erneut eingereiht“, Platz Offen, Outbox Status 0/Versuche 0; zweites Senden auf Offen-Platz → „Kein Übergabe-Fehler … gefunden“; POST ohne Antiforgery → 400 | OK |
+| .n | Schalter aus: Liste/„Neuen Lagerplatz anlegen“ unverändert (Buchung/Abgleich nicht geprüft) | OK (teilweise) |
+| .o | `Aus`: keine Option „Neues Lager“, Hinweis „nicht freigegeben“, POST `Lagerort=neu` serverseitig abgewiesen; `Mitschnitt`: nur LTD0ST/LTD1BL, POST LTD2SF abgewiesen; keine StorageArea angelegt | OK |
+| .p (WMS-Teil) | QA-NEU LTD2SF platzverwaltet 1–2 × 1–3 → „Lager QA-NEU erfasst …; 6 Lagerplätze angelegt“; Auswahl „(neu, wartet auf Sage)“, Hinweis „Lager QA-NEU wartet …“; DB: 1 StorageArea, 6 Plätze mit StorageAreaId = neues Lager, 7 Outbox (1 × StorageArea, 6 × StorageLocation) Status 0 | OK |
+| .t | `qa-lp` → „Lagerkennung qa-lp schon vorhanden“; `QA LP`, `QA;X`, leer → Zeichenregel; Bezeichnung 41 Zeichen, Technik LTD9XX, LTD0ST mit Koordinaten serverseitig abgewiesen; LTD0ST sperrt „platzverwaltet“ im Formular | OK |
+| .u (WMS-Teil) | Lager QA-NEU auf Fehler gesetzt → roter Hinweis mit Grund + „Erneut senden“, Auswahl „(Fehler – erst ‚Erneut senden‘)“ disabled, POST auf das Lager abgewiesen; „Erneut senden“ Lager → Outbox Offen | OK |
+| AK 6 | D1 0, D1 10000 → „ganze Zahlen von 1 bis 9999“; von > bis → Meldung; 220 Plätze → „höchstens 200“ (serverseitig per POST belegt) | OK |
+| .w | `SageLagerplatzAnlageAktiv = false`, `SageLagerAnlageLagertechniken = Aus` in AKE_WMS_DEV und IDEAL_WMS_DEV per SELECT belegt; Aufräumliste Sage: leer | OK |
+
+Beobachtung (kein Befund): Eine 11-stellige Kennung im Browser wird von `maxlength=10` still auf 10 Zeichen gekürzt (`ABCDEFGHIJ` wurde
+angelegt); serverseitig wird 11 Zeichen abgewiesen. Testdaten wieder entfernt.
+
+Fotos (DEV AKE, Fehlerzustände in der DEV-DB gesetzt, kein Live-Lauf): `docs/anwender/bilder/19-01-knopf-lagerplaetze-in-sage-anlegen.jpg`,
+`19-02-formular-bereich.jpg`, `19-03-formular-neues-lager.jpg`, `19-04-liste-uebergabe-fehler.jpg`, `19-05-hinweis-lager-wartet.jpg` (wartend + Fehler).
+
+### 7. Publish
+
+`C:\Git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-07-ideal-teile-1-5\publish\` – `IDEALAKEWMSWeb` + `IDEALAKEWMSWebService` (Ziele vorher geleert,
+Exit 0/0), `SQL\`, `deploy\`, `publish-info.txt` (Version 1.99.71, Commit `47a23d32061e9bb630066456d281ae55382c5109`, Erstellt 2026-11-25 18:21).
+Nachlauf-Einträge der Spec vorhanden.
+
+### Manuelle Testliste (offen für den Menschen)
+
+1. Gerald legt in `ake_TEST2026` die Testlager-Paare an (`TS-SAGE`/`TS-WMS` LTD2SF + LTD3HR-Paar, `TL-SAGE`, Technik-Paare je Stufe, Inventur-Paar).
+2. Diese Lager per Lagerplatz-Abgleich (Quelle SData) nach `AKE_WMS_DEV` holen (oder INSERT wie im QA-Lauf).
+3. V4: P-4 für `svc_idealakewms` auf `ake_TEST2026`; .l (ohne Recht, 10 Takte, ein fehlgeschlagener Lauf) → DBA-GRANT laut Deploy-Abschnitt.
+4. Schalter an, .c/.d mit V3 Teil 3 (`SyncLogs` „Sage-Datenbank: …ake_TEST2026“), .d2 (10 Takte ohne Arbeit = 0 Läufe).
+5. .e/.f (Sage-Dialog, Abgleich SData und View), .g, .h (`KHKTan` unverändert), .i, .j, .k Abnahmevergleich 0/0.
+6. .m (Dienst nach Sage-Commit hart beenden), dabei N1 beobachten (Stopp während laufendem Befehl → Fehler statt Offen?).
+7. .n Buchung/Abgleich mit Schalter aus.
+8. Lager-Anlage .o–.s je Stufe (Mitschnitt: LTD0ST/LTD1BL, Alle: +LTD1UF/LTD2SF/LTD3HR), .s Abnahmevergleich je Paar 0/0, sonst Stufe bleibt `Aus`.
+9. .u Lager-Konflikt, .v DBA-Fall `Hauptlager` (THROW 50005); AK 13: prüfen, ob der Konflikttext reicht (N2).
+10. .b mit einem Benutzer nur `masterdata_read`.
+11. .w: beide Schalter zurück, Aufräumliste der Sage-Testlager an den Sage-Anwender.
+12. IDEAL: Testsystem `idealakeweb01:88` auf `IDEAL_TEST_2026_05_03`, P-1..P-9, V3, Benjamin legt Testlager an, TS-192 komplett.
+13. Empfehlung: `SageLagerplatzAnlageAktiv = false` und `SageLagerAnlageLagertechniken = Aus` ins DEV-Sicherheits-SQL von `D:\Dev\scripts\dev-deploy.ps1` aufnehmen.
+14. Testsystem-Lauf mit dem Publish-Paket, danach Merge (Schranke 2).
