@@ -2524,7 +2524,11 @@ Befund vom 2026-09-28, ID 3664 auf akenet01); Zugriff Kommissionierung, Vorbau o
 
 ## 8. BDE Phase 1
 
+> **Überholt seit v1.99.78** (Terminal-Seite abgelöst, [[2026-11-25-bde-masken-vereinheitlichung-spec]] Etappe 5): die Schritte „BDE-Terminal öffnen“ führen auf die BDE-Seite. Buchungslogik unverändert; die Bedien-Schritte gelten sinngemäß auf der BDE-Seite (Reiter FA, TS-197/TS-198). Ersatz für die Terminal-Seite: TS-199.
+
 ### TS-8.1 — BDE-Terminal aufrufen und Operator scannen
+
+> **Überholt seit v1.99.78** (Terminal-Seite abgelöst, [[2026-11-25-bde-masken-vereinheitlichung-spec]] Etappe 5): Ersatz Anmelden per Personalnummer auf der BDE-Seite (TS-197) und Weiterleitung TS-199.1.
 
 **Vorbedingungen:**
 - AppSetting `BdeAktiv = true`.
@@ -2742,6 +2746,8 @@ Befund vom 2026-09-28, ID 3664 auf akenet01); Zugriff Kommissionierung, Vorbau o
 
 ### TS-8.13 — Tageshistorie des Operators im Terminal anzeigen
 
+> **Überholt seit v1.99.78** (Terminal-Seite abgelöst, [[2026-11-25-bde-masken-vereinheitlichung-spec]] Etappe 5): Ersatz TS-199.2 (eigene Seite „Tageshistorie“).
+
 **Vorbedingungen:**
 - Operator `P-100` hat heute bereits 3 Buchungen abgeschlossen.
 
@@ -2755,6 +2761,8 @@ Befund vom 2026-09-28, ID 3664 auf akenet01); Zugriff Kommissionierung, Vorbau o
 ---
 
 ### TS-8.14 — BDE NurFA-Modus: FA direkt starten
+
+> **Überholt seit v1.99.78** (Terminal-Seite abgelöst, [[2026-11-25-bde-masken-vereinheitlichung-spec]] Etappe 5): ohne Oberfläche – `StartProductionForOrder` hat keinen Aufrufer mehr (Entfernen in [[2026-11-25-bde-nur-fa-meldung-entfernen]]).
 
 **Vorbedingungen:**
 - AppSetting `BdeAktiv = true`, `BdeNurFaMeldung = true`, `BdeDefaultArbeitsgang = PRODUKTION`.
@@ -2992,6 +3000,8 @@ Befund vom 2026-09-28, ID 3664 auf akenet01); Zugriff Kommissionierung, Vorbau o
 
 ## 10. BDE Phase 2.2 — Mehrfachanmeldung + Zeit-Split
 
+> **Überholt seit v1.99.78** (Terminal-Seite abgelöst, [[2026-11-25-bde-masken-vereinheitlichung-spec]] Etappe 5): Dialoge und Buchungsregeln gelten weiter, bedient über die BDE-Seite (Reiter FA, TS-198). Buchungslogik unverändert; die Bedien-Schritte gelten sinngemäß auf der BDE-Seite (Reiter FA, TS-197/TS-198). Ersatz für die Terminal-Seite: TS-199.
+
 ### TS-10.1 — Multi-MA-Buchung auf 1 Arbeitsgang
 
 **Vorbedingungen:**
@@ -3162,6 +3172,8 @@ Befund vom 2026-09-28, ID 3664 auf akenet01); Zugriff Kommissionierung, Vorbau o
 ---
 
 ### TS-10.10 — Filter: Fertig-gemeldete FAs aus Terminal-Auswahl ausblenden
+
+> **Überholt seit v1.99.78** (Terminal-Seite abgelöst, [[2026-11-25-bde-masken-vereinheitlichung-spec]] Etappe 5): die FA-Sicht blendet fertig gemeldete Arbeitsgänge aus (TS-197).
 
 **Vorbedingungen:**
 - FA `FA-2604001` hat alle AGs als "Finished" gebucht.
@@ -9800,6 +9812,8 @@ Rollenlogik `CurrentUserServiceRoleTests`. Sichtbarkeit, Active-Zustand und Hilf
 
 ## TS-90 — BDE-Terminal: offene Aufträge mit Arbeitsgang-Status (FA-Struktur Teil 3, v1.57.0)
 
+> **Überholt seit v1.99.78** (Terminal-Seite abgelöst, [[2026-11-25-bde-masken-vereinheitlichung-spec]] Etappe 5): AG-Status zeigt die FA-Sicht (TS-197).
+
 Spec: `2026-10-06-fa-struktur-arbeitsgaenge-symbole-teil-3-spec`. **Vorab-Prüfschritte (vor der Abnahme, kein UI-Test):**
 
 - **P-T1 (AKE-WMS-DB):** Welche Arbeitsgänge gibt es, ist NurFA an?
@@ -10289,6 +10303,8 @@ Automatisiert: `WerkbankKuerzelFamilieTests`, `ProductionWorkplaceSyncServiceTes
   FA der Terminal-Werkbank angenommen (auch mit „01“ an alter Werkbank), FA einer anderen oder ohne Werkbank abgewiesen. d) Normal-Modus: `POST /BdeTerminal/StartProductionForOrder` mit einer beliebigen `productionOrderId` → `InvalidState` „Dieser Arbeitsgang gehört nicht zu dieser Werkbank.“, P4: kein neuer AG „01“ an diesem FA (QA-Fix, Unit-Test `StartProductionForOrder_NotOffered_Rejected_NoDefaultAgCreated`).
 
 ## TS-97 — BDE-Terminal: Liste nach Haupt-FA, Scan ohne AG, Prio (v1.64.0)
+
+> **Überholt seit v1.99.78** (Terminal-Seite abgelöst, [[2026-11-25-bde-masken-vereinheitlichung-spec]] Etappe 5): Gruppierung und „Weitere anzeigen“ entfallen, Einstellung `BdeTerminalMaxHauptFa` entfernt; Scan und Pagination der FA-Sicht prüfen TS-198.8 und TS-197.
 
 Spec: `2026-10-19-bde-terminal-liste-scan-ohne-ag-prio-spec` (Freigabe-Antworten 1–3). Regressionen: TS-90 (Terminal-Status),
 TS-96.3/96.7/96.10 (Familie, Fertigmeldung, manipulierte POSTs). **Vorbedingungen:** IDEAL-Testsystem mit BDE an,
@@ -14416,7 +14432,7 @@ für TS-198.7 Mehrfachbuchung je Werker und gleichzeitiger Abschluss an (nur DEV
 7. **Fertig** → Mengen = Sollmenge → „Fertig gemeldet.“, Zeile oben weg; *BDE → Buchungen* zeigt Ende und Mengen, „Geändert von“ gesetzt.
 8. Schalter **Zeiten und Details** an → je Buchung Start, Laufzeit, Werkbank, Terminal, Personalnr. Neu laden → bleibt an. Werker B → aus (eigene Merkung).
    Tastatur: Schalter per Tab erreichbar, Leertaste schaltet.
-9. *BDE → Terminal*: dieselben laufenden/pausierten Buchungen (gleiche Abfrage).
+9. *BDE → Terminal*: dieselben laufenden/pausierten Buchungen (gleiche Abfrage). *(überholt seit v1.99.78: Terminal-Seite entfernt)*
 
 **TS-198.2 Gut unter Soll (E4-6, kein Browser-Dialog)**
 1. Produktion läuft (Soll 10) → **Fertig** → Gut 7 → **Bestätigen** → eigenes Fenster „Gutmenge 7 liegt unter der Sollmenge 10 …“.
@@ -14466,7 +14482,7 @@ für TS-198.7 Mehrfachbuchung je Werker und gleichzeitiger Abschluss an (nur DEV
 
 **TS-198.10 AKE (AK 32b) und Terminal unverändert**
 1. AKE-DEV, `/BdeTeileliste?workplaceId=<Werkbank>` → TS-198.1 Schritte 2–8 und TS-198.4 wie an IDEAL; Scan einer AKE-FA markiert die Zeile.
-2. *BDE → Terminal* (alte Seite, beide Standorte): Mengen-, Kollisions-, Gruppen- und Weitere-Buchungen-Fenster wie bisher (gemeinsame Partial `_BdeDialoge`).
+2. *BDE → Terminal* (alte Seite, beide Standorte): Mengen-, Kollisions-, Gruppen- und Weitere-Buchungen-Fenster wie bisher (gemeinsame Partial `_BdeDialoge`). *(überholt seit v1.99.78: Terminal-Seite entfernt, TS-199.1)*
 
 Automatisch belegt (xUnit): `BdeKopfBuchungenTests` (laufende/pausierte je Werker, Laufzeit, Seite der markierten Zeile),
 `BdeApiControllerTests.ResolveScan_FaSicht_IgnoriertNurFaMeldung` (G5), `BdeTerminalControllerTests` (ActiveBookings/PausedBookings unverändert),
@@ -14474,8 +14490,57 @@ Automatisch belegt (xUnit): `BdeKopfBuchungenTests` (laufende/pausierte je Werke
 `NachlaufManifestDriftTests`.
 **Manual-UAT:** alle Dialoge und Fokusführung, Doppeltipp, Handscanner, zwei Geräte, AKE-DEV, Kontrast am Terminal.
 
+## TS-199 — BDE: Tageshistorie als eigene Seite, Terminal-Seite abgelöst (v1.99.78)
+
+Spec [[2026-11-25-bde-masken-vereinheitlichung-spec]], Etappe 5 (E5-1, E5-2, E5-3; AK 33, 34, 35, 35a, 35b). Standorte **DEV IDEAL** und
+**DEV AKE** (Worktree-Stand, nie main). Keine Migration. Einstellung `BdeTerminalMaxHauptFa` entfällt.
+
+**Vorbedingungen:** BDE an; Terminal-Benutzer mit Terminal (Default-Werkbank BDE-aktiv); Werker A mit heute mindestens einer Rüst-, einer Produktions-
+und einer Tätigkeitsbuchung; an IDEAL zusätzlich heute eine Teilfertig- und eine Fertig-Meldung in der Teileliste (eine davon an einer Baugruppe) und,
+falls Werkbank-Option „Lagerbestellungen in der Teileliste“ an, eine Meldung auf eine Lagerbestell-Zeile; eine stornierte Buchung von heute; eine Buchung
+von gestern. Zweiter Web-Benutzer **ohne** Terminal.
+
+**TS-199.1 Weiterleitung (AK 35, beide Standorte)**
+1. *BDE → Terminal* → die BDE-Seite der Terminal-Werkbank öffnet (Anmelden bzw. Reiter FA/Teile nach BDE-Standardsicht).
+2. `/BdeTerminal/Index?workplaceId=<andere BDE-Werkbank>` → BDE-Seite dieser Werkbank. Altes Lesezeichen `/BdeTerminal` → wie Schritt 1.
+3. Startseite: Kachel „Terminal“ → wie Schritt 1. Hilfe › BDE: Hinweis „Seit v1.99.78 ist die Terminal-Seite abgeloest“.
+4. AKE-DEV: Schritte 1–2 → BDE-Seite Reiter FA (keine Teile-Reiter).
+5. Reiter FA: Anstempeln, Meine Buchungen, Dialoge (TS-198.1–198.7) buchen weiter über die Terminal-Aktionen.
+6. Negativ: Benutzer ohne Terminal → Startseite mit gelber Meldung „Für diesen Benutzer ist kein Terminal konfiguriert …“.
+7. Negativ: `/BdeTerminal/Index?workplaceId=<nicht BDE-aktive Werkbank>` → Hinweis „Werkbank ist nicht BDE-aktiv“ mit Werkbank-Auswahl, kein Kreis.
+
+**TS-199.2 Tageshistorie (AK 33, 34)**
+1. Menü *BDE* zeigt „Tageshistorie“ genau dann, wenn „Terminal“ sichtbar ist; Startseite Kategorie Produktion/BDE zeigt die Kachel mit eigenem Symbol.
+2. BDE-Seite, Werker A angemeldet → Knopf **Tageshistorie** im Werker-Balken (mindestens 44 px hoch, weiße Schrift) → Seite „BDE – Tageshistorie“
+   mit Datum, Werker, Werkbank und **Zurück zur Liste**.
+3. Tabelle: Buchungen (Art „Buchung“, Typ Rüsten/Produktion/Tätigkeit, Zeit Start–Ende, Dauer, Gut, Ausschuss, Status läuft/pausiert/beendet) und
+   Teilmeldungen (Art „Teilmeldung“, Typ Teilfertig bzw. Fertig, „FA … / Sub-FA … · Pos. … · Matchcode“, Gut, Ausschuss, Status gemeldet), neueste zuerst,
+   Buchungen an allen Werkbänken.
+4. Baugruppen-Fertigmeldung erscheint **einmal** (als Teilmeldung, nicht zusätzlich als Produktionsbuchung). Lagerbestell-Meldung beginnt mit
+   „Lagerbestellung · “.
+5. Nicht enthalten: stornierte Buchung, stornierte Meldung, Buchung von gestern, Buchungen anderer Werker.
+6. Spaltenfilter Typ = `Fertig` → nur Fertig-Meldungen; Gut `>2` → nur Zeilen mit Gut über 2; Knopf „Spaltenfilter zurücksetzen (n)“ hebt auf.
+   Seitengröße 10 bei mehr als 10 Einträgen → Seite 2 erreichbar.
+7. Menü *BDE → Tageshistorie* ohne angemeldeten Werker → Anmelden (Personalnummer) – danach Teileliste; Knopf Tageshistorie öffnet die Historie.
+8. AKE-DEV: nur Buchungen (keine Teilmeldungen); Leerzustand „Noch keine Buchungen oder Meldungen heute.“ für einen Werker ohne Buchung.
+9. Handy-Breite 360 px: Karten statt Tabelle, Knöpfe bedienbar, keine Querscrollleiste der Seite.
+10. Negativ: Benutzer ohne Terminal → Startseite mit gelber Meldung.
+
+**TS-199.3 Einstellung entfernt (AK 35a)**
+1. `/Settings`: `BdeTerminalMaxHauptFa` steht nur noch unter „verwaist“ (falls die DB-Zeile existiert), nicht mehr in der Gruppe BDE.
+2. `BdeNurFaMeldung`: Beschreibung enthält „Wird von der BDE-Seite nicht beachtet, Altlast“.
+3. Update-Skript: Info-Einträge `v1.99.78-BdeTerminalAbloesungInfo` und `v1.99.78-BdeHandyKontenInfo` erscheinen (beide Firmen, Nachher).
+
+**TS-199.4 BDE am Android-Handy (AK 35b)**
+1. Android-Handy, lokales WMS-Konto mit Formular-Login (kein Windows-Login) und zugeordnetem Terminal (BDE-Stammdaten › Terminals) → Anmelden → *BDE → Terminal*
+   → BDE-Seite; Personalnummer → Liste; Tageshistorie erreichbar.
+2. Solange kein Handy-Konto angelegt ist: Schritt als **offen** vermerken (Konten sind laut Deploy-Info noch nicht angelegt).
+3. Negativ: Handy-Konto ohne Terminal → Meldung „kein Terminal konfiguriert“.
+
+---
+
 ---
 
 *Ende des Dokuments. Stand: IDEAL-Epic Teil 1–5 + FA-Struktur-Darstellung Etappe 7 + Teil 7 Etappe B/C/D + Teil 8 (Sub-FA-BDE, v1.33.0) + Teil 6 (Standorteinstellungen, v1.34.0) + BOM-Guard hierarchisch (2026-08-18, abgelöst) + FA-Liste-Hierarchie (v1.35.0) + BOM-Bridge (v1.36.0) + Materialisierung fachliche Felder K1/K2 (v1.37.0) + Skopierung der Tabellen-Selektoren (TS-72) + FA-Liste ausgebaut: Matchcode, Kopfdaten je Zeile, HauptFA-Zeile, Freigabe-Kaskade (v1.38.0, TS-73) + PDF-Erzeugung für FaHierarchy-Druckdokumente (v1.39.0, TS-74) + Matchcode im Artikelstamm (v1.40.0, TS-75) + FA-Arbeitsgang-Erkennung aus der Struktur (v1.41.0, TS-76, ersetzt durch TS-77) + Arbeitsgänge (WorkOperation) aus der Struktur + Werkbank-Anlage aus Sage (v1.44.0, TS-77) + Arbeitsgänge je (Sub-)FA im FA-Struktur-Modal (v1.45.0, TS-78) + Kommissionierung nur am HauptFA
-(v1.46.0, TS-79) + Kommissionierliste Summiert als Standard, Druck/PDF nur sichtbare Spalten (v1.47.0, TS-80) + Beschichtungsauftrag Summiert als Standard (v1.48.0, TS-81) + Briefkopf Beschichtungsauftrag (v1.49.0, TS-82) + Beschichtungsauftrag als eigenes Objekt (v1.50.0, TS-83) + Beschichtungsaufträge bedienen (v1.51.0, TS-84) + Arbeitsgänge als Symbole im FA-Baum (v1.52.0, TS-85) + CSV-Export für alle Tabellen (v1.53.0, TS-86) + Arbeitsgang-Stammdaten (v1.54.0, TS-87) + Status je Arbeitsgang-Kürzel im FA-Baum (v1.55.0, TS-88) + Menü Beschichtung + Kurzanleitungen (v1.56.0, TS-89) + BDE-Terminal mit Arbeitsgang-Status (v1.57.0, TS-90) + Spaltenfilter-Suchsyntax Etappe A + B (v1.58.0/v1.58.1, TS-91.A/B) + Fußzeile nach Word-Vorlage (v1.59.0, TS-92) + Sage-Quellen auf WMS-Views (v1.60.0–v1.60.2, TS-93) + Arbeitsgang-Abgleich aus der Sage-View (v1.61.0, TS-94) + Stückliste Matchcode und Lagerplatz-Limit (v1.62.0, TS-95) + BDE Stufe 1: Werkbänke, AG-Fertigmeldung (v1.63.0, TS-96) + BDE-Terminal Liste nach Haupt-FA, Scan ohne AG (v1.64.0, TS-97) + Spaltenauswahl/Zahnrad zentraler Toolbar-Host (v1.65.0, TS-98) + Hardware-Barcodescanner (v1.66.0–v1.66.2, TS-99) + Vault- und enaio-Links konfigurierbar (v1.67.0, TS-100) + QR erstes Feld Matchcode / Trennzeichen (v1.68.0/v1.69.0, TS-101) + Aktivitäts-Protokoll Spaltenfilter/Namen (v1.70.0, TS-102) + FA-Struktur live aus Sage (v1.71.0, TS-103) + Lagerplatz-Etikett 93 × 55 mm und Vormontage-Felder (v1.72.0, TS-104/TS-105) + Sage-Abgleich über SData (v1.73.0, TS-106) + Fehlteile „Nur meine Werkbänke“ Trefferzahl (v1.75.0, TS-108) + Bestandsübersicht QR-FA nur mit `QrMitFaNummer` (v1.76.0, TS-101.22–101.25) + Einstellungen Auswahlfelder und Beschreibung (v1.77.0, TS-109) + EAN-Scan Einkaufsartikel (v1.78.0, TS-110) + Bereinigungen nach dem Bündel 2026-11-07 (v1.79.0, TS-111) + Artikelinfo Lieferanten (v1.80.0, TS-112) + Fehlteile-Karte je Bestelltyp (v1.81.0, TS-113) + Wareneingang zu Sage-Bestellung (v1.84.0, TS-116) + Artikel Lieferanten/Mengeneinheiten (v1.85.0, TS-112.12–112.16) + Offene Bestellungen Nachbesserung (v1.86.0, TS-116.8/116.9) + Lager-Tools FA-Verknüpfung (v1.87.0, TS-115) + Kommissionieraufträge (v1.88.0, TS-120) + Kommissionieraufträge Nachbesserung (v1.89.0, TS-120.1/120.9/120.13/120.14) + Lager-Tools FA-Karte je Pflicht (v1.90.0, TS-115.3) + Offene Bestellungen Legende (v1.91.0, TS-116.8) + OSEON-Relevanzfilter/BDE-Checkboxen (v1.92.0, TS-121) + Meldebestand-Mail Bestandsregel (v1.93.0, TS-122) + Menüleiste Umbruch/Kontrast (v1.94.0, TS-123) + Nachbesserung Vorab-Abnahme (v1.95.0, TS-115.13/115.14/116.10/120.15) + Übernahme AKE-Hotfixes v1.30.2–1.30.4 (v1.96.0, TS-107, TS-124) + Auftrag drucken in Sortierreihenfolge (v1.97.0, TS-120.16) + Matchcode in der Kommissionier-Auftragsliste (v1.99.8, TS-120.17) + Update-Skript je Zielsystem (v1.98.0, TS-125) + Update-Skript Url-Vorrang und Dienst-Stopp-Limit (v1.98.1, TS-125.17/125.18) + Update-Skript prüft und führt aus, mit Bestätigung (v1.99.0–v1.99.2, TS-126) + Update-Skript Prüfung Mail-Ablageordner (v1.99.12, TS-126.28–126.31) + Vormontage Spalte Abteilung (v1.99.3, TS-127) + Wareneingang Sage-Wareneingangsbeleg und Lieferschein (v1.99.4–v1.99.6, TS-116.11–116.19) + Sage-Wareneingang automatisch wiederholen mit Sage-Prüfung, Klären (v1.99.7, TS-116.20–116.24) + System-Kürzel in den Sage-Kennungen WE#/SM# (v1.99.9, TS-116.25–116.30) + Lieferverzug-Mails (v1.99.10, TS-128) + Wareneingang Barcode und CSV-Übergabe (v1.99.11, TS-129) + Bugfixes AKE-Regression: Filter in Anführungszeichen, Bedarfsmeldung Ortszeit, Auftragsdruck Lagerplatz, Wagen-Modal (v1.99.13, TS-130) + Register Sage-Test und SData-Zugangsdaten (v1.99.14, TS-131) + Rahmenabrufe in Offene Bestellungen und Wareneingang (v1.99.15, TS-132) + Update-Skript zweiter Trockenlauf mit Wiederholungssperre, Eingabe-Abbruch, DEV-Ziele (v1.99.16, TS-133) + Kommissionier-Prio nach Freigabe zurücknehmen ohne Doppelte (v1.99.17, TS-134) + Zeitstempel in Ortszeit (v1.99.18, TS-135) + Lieferverzug-Mail Nachbesserung: Kreditor-Schwelle, Altersgrenze, Rahmenabrufe, Lieferanten-Artikelnummer (v1.99.19, TS-128.16–128.26) + Einkauf: Bestellvorschläge (v1.99.20, TS-136) + letzte Bestellmenge (v1.99.21, TS-136.6–136.6g, 136.18–136.20) + Belegnummer 45, Wareneingang Überlieferung-Spalte und Hinweis offene Bedarfe (v1.99.22, TS-137) + Doppel-Absenden-Schutz, unsichtbare Unterpositionen, CSV ohne Tausendertrenner, feste Kultur de-DE (v1.99.23, TS-138) + Beschichtungsquelle Einstellungen und Dienst (v1.99.25, TS-140, TS-144) + Beschichtungstermin aus der Quelle in allen drei Listen (v1.99.32, TS-141–143) + FA-Struktur IDEAL über SData, Stückliste live (v1.99.26, TS-146–150) + Wareneingang-CSV ohne Kopfzeile, Erfasser Windows-Kontoname (v1.99.29, TS-153) + Bestellvorschläge Nachbesserung (v1.99.30, TS-154) + Offene Bestellungen sofort neu lesen, Einkauf-Ansichten, Datumsvorbelegung, Überfällige (v1.99.31, TS-155) + BDE-Teileliste Blechfertigung (v1.99.32, TS-152) + Arbeitsgang-Mapping Sage-Arbeitsgangnummer (v1.99.27 mit v1.99.32, TS-151) + Blechfertigung BF-Aufträge (v1.99.35, TS-157) + Arbeitsgänge → Sage Vorschau und Einreihen (v1.99.38, TS-159) + Nachbesserung Abend: Nachlesen nach dem Senden, Seite hinter der letzten (v1.99.39, TS-159 Nachtrag, TS-160) + Sage-Benutzerfelder als Einstellung (v1.99.40, TS-161) + Beschichtungsauftrag Haken/Versendet/Lackierer/Druck je Position (v1.99.41, TS-162) + Nachbesserungen v1.99.42 (TS-163) + IDEAL-Kommissionierliste Ziele, Abteilung, Lagerplätze, Leitstand-Gate (v1.99.43, TS-164) + Sammel-Bugfix Ziel-Kästchen, Menü Empfänger, Prüfung FA-Struktur-Schlüssel, Rollen (v1.99.44, TS-166) + Update-Skript Meldungen nach Muster, Artikelinfo-Bestand exakt, BF-Warenkorb-Vorschläge, Startseite nach Kategorie und Berechtigung (v1.99.45, TS-167–170) + Startseite: Kacheln wieder mit Symbolen (v1.99.46, TS-174) + Lagerplatz ausbuchen mit FA-Filter (v1.99.47, TS-173) + Startseite: Kachel-Symbole eindeutig (v1.99.50, TS-175) + Startseite: Reiter Favoriten (v1.99.51, TS-176) + Wareneingang zu Bestellung: Bestellnummer ohne Jahr, aktive Zeile, Spaltenanpassung, Hauptlagerplatz-Vorschlag (v1.99.52, TS-177) + Lagerbestellung: Lieferung ausbuchen (v1.99.53, TS-178) + Mengenfelder Pfeil ±1 (v1.99.54, TS-179) + Tabellen Umsortieren (v1.99.55, TS-180) + Beschichtungsauftrag Status speichert mit (v1.99.56, TS-181) + Lagerbestellung Hinweis Sage-Plätze (v1.99.57, TS-182) + Kommissionierauftrag Spalte Menge IST (v1.99.58, TS-183) + WE-Hover hellblau (v1.99.59, TS-184) + Menü FA-Struktur unter Fertigungsaufträge (v1.99.60, TS-185) + FA-Struktur Titel/Sichtbarkeit (v1.99.61, TS-186) + Tabellen Streifen/Hover/Fokus global (v1.99.62, TS-187) + Update-Skript SQL/151 Indizes IDEAL-Prod (v1.99.63, TS-188) + Beschichtungsauftrag ohne Auswahl, Rückfrage Übergeben, Verpackt oder Entfernen (v1.99.65, TS-162.3/162.7/162.8/162.21–162.25) + Sage-Buchungen: Lagerbuchungen und Sage-Wareneingänge auf einer Seite (v1.99.66, TS-189) + Beschichtungsauftrag VaterFA in Meldungen, kein Übergeben ohne Positionen (v1.99.67, TS-162.26–162.29) + Sage-Übergabe Referenz mit Benutzer und Abteilung (v1.99.68, TS-190) + Leerer Beschichtungsauftrag-Entwurf speicherbar, Sage-Buchungen WE nur mit Modul (v1.99.69, TS-162.30, TS-189.10) + Kommissionier-Nachtrag nachts, Knopf nur für Admins (v1.99.70, TS-191) + Lager/Lagerplätze in Sage anlegen per Direkt-SQL (v1.99.71, TS-192) + Fräsen-Pfad, Blechdicke, Lagerbestell-Positionen in der Teileliste (v1.99.72, TS-193) + BDE-Teileliste AG-Status, Baugruppen-Teile, Handy (v1.99.73, TS-194) + BDE-Teileliste Summiert aufklappbar, Summen-Haken, Ampel (v1.99.74, TS-195) + BDE-Teileliste Teilfertigmeldung mit Restmenge (v1.99.75, TS-196) + BDE-Seite FA-Sicht, Anstempeln, BDE-Standardsicht (v1.99.76, TS-197) + BDE-Seite FA: Meine Buchungen, Dialoge, Scan, Tätigkeit (v1.99.77, TS-198)*
+(v1.46.0, TS-79) + Kommissionierliste Summiert als Standard, Druck/PDF nur sichtbare Spalten (v1.47.0, TS-80) + Beschichtungsauftrag Summiert als Standard (v1.48.0, TS-81) + Briefkopf Beschichtungsauftrag (v1.49.0, TS-82) + Beschichtungsauftrag als eigenes Objekt (v1.50.0, TS-83) + Beschichtungsaufträge bedienen (v1.51.0, TS-84) + Arbeitsgänge als Symbole im FA-Baum (v1.52.0, TS-85) + CSV-Export für alle Tabellen (v1.53.0, TS-86) + Arbeitsgang-Stammdaten (v1.54.0, TS-87) + Status je Arbeitsgang-Kürzel im FA-Baum (v1.55.0, TS-88) + Menü Beschichtung + Kurzanleitungen (v1.56.0, TS-89) + BDE-Terminal mit Arbeitsgang-Status (v1.57.0, TS-90) + Spaltenfilter-Suchsyntax Etappe A + B (v1.58.0/v1.58.1, TS-91.A/B) + Fußzeile nach Word-Vorlage (v1.59.0, TS-92) + Sage-Quellen auf WMS-Views (v1.60.0–v1.60.2, TS-93) + Arbeitsgang-Abgleich aus der Sage-View (v1.61.0, TS-94) + Stückliste Matchcode und Lagerplatz-Limit (v1.62.0, TS-95) + BDE Stufe 1: Werkbänke, AG-Fertigmeldung (v1.63.0, TS-96) + BDE-Terminal Liste nach Haupt-FA, Scan ohne AG (v1.64.0, TS-97) + Spaltenauswahl/Zahnrad zentraler Toolbar-Host (v1.65.0, TS-98) + Hardware-Barcodescanner (v1.66.0–v1.66.2, TS-99) + Vault- und enaio-Links konfigurierbar (v1.67.0, TS-100) + QR erstes Feld Matchcode / Trennzeichen (v1.68.0/v1.69.0, TS-101) + Aktivitäts-Protokoll Spaltenfilter/Namen (v1.70.0, TS-102) + FA-Struktur live aus Sage (v1.71.0, TS-103) + Lagerplatz-Etikett 93 × 55 mm und Vormontage-Felder (v1.72.0, TS-104/TS-105) + Sage-Abgleich über SData (v1.73.0, TS-106) + Fehlteile „Nur meine Werkbänke“ Trefferzahl (v1.75.0, TS-108) + Bestandsübersicht QR-FA nur mit `QrMitFaNummer` (v1.76.0, TS-101.22–101.25) + Einstellungen Auswahlfelder und Beschreibung (v1.77.0, TS-109) + EAN-Scan Einkaufsartikel (v1.78.0, TS-110) + Bereinigungen nach dem Bündel 2026-11-07 (v1.79.0, TS-111) + Artikelinfo Lieferanten (v1.80.0, TS-112) + Fehlteile-Karte je Bestelltyp (v1.81.0, TS-113) + Wareneingang zu Sage-Bestellung (v1.84.0, TS-116) + Artikel Lieferanten/Mengeneinheiten (v1.85.0, TS-112.12–112.16) + Offene Bestellungen Nachbesserung (v1.86.0, TS-116.8/116.9) + Lager-Tools FA-Verknüpfung (v1.87.0, TS-115) + Kommissionieraufträge (v1.88.0, TS-120) + Kommissionieraufträge Nachbesserung (v1.89.0, TS-120.1/120.9/120.13/120.14) + Lager-Tools FA-Karte je Pflicht (v1.90.0, TS-115.3) + Offene Bestellungen Legende (v1.91.0, TS-116.8) + OSEON-Relevanzfilter/BDE-Checkboxen (v1.92.0, TS-121) + Meldebestand-Mail Bestandsregel (v1.93.0, TS-122) + Menüleiste Umbruch/Kontrast (v1.94.0, TS-123) + Nachbesserung Vorab-Abnahme (v1.95.0, TS-115.13/115.14/116.10/120.15) + Übernahme AKE-Hotfixes v1.30.2–1.30.4 (v1.96.0, TS-107, TS-124) + Auftrag drucken in Sortierreihenfolge (v1.97.0, TS-120.16) + Matchcode in der Kommissionier-Auftragsliste (v1.99.8, TS-120.17) + Update-Skript je Zielsystem (v1.98.0, TS-125) + Update-Skript Url-Vorrang und Dienst-Stopp-Limit (v1.98.1, TS-125.17/125.18) + Update-Skript prüft und führt aus, mit Bestätigung (v1.99.0–v1.99.2, TS-126) + Update-Skript Prüfung Mail-Ablageordner (v1.99.12, TS-126.28–126.31) + Vormontage Spalte Abteilung (v1.99.3, TS-127) + Wareneingang Sage-Wareneingangsbeleg und Lieferschein (v1.99.4–v1.99.6, TS-116.11–116.19) + Sage-Wareneingang automatisch wiederholen mit Sage-Prüfung, Klären (v1.99.7, TS-116.20–116.24) + System-Kürzel in den Sage-Kennungen WE#/SM# (v1.99.9, TS-116.25–116.30) + Lieferverzug-Mails (v1.99.10, TS-128) + Wareneingang Barcode und CSV-Übergabe (v1.99.11, TS-129) + Bugfixes AKE-Regression: Filter in Anführungszeichen, Bedarfsmeldung Ortszeit, Auftragsdruck Lagerplatz, Wagen-Modal (v1.99.13, TS-130) + Register Sage-Test und SData-Zugangsdaten (v1.99.14, TS-131) + Rahmenabrufe in Offene Bestellungen und Wareneingang (v1.99.15, TS-132) + Update-Skript zweiter Trockenlauf mit Wiederholungssperre, Eingabe-Abbruch, DEV-Ziele (v1.99.16, TS-133) + Kommissionier-Prio nach Freigabe zurücknehmen ohne Doppelte (v1.99.17, TS-134) + Zeitstempel in Ortszeit (v1.99.18, TS-135) + Lieferverzug-Mail Nachbesserung: Kreditor-Schwelle, Altersgrenze, Rahmenabrufe, Lieferanten-Artikelnummer (v1.99.19, TS-128.16–128.26) + Einkauf: Bestellvorschläge (v1.99.20, TS-136) + letzte Bestellmenge (v1.99.21, TS-136.6–136.6g, 136.18–136.20) + Belegnummer 45, Wareneingang Überlieferung-Spalte und Hinweis offene Bedarfe (v1.99.22, TS-137) + Doppel-Absenden-Schutz, unsichtbare Unterpositionen, CSV ohne Tausendertrenner, feste Kultur de-DE (v1.99.23, TS-138) + Beschichtungsquelle Einstellungen und Dienst (v1.99.25, TS-140, TS-144) + Beschichtungstermin aus der Quelle in allen drei Listen (v1.99.32, TS-141–143) + FA-Struktur IDEAL über SData, Stückliste live (v1.99.26, TS-146–150) + Wareneingang-CSV ohne Kopfzeile, Erfasser Windows-Kontoname (v1.99.29, TS-153) + Bestellvorschläge Nachbesserung (v1.99.30, TS-154) + Offene Bestellungen sofort neu lesen, Einkauf-Ansichten, Datumsvorbelegung, Überfällige (v1.99.31, TS-155) + BDE-Teileliste Blechfertigung (v1.99.32, TS-152) + Arbeitsgang-Mapping Sage-Arbeitsgangnummer (v1.99.27 mit v1.99.32, TS-151) + Blechfertigung BF-Aufträge (v1.99.35, TS-157) + Arbeitsgänge → Sage Vorschau und Einreihen (v1.99.38, TS-159) + Nachbesserung Abend: Nachlesen nach dem Senden, Seite hinter der letzten (v1.99.39, TS-159 Nachtrag, TS-160) + Sage-Benutzerfelder als Einstellung (v1.99.40, TS-161) + Beschichtungsauftrag Haken/Versendet/Lackierer/Druck je Position (v1.99.41, TS-162) + Nachbesserungen v1.99.42 (TS-163) + IDEAL-Kommissionierliste Ziele, Abteilung, Lagerplätze, Leitstand-Gate (v1.99.43, TS-164) + Sammel-Bugfix Ziel-Kästchen, Menü Empfänger, Prüfung FA-Struktur-Schlüssel, Rollen (v1.99.44, TS-166) + Update-Skript Meldungen nach Muster, Artikelinfo-Bestand exakt, BF-Warenkorb-Vorschläge, Startseite nach Kategorie und Berechtigung (v1.99.45, TS-167–170) + Startseite: Kacheln wieder mit Symbolen (v1.99.46, TS-174) + Lagerplatz ausbuchen mit FA-Filter (v1.99.47, TS-173) + Startseite: Kachel-Symbole eindeutig (v1.99.50, TS-175) + Startseite: Reiter Favoriten (v1.99.51, TS-176) + Wareneingang zu Bestellung: Bestellnummer ohne Jahr, aktive Zeile, Spaltenanpassung, Hauptlagerplatz-Vorschlag (v1.99.52, TS-177) + Lagerbestellung: Lieferung ausbuchen (v1.99.53, TS-178) + Mengenfelder Pfeil ±1 (v1.99.54, TS-179) + Tabellen Umsortieren (v1.99.55, TS-180) + Beschichtungsauftrag Status speichert mit (v1.99.56, TS-181) + Lagerbestellung Hinweis Sage-Plätze (v1.99.57, TS-182) + Kommissionierauftrag Spalte Menge IST (v1.99.58, TS-183) + WE-Hover hellblau (v1.99.59, TS-184) + Menü FA-Struktur unter Fertigungsaufträge (v1.99.60, TS-185) + FA-Struktur Titel/Sichtbarkeit (v1.99.61, TS-186) + Tabellen Streifen/Hover/Fokus global (v1.99.62, TS-187) + Update-Skript SQL/151 Indizes IDEAL-Prod (v1.99.63, TS-188) + Beschichtungsauftrag ohne Auswahl, Rückfrage Übergeben, Verpackt oder Entfernen (v1.99.65, TS-162.3/162.7/162.8/162.21–162.25) + Sage-Buchungen: Lagerbuchungen und Sage-Wareneingänge auf einer Seite (v1.99.66, TS-189) + Beschichtungsauftrag VaterFA in Meldungen, kein Übergeben ohne Positionen (v1.99.67, TS-162.26–162.29) + Sage-Übergabe Referenz mit Benutzer und Abteilung (v1.99.68, TS-190) + Leerer Beschichtungsauftrag-Entwurf speicherbar, Sage-Buchungen WE nur mit Modul (v1.99.69, TS-162.30, TS-189.10) + Kommissionier-Nachtrag nachts, Knopf nur für Admins (v1.99.70, TS-191) + Lager/Lagerplätze in Sage anlegen per Direkt-SQL (v1.99.71, TS-192) + Fräsen-Pfad, Blechdicke, Lagerbestell-Positionen in der Teileliste (v1.99.72, TS-193) + BDE-Teileliste AG-Status, Baugruppen-Teile, Handy (v1.99.73, TS-194) + BDE-Teileliste Summiert aufklappbar, Summen-Haken, Ampel (v1.99.74, TS-195) + BDE-Teileliste Teilfertigmeldung mit Restmenge (v1.99.75, TS-196) + BDE-Seite FA-Sicht, Anstempeln, BDE-Standardsicht (v1.99.76, TS-197) + BDE-Seite FA: Meine Buchungen, Dialoge, Scan, Tätigkeit (v1.99.77, TS-198) + Tageshistorie als eigene Seite, Terminal-Seite abgelöst (v1.99.78, TS-199)*
 *Bei neuen Features: Szenarien in den entsprechenden Bereich einfuegen und TS-Nummern fortfuehren.*

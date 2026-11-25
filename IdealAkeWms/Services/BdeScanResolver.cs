@@ -88,7 +88,7 @@ public class BdeScanResolver : IBdeScanResolver
     public async Task<BdeScanResolution> ResolveAsync(int workplaceId, string scannedFa, string? operationNumber,
         bool nurFaMode, int? operatorId, CancellationToken ct = default)
     {
-        // FA-Segment wie bde-terminal.js:scanFaAgInput / BdeApiController.GetWorkOperation:
+        // FA-Segment wie frueher bde-terminal.js:scanFaAgInput (geloescht v1.99.78) / BdeApiController.GetWorkOperation:
         // Split auf ',' / '/' → erstes Segment ist die FA-/OrderNumber.
         var fa = (scannedFa ?? string.Empty).Split(',', '/')[0].Trim();
         if (fa.Length == 0) return BdeScanResolution.NotFound;

@@ -18,26 +18,24 @@ public class BdeTerminalController : Controller
     private readonly IBdeTerminalRepository _terminals;
     private readonly IBdeBookingService _bookingSvc;
     private readonly ICurrentUserService _userSvc;
-    private readonly IProductionWorkplaceRepository _workplaces;
     private readonly IBdeDefaultWorkOperationService _defaultWoService;
     private readonly IAppSettingRepository _settings;
-    private readonly IServiceSettingRepository _serviceSettings;
     private readonly ApplicationDbContext _ctx;
     private readonly ILogger<BdeTerminalController> _logger;
 
     public BdeTerminalController(IBdeTerminalRepository terminals, IBdeBookingService bookingSvc,
-        ICurrentUserService userSvc, IProductionWorkplaceRepository workplaces,
-        IBdeDefaultWorkOperationService defaultWoService, IAppSettingRepository settings,
-        IServiceSettingRepository serviceSettings, ApplicationDbContext ctx, ILogger<BdeTerminalController> logger)
+        ICurrentUserService userSvc, IBdeDefaultWorkOperationService defaultWoService, IAppSettingRepository settings,
+        ApplicationDbContext ctx, ILogger<BdeTerminalController> logger)
     {
-        _terminals = terminals; _bookingSvc = bookingSvc; _userSvc = userSvc; _workplaces = workplaces;
-        _defaultWoService = defaultWoService; _settings = settings; _serviceSettings = serviceSettings; _ctx = ctx; _logger = logger;
+        _terminals = terminals; _bookingSvc = bookingSvc; _userSvc = userSvc;
+        _defaultWoService = defaultWoService; _settings = settings; _ctx = ctx; _logger = logger;
     }
 
-    private static bool IsTrue(string? v) =>
-        v != null && (v.Equals("true", StringComparison.OrdinalIgnoreCase) || v == "1"
-                   || v.Equals("on", StringComparison.OrdinalIgnoreCase));
-
+    /// <summary>
+    /// v1.99.78 (Spec 2026-11-25-bde-masken-vereinheitlichung, Etappe 5): die Terminal-Seite ist abgeloest. Index leitet an beiden Standorten
+    /// IMMER auf die BDE-Seite weiter (alte Lesezeichen, Startseite/Menue, Hilfe-Links); Werkbank aus der Query, sonst die Terminal-Vorgabe.
+    /// Die JSON-Aktionen unten bleiben – die FA-Sicht (bde-fa-sicht.js) bucht darueber.
+    /// </summary>
     public async Task<IActionResult> Index(int? workplaceId)
     {
         var appUserId = _userSvc.GetCurrentAppUserId();
@@ -49,32 +47,7 @@ public class BdeTerminalController : Controller
             TempData["WarningMessage"] = "Für diesen Benutzer ist kein Terminal konfiguriert. Bitte an den BDE-Admin wenden.";
             return RedirectToAction("Index", "Home");
         }
-
-        var activeWorkplaceId = workplaceId ?? terminal.DefaultProductionWorkplaceId;
-        var activeWorkplace = await _workplaces.GetByIdAsync(activeWorkplaceId);
-        ViewBag.TerminalId = terminal.Id;
-        ViewBag.WorkplaceId = activeWorkplaceId;
-        ViewBag.WorkplaceName = activeWorkplace?.Name;
-        ViewBag.AllWorkplaces = await _workplaces.GetBdeActiveAsync();
-        ViewBag.DefaultWorkplaceId = terminal.DefaultProductionWorkplaceId;
-
-        var nurFa = (await _settings.GetValueAsync(AppSettingKeys.BdeNurFaMeldung))
-            ?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
-        ViewBag.NurFaMode = nurFa;
-        // v1.64.0 (FA-1.1/1.3): Liste nach Haupt-FA gruppiert nur bei Master an (IDEAL); Anzeige-Grenze, ungueltig/< 1 → 5.
-        var hierarchisch = IsTrue(await _serviceSettings.GetValueAsync(
-            IdealAkeWms.Services.HierarchischeStruktur.HierarchischeStrukturKeys.Master));
-        ViewBag.Hierarchisch = hierarchisch;
-        // v1.99.32 (ADR 0030) / v1.99.76 (E4-7, Spec 2026-11-25-bde-masken-vereinheitlichung): Werkbank mit Standardsicht Teile und
-        // verfuegbarer Teile-Sicht oeffnet die neue BDE-Seite (bis Etappe 5, dann immer). Die Seite liest BdeNurFaMeldung nicht (G5).
-        if (activeWorkplace != null && WerkbankKuerzelFamilie.TeileStandard(activeWorkplace, hierarchisch))
-            return RedirectToAction("Index", "BdeTeileliste", new { workplaceId = activeWorkplace.Id });
-        // v1.63.0 (FA-c2/c3): Werkbank meldet Arbeitsgaenge nur fertig (ohne Start/Stop); NurFA global gewinnt.
-        ViewBag.NurAgFertigmeldung = activeWorkplace != null && WerkbankKuerzelFamilie.NurAgFertigmeldungWirksam(activeWorkplace, nurFa);
-        var maxHauptFa = await _settings.GetIntValueAsync(AppSettingKeys.BdeTerminalMaxHauptFa, 5);
-        ViewBag.MaxHauptFa = maxHauptFa < 1 ? 5 : maxHauptFa;
-
-        return View();
+        return RedirectToAction("Index", "BdeTeileliste", new { workplaceId = workplaceId ?? terminal.DefaultProductionWorkplaceId });
     }
 
     [HttpPost, ValidateAntiForgeryToken]

@@ -24,11 +24,10 @@ public class BdeFaSichtViewTests
     {
         var dialoge = Read("Views", "Shared", "_BdeDialoge.cshtml");
         foreach (var id in new[] { "quantityModal", "collisionModal", "group-finish-modal", "close-others-modal" })
-        {
             dialoge.Should().Contain($"id=\"{id}\"");
-            Read("Views", "BdeTerminal", "Index.cshtml").Should().NotContain($"id=\"{id}\"", "das Terminal nutzt die gemeinsame Partial");
-        }
-        Read("Views", "BdeTerminal", "Index.cshtml").Should().Contain("<partial name=\"_BdeDialoge\" />");
+        // v1.99.78 (Etappe 5): Terminal-Seite abgeloest – View und bde-terminal.js sind geloescht, die Partial nutzt nur noch die FA-Sicht.
+        File.Exists(Path.Combine(Root, "IdealAkeWms", "Views", "BdeTerminal", "Index.cshtml")).Should().BeFalse();
+        File.Exists(Path.Combine(Root, "IdealAkeWms", "wwwroot", "js", "bde-terminal.js")).Should().BeFalse();
 
         var fa = Read("Views", "BdeTeileliste", "Fa.cshtml");
         fa.Should().Contain("<partial name=\"_BdeDialoge\" />").And.Contain("bde-fa-sicht.js");

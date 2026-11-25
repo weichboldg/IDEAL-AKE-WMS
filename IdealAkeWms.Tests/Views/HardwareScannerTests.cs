@@ -150,14 +150,8 @@ public class HardwareScannerTests
         Read("Views", "PurchaseOrders", "Receive.cshtml").Should().Contain("initTextInputScanner('btnScanBarcode', 'barcode', 'raw')");
     }
 
-    [Fact]
-    public void BdeTerminal_BeideScanfelderSindZiele_OhneEigeneLogik()
-    {
-        var view = Read("Views", "BdeTerminal", "Index.cshtml");
-        view.Should().Contain("id=\"scanOperator\"").And.Contain("id=\"scanFaAg\"");
-        System.Text.RegularExpressions.Regex.Matches(view, @"\bdata-hw-scan-ziel\b").Count.Should().BeGreaterThanOrEqualTo(2);
-        Read("wwwroot", "js", "bde-terminal.js").Should().NotContain("hw-scan", "bde-terminal.js bleibt unveraendert (Spec)");
-    }
+    // v1.99.78 (Etappe 5): BdeTerminal_BeideScanfelderSindZiele_OhneEigeneLogik entfaellt – Terminal-View und bde-terminal.js sind geloescht;
+    // das Scan-Ziel der BDE-Seite prueft BdeFaSichtViewTests (genau ein data-hw-scan-ziel), das Anmelden traegt eines (Anmelden.cshtml).
 
     [Fact]
     public void Standorteinstellungen_GruppeMitDreiKeys_KeinSeed()

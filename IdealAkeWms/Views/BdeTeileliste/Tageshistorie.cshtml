@@ -1,0 +1,97 @@
+@model IdealAkeWms.Models.ViewModels.BdeTeilelisteViewModel
+@using IdealAkeWms.Services
+@{
+    ViewData["Title"] = "BDE – Tageshistorie";
+    const int colCount = 9;
+    var sp = BdeTageshistorie.Spalten;
+    var spaltenfilter = ColumnFilterHelper.ReadFromQuery(Context.Request).Count;
+}
+@* v1.99.78 (Spec 2026-11-25-bde-masken-vereinheitlichung, Etappe 5): Tageshistorie als eigene Seite – Buchungen des Werkers von heute plus
+   alle Teilmeldungen des Tages (Quelle BdeTageshistorie, §69/§67). Server-Spaltenfilter + Pagination (ADR 0005). Art/Typ/Status als Text. *@
+<link rel="stylesheet" href="~/css/bde.css" asp-append-version="true" />
+
+<div class="container-fluid bde-terminal bde-tl-seite">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+        <h2 class="mb-0">BDE – Tageshistorie <span class="badge bg-secondary align-middle">@DateTime.Today.ToString("dd.MM.yyyy")</span></h2>
+        <a class="btn btn-outline-secondary bde-touch" asp-action="Index" asp-route-workplaceId="@Model.Werkbank.Id" asp-route-operatorId="@Model.Werker!.Id">Zurück zur Liste</a>
+    </div>
+
+    <div class="bde-operator-badge mb-2">
+        <span class="fw-bold">@Model.Werker.DisplayName</span>
+        <span class="ms-2 small">Personalnr. @Model.Werker.PersonnelNumber</span>
+        <span class="ms-2 small">Werkbank @Model.Werkbank.Name</span>
+    </div>
+
+    <div class="d-flex flex-wrap align-items-center gap-2 mb-1">
+        <p class="small mb-0 me-auto">Ihre Buchungen und Teilmeldungen von heute, neueste zuerst – an allen Werkbänken.</p>
+        @if (spaltenfilter > 0)
+        {
+            <a class="btn btn-outline-secondary bde-touch" asp-action="Tageshistorie" asp-route-workplaceId="@Model.Werkbank.Id"
+               asp-route-operatorId="@Model.Werker.Id">Spaltenfilter zurücksetzen (@spaltenfilter)</a>
+        }
+        <div data-table-toolbar></div>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-sm table-striped align-middle mb-0 filterable-table bde-teileliste" data-view-key="BdeTeilelisteTageshistorie" data-server-column-filter="true">
+            <thead>
+                <tr>
+                    <th class="text-nowrap" data-filterable data-col-key="zeit">Zeit</th>
+                    <th data-filterable data-col-key="art">Art</th>
+                    <th data-filterable data-col-key="typ">Typ</th>
+                    <th data-filterable data-col-key="ziel">Auftrag / Tätigkeit</th>
+                    <th data-filterable data-col-key="werkbank">Werkbank</th>
+                    <th class="text-end" data-filterable data-filter-type="number" data-col-key="dauer">Dauer (min)</th>
+                    <th class="text-end" data-filterable data-filter-type="number" data-col-key="gut">Gut</th>
+                    <th class="text-end" data-filterable data-filter-type="number" data-col-key="ausschuss">Ausschuss</th>
+                    <th data-filterable data-col-key="status">Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (!Model.Historie.Any())
+                {
+                    <tr><td colspan="@colCount" class="text-center text-muted py-4">@(spaltenfilter > 0
+                        ? "Keine Einträge zu diesen Spaltenfiltern. Spaltenfilter zurücksetzen."
+                        : "Noch keine Buchungen oder Meldungen heute.")</td></tr>
+                }
+                @foreach (var z in Model.Historie)
+                {
+                    <tr>
+                        <td class="text-nowrap" data-col-key="zeit" data-label="Zeit">@sp["zeit"](z)</td>
+                        <td data-col-key="art" data-label="Art">@sp["art"](z)</td>
+                        <td data-col-key="typ" data-label="Typ"><span class="fw-semibold">@sp["typ"](z)</span></td>
+                        <td data-col-key="ziel" data-label="Auftrag / Tätigkeit">@sp["ziel"](z)</td>
+                        <td data-col-key="werkbank" data-label="Werkbank">@sp["werkbank"](z)</td>
+                        <td class="text-end" data-col-key="dauer" data-label="Dauer (min)">@sp["dauer"](z)</td>
+                        <td class="text-end" data-col-key="gut" data-label="Gut">@sp["gut"](z)</td>
+                        <td class="text-end" data-col-key="ausschuss" data-label="Ausschuss">@sp["ausschuss"](z)</td>
+                        <td data-col-key="status" data-label="Status">@sp["status"](z)</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    <partial name="_Pagination" model="Model.Pagination" />
+</div>
+
+<script type="application/json" id="view-config">
+{ "viewKey": "BdeTeilelisteTageshistorie", "supportsReorder": true, "supportsSortDefault": false }
+</script>
+<script type="application/json" id="column-config">
+[
+    { "key": "zeit", "label": "Zeit", "locked": true, "defaultWidth": null },
+    { "key": "art", "label": "Art", "locked": false, "defaultWidth": null },
+    { "key": "typ", "label": "Typ", "locked": false, "defaultWidth": null },
+    { "key": "ziel", "label": "Auftrag / Tätigkeit", "locked": false, "defaultWidth": null },
+    { "key": "werkbank", "label": "Werkbank", "locked": false, "defaultWidth": null },
+    { "key": "dauer", "label": "Dauer (min)", "locked": false, "defaultWidth": null },
+    { "key": "gut", "label": "Gut", "locked": false, "defaultWidth": null },
+    { "key": "ausschuss", "label": "Ausschuss", "locked": false, "defaultWidth": null },
+    { "key": "status", "label": "Status", "locked": false, "defaultWidth": null }
+]
+</script>
+
+@section Scripts {
+    <script src="~/js/column-preferences.js" asp-append-version="true"></script>
+    <script src="~/js/table-filter.js" asp-append-version="true"></script>
+}

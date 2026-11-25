@@ -31,10 +31,13 @@
     </div>
 </div>
 
-<div class="bde-operator-badge mb-2">
+<div class="bde-operator-badge flex-wrap gap-2 mb-2">
     <span class="fw-bold">@Model.Werker!.DisplayName</span>
     <span class="ms-2 small">Personalnr. @Model.Werker.PersonnelNumber</span>
-    <a class="btn btn-outline-secondary ms-auto bde-touch" asp-action="Index" asp-route-workplaceId="@Model.Werkbank.Id">Werker wechseln</a>
+    @* v1.99.78 (Etappe 5): Tageshistorie als eigene Seite (ersetzt die Karte am alten Terminal). *@
+    <a class="btn btn-outline-secondary ms-auto bde-touch" asp-action="Tageshistorie" asp-route-workplaceId="@Model.Werkbank.Id"
+       asp-route-operatorId="@Model.Werker.Id">Tageshistorie</a>
+    <a class="btn btn-outline-secondary bde-touch" asp-action="Index" asp-route-workplaceId="@Model.Werkbank.Id">Werker wechseln</a>
 </div>
 @if (Model.IstFa)
 {

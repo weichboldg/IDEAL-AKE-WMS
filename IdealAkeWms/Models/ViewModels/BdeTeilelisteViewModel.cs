@@ -12,7 +12,7 @@ public class BdeTeilelisteViewModel
     public BdeOperator? Werker { get; set; }
     public string? AnmeldeFehler { get; set; }
 
-    /// <summary>v1.99.76 (E4-7): Reiter "einzeln" | "summiert" | "fa".</summary>
+    /// <summary>v1.99.76 (E4-7): Reiter "einzeln" | "summiert" | "fa"; v1.99.78 "historie" = Seite Tageshistorie (kein Reiter aktiv).</summary>
     public string Sicht { get; set; } = "einzeln";
     public bool Summiert => Sicht == "summiert";
     public bool IstFa => Sicht == "fa";
@@ -22,6 +22,9 @@ public class BdeTeilelisteViewModel
 
     /// <summary>v1.99.76: <see cref="WerkbankKuerzelFamilie.TeileSichtVerfuegbar"/> – sonst Teile-Reiter deaktiviert mit Hinweis.</summary>
     public bool TeileSicht { get; set; }
+
+    /// <summary>v1.99.78 (Etappe 5): Zeilen der Tageshistorie (aktuelle Seite), Quelle <see cref="IdealAkeWms.Services.BdeTageshistorie"/>.</summary>
+    public IReadOnlyList<IdealAkeWms.Services.BdeTageshistorieZeile> Historie { get; set; } = Array.Empty<IdealAkeWms.Services.BdeTageshistorieZeile>();
 
     /// <summary>v1.99.76 (E4-1): Zeilen der FA-Sicht (aktuelle Seite).</summary>
     public IReadOnlyList<BdeFaSichtZeile> FaZeilen { get; set; } = Array.Empty<BdeFaSichtZeile>();

@@ -540,6 +540,23 @@ public static class ColumnDefinitions
         ]
     };
 
+    /// <summary>v1.99.78 BdeTeileliste/Tageshistorie.cshtml (Spec 2026-11-25-bde-masken-vereinheitlichung, Etappe 5). Spalten identisch zum inline #column-config JSON der View.</summary>
+    public static readonly ViewConfig BdeTeilelisteTageshistorie = new("BdeTeilelisteTageshistorie", "BDE — Tageshistorie", SupportsReorder: true, SupportsSortDefault: false)
+    {
+        Columns =
+        [
+            new ColumnDef("zeit", "Zeit", Locked: true),
+            new ColumnDef("art", "Art", Locked: false),
+            new ColumnDef("typ", "Typ", Locked: false),
+            new ColumnDef("ziel", "Auftrag / Tätigkeit", Locked: false),
+            new ColumnDef("werkbank", "Werkbank", Locked: false),
+            new ColumnDef("dauer", "Dauer (min)", Locked: false),
+            new ColumnDef("gut", "Gut", Locked: false),
+            new ColumnDef("ausschuss", "Ausschuss", Locked: false),
+            new ColumnDef("status", "Status", Locked: false),
+        ]
+    };
+
     /// <summary>v1.99.32 BdeTeileliste/Summiert.cshtml. Spalten identisch zum inline #column-config JSON der View.</summary>
     public static readonly ViewConfig BdeTeilelisteSummiert = new("BdeTeilelisteSummiert", "BDE-Teileliste — Summiert", SupportsReorder: true, SupportsSortDefault: false)
     {
@@ -1000,6 +1017,7 @@ public static class ColumnDefinitions
         "BdeTeileliste"  => BdeTeileliste,
         "BdeTeilelisteSummiert"  => BdeTeilelisteSummiert,
         "BdeTeilelisteFa"  => BdeTeilelisteFa,
+        "BdeTeilelisteTageshistorie"  => BdeTeilelisteTageshistorie,
         "BdeTeilmeldungen"  => BdeTeilmeldungen,
         "FaHierarchyStructure"           => FaHierarchyStructure,
         "Beschichtungsauftraege"         => Beschichtungsauftraege,

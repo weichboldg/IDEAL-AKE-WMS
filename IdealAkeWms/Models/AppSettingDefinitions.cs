@@ -218,8 +218,8 @@ public static class AppSettingDefinitions
         // ---- BDE ----
         B(AppSettingKeys.BdeAktiv, "false", GBde, "BDE (Betriebsdatenerfassung)", "Schaltet das BDE-Modul ein.",
             "Menü, Startseite, BDE-Terminal, BDE-Stammdaten, FA-Struktur", Beide, seed: true),
-        B(AppSettingKeys.BdeNurFaMeldung, "false", GBde, "BDE: nur FA-Meldung", "Vereinfachter Modus: gebucht wird auf den FA statt auf einzelne Arbeitsgänge.",
-            "BDE-Terminal, BDE-Buchung, Werkbänke", Beide, seed: true, abhaengig: AppSettingKeys.BdeAktiv),
+        B(AppSettingKeys.BdeNurFaMeldung, "false", GBde, "BDE: nur FA-Meldung", "Vereinfachter Modus: gebucht wird auf den FA statt auf einzelne Arbeitsgänge. Wird von der BDE-Seite nicht beachtet, Altlast (seit v1.99.78 ohne Terminal-Seite; Fertigmelden ohne Start/Stopp steuert die Werkbank-Option „nur AG-Fertigmeldung“).",
+            "BDE-Buchung (StartProductionForOrder, ohne Aufrufer), Werkbänke", Beide, seed: true, abhaengig: AppSettingKeys.BdeAktiv),
         S(AppSettingKeys.BdeDefaultArbeitsgang, "", GBde, "BDE: Default-Arbeitsgang",
             "Arbeitsgang, der bei „nur FA-Meldung“ ohne Werkbank-Default gebucht wird (z. B. PRODUKTION). Leer = solche Buchungen schlagen fehl.",
             "BDE-Buchung (nur FA-Meldung), Werkbänke", Beide, seed: true, abhaengig: AppSettingKeys.BdeNurFaMeldung),
@@ -232,8 +232,7 @@ public static class AppSettingDefinitions
             abhaengig: AppSettingKeys.BdeMehrfachBuchungProOperator),
         B(AppSettingKeys.BdeSchichtkalenderAktiv, "false", GBde, "BDE: Schichtkalender", "Schichtkalender mit automatischer Pause am Schichtende.",
             "BDE-Schichtkalender; Dienst Auto-Pause", Beide, seed: true, warn: "Pausiert laufende Buchungen am Schichtende automatisch (Dienst)."),
-        I(AppSettingKeys.BdeTerminalMaxHauptFa, "5", GBde, "BDE-Terminal: Haupt-FAs in der Liste",
-            "Anzahl Haupt-FAs in der Arbeitsgang-Liste; der Rest über „Weitere anzeigen“.", "BDE-Terminal (hierarchisch)", "IDEAL", seed: true, "Haupt-FAs"),
+        // v1.99.78 (Etappe 5): BdeTerminalMaxHauptFa entfernt – die BDE-Seite paginiert; die DB-Zeile bleibt und erscheint in /Settings als verwaist.
         // v1.99.72 (Spec 2026-11-20-bde-liste-isolierungsfraese-pfad-material): Termin der Lagerbestell-Zeilen der BDE-Teileliste. Kein Seed.
         I(AppSettingKeys.BdeTeilelisteLagerbestellungArbeitstage, "10", GBde, "Teileliste: Termin Lagerbestellung (Arbeitstage nach Abschicken)",
             "Termin der Lagerbestell-Zeilen in der BDE-Teileliste = Abschickdatum + so viele Arbeitstage (Mo–Fr, ohne Feiertage); der KW-Filter wirkt auf diesen Termin.",

@@ -1,14 +1,14 @@
 # 17 BDE-Teileliste an der Werkbank (vereinfachte Fertigmeldung)
 
-Stand: Version 1.99.77 (Abschnitt 1 Reiter FA mit Buchungen, Text), 1.99.76 (Wer darf, Reiter, Abschnitt 1, Text; Foto 17-01 folgt neu), 1.99.73 (Abschnitt 2 und Handy, Text; Fotos folgen), 1.99.72 (Abschnitte 8 und 9, Text; Fotos folgen) bzw. 1.99.43 · nur Standort IDEAL · Bilder aus dem IDEAL-Testsystem
+Stand: Version 1.99.78 (Abschnitt 1 Verweise auf Kapitel 11, Tageshistorie, Text), 1.99.77 (Abschnitt 1 Reiter FA mit Buchungen, Text), 1.99.76 (Wer darf, Reiter, Abschnitt 1, Text; Foto 17-01 folgt neu), 1.99.73 (Abschnitt 2 und Handy, Text; Fotos folgen), 1.99.72 (Abschnitte 8 und 9, Text; Fotos folgen) bzw. 1.99.43 · nur Standort IDEAL · Bilder aus dem IDEAL-Testsystem
 
 ## Zweck
 
-An Werkbänken der Blechfertigung (z. B. **Kanten**) zeigt das BDE-Terminal statt der Auftragsgruppen eine **Teileliste**: alle Teile und
+An Werkbänken der Blechfertigung (z. B. **Kanten**) zeigt die BDE-Seite eine **Teileliste**: alle Teile und
 Baugruppen, die an dieser Werkbank bearbeitet werden, sortiert nach **Matchcode**. Der Werker meldet nur **„fertig“** – ohne Rüsten,
 ohne Start und Stopp, ohne Zeit. Er kann einzeln melden oder viele Zeilen auf einmal.
 
-Das normale BDE-Terminal mit Rüsten, Produktion und Pause beschreibt [Kapitel 11](11-bde-terminal.md).
+Rüsten, Produktion und Pause (Reiter **FA**) sowie die **Tageshistorie** beschreibt [Kapitel 11](11-bde-terminal.md).
 
 ## Wer darf
 
@@ -38,15 +38,16 @@ Das normale BDE-Terminal mit Rüsten, Produktion und Pause beschreibt [Kapitel 1
 
 ## Schritt für Schritt
 
-### 1. Terminal öffnen, Werker anmelden
+### 1. BDE-Seite öffnen, Werker anmelden
 
 Menü **BDE → Terminal**. Steht die Werkbank des Terminals auf **BDE-Standardsicht = Teile**, öffnet sich automatisch die **BDE-Teileliste**
 (seit 1.99.76; vorher genügte der Schalter „BDE-Teileliste“). Oben steht z. B. **Kanten · Kürzel KA**.
 
 Seit 1.99.76 hat die Seite drei Reiter: **Teile Einzeln**, **Teile Summiert** und **FA**. Der Reiter **FA** zeigt die offenen Arbeitsgänge der
-Werkbank mit Anstempeln (Rüsten/Produktion), beschrieben in [Kapitel 11](11-bde-terminal.md), Abschnitt 7. Seit 1.99.77 stehen dort oben
+Werkbank mit Anstempeln (Rüsten/Produktion), beschrieben in [Kapitel 11](11-bde-terminal.md), Abschnitt 2. Seit 1.99.77 stehen dort oben
 unter **Meine Buchungen** die laufenden und pausierten Buchungen des Werkers (Pause, Teilfertig, Fertig, Fortsetzen), dazu **FA scannen** und
-**Tätigkeit starten** ([Kapitel 11](11-bde-terminal.md), Abschnitt 8). Die Teile-Reiter zeigen „Meine Buchungen“ nicht. Die zuletzt gewählte Sicht merkt
+**Tätigkeit starten** ([Kapitel 11](11-bde-terminal.md), Abschnitt 3). Seit 1.99.78 öffnet der Knopf **Tageshistorie** im Werker-Balken die
+Buchungen und Teilmeldungen des Werkers von heute ([Kapitel 11](11-bde-terminal.md), Abschnitt 4). Die Teile-Reiter zeigen „Meine Buchungen“ nicht. Die zuletzt gewählte Sicht merkt
 sich das WMS je Werker und Werkbank. An Werkbänken ohne „BDE-Teileliste“ sind die Teile-Reiter ausgegraut, mit dem Hinweis „Teile-Reiter nur
 an Werkbänken mit „BDE-Teileliste (vereinfacht)“ und Kürzel – diese Werkbank zeigt die FA-Sicht.“
 

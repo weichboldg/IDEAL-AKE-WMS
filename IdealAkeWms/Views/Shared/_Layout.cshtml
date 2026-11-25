@@ -309,6 +309,10 @@
                                 </a>
                                 <ul class="dropdown-menu">
                                     <li><a class="dropdown-item" asp-controller="BdeTerminal" asp-action="Index">Terminal</a></li>
+                                    @if (nav.Zeigt(NavZiele.BdeTageshistorie))
+                                    {
+                                        <li><a class="dropdown-item" asp-controller="BdeTeileliste" asp-action="Tageshistorie">Tageshistorie</a></li>
+                                    }
                                     @if (nav.Zeigt(NavZiele.BdeCockpit))
                                     {
                                         <li><hr class="dropdown-divider" style="@divider" /></li>

@@ -703,5 +703,11 @@ WHERE NOT EXISTS (SELECT 1 FROM dbo.Roles r WHERE r.[Key] = v.k);'
 @{ Id='v1.99.77-BdeFaSichtBuchungenInfo'; Version='1.99.77'; Typ='Info'; Firma='beide'; Phase='Nachher'; Ausfuehrung='anzeigen'
    Text='BDE-Seite Reiter FA: Meine Buchungen im Kopf (Pause/Teilfertig/Fertig/Fortsetzen), Scan-Feld FA scannen, Taetigkeit starten, Fertig melden je Zeile an Werkbaenken mit nur Fertigmeldung; Dialoge wie am Terminal. Terminal unveraendert. Werker kurz informieren; Browser-Cache am Terminal ggf. leeren.'
    Quelle='2026-11-25-v1-99-77-bde-masken-etappe-4b-fa-buchungen' }
+@{ Id='v1.99.78-BdeTerminalAbloesungInfo'; Version='1.99.78'; Typ='Info'; Firma='beide'; Phase='Nachher'; Ausfuehrung='anzeigen'
+   Text='BDE-Terminal oeffnet an beiden Standorten die neue Seite mit Reitern; alte Terminal-Seite entfernt; Tageshistorie im Menue. Einstellung BdeTerminalMaxHauptFa entfaellt (in /Settings als verwaist sichtbar).'
+   Quelle='2026-11-25-v1-99-78-bde-masken-etappe-5-terminal-abloesung' }
+@{ Id='v1.99.78-BdeHandyKontenInfo'; Version='1.99.78'; Typ='Info'; Firma='beide'; Phase='Nachher'; Ausfuehrung='anzeigen'
+   Text='BDE am Android-Handy: je Geraet lokales WMS-Konto (Formular-Login) + Terminal-Zuordnung anlegen (docs/betrieb/09). Konten sind noch nicht angelegt.'
+   Quelle='2026-11-25-v1-99-78-bde-masken-etappe-5-terminal-abloesung' }
 )
 }

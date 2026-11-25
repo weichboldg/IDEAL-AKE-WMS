@@ -15,8 +15,7 @@ namespace IdealAkeWms.Tests.Controllers;
 public class BdeTerminalControllerTests
 {
     private static BdeTerminalController CreateTerminalController(ApplicationDbContext ctx, bool multiMa = false, bool multiOp = false, bool groupFinish = false, bool nurFa = false,
-        string? master = null, string? maxHauptFa = null, Mock<IBdeTerminalRepository>? terminals = null,
-        Mock<IProductionWorkplaceRepository>? workplaces = null, ICurrentUserService? user = null)
+        Mock<IBdeTerminalRepository>? terminals = null, ICurrentUserService? user = null)
     {
         var userSvc = new Mock<ICurrentUserService>();
         userSvc.Setup(u => u.GetDisplayName()).Returns("tester");
@@ -31,20 +30,14 @@ public class BdeTerminalControllerTests
             .ReturnsAsync(groupFinish ? "true" : "false");
         settings.Setup(s => s.GetValueAsync("BdeNurFaMeldung"))
             .ReturnsAsync(nurFa ? "true" : "false");
-        settings.Setup(s => s.GetIntValueAsync(AppSettingKeys.BdeTerminalMaxHauptFa, 5))
-            .ReturnsAsync(int.TryParse(maxHauptFa, out var max) ? max : 5);
-        var serviceSettings = new Mock<IServiceSettingRepository>();
-        serviceSettings.Setup(s => s.GetValueAsync(IdealAkeWms.Services.HierarchischeStruktur.HierarchischeStrukturKeys.Master))
-            .ReturnsAsync(master);
 
         var bookingSvc = new BdeBookingService(ctx, userSvc.Object, settings.Object);
         var defaultWoSvc = new BdeDefaultWorkOperationService(ctx, settings.Object);
 
         terminals ??= new Mock<IBdeTerminalRepository>();
-        workplaces ??= new Mock<IProductionWorkplaceRepository>();
 
         return new BdeTerminalController(terminals.Object, bookingSvc, user ?? userSvc.Object,
-            workplaces.Object, defaultWoSvc, settings.Object, serviceSettings.Object, ctx, NullLogger<BdeTerminalController>.Instance);
+            defaultWoSvc, settings.Object, ctx, NullLogger<BdeTerminalController>.Instance);
     }
 
     [Fact]
@@ -340,29 +333,42 @@ public class BdeTerminalControllerTests
         ctx.WorkOperations.Should().Contain(w => w.ProductionOrderId == ids.ProductionOrderId && w.OperationNumber == "01");
     }
 
-    // v1.64.0 (Spec 2026-10-19-bde-terminal-liste-scan-ohne-ag-prio, FA-1.1/1.3, AK 2/19): Master + Anzeige-Grenze an die View.
+    // v1.99.78 (Spec 2026-11-25-bde-masken-vereinheitlichung, Etappe 5): BdeTerminal/Index leitet an beiden Standorten IMMER auf die
+    // BDE-Seite weiter (Werkbank aus Query, sonst Terminal-Vorgabe); Login- und Terminal-Pruefung bleiben. Ersetzt Index_HierarchischUndMaxHauptFa.
     [Theory]
-    [InlineData("true", "3", true, 3)]
-    [InlineData("1", null, true, 5)]
-    [InlineData(null, "0", false, 5)]
-    [InlineData("false", "-1", false, 5)]
-    [InlineData("false", "abc", false, 5)]
-    public async Task Index_HierarchischUndMaxHauptFa(string? master, string? max, bool erwartetHierarchisch, int erwartetMax)
+    [InlineData(null, 65)]
+    [InlineData(12, 12)]
+    public async Task Index_LeitetImmerAufBdeSeiteWeiter(int? query, int erwartetWerkbank)
     {
         var ctx = TestDbContextFactory.Create();
         var user = new Mock<ICurrentUserService>();
         user.Setup(u => u.GetCurrentAppUserId()).Returns(1);
         var terminals = new Mock<IBdeTerminalRepository>();
         terminals.Setup(t => t.GetByUserIdAsync(1)).ReturnsAsync(new BdeTerminal { Id = 7, DefaultProductionWorkplaceId = 65 });
-        var workplaces = new Mock<IProductionWorkplaceRepository>();
-        workplaces.Setup(w => w.GetByIdAsync(65)).ReturnsAsync(new ProductionWorkplace { Id = 65, Name = "Entgraten Fläche", BdeAktiv = true });
-        workplaces.Setup(w => w.GetBdeActiveAsync()).ReturnsAsync(new List<ProductionWorkplace>());
 
-        var c = CreateTerminalController(ctx, master: master, maxHauptFa: max, terminals: terminals, workplaces: workplaces, user: user.Object);
-        var r = await c.Index(null) as ViewResult;
+        var r = await CreateTerminalController(ctx, terminals: terminals, user: user.Object).Index(query);
 
-        r.Should().NotBeNull();
-        ((bool)c.ViewBag.Hierarchisch).Should().Be(erwartetHierarchisch);
-        ((int)c.ViewBag.MaxHauptFa).Should().Be(erwartetMax);
+        var redirect = r.Should().BeOfType<RedirectToActionResult>().Subject;
+        (redirect.ControllerName, redirect.ActionName).Should().Be(("BdeTeileliste", "Index"));
+        redirect.RouteValues!["workplaceId"].Should().Be(erwartetWerkbank);
+    }
+
+    [Fact]
+    public async Task Index_OhneTerminal_Startseite_OhneAppUser_Login()
+    {
+        var ctx = TestDbContextFactory.Create();
+        var user = new Mock<ICurrentUserService>();
+        user.Setup(u => u.GetCurrentAppUserId()).Returns(1);
+        var c = CreateTerminalController(ctx, terminals: new Mock<IBdeTerminalRepository>(), user: user.Object);
+        c.TempData = new Microsoft.AspNetCore.Mvc.ViewFeatures.TempDataDictionary(new Microsoft.AspNetCore.Http.DefaultHttpContext(),
+            Mock.Of<Microsoft.AspNetCore.Mvc.ViewFeatures.ITempDataProvider>());
+
+        var ohneTerminal = (await c.Index(null)).Should().BeOfType<RedirectToActionResult>().Subject;
+        (ohneTerminal.ControllerName, ohneTerminal.ActionName).Should().Be(("Home", "Index"));
+        ((string)c.TempData["WarningMessage"]!).Should().Contain("kein Terminal konfiguriert");
+
+        var ohneUser = (await CreateTerminalController(ctx, user: Mock.Of<ICurrentUserService>()).Index(null))
+            .Should().BeOfType<RedirectToActionResult>().Subject;
+        (ohneUser.ControllerName, ohneUser.ActionName).Should().Be(("Account", "Login"));
     }
 }

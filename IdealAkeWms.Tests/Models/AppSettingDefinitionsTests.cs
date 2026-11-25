@@ -22,7 +22,6 @@ public class AppSettingDefinitionsTests
         ("WindowsAuthAktiv", "false"), ("WindowsAuthBerechtigungsgruppe", ""),
         ("BdeAktiv", "false"), ("BdeNurFaMeldung", "false"), ("BdeDefaultArbeitsgang", ""), ("BdeMehrfachBuchungProOperator", "false"),
         ("BdeMehrfachBuchungProArbeitsgang", "false"), ("BdeGleichzeitigerAbschlussBeiMehrfachStart", "false"), ("BdeSchichtkalenderAktiv", "false"),
-        ("BdeTerminalMaxHauptFa", "5"),
         ("FaHierarchyKommissionierlistenAktiv", "false"), ("FaHierarchyBeschichtungAktiv", "false"), ("FaHierarchyVormontageAktiv", "false"),
         ("FaHierarchyMaxTiefe", "500"),
         ("OseonAmpelGelbTage", "1"), ("OseonAmpelBlauTage", "2"), ("QrMitFaNummer", "false"), ("QrErstesFeld", "Artikelnummer"), ("QrTrennzeichen", ";"),
@@ -35,7 +34,7 @@ public class AppSettingDefinitionsTests
     [Fact]
     public void Seed_GleichDerFrueherenListe_AK2()
     {
-        FruehererSeed.Should().HaveCount(40);
+        FruehererSeed.Should().HaveCount(39); // v1.99.78: -1 BdeTerminalMaxHauptFa
         AppSettingDefinitions.SeedEintraege.Select(e => (e.Key, e.Value)).Should().BeEquivalentTo(FruehererSeed);
     }
 
@@ -43,7 +42,7 @@ public class AppSettingDefinitionsTests
     public void Katalog_EnthaeltJedenKeyGenauEinmal_MitPflichtangaben_AK1()
     {
         var all = AppSettingDefinitions.All;
-        all.Should().HaveCount(70);  // v1.99.72: +2 FraesenPfadAktiv, BdeTeilelisteLagerbestellungArbeitstage; v1.99.53: +1 LagerbestellungVerbrauchsbuchungAktiv; v1.99.43: +2 FaHierarchyKommissionierlisteVorfilterZiele, FaHierarchyKommissionierlisteNurFreigegebene; v1.99.35: +5 Blechfertigung (BlechfertigungAktiv, BfEmpfaengergruppeId, BfStatuswerte, BfSchachtelterminArbeitstage, BfFeTerminArbeitstage); v1.99.25: +2 BeschichtungKennzeichenQuelle, BeschichtungTerminQuelle; v1.99.20: +2 EinkaufAktiv, EinkaufOffeneBedarfe; v1.99.14: -1 SageSdataFaAnsichtAktiv (Gate entfaellt); v1.99.11: +1 WareneingangBarcodeAktiv; v1.79.0 F5: zwei Rueckmelde-Schalter entfernt; v1.84.0: +2 Wareneingang aus Sage-Bestellungen; v1.87.0: +1 FaPflichtBuchungsarten; v1.99.4: +1 WareneingangLieferscheinPflicht
+        all.Should().HaveCount(69);  // v1.99.78: -1 BdeTerminalMaxHauptFa (Terminal-Seite abgeloest); v1.99.72: +2 FraesenPfadAktiv, BdeTeilelisteLagerbestellungArbeitstage; v1.99.53: +1 LagerbestellungVerbrauchsbuchungAktiv; v1.99.43: +2 FaHierarchyKommissionierlisteVorfilterZiele, FaHierarchyKommissionierlisteNurFreigegebene; v1.99.35: +5 Blechfertigung (BlechfertigungAktiv, BfEmpfaengergruppeId, BfStatuswerte, BfSchachtelterminArbeitstage, BfFeTerminArbeitstage); v1.99.25: +2 BeschichtungKennzeichenQuelle, BeschichtungTerminQuelle; v1.99.20: +2 EinkaufAktiv, EinkaufOffeneBedarfe; v1.99.14: -1 SageSdataFaAnsichtAktiv (Gate entfaellt); v1.99.11: +1 WareneingangBarcodeAktiv; v1.79.0 F5: zwei Rueckmelde-Schalter entfernt; v1.84.0: +2 Wareneingang aus Sage-Bestellungen; v1.87.0: +1 FaPflichtBuchungsarten; v1.99.4: +1 WareneingangLieferscheinPflicht
         all.Select(d => d.Key).Should().OnlyHaveUniqueItems();
         all.Should().OnlyContain(d => !string.IsNullOrWhiteSpace(d.Anzeigename) && !string.IsNullOrWhiteSpace(d.Description)
             && !string.IsNullOrWhiteSpace(d.Verwendung) && !string.IsNullOrWhiteSpace(d.Standort) && !string.IsNullOrWhiteSpace(d.Category));

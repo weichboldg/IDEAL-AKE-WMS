@@ -211,6 +211,45 @@ public class BdeTeilelisteController : Controller
         return View(vm.Summiert ? "Summiert" : "Index", vm);
     }
 
+    /// <summary>
+    /// v1.99.78 (Spec 2026-11-25-bde-masken-vereinheitlichung, Etappe 5): Tageshistorie des Werkers (Buchungen + Teilmeldungen von heute,
+    /// Quelle <see cref="BdeTageshistorie"/>). Gate-Folge wie <see cref="Index"/>; ohne Werkbank die Terminal-Vorgabe (Menuepunkt ohne Parameter).
+    /// Spaltenfilter vor Pagination (ADR 0005), in C# – die Datenmenge eines Werker-Tages ist klein.
+    /// </summary>
+    public async Task<IActionResult> Tageshistorie([FromServices] IdealAkeWms.Data.ApplicationDbContext ctx, int? workplaceId, int? operatorId,
+        int page = 1, int? pageSize = null)
+    {
+        var terminal = await TerminalAsync();
+        if (terminal == null)
+        {
+            TempData["WarningMessage"] = "Für diesen Benutzer ist kein Terminal konfiguriert. Bitte an den BDE-Admin wenden.";
+            return RedirectToAction("Index", "Home");
+        }
+        var werkbaenke = await _workplaces.GetBdeActiveAsync();
+        var wp = await BdeWerkbankAsync(workplaceId ?? terminal.DefaultProductionWorkplaceId);
+        if (wp == null) return View("NichtAktiv", werkbaenke);
+        var hierarchisch = await HierarchischAsync();
+        var vm = new BdeTeilelisteViewModel
+        {
+            Werkbank = wp, Kuerzel = WerkbankKuerzelFamilie.Kuerzel(wp), Werkbaenke = werkbaenke, Sicht = "historie",
+            Hierarchisch = hierarchisch, TeileSicht = WerkbankKuerzelFamilie.TeileSichtVerfuegbar(wp, hierarchisch),
+            Werker = await AktiverWerkerAsync(operatorId),
+        };
+        if (vm.Werker == null) return View("Anmelden", vm);
+
+        if (page < 1) page = 1;
+        var userDefault = await _userSvc.GetDefaultPageSizeAsync();
+        var size = PageSize.Resolve(pageSize, userDefault);
+        var zeilen = ColumnFilterHelper.Apply(await BdeTageshistorie.LadenAsync(ctx, vm.Werker.Id, DateTime.Today), ColumnFilterHelper.ReadFromQuery(Request),
+            BdeTageshistorie.Spalten, ColumnFilterTypes.For("BdeTeileliste/Tageshistorie")).ToList();
+        vm.Historie = zeilen.Skip((page - 1) * size).Take(size).ToList();
+        vm.Pagination = new PaginationState
+        {
+            CurrentPage = page, PageSize = size, PageSizeRaw = PageSize.ResolveRaw(pageSize, userDefault), TotalCount = zeilen.Count,
+        };
+        return View(vm);
+    }
+
     /// <summary>v1.99.72 (F12): der CSV-Export holt dieselbe URL per fetch (<c>pageSize=0</c>) – das ist keine Navigation und darf den
     /// gespeicherten Werker-Filter nicht ueberschreiben. Fehlt der Header (alte Browser), wird wie bisher gespeichert.</summary>
     /// <summary>v1.99.77 (E4-5): Seite (1-basiert), auf der der Arbeitsgang in der gefilterten Liste steht; null = nicht in der Liste.</summary>
@@ -340,7 +379,7 @@ public class BdeTeilelisteController : Controller
         return LocalRedirect(zurueck);
     }
 
-    /// <summary>Meldetext je Ergebnis (Texte wie <c>bde-terminal.js</c> post()).</summary>
+    /// <summary>Meldetext je Ergebnis (Texte wie frueher <c>bde-terminal.js</c> post(), geloescht v1.99.78).</summary>
     internal static string AnstempelnText(BdeBookingResult r, bool ruesten) => r.Outcome switch
     {
         BdeBookingOutcome.Success => ruesten ? "Rüsten gestartet." : "Produktion gestartet.",

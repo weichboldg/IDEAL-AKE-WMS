@@ -64,6 +64,8 @@ public static class NavZiele
     private const string SymEingangskorb = "M7 1h2v4h2.5L8 8.5 4.5 5H7zM1 9h3l1.5 2h5L12 9h3v6H1z";
     private const string SymTacho = "M8 3a7 7 0 0 0-7 7v2h2v-2a5 5 0 0 1 10 0v2h2v-2a7 7 0 0 0-7-7zM8 8.5a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3M7.5 9.5l3-3 .7.7-3 3z";
     private const string SymRegal = "M1 1h1v14H1zm13 0h1v14h-1zM2 5h12v1H2zm0 5h12v1H2zm0 4h12v1H2zM3 2h3v3H3zm5 1h4v2H8zM4 7h4v3H4zm6 1h3v2h-3zM3 12h3v2H3zm5-.5h5V14H8z";
+    // v1.99.78: Uhr mit Rueckwaerts-Pfeil (Tageshistorie), eigenes Zeichen – SymUhr gehoert dem Aktivitaets-Protokoll.
+    private const string SymVerlauf = "M8 2a6 6 0 1 1-5.2 3H1l2.5-3L6 5H4.4A4.5 4.5 0 1 0 8 3.5zM7.25 5h1.5v3.2l2.2 1.3-.75 1.3-2.95-1.75z";
     private const string SymUhr = "M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1m0 1.5a5.5 5.5 0 1 1 0 11 5.5 5.5 0 0 1 0-11M7.25 4h1.5v4.25l2.5 1.5-.75 1.3-3.25-2z";
     private const string SymWerkbank = "M0 5h16v2H0zm1 2h2v8H1zm12 0h2v8h-2zM3 11h10v1H3zM5 2h6v3H5z";
     private const string SymSanduhr = "M3 1h10v2h-1c0 2.5-2 4-3 5 1 1 3 2.5 3 5h1v2H3v-2h1c0-2.5 2-4 3-5-1-1-3-2.5-3-5H3z";
@@ -108,6 +110,7 @@ public static class NavZiele
     public static readonly NavZiel FaAbarbeitungsliste = new("FaAbarbeitungsliste", "FA-Abarbeitungsliste", "FaWorklist", "Index", KatProduktionBde, "Arbeitsschritte je Werkbank abarbeiten", SymCheckSquare);
     public static readonly NavZiel Vormontage = new("Vormontage", "Vormontage", "FaHierarchyVormontage", "Index", KatProduktionBde, "Vormontage-Listen je Abteilung", SymBox);
     public static readonly NavZiel BdeTerminal = new("BdeTerminal", "Terminal", "BdeTerminal", "Index", KatProduktionBde, "BDE: Arbeitsgänge buchen", SymTerminal);
+    public static readonly NavZiel BdeTageshistorie = new("BdeTageshistorie", "Tageshistorie", "BdeTeileliste", "Tageshistorie", KatProduktionBde, "BDE: eigene Buchungen und Meldungen von heute", SymVerlauf);
     public static readonly NavZiel BdeCockpit = new("BdeCockpit", "Cockpit", "BdeCockpit", "Index", KatProduktionBde, "BDE: laufende Arbeit im Überblick", SymTacho);
     public static readonly NavZiel BdeBuchungen = new("BdeBuchungen", "Buchungen", "BdeBookings", "Index", KatProduktionBde, "BDE: Buchungen prüfen und korrigieren", SymListeZeilen);
     public static readonly NavZiel BdeStammdaten = new("BdeStammdaten", "Stammdaten", "BdeMasterData", "Index");
@@ -161,7 +164,7 @@ public static class NavZiele
         SageLagerbuchungen, OffeneBestellungenLager, WareneingangZuBestellung,
         Bedarfsmeldungen, Lagerbestellungen, MeineFehlteile, LagerEingehendeListen, LagerFehlteile,
         Kommissionierung, Kommissionierlisten, LeitstandKommissionierung,
-        FaListe, FaStruktur, FaVervollstaendigen, FaAbarbeitungsliste, Vormontage, BdeTerminal, BdeCockpit, BdeBuchungen, BdeStammdaten,
+        FaListe, FaStruktur, FaVervollstaendigen, FaAbarbeitungsliste, Vormontage, BdeTerminal, BdeTageshistorie, BdeCockpit, BdeBuchungen, BdeStammdaten,
         BdeSchichtkalender, TeileverfolgungRueckmeldungen, TeileverfolgungOseon, OseonAgUebersicht,
         BfWarenkorb, BfAuftraege, BeschichtungVorschlagsliste, Beschichtungsauftraege,
         Bestellvorschlaege, OffeneBestellungenEinkauf, SageWareneingaengeEinkauf,
@@ -268,7 +271,7 @@ public sealed class NavigationSicht(ICurrentUserService user, IAppSettingReposit
             "FaVervollstaendigen" => faCompletion && completion,
             "FaAbarbeitungsliste" => faCompletion && vorbau,
             "Vormontage" => vormontage && vorbau,
-            "BdeTerminal" => bde && useBde,
+            "BdeTerminal" or "BdeTageshistorie" => bde && useBde,
             "BdeCockpit" or "BdeBuchungen" or "BdeStammdaten" => bde && useBde && shiftlead,
             "BdeSchichtkalender" => bde && useBde && admin,
             "TeileverfolgungRueckmeldungen" or "TeileverfolgungOseon" => teileverfolgung && tracking,

@@ -353,7 +353,7 @@ Die App startet und führt beim ersten Start automatisch `Database.Migrate()` au
 - **Feature-Toggle**: `FaCompletionAktiv` AppSetting (Default `false`) — gated FA-Vervollstaendigung UND FA-Abarbeitungsliste
 
 ### Betriebsdatenerfassung (BDE)
-- **BDE-Terminal**: Scan-basierte Buchung (Personalnummer + FA/AG) mit Statusverwaltung (Ruesten, Produktion, Pause, Fortsetzen, Beenden)
+- **BDE-Terminal**: Scan-basierte Buchung (Personalnummer + FA/AG) mit Statusverwaltung (Ruesten, Produktion, Pause, Fortsetzen, Beenden); seit v1.99.78 leitet `BdeTerminal/Index` an beiden Standorten auf die BDE-Seite (`BdeTeileliste`, Reiter FA/Teile) weiter, Tageshistorie als eigene Seite `BdeTeileliste/Tageshistorie`
 - **Mengen-Erfassung**: Teilfertigmeldungen (Gutmenge + Ausschuss) und Abschlussmeldung
 - **Ungeplante Taetigkeiten**: Wartung, Reinigung etc. via konfigurierbare Aktivitaets-Kategorien
 - **Live-Cockpit**: 5-Sekunden-Refresh aller Werkbaenke fuer Schichtleiter und Admins
@@ -496,13 +496,12 @@ Bei Änderungen der Tabellenstruktur müssen diese Scripts angepasst werden.
 | `BeschichtungTerminQuelle` | `Automatisch` | `Berechnet` (Kommissioniertermin minus `BeschichtungTage`, auf Abholtag) oder `View` (`Start_Beschichtung` des Auftragskopfs, nur hierarchisch, unverändert); wirkt in FA-Liste, Leitstand und Arbeitsliste (seit v1.99.32) |
 | `FaCompletionAktiv` | `false` | FA-Vervollständigung + FA-Abarbeitungsliste aktivieren |
 | `BdeAktiv` | `false` | BDE-Modul aktivieren |
-| `BdeNurFaMeldung` | `false` | Vereinfachter BDE-Modus (FA statt AG) |
+| `BdeNurFaMeldung` | `false` | Vereinfachter BDE-Modus (FA statt AG); wird von der BDE-Seite nicht beachtet, Altlast (seit v1.99.78 ohne Terminal-Seite; `BdeTerminalMaxHauptFa` ist seit v1.99.78 entfernt, eine vorhandene DB-Zeile erscheint in `/Settings` als verwaist) |
 | `BdeDefaultArbeitsgang` | (leer) | Default-AG-Name für vereinfachten BDE-Modus |
 | `BdeMehrfachBuchungProOperator` | `false` | Mitarbeiter darf mehrere parallele Buchungen haben |
 | `BdeMehrfachBuchungProArbeitsgang` | `false` | Arbeitsgang darf mehrere parallele Buchungen haben |
 | `BdeGleichzeitigerAbschlussBeiMehrfachStart` | `false` | Parallel gestartete Buchungen gemeinsam fertigmelden |
 | `BdeSchichtkalenderAktiv` | `false` | Schichtkalender + Auto-Pause am Schichtende |
-| `BdeTerminalMaxHauptFa` | `5` | BDE-Terminal, nur IDEAL (hierarchische Struktur an): Anzahl Haupt-FA-Gruppen in der Arbeitsgang-Liste, Rest ueber „Weitere anzeigen“; ungueltig oder < 1 = 5 (seit v1.64.0) |
 | `OseonReportingHorizonDays` | `10` | Reporting: Tage in die Zukunft |
 | `OseonReportingOverdueLookbackDays` | `90` | Reporting: Rückblick für Überfällig-Slice |
 | `DefaultLagerbestellempfaengerId` | (leer) | Empfängergruppe für Lagerbestellungen (leer = Submit blockt) |

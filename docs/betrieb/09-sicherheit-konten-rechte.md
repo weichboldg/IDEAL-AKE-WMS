@@ -1,6 +1,6 @@
 # 09 – Sicherheit, Konten und Rechte
 
-**Stand:** v1.99.29, 2026-11-16 · **Zielgruppe:** IT-Administratoren (ohne Entwicklerwissen) · **Zweck:** Unter welchen Konten Web-App und
+**Stand:** v1.99.78, 2026-11-25 (Abschnitt 4.1 BDE am Handy), v1.99.29, 2026-11-16 · **Zielgruppe:** IT-Administratoren (ohne Entwicklerwissen) · **Zweck:** Unter welchen Konten Web-App und
 Dienst laufen, welche Rechte sie auf SQL Server, Ordner und Freigaben brauchen, wie Anmeldung und Rollen funktionieren und wo Geheimnisse
 liegen – und was nie im Klartext stehen darf.
 
@@ -132,6 +132,21 @@ Der Ordner `App_Data` wird von IIS nicht ausgeliefert. (Quelle: `IdealAkeWms/Ser
   Anwender-Anleitung `docs/anwender/13-anmeldung-und-benutzer.md`)
 
 Fehlerbilder rund um Anmeldung (400 bei POST, Button ohne Wirkung): [07-troubleshooting.md](07-troubleshooting.md), Hintergrund [[fallstricke]] §4.
+
+### 4.1 BDE am Handy (seit v1.99.78)
+
+- **Gerät:** Android-Handy mit Browser im WLAN des Standorts. Seit v1.99.78 gibt es nur noch die BDE-Seite (`/BdeTeileliste`); *BDE → Terminal*
+  leitet dorthin. Unter 992 px Breite zeigt sie die Tabellen als Karten.
+  (Quelle: `IdealAkeWms/Controllers/BdeTerminalController.cs` `Index`, `IdealAkeWms/wwwroot/css/bde.css:141`)
+- **Konto je Gerät:** ein **lokales WMS-Konto** (kein AD-Konto, das Handy ist nicht in der Domäne) mit Kennwort, angemeldet über das
+  **Formular** – Windows-SSO greift am Handy nicht. Anlage unter `/Users/Create` mit Kennwort; Haken „Kennwort ändern“ für Gerätekonten
+  abwählen (siehe Abschnitt 4, Erstkennwort). Rollen: `bde_user` (BDE-Mitarbeiter).
+- **Terminal-Zuordnung:** unter *BDE → Stammdaten → Terminals* ein Terminal mit diesem WMS-Benutzer und der Default-Werkbank anlegen. Ohne
+  Terminal meldet die Seite „Für diesen Benutzer ist kein Terminal konfiguriert …“ und führt auf die Startseite.
+  (Quelle: `IdealAkeWms/Controllers/BdeTerminalController.cs` `Index`, Abfrage `GetByUserIdAsync`)
+- **Werker:** meldet sich danach wie am Terminal-PC mit der **Personalnummer** an; das Gerätekonto ist nicht der Werker.
+- **Stand:** Die Handy-Konten sind noch **nicht angelegt** (Manifest-Info `v1.99.78-BdeHandyKontenInfo`). Anwender-Anleitung:
+  `docs/anwender/11-bde-terminal.md`.
 
 ---
 
