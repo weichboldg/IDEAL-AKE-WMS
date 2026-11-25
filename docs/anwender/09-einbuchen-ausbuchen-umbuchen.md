@@ -90,7 +90,9 @@ Menü **Lager → Ausbuchung**.
 ![Ausbuchung: Artikel, Menge, Lagerplatz und FA](bilder/09-03-ausbuchung.jpg)
 
 1. **Artikel**, **Menge** (steht anfangs auf 0 – bitte eintragen), **Lagerplatz** und optional **Fertigungsauftrag** wie bei der Einbuchung.
-2. **Ausbuchung speichern**.
+2. Optional **Abteilung** (ab 1.99.68): die Werkbank, für die entnommen wird. Leer lassen = keine Abteilung. Die Abteilung steht bei der
+   Sage-Buchung (Feld *Referenz* und Memo der Buchungszeile).
+3. **Ausbuchung speichern**.
 
 Das WMS prüft den Bestand **an diesem Lagerplatz**. Reicht er nicht, kommt „Nicht genügend Bestand. Verfügbar: …“ und nichts wird gebucht –
 außer „Buchungen ins Minus erlauben“ ist an (siehe Hinweise).
@@ -119,6 +121,7 @@ Menü **Lager → Lagerplatz ausbuchen**: bucht den Bestand eines Platzes auf ei
    An IDEAL steht bei einer Sub-FA die Haupt-FA dabei („S1 (Haupt-FA H)“).
 2. Bei einem **Kommissionierwagen** füllt das WMS das Feld **Fertigungsauftrag (optional)** selbst mit den FAs des Wagens. Die Vorbelegung
    wirkt als Filter: Artikel ohne FA tragen „bleibt am Wagen“ und bleiben auf dem Wagen. **Feld leeren = alles ausbuchen.**
+   Optional **Abteilung** (ab 1.99.68) neben dem FA-Feld: gilt für **alle** Artikel, die ausgebucht werden.
 3. **Feld leer:** roter Knopf **Alle … Artikel ausbuchen**, Rückfrage „Wirklich alle … Artikel … komplett ausbuchen?“ mit **OK** bestätigen.
    Meldung „… Artikel erfolgreich ausgebucht.“
 4. **FA im Feld** (mehrere mit `;` trennen): Zeilen des FA sind gelb hinterlegt, die übrigen tragen „bleibt am Platz“ bzw. „bleibt am Wagen“.
@@ -194,6 +197,9 @@ den Haupt-FA („FA 1065141 (Haupt-FA 1059463)“).
   ergibt nur eine Warnung.
 - **Sage:** Ein- und Ausbuchungen auf Lagerplätzen mit „Sage-Buchung erlaubt“ meldet der WMS-Dienst an Sage, wenn die WMS-Betreuung das
   eingeschaltet hat (Stand unter *Lager → Sage-Buchungen*, bis 1.99.65 „Sage-Lagerbuchungen“). Umbuchungen nur mit einem eigenen Schalter; Umbuchungen mit FA gehen nie an Sage.
+  Ab 1.99.68 steht in Sage bei jeder Buchung im Feld *Referenz* „Kennung Abteilung Benutzer“, z. B. „SM#ATI#12345# C1 Gerald Weichbold“
+  (höchstens 31 Zeichen – zu lange Texte werden am Ende gekürzt, die Kennung bleibt vollständig), im Memo der Buchungszeile der volle Text
+  „WMS: SM#…# Benutzer Abteilung:C1“. Benutzer = Name des WMS-Benutzers, der gebucht hat.
 - **Falsch gebucht?** Eine Buchung lässt sich nicht löschen. Mit der Gegenbuchung korrigieren (Einbuchung ↔ Ausbuchung, Umbuchung zurück) und in
   der Bewegungshistorie prüfen.
 - Mengen mit Komma eingeben (`2,5`).

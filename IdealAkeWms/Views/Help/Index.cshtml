@@ -42,7 +42,8 @@
                     </dd>
 
                     <dt>Ausbuchung</dt>
-                    <dd>Artikel von einem Lagerplatz ausbuchen. Die verfuegbare Menge wird geprueft.</dd>
+                    <dd>Artikel von einem Lagerplatz ausbuchen. Die verfuegbare Menge wird geprueft. Optional <em>Abteilung</em> (Werkbank,
+                        seit v1.99.68): steht bei der Sage-Buchung in <em>Referenz</em> und Memo der Buchungszeile.</dd>
 
                     <dt>Umbuchung</dt>
                     <dd>Artikel von einem Quell-Lagerplatz auf einen Ziel-Lagerplatz umbuchen.</dd>
@@ -53,6 +54,7 @@
                         &bdquo;bleibt am Platz&ldquo; bzw. &bdquo;bleibt am Wagen&ldquo; markiert. Am Kommissionierwagen sind die FA des Wagens vorbelegt.
                         Zeilen, an denen ein Zugang ohne FA liegt (z.&nbsp;B. aus dem Wareneingang), werden einzeln abgefragt &ndash; ebenso Zeilen mit weiteren FA.
                         Ändert sich der Bestand bis zum Bestätigen, wird nichts gebucht. IDEAL: eine Haupt-FA schließt ihre Sub-FA ein.
+                        Optional <em>Abteilung</em> (seit v1.99.68): gilt für alle ausgebuchten Artikel.
                         <br /><small class="text-muted">Nur fuer Lager-Keyuser und Administratoren verfuegbar.</small></dd>
 
                     <dt>Lagerplatz umbuchen</dt>
@@ -327,7 +329,13 @@
                                 (Hinweis über der Tabelle). Die Wareneingang-Spalten (Lieferschein, Barcode, Positionsmemo, Memo, CSV) sind im Zahnrad
                                 standardmäßig ausgeblendet. Fehlgeschlagene Lagerbuchungen lassen sich mit <em>&bdquo;Erneut senden&ldquo;</em>
                                 wieder einreihen; der Dienst prueft dabei vorher in Sage, ob die Buchung schon existiert (keine Doppelbuchung). Die
-                                Wareneingang-Knöpfe stehen an der ersten Position eines Vorgangs. Nach jedem Knopf bleibt die gefilterte Seite stehen.</li>
+                                Wareneingang-Knöpfe stehen an der ersten Position eines Vorgangs. Nach jedem Knopf bleibt die gefilterte Seite stehen.
+                                Spalte <em>Abteilung</em> (seit v1.99.68, im Zahnrad) zeigt die bei der Ausbuchung gewählte Werkbank.</li>
+                            <li><strong>Was in Sage steht (seit v1.99.68):</strong> je Buchungszeile <em>Referenz</em> = Kennung, Abteilung und
+                                WMS-Benutzer (z.&nbsp;B. &bdquo;SM#ATI#12345# C1 Gerald Weichbold&ldquo;; Sage erlaubt 31 Zeichen, gekürzt wird am Ende,
+                                die Kennung nie) und im Zeilen-Memo der volle Text &bdquo;WMS: SM#…# Benutzer Abteilung:C1&ldquo;. Das Memo des Buchungskopfs
+                                bleibt &bdquo;IdealAkeWms Lagerbuchung SM#…#&ldquo; (Schutz vor Doppelbuchung). Sage-Wareneingänge: Beleg-Memo
+                                &bdquo;WMS: WE#…# Benutzer&ldquo;. Benutzer und Abteilung kommen aus der Lagerbewegung &ndash; auch beim erneuten Senden.</li>
                             <li><strong>Verbindungstest (Admin):</strong> Im Reiter <em>Einstellungen &rarr; Sage-Test</em> (seit v1.99.14,
                                 vorher auf den Service-Einstellungen) prueft <strong>&bdquo;Sage-Verbindung testen&ldquo;</strong> URL,
                                 TLS-Zertifikat und Anmeldung und zeigt Status, Antwort-Header und Antwort an &mdash; ohne eine echte Buchung

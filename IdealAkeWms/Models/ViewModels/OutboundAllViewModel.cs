@@ -8,6 +8,8 @@ public class OutboundAllViewModel
     public string? StorageLocationCode { get; set; }
     public string? ProductionOrder { get; set; }
     public bool IsPickingTransport { get; set; }
+    /// <summary>v1.99.68: Auswahlliste Abteilung = Werkbank-Namen ohne „nicht in Sage“.</summary>
+    public List<string> Abteilungen { get; set; } = new();
     public List<StockOverviewItem> Items { get; set; } = new();
     public List<StorageLocation> StorageLocations { get; set; } = new();
     /// <summary>v1.99.47: FA-Bezug je ArticleId (fehlend = kein FA).</summary>

@@ -47,6 +47,12 @@ public class StockMovement : AuditableEntity
     [Display(Name = "Notiz")]
     public string? Note { get; set; }
 
+    /// <summary>v1.99.68 (Spec 2026-11-24-sage-buchung-referenz-benutzer-abteilung F4): Werkbank-Name (<c>ProductionWorkplace.Name</c>) als
+    /// Schnappschuss, nur bei Ausbuchung/Lagerplatz ausbuchen waehlbar; null = keine. Geht nur in die Sage-Referenz (Lagerbuchung).</summary>
+    [StringLength(200)]
+    [Display(Name = "Abteilung")]
+    public string? Abteilung { get; set; }
+
     public Article Article { get; set; } = null!;
     public StorageLocation StorageLocation { get; set; } = null!;
     public StorageLocation? SourceStorageLocation { get; set; }

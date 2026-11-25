@@ -303,6 +303,7 @@ BEGIN
         [Note]                    NVARCHAR(500)     NULL,
         [ProductionOrderId]       INT               NULL,  -- v1.87.0 verknuepfter FA (FK im Index-Block, ProductionOrders folgt erst)
         [WarehouseRequisitionItemId] INT            NULL,  -- v1.99.53 Lieferung einer Lagerbestellposition (FK nach WarehouseRequisitionItems)
+        [Abteilung]               NVARCHAR(200)     NULL,  -- v1.99.68 Werkbank-Name bei Ausbuchung (Sage-Referenz)
         CONSTRAINT [PK_StockMovements] PRIMARY KEY CLUSTERED ([Id]),
         CONSTRAINT [FK_StockMovements_Article] FOREIGN KEY ([ArticleId]) REFERENCES [dbo].[Articles]([Id]),
         CONSTRAINT [FK_StockMovements_StorageLocation] FOREIGN KEY ([StorageLocationId]) REFERENCES [dbo].[StorageLocations]([Id]),
@@ -3548,6 +3549,9 @@ IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] =
 IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20261123124036_AddStockMovementWarehouseRequisitionItem')
    AND COL_LENGTH(N'dbo.StockMovements', N'WarehouseRequisitionItemId') IS NOT NULL -- sonst steht SQL/166 noch aus
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20261123124036_AddStockMovementWarehouseRequisitionItem', '10.0.2');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20261125134408_AddStockMovementAbteilung')
+   AND COL_LENGTH(N'dbo.StockMovements', N'Abteilung') IS NOT NULL -- sonst steht SQL/167 noch aus
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20261125134408_AddStockMovementAbteilung', '10.0.2');
 GO
 
 PRINT 'EF Migrations History initialisiert.';

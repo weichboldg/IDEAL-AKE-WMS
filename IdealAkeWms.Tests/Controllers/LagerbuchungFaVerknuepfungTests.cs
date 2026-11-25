@@ -91,7 +91,7 @@ public class LagerbuchungFaVerknuepfungTests
         settings.Setup(r => r.GetValueAsync(AppSettingKeys.FaPflichtBuchungsarten)).ReturnsAsync(() => _pflicht);
         var ctrl = new StockMovementsController(_stock.Object, Mock.Of<IArticleRepository>(), Mock.Of<IStorageLocationRepository>(),
             Mock.Of<IUserRepository>(), user.Object, settings.Object, Mock.Of<IPartRequisitionRepository>(), _po.Object,
-            Mock.Of<IServiceSettingRepository>());
+            Mock.Of<IServiceSettingRepository>(), _wp.Object);
         var http = new DefaultHttpContext();
         ctrl.ControllerContext = new ControllerContext { HttpContext = http };
         ctrl.TempData = new TempDataDictionary(http, Mock.Of<ITempDataProvider>());
@@ -253,5 +253,76 @@ public class LagerbuchungFaVerknuepfungTests
         items.Single(i => i.Id == 1).LinkedFa!.OrderNumber.Should().Be("1065141");
         items.Single(i => i.Id == 2).LinkedFa.Should().BeNull();
         (await new StockMovementRepository(db).GetMovementHistoryAsync(filterProductionOrder: "asdf", page: 1, pageSize: 25)).TotalCount.Should().Be(1);
+    }
+
+    // ---------- v1.99.68 Abteilung bei Ausbuchung (Spec 2026-11-24-sage-buchung-referenz-benutzer-abteilung, AK 2, 9–12) ----------
+
+    private readonly Mock<IProductionWorkplaceRepository> _wp = WerkbaenkeMock();
+
+    private static Mock<IProductionWorkplaceRepository> WerkbaenkeMock()
+    {
+        var m = new Mock<IProductionWorkplaceRepository>();
+        m.Setup(r => r.GetAllOrderedAsync()).ReturnsAsync(new List<ProductionWorkplace>
+        {
+            new() { Id = 1, Name = "C1", CreatedBy = "t", CreatedByWindows = "t" },
+            new() { Id = 2, Name = "Alt", SageMissingSince = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t" },
+        });
+        return m;
+    }
+
+    [Fact]
+    public async Task Ausbuchung_MitAbteilung_GespeichertAlsListenName_OhneAbteilung_Null_AK2_AK9()
+    {
+        var c = Ctrl();
+        await c.Outbound(new StockMovementCreateViewModel { ArticleId = 9, Quantity = 1, StorageLocationId = 2, Abteilung = " c1 " });
+        await c.Outbound(new StockMovementCreateViewModel { ArticleId = 9, Quantity = 1, StorageLocationId = 2, Abteilung = "" });
+        _gebucht.Select(m => m.Abteilung).Should().Equal("C1", null);
+    }
+
+    [Fact]
+    public async Task Ausbuchung_UnbekannteOderNichtInSageAbteilung_Abgewiesen_AK10()
+    {
+        var c = Ctrl();
+        foreach (var abt in new[] { "Erfunden", "Alt" })
+        {
+            var r = await c.Outbound(new StockMovementCreateViewModel { ArticleId = 9, Quantity = 1, StorageLocationId = 2, Abteilung = abt });
+            r.Should().BeOfType<ViewResult>().Which.Model.Should().BeOfType<StockMovementCreateViewModel>().Which.Abteilungen.Should().Equal("C1");
+            c.ModelState[nameof(StockMovementCreateViewModel.Abteilung)]!.Errors.Last().ErrorMessage.Should().StartWith("Unbekannte Abteilung");
+        }
+        _gebucht.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task LagerplatzAusbuchen_Abteilung_AlleZeilenGleich_Unbekannt_NichtsGebucht_AK10_AK11()
+    {
+        var c = Ctrl();
+        var r = await c.OutboundAllConfirm(2, null, abteilung: "Erfunden");
+        _gebucht.Should().BeEmpty();
+        ((string)c.TempData["WarningMessage"]!).Should().Be("Unbekannte Abteilung „Erfunden“ – nichts ausgebucht.");
+        r.Should().BeOfType<RedirectToActionResult>().Which.RouteValues!["storageLocationId"].Should().Be(2);
+
+        _stock.Setup(s => s.GetCurrentStockAsync(It.IsAny<string?>(), It.IsAny<int?>(), It.IsAny<decimal?>(), It.IsAny<decimal?>()))
+            .ReturnsAsync(new List<StockOverviewItem> { new() { ArticleId = 9, CurrentQuantity = 3m }, new() { ArticleId = 10, CurrentQuantity = 1m } });
+        await c.OutboundAllConfirm(2, null, abteilung: "C1");
+        _gebucht.Should().HaveCount(2).And.OnlyContain(m => m.Abteilung == "C1");
+    }
+
+    [Fact]
+    public async Task AndereSchreibwege_OhneAbteilung_AK12()
+    {
+        var c = Ctrl();
+        await c.Inbound(new StockMovementCreateViewModel { ArticleId = 9, Quantity = 1, StorageLocationId = 2, Abteilung = "C1" }, null);
+        await c.Transfer(new StockTransferViewModel { ArticleId = 9, Quantity = 1, SourceStorageLocationId = 2, StorageLocationId = 3 });
+        _gebucht.Should().HaveCount(2).And.OnlyContain(m => m.Abteilung == null);
+    }
+
+    [Fact]
+    public async Task OutboundGet_ListeOhneNichtInSage_AK9()
+    {
+        var c = Ctrl();
+        var vm = (StockMovementCreateViewModel)((ViewResult)await c.Outbound()).Model!;
+        vm.Abteilungen.Should().Equal("C1");
+        var all = (OutboundAllViewModel)((ViewResult)await c.OutboundAll(null)).Model!;
+        all.Abteilungen.Should().Equal("C1");
     }
 }

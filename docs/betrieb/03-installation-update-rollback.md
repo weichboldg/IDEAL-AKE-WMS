@@ -177,9 +177,9 @@ Das Skript **liest Sage nie** (Prüfabfragen auf Sage bleiben Hand-Schritte). (Q
 | **6 Starten** | **Web zuerst**: App-Pool starten, Startseite abrufen (bis 300 s), Fußzeilen-Version = Paket-Version, DLL-Hash = Paket; Fotos-Verschiebung im Log abgleichen. **Dann Dienst**: starten, 30 s warten, muss laufen, DLL-Hash prüfen | ggf. „Zeigt die URL im Browser v…?“ | bei Fehler: App-Pool wieder gestoppt, Dienst nicht gestartet | `:855-888` |
 | **7 Nachlauf-Liste** | Daten-Einträge der Phase „Nachher“ (z. B. SQL/110 mit Trockenlauf), Hand-Schritte (Einstellungen, Leitstand, Info), Stand aller Prüfungen, gesammelte Warnungen | je Eintrag | nichts | `:891`, `:895-926` |
 
-### 5.2a Schema-Skripte SQL/153–166 (v1.99.30 bis v1.99.53)
+### 5.2a Schema-Skripte SQL/153–167 (v1.99.30 bis v1.99.68)
 
-Das Skript spielt sie in Schritt 4 in **Manifest-Reihenfolge** ein, nicht nach Dateinummer: 155 → 154 → 153 → 156 … 163 → 166 (SQL/164 und 165 reserviert, nicht vorhanden; SQL/153 braucht
+Das Skript spielt sie in Schritt 4 in **Manifest-Reihenfolge** ein, nicht nach Dateinummer: 155 → 154 → 153 → 156 … 163 → 166 → 167 (SQL/164 und 165 reserviert, nicht vorhanden; SQL/153 braucht
 SQL/96). Alle für **beide** Firmen; auf AKE bleiben die IDEAL-Tabellen leer. Das Backup aus Schritt 2 deckt auch die Skripte ab, die Daten
 anpassen. (Quelle: `scripts/deploy/nachlauf.psd1:101-122`)
 
@@ -197,6 +197,7 @@ anpassen. (Quelle: `scripts/deploy/nachlauf.psd1:101-122`)
 | SQL/162 | 1.99.42 | `Users.Kuerzel` (gefiltert UNIQUE), `BfAuftraege.BestellerKuerzel` | nein | danach Kürzel der BF-Besteller in `/Users` pflegen, sonst ist die BF-Freigabe gesperrt | `SQL/162_AddUserKuerzelUndBfBestellerKuerzel.sql:23,30,37`, `nachlauf.psd1:120` |
 | SQL/163 | 1.99.42 | `BfAuftragPositionen.Arbeitsschritte` nvarchar(200) NULL | **ja**: trägt bei vorhandenen Positionen leere Felder aus dem Artikel-Merkmal `USER_OSArbeitsschritte` nach | – | `SQL/163_AddBfPositionArbeitsschritte.sql:4,22,27` |
 | SQL/166 | 1.99.53 | `StockMovements.WarehouseRequisitionItemId` INT NULL + FK auf `WarehouseRequisitionItems` (NO ACTION) + Index | nein (kein Nachtrag; ältere Lieferungen bleiben ungebucht) | Wirkung erst mit AppSetting `LagerbestellungVerbrauchsbuchungAktiv` (Standard aus, [04 5.5](04-konfiguration.md)); Hand-Schritt `Einstellung/LagerbestellungVerbrauchsbuchungAktiv` | `SQL/166_AddStockMovementWarehouseRequisitionItem.sql:1-6,21-42`, `nachlauf.psd1:123-124,599` |
+| SQL/167 | 1.99.68 | `StockMovements.Abteilung` NVARCHAR(200) NULL (Werkbank bei Ausbuchung, geht als Referenz an Sage) | nein (kein Nachtrag) | Dienst erst nach dem Schema starten (geteiltes EF-Modell) | `SQL/167_AddStockMovementAbteilung.sql:19-24`, `nachlauf.psd1:125-126` |
 
 v1.99.36, v1.99.39, v1.99.40, v1.99.43 bis v1.99.47 und v1.99.50 bis v1.99.52 bringen kein SQL. (Quelle: Changelogs [[2026-11-17-v1-99-36-beschichtung-ake-nachbesserung-bde-kontrast]],
 [[2026-11-17-v1-99-39-nachbesserung-abend]], [[2026-11-18-v1-99-40-sage-userfelder-als-einstellung]], `publish/paket8-v1.99.43/publish-info.txt`)

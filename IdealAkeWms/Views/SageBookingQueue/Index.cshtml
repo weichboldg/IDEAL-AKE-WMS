@@ -145,6 +145,7 @@
                 <th data-filterable data-filter-type="number" data-col-key="attempts">Vers.</th>
                 <th data-filterable data-col-key="error">Fehler</th>
                 <th data-filterable data-col-key="erfasst-von">Erfasst von</th>
+                <th data-filterable data-col-key="abteilung">Abteilung</th>
                 @if (we)
                 {
                     <th data-filterable data-col-key="lieferschein">Lieferschein</th>
@@ -202,6 +203,7 @@
                         }
                     </td>
                     <td>@t["erfasst-von"](z)</td>
+                    <td>@t["abteilung"](z)</td>
                     @if (we)
                     {
                         <td>@t["lieferschein"](z)</td>

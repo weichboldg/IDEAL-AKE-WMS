@@ -122,6 +122,8 @@ Eintraege = @(
    Datei='163_AddBfPositionArbeitsschritte.sql'; MigrationId='20261118145602_AddBfPositionArbeitsschritte'; Voraussetzung='additiv: BfAuftragPositionen.Arbeitsschritte, Nachtrag nur leerer Felder aus dem Artikel-Merkmal USER_OSArbeitsschritte'; Quelle='2026-11-18-v1-99-42-nachbesserungen' }
 @{ Id='SQL/166'; Version='1.99.53'; Typ='Schema'; Firma='beide'; Phase='Schema'; Ausfuehrung='automatisch'
    Datei='166_AddStockMovementWarehouseRequisitionItem.sql'; MigrationId='20261123124036_AddStockMovementWarehouseRequisitionItem'; Voraussetzung='additiv: StockMovements.WarehouseRequisitionItemId (NULL, FK NO ACTION, Index), kein Backfill'; Quelle='2026-11-23-v1-99-53-lagerbestellung-verbrauchsbuchung' }
+@{ Id='SQL/167'; Version='1.99.68'; Typ='Schema'; Firma='beide'; Phase='Schema'; Ausfuehrung='automatisch'
+   Datei='167_AddStockMovementAbteilung.sql'; MigrationId='20261125134408_AddStockMovementAbteilung'; Voraussetzung='additiv: StockMovements.Abteilung NVARCHAR(200) NULL (Lagerbewegungen: Spalte Abteilung bei Ausbuchung, geht als Referenz an Sage), kein Backfill'; Quelle='2026-11-25-v1-99-68-sage-buchung-referenz-benutzer-abteilung' }
 
 # ---------------------------------------------------------------- Pruefungen (jeder Lauf; Reparatur nur nach Bestaetigung) -------
 # v1.99.28 (ADR 0027): admin zaehlt nicht - der Web-Start stellt admin ohne Kennwort auf das Standard-Erstkennwort mit Pflichtwechsel um.
@@ -609,5 +611,8 @@ WHERE NOT EXISTS (SELECT 1 FROM dbo.Roles r WHERE r.[Key] = v.k);'
 @{ Id='v1.99.66-SageBuchungenInfo'; Version='1.99.66'; Typ='Info'; Firma='beide'; Phase='Nachher'; Ausfuehrung='anzeigen'
    Text='Lager/Einkauf informieren: "Sage-Lagerbuchungen" heisst jetzt "Sage-Buchungen" und enthaelt auch die Sage-Wareneingaenge mit allen Knoepfen (Erneut senden, Als uebergeben markieren, CSV erneut schreiben). Der Menuepunkt "Sage-Wareneingaenge" entfaellt, alte Links leiten um. "Nur in Sage buchen" steht nicht mehr in der Liste.'
    Quelle='2026-11-23-sage-buchungen-gesamtsicht' }
+@{ Id='v1.99.68-SageReferenzInfo'; Version='1.99.68'; Typ='Info'; Firma='beide'; Phase='Nachher'; Ausfuehrung='anzeigen'
+   Text='Sage-Lagerbuchungen tragen ab jetzt im Feld Referenz Kennung, Abteilung und WMS-Benutzer (auf 31 Zeichen gekuerzt) und im Zeilen-Memo den vollen Text WMS: Kennung Benutzer [Abteilung:...]; Sage-Wareneingaenge tragen den vollen Text im Kopf-Memo. Bei Ausbuchung und Lagerplatz ausbuchen kann eine Abteilung (Werkbank) gewaehlt werden. Lager informieren.'
+   Quelle='2026-11-25-v1-99-68-sage-buchung-referenz-benutzer-abteilung' }
 )
 }

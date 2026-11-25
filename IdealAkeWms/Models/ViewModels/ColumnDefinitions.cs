@@ -885,6 +885,7 @@ public static class ColumnDefinitions
             new ColumnDef("attempts",         "Vers.",          Locked: false),
             new ColumnDef("error",            "Fehler",         Locked: false),
             new ColumnDef("erfasst-von",      "Erfasst von",    Locked: false),
+            new ColumnDef("abteilung",        "Abteilung",      Locked: false, DefaultHidden: true), // v1.99.68
             new ColumnDef("lieferschein",     "Lieferschein",   Locked: false, DefaultHidden: true),
             new ColumnDef("barcode",          "Barcode",        Locked: false, DefaultHidden: true),
             new ColumnDef("memo-position",    "Positionsmemo",  Locked: false, DefaultHidden: true),

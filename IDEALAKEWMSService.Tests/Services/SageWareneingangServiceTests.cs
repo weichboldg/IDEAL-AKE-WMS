@@ -126,7 +126,7 @@ public class SageWareneingangServiceTests
             && r.SageWeAm != null && r.SageWeVersuche == 1 && r.ModifiedBy == SageWareneingang.ServiceActor);
         log.Runs.Single().ServiceName.Should().Be(SyncLogServices.SageWareneingang);
         log.Runs.Single().FinalCounts!["uebergeben"].Should().Be(1);
-        client.Gesendet[0].Memo.Should().Be($"WE#{a.Id}#");
+        client.Gesendet[0].Memo.Should().Be($"WMS: WE#{a.Id}# t");
     }
 
     [Fact]
@@ -154,7 +154,7 @@ public class SageWareneingangServiceTests
 
         (p.Erfassungsart, p.BelegTransformArt, p.IsBelegTransform, p.BelegKennzeichen).Should().Be((4100, 1, true, "ELL"));
         p.TransformSettings.Single().SourceBelegHandle.Should().Be(500);
-        (p.A0Konto, p.EKLieferschein, p.Memo, p.Belegdatum).Should().Be(("70001", "LS-4711", $"WE#{a.Id}#", "2026-11-11"));
+        (p.A0Konto, p.EKLieferschein, p.Memo, p.Belegdatum).Should().Be(("70001", "LS-4711", $"WMS: WE#{a.Id}# t", "2026-11-11"));
         var pos = p.StandardBelegPositionen.Single();
         (pos.Artikelnummer, pos.MengeBasis, pos.Positionstyp, pos.Mengenart).Should().Be(("00722001", 2m, 1, 1));
         pos.BelegPositionLagermengen.Single().Should().BeEquivalentTo(new SageWeLagermenge { PlatzId = 77, Kurzbezeichnung = "HR;0;0;0", MengeBasis = 2m });
@@ -471,7 +471,7 @@ public class SageWareneingangServiceTests
         await Svc(db, client).RunOnceAsync(Endpoint, 10, 50, Wdh, "DEV");
 
         var p = client.Gesendet.Single();
-        p.Memo.Should().Be($"WE#DEV#{a.Id}#");
+        p.Memo.Should().Be($"WMS: WE#DEV#{a.Id}# t");
         p.StandardBelegPositionen.Select(x => x.Artikelmemo).Should().Equal($"WE#DEV#{a.Id}# LS LS-4711 Platz HR;0;0;0", $"WE#DEV#{b.Id}# LS LS-4711 Platz HR;0;0;0");
         db.PurchaseOrderReceipts.OrderBy(r => r.Id).Select(r => r.SageWeKennung).Should().Equal($"WE#DEV#{a.Id}#", $"WE#DEV#{b.Id}#");
     }
@@ -485,7 +485,7 @@ public class SageWareneingangServiceTests
 
         await Svc(db, client).RunOnceAsync(Endpoint, 10, 50, Wdh, null);
 
-        client.Gesendet.Single().Memo.Should().Be($"WE#{a.Id}#");
+        client.Gesendet.Single().Memo.Should().Be($"WMS: WE#{a.Id}# t");
         db.PurchaseOrderReceipts.Single().SageWeKennung.Should().Be($"WE#{a.Id}#");
     }
 
@@ -502,7 +502,7 @@ public class SageWareneingangServiceTests
         await Svc(db, client, null, lookup).RunOnceAsync(Endpoint, 10, 50, Wdh, "DEV");
 
         lookup.LetzteKennung.Should().Be($"WE#AT#{r.Id}#", "Kuerzel spaeter geaendert - gesucht wird, womit gesendet wurde");
-        client.Gesendet.Single().Memo.Should().Be($"WE#AT#{r.Id}#", "erneutes Senden mit derselben Kennung");
+        client.Gesendet.Single().Memo.Should().Be($"WMS: WE#AT#{r.Id}# t", "erneutes Senden mit derselben Kennung");
     }
 
     [Fact]
@@ -536,7 +536,7 @@ public class SageWareneingangServiceTests
 
         lookup.MemoAufrufe.Should().Be(1);
         client.Gesendet.Should().ContainSingle("fremder Beleg zaehlt nicht - der DEV-Eintrag wird gesendet");
-        client.Gesendet[0].Memo.Should().Be($"WE#DEV#{r.Id}#");
+        client.Gesendet[0].Memo.Should().Be($"WMS: WE#DEV#{r.Id}# t");
         db.PurchaseOrderReceipts.Single().SageWeBelegnummer.Should().Be("WE-2026-1", "nicht der fremde Beleg 2027-398676");
     }
 

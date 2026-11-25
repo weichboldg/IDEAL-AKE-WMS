@@ -128,4 +128,14 @@ public class SageBuchungenGesamtsichtTests
         Enum.TryParse<SageBuchungAnzeige>("Offen", out _).Should().BeFalse("?status=Offen bindet nicht -> Alle");
         Enum.TryParse<SageBuchungAnzeige>("Fehler", out _).Should().BeTrue("alte Lesezeichen binden weiter");
     }
+
+    [Fact]
+    public void Spalte_Abteilung_AusDerBewegung_BeiWeLeer_v1_99_68_AK13()
+    {
+        var q = Q(1, MovementType.Ausbuchung);
+        q.StockMovement.Abteilung = "C1";
+        SageBuchungenGesamtsicht.Spalten["abteilung"](SageBuchungenGesamtsicht.Build([q], []).Single()).Should().Be("C1");
+        SageBuchungenGesamtsicht.Spalten["abteilung"](SageBuchungenGesamtsicht.Build([], [W(2, Guid.NewGuid(), DateTime.Now)]).Single()).Should().BeNull();
+        ColumnDefinitions.SageBookingQueue.Columns.Single(c => c.Key == "abteilung").DefaultHidden.Should().BeTrue();
+    }
 }

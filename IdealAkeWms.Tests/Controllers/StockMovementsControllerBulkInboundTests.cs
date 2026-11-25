@@ -41,7 +41,7 @@ public class StockMovementsControllerBulkInboundTests
 
         var controller = new StockMovementsController(
             _stockRepo.Object, _articleRepo.Object, _locationRepo.Object, _userRepo.Object,
-            _currentUser.Object, _settings.Object, _partReq.Object, _poRepo.Object, Mock.Of<IServiceSettingRepository>());
+            _currentUser.Object, _settings.Object, _partReq.Object, _poRepo.Object, Mock.Of<IServiceSettingRepository>(), Mock.Of<IProductionWorkplaceRepository>());
 
         controller.ControllerContext = new ControllerContext
         {

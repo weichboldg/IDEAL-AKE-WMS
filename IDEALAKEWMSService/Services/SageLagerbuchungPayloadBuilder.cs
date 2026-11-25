@@ -51,6 +51,7 @@ public static class SageLagerbuchungPayloadBuilder
             (art, text) = isZugang ? ("Zugang", "Zugang Material") : ("Entnahme", "Abgang / Entnahme Material");
         }
 
+        var kennung = marker ?? SageBookingCorrelation.Marker(movement.Id);
         var zeile = new SageLagerbuchungZeile
         {
             Lagerbewegungsart = art,
@@ -61,6 +62,9 @@ public static class SageLagerbuchungPayloadBuilder
             ZielLagerkennung = ziel is null ? string.Empty : Kennung(ziel),
             ZielLagerplatzId = ziel is null ? 0 : PlatzId(ziel),
             MengeLager = movement.Quantity,
+            // v1.99.68: Benutzer/Abteilung aus der Bewegung (Schnappschuss), nie aus dem Queue-Eintrag (Nacherfassung = system:sage-booking).
+            Referenz = SageReferenz.Kurz(kennung, movement.Abteilung, movement.CreatedBy),
+            Memo = SageReferenz.Voll(kennung, movement.CreatedBy, movement.Abteilung),
             // Step 1: Serien/Chargen leer mitschicken (Schema-Konformitaet ohne fachlichen Inhalt).
             Seriennummern = new List<SageSeriennummer> { new() },
             Chargen = new List<SageCharge> { new() }
@@ -68,7 +72,7 @@ public static class SageLagerbuchungPayloadBuilder
 
         return new SageLagerbuchungRequest
         {
-            Memo = SageBookingCorrelation.Memo(marker ?? SageBookingCorrelation.Marker(movement.Id)),
+            Memo = SageBookingCorrelation.Memo(kennung), // Kopf-Memo byte-gleich: Korrelation/Lookup
             Standardtext = text,
             Lagerbuchungen = new List<SageLagerbuchungZeile> { zeile }
         };

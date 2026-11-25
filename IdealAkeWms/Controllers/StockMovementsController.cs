@@ -20,6 +20,7 @@ public class StockMovementsController : Controller
     private readonly IPartRequisitionRepository _partRequisitionRepository;
     private readonly IProductionOrderRepository _productionOrderRepository;
     private readonly IServiceSettingRepository _serviceSettings;
+    private readonly IProductionWorkplaceRepository _workplaceRepository;
 
     public StockMovementsController(
         IStockMovementRepository stockMovementRepository,
@@ -30,8 +31,10 @@ public class StockMovementsController : Controller
         IAppSettingRepository settingRepository,
         IPartRequisitionRepository partRequisitionRepository,
         IProductionOrderRepository productionOrderRepository,
-        IServiceSettingRepository serviceSettings)
+        IServiceSettingRepository serviceSettings,
+        IProductionWorkplaceRepository workplaceRepository)
     {
+        _workplaceRepository = workplaceRepository;
         _productionOrderRepository = productionOrderRepository;
         _serviceSettings = serviceSettings;
         _stockMovementRepository = stockMovementRepository;
@@ -52,6 +55,19 @@ public class StockMovementsController : Controller
             && FaBuchungsText.PflichtFehler(buchungsart, text, fa) is { } fehler)
             ModelState.AddModelError(nameof(StockMovementCreateViewModel.ProductionOrder), fehler);
         return (fa, FaBuchungsText.Warnung(text, fa));
+    }
+
+    /// <summary>v1.99.68 (Spec 2026-11-24-sage-buchung-referenz-benutzer-abteilung F4, Freigabe-Antwort 4): Werkbank-Namen ohne „nicht in Sage“.</summary>
+    private async Task<List<string>> AbteilungenAsync() =>
+        (await _workplaceRepository.GetAllOrderedAsync() ?? new()).Where(w => w.SageMissingSince == null).Select(w => w.Name).ToList();
+
+    /// <summary>v1.99.68: leer = keine Abteilung (Ok, null); sonst muss der Wert (getrimmt, ohne Gross/Klein) in der Liste stehen,
+    /// gespeichert wird der Name aus der Liste. Unbekannt = nicht Ok (manipulierter POST).</summary>
+    private async Task<(bool Ok, string? Name)> AbteilungPruefenAsync(string? eingabe)
+    {
+        if (string.IsNullOrWhiteSpace(eingabe)) return (true, null);
+        var name = (await AbteilungenAsync()).FirstOrDefault(n => string.Equals(n.Trim(), eingabe.Trim(), StringComparison.OrdinalIgnoreCase));
+        return (name != null, name);
     }
 
     private void WarnungMerken(string? warnung)
@@ -305,7 +321,8 @@ public class StockMovementsController : Controller
         var vm = new StockMovementCreateViewModel
         {
             StorageLocations = await _storageLocationRepository.GetActiveOrderedExcludingPickingTransportAsync(),
-            Users = await _userRepository.GetActiveUsersAsync()
+            Users = await _userRepository.GetActiveUsersAsync(),
+            Abteilungen = await AbteilungenAsync()
         };
         ViewBag.QrMitFaNummer = (await _settingRepository.GetValueAsync(AppSettingKeys.QrMitFaNummer))?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
         return View(vm);
@@ -317,10 +334,14 @@ public class StockMovementsController : Controller
     public async Task<IActionResult> Outbound(StockMovementCreateViewModel vm)
     {
         var (fa, faWarnung) = await FaPruefenAsync(vm.ProductionOrder, "Warenausgang");
+        var abteilung = await AbteilungPruefenAsync(vm.Abteilung);
+        if (!abteilung.Ok)
+            ModelState.AddModelError(nameof(vm.Abteilung), "Unbekannte Abteilung – bitte aus der Liste wählen. Nichts ausgebucht.");
         if (!ModelState.IsValid)
         {
             vm.StorageLocations = await _storageLocationRepository.GetActiveOrderedExcludingPickingTransportAsync();
             vm.Users = await _userRepository.GetActiveUsersAsync();
+            vm.Abteilungen = await AbteilungenAsync();
             if (vm.ArticleId > 0)
             {
                 var article = await _articleRepository.GetByIdAsync(vm.ArticleId);
@@ -339,6 +360,7 @@ public class StockMovementsController : Controller
             ModelState.AddModelError("", $"Nicht genügend Bestand. Verfügbar: {bestand.Verfuegbar:N3}");
             vm.StorageLocations = await _storageLocationRepository.GetActiveOrderedExcludingPickingTransportAsync();
             vm.Users = await _userRepository.GetActiveUsersAsync();
+            vm.Abteilungen = await AbteilungenAsync();
             if (vm.ArticleId > 0)
             {
                 var art = await _articleRepository.GetByIdAsync(vm.ArticleId);
@@ -360,6 +382,7 @@ public class StockMovementsController : Controller
             ProductionOrder = vm.ProductionOrder,
             ProductionOrderId = fa.Order?.Id,
             MovementType = MovementType.Ausbuchung,
+            Abteilung = abteilung.Name,
             Timestamp = DateTime.Now,
             UserId = appUserId,
             WindowsUser = _currentUserService.GetWindowsUserName(),
@@ -476,7 +499,8 @@ public class StockMovementsController : Controller
         {
             StorageLocations = await _storageLocationRepository.GetActiveOrderedExcludingPickingTransportAsync(),
             StorageLocationId = storageLocationId,
-            ProductionOrder = productionOrder
+            ProductionOrder = productionOrder,
+            Abteilungen = await AbteilungenAsync()
         };
 
         if (storageLocationId.HasValue)
@@ -524,8 +548,16 @@ public class StockMovementsController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> OutboundAllConfirm(int storageLocationId, string? productionOrder,
         int[]? treffendGezeigt = null, int[]? gemischtGezeigt = null, int[]? gemischtAusbuchen = null,
-        Dictionary<int, string>? stueckGezeigt = null)
+        Dictionary<int, string>? stueckGezeigt = null, string? abteilung = null)
     {
+        // v1.99.68: unbekannte Abteilung (manipulierter POST) -> nichts buchen, Grund nennen
+        var abt = await AbteilungPruefenAsync(abteilung);
+        if (!abt.Ok)
+        {
+            TempData["WarningMessage"] = $"Unbekannte Abteilung „{abteilung!.Trim()}“ – nichts ausgebucht.";
+            return RedirectToAction(nameof(OutboundAll), new { storageLocationId, productionOrder });
+        }
+
         var allStock = await _stockMovementRepository.GetCurrentStockAsync(
             filterStorageLocationId: storageLocationId);
         var mitBestand = allStock.Where(s => s.CurrentQuantity > 0).ToList();
@@ -599,6 +631,7 @@ public class StockMovementsController : Controller
                 ProductionOrder = productionOrder,
                 ProductionOrderId = fa.Order?.Id,
                 MovementType = MovementType.Ausbuchung,
+                Abteilung = abt.Name, // alle Zeilen dieselbe Abteilung (AK11)
                 Timestamp = now,
                 UserId = appUserId,
                 WindowsUser = _currentUserService.GetWindowsUserName(),

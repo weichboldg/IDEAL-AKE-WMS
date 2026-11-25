@@ -5109,6 +5109,10 @@ namespace IdealAkeWms.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<string>("Abteilung")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
                     b.Property<int>("ArticleId")
                         .HasColumnType("int");
 

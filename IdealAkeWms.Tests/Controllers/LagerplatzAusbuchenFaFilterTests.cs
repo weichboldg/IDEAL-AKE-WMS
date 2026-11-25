@@ -60,7 +60,7 @@ public class LagerplatzAusbuchenFaFilterTests
         user.Setup(u => u.GetWindowsUserName()).Returns("AKE\\t");
         user.Setup(u => u.GetDisplayName()).Returns("T");
         var c = new StockMovementsController(_stock.Object, Mock.Of<IArticleRepository>(), _locs.Object, Mock.Of<IUserRepository>(),
-            user.Object, Mock.Of<IAppSettingRepository>(), Mock.Of<IPartRequisitionRepository>(), _po.Object, _svc.Object);
+            user.Object, Mock.Of<IAppSettingRepository>(), Mock.Of<IPartRequisitionRepository>(), _po.Object, _svc.Object, Mock.Of<IProductionWorkplaceRepository>());
         var http = new DefaultHttpContext();
         c.ControllerContext = new ControllerContext { HttpContext = http };
         c.TempData = _temp = new TempDataDictionary(http, Mock.Of<ITempDataProvider>());

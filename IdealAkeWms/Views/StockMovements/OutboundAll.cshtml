@@ -108,12 +108,24 @@
             <form asp-action="OutboundAllConfirm" method="post" id="outboundAllForm">
                 <input type="hidden" name="storageLocationId" value="@Model.StorageLocationId" />
                 <div class="row g-3 align-items-end">
-                    <div class="col-md-6">
+                    <div class="col-md-5">
                         <label class="form-label">Fertigungsauftrag (optional)</label>
                         <input type="text" name="productionOrder" id="outboundAllFa" class="form-control" value="@Model.ProductionOrder" placeholder="FA-Nummer" aria-describedby="outboundAllHinweis" />
                         <div class="form-text">Mit FA-Nummer werden nur deren Artikel ausgebucht (mehrere mit ; trennen). Leer = alle Artikel.</div>
                     </div>
-                    <div class="col-md-6">
+                    @* v1.99.68: Abteilung (Werkbank) optional – gilt fuer alle ausgebuchten Artikel, geht als Referenz an Sage *@
+                    <div class="col-md-3">
+                        <label for="outboundAllAbteilung" class="form-label">Abteilung (optional)</label>
+                        <select name="abteilung" id="outboundAllAbteilung" class="form-select" aria-describedby="outboundAllAbteilungHilfe">
+                            <option value="">– keine –</option>
+                            @foreach (var name in Model.Abteilungen)
+                            {
+                                <option value="@name">@name</option>
+                            }
+                        </select>
+                        <div id="outboundAllAbteilungHilfe" class="form-text">Gilt für alle Artikel.</div>
+                    </div>
+                    <div class="col-md-4">
                         <button type="button" class="btn btn-danger btn-lg w-100" id="btnOutboundAll">
                             Alle @Model.Items.Count Artikel ausbuchen
                         </button>

@@ -24,6 +24,10 @@ public sealed class SageLagerbuchungZeile
     [JsonPropertyName("ZielLagerkennung")] public string ZielLagerkennung { get; set; } = string.Empty;
     [JsonPropertyName("ZielLagerplatzId")] public int ZielLagerplatzId { get; set; }
     [JsonPropertyName("MengeLager")] public decimal MengeLager { get; set; }
+    /// <summary>v1.99.68: <see cref="SageReferenz.Kurz"/> (varchar(31)).</summary>
+    [JsonPropertyName("Referenz")] public string Referenz { get; set; } = string.Empty;
+    /// <summary>v1.99.68: <see cref="SageReferenz.Voll"/> (varchar(max)).</summary>
+    [JsonPropertyName("Memo")] public string Memo { get; set; } = string.Empty;
     [JsonPropertyName("Seriennummern")] public List<SageSeriennummer> Seriennummern { get; set; } = new();
     [JsonPropertyName("Chargen")] public List<SageCharge> Chargen { get; set; } = new();
 }

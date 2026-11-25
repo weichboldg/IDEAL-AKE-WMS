@@ -22,7 +22,7 @@ public sealed class SageWareneingangRequest
     public bool InteressentAdresse { get; init; }
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? EKLieferschein { get; init; }                    // F6: leer = Feld nicht senden
-    public string Memo { get; init; } = string.Empty;               // Korrelation WE#<id>#
+    public string Memo { get; init; } = string.Empty;               // v1.99.68: "WMS: WE#<id># <Benutzer>" (Korrelation enthalten)
     public bool MemoSpecified { get; init; } = true;
     public List<SageWeBelegPosition> StandardBelegPositionen { get; init; } = new();
 }
@@ -97,7 +97,8 @@ public static class SageWareneingangPayloadBuilder
             Belegdatum = erste.CreatedAt.ToString("yyyy-MM-dd"),
             A0Konto = erste.LieferantKto!.Trim(),
             EKLieferschein = lieferschein,
-            Memo = SageWareneingang.Kennung(erste, kuerzel),
+            // v1.99.68: voller Referenztext (varchar(max)); enthaelt WE#..#, Memo-Suche und FremdeKennung bleiben gueltig
+            Memo = SageReferenz.Voll(SageWareneingang.Kennung(erste, kuerzel), erste.CreatedBy, null),
             StandardBelegPositionen = positionen,
         };
     }

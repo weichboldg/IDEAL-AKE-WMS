@@ -66,6 +66,20 @@
                         <div id="faPruefung" class="mt-2" role="status" aria-live="polite" data-buchungsart="Warenausgang"></div>
                     </div>
 
+                    @* v1.99.68: Abteilung (Werkbank) optional – geht als Referenz an Sage *@
+                    <div class="mb-3">
+                        <label asp-for="Abteilung" class="form-label">Abteilung (optional)</label>
+                        <select asp-for="Abteilung" class="form-select" aria-describedby="abteilungHilfe">
+                            <option value="">– keine –</option>
+                            @foreach (var name in Model.Abteilungen)
+                            {
+                                <option value="@name">@name</option>
+                            }
+                        </select>
+                        <div id="abteilungHilfe" class="form-text">Werkbank, für die entnommen wird. Steht in Sage bei der Buchung.</div>
+                        <span asp-validation-for="Abteilung" class="text-danger"></span>
+                    </div>
+
                     <button type="submit" class="btn btn-warning btn-lg w-100">Ausbuchung speichern</button>
                 </form>
             </div>

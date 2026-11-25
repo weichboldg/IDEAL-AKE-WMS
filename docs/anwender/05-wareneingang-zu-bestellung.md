@@ -151,7 +151,8 @@ Lagerbuchung an Sage). Die Bestellposition in Sage schließt der Einkauf von Han
 Wareneingang, der an Sage gehen soll, als Zeile mit Herkunft **Wareneingang** – zusammen mit den Lagerbuchungen (Kapitel 09). Mit Filter
 *Herkunft = Wareneingang* sieht man nur die Wareneingänge. Lieferschein, Barcode, Positionsmemo, Memo und CSV sind im Zahnrad
 standardmäßig ausgeblendet. Ohne Datum „von“ gelten die letzten 30 Tage; offene Einträge stehen immer in der Liste. „Nur in Sage buchen“
-steht nicht mehr in der Liste.
+steht nicht mehr in der Liste. Ab 1.99.68 gibt es im Zahnrad die Spalte „Abteilung“ (nur bei Ausbuchungen gefüllt, bei Wareneingängen leer);
+das Memo des Sage-Wareneingangsbelegs lautet „WMS: WE#…# Benutzer“ (Benutzer = WMS-Benutzer, der den Wareneingang gebucht hat).
 
 ![Seite „Sage-Buchungen“ mit Herkunft Wareneingang: Filterkarte (Herkunft, Status, nur offene, Bestellung, Zeitraum), ein Vorgang mit drei Positionen auf „klären“, darunter übergebene Wareneingänge (DEV, v1.99.66)](bilder/05-05-sage-wareneingaenge.jpg)
 

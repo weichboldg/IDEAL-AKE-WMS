@@ -145,6 +145,7 @@ public static class SageBuchungenGesamtsicht
         ["attempts"] = z => (z.Queue?.AttemptCount ?? z.We!.Receipt.SageWeVersuche).ToString(),
         ["error"] = z => z.Queue != null ? z.Queue.LastError : z.We!.Receipt.SageWeFehler,
         ["erfasst-von"] = z => z.ErfasstVon,
+        ["abteilung"] = z => z.Queue?.StockMovement.Abteilung, // v1.99.68: nur Lagerbuchung, WE leer
         ["lieferschein"] = z => z.We?.Receipt.Lieferschein,
         ["barcode"] = z => z.We?.Receipt.Barcode,
         ["memo-position"] = z => z.We?.Receipt.StockMovement.Note,
