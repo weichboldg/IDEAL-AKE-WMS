@@ -741,7 +741,7 @@ Jede Etappe: `frontend-design` explizit aufrufen, Kontrast messen, Ampel nie nur
 | 3 | Teilfertigmeldung: Migration + SQL/169 + FreshInstall, Service/Controller/Dialog, Ruecknahme, Waisen, Baugruppe `istFinal`, Admin-Spalte Art, ADR 0037. **Dieselbe Migration legt `ProductionWorkplaces.BdeStandardsichtTeile` an und belegt sie vor** (Antwort 3a; Model-Property ohne Leser bis Etappe 4a – Reihenfolge geprueft, siehe Etappe-3-Entwurf). Defaults beider Spalten nur in Migration/SQL/FreshInstall, kein `HasDefaultValue`, `IstAbschliessend` immer explizit gesetzt (Antwort 16, AK 18a). Index nach Antwort 12: wer zweitens baut, vereinigt den Filter mit SQL/164 – der Dev-Lauf prueft beim Start, ob SQL/164 schon im Branch liegt. Uebermeldung bei Teilfertig erlaubt mit Hinweis (Antwort 18, AK 15a). Doku: Kapitel 17 Abschnitte 3/4/6/7 + Fotos `17-05`, `17-07`. v1.99.75, TS-196. | erledigt (2026-11-25, Umsetzung siehe unten) | `94be5444` |
 | 4 | ~~FA-Sicht an beiden Standorten: Wirksamkeits-Helfer … `TeilelisteWirksam` entfernt, `BdeBookingService` mit Master-Lesung, … Banner, …~~ *(ueberholt, Antwort 15)* FA-Sicht an beiden Standorten: Wirksamkeits-Helfer ohne NurFA (`SeiteVerfuegbar`, `TeilelisteWirksam(w)` ohne `nurFa`, `TeileSichtVerfuegbar` = Master && `TeilelisteWirksam`, `TeileStandard` ueber `BdeStandardsichtTeile`), Gate `BdeBookingService.cs:288` inhaltlich wie heute (ohne `nurFa`, ohne Master, kein neuer Ctor-Parameter), Zeilenquelle als gemeinsame Service-Methode, View `Fa`, AG-Status aller AG der Sub-FA (Antwort 4), Kopf-Buchungen, Modal-Partials, Scan, Standardsicht-Auswahl neben `BdeTeileliste` („Teile“ nur mit `BdeTeileliste`), Teile-Reiter nur mit `BdeTeileliste` (sonst deaktiviert mit Hinweis, kein Banner), gemerkte Sicht, Pagination statt MaxHauptFa (Antwort 14). Doku: Kapitel 17 (Maske, Reiter, Foto `17-01`) + Kapitel 11 FA-Sicht (neue Fotos). v1.99.76, TS-197, keine weitere Migration. *(ueberholt, Antwort 19: aufgeteilt in 4a und 4b)* | – | |
 | 4a | FA-Sicht Grundgeruest an beiden Standorten (Antwort 19): Wirksamkeits-Helfer ohne NurFA (`SeiteVerfuegbar`, `TeilelisteWirksam(w)` ohne `nurFa`, `TeileSichtVerfuegbar` = Master && `TeilelisteWirksam`, `TeileStandard` ueber `BdeStandardsichtTeile`) samt Aufrufer-Umstellung, Gate `BdeBookingService.cs:288` inhaltlich wie heute (ohne `nurFa`, ohne Master, kein neuer Ctor-Parameter), Zeilenquelle als gemeinsame Service-Methode, View `Fa` mit Spalten/Filter/Pagination statt MaxHauptFa (Antwort 14), AG-Status aller AG der Sub-FA (Antwort 4), Anstempeln Ruesten/Produktion je Zeile (Kollision als sichtbare Meldung), Werkbank-Maske mit Standardsicht-Auswahl neben `BdeTeileliste` („Teile“ nur mit `BdeTeileliste`), Liste `ProductionWorkplaces`, Teile-Reiter nur mit `BdeTeileliste` (sonst deaktiviert mit Hinweis), gemerkte Sicht. AK 23, 24 (4a-Teil), 28–32d. Doku: Kapitel 17 (Maske, Reiter, Foto `17-01`) + Kapitel 11 FA-Sicht (Foto `11-05`). v1.99.76, TS-197, keine weitere Migration. | erledigt (2026-11-25, Umsetzung siehe unten) | `878aa76d` |
-| 4b | FA-Sicht Bedienung (Antwort 19): Kopf-Buchungen laufend/pausiert mit Teilfertig/Pause/Fertig/Fortsetzen und Detailangaben-Schalter, `bde-fa-sicht.js`, Modal-Partials aus `Views/BdeTerminal/Index.cshtml` (Mengen, Kollision, Gruppe, Close-Others; beide Seiten nutzen sie bis Etappe 5), Scanzeile, Taetigkeit, NurAg-„Fertig melden“ je Zeile. AK 24 (4b-Teil), 25, 26, 27. Doku: Kapitel 11 Kopf/Dialoge/Scan (Foto `11-06`). v1.99.77, TS-198, keine Migration. | offen | |
+| 4b | FA-Sicht Bedienung (Antwort 19): Kopf-Buchungen laufend/pausiert mit Teilfertig/Pause/Fertig/Fortsetzen und Detailangaben-Schalter, `bde-fa-sicht.js`, Modal-Partials aus `Views/BdeTerminal/Index.cshtml` (Mengen, Kollision, Gruppe, Close-Others; beide Seiten nutzen sie bis Etappe 5), Scanzeile, Taetigkeit, NurAg-„Fertig melden“ je Zeile. AK 24 (4b-Teil), 25, 26, 27. Doku: Kapitel 11 Kopf/Dialoge/Scan (Foto `11-06`). v1.99.77, TS-198, keine Migration. | erledigt (2026-11-25, Umsetzung siehe unten) | `d61ea22c` |
 | 5 | Tageshistorie inkl. Teilmeldungen (Seite, Knopf, NavZiel; Antwort 5), `BdeTerminal/Index` leitet an beiden Standorten immer um, alte View + `bde-terminal.js` geloescht, `BdeTerminalMaxHauptFa` entfernt, Katalogtext `BdeNurFaMeldung`, Betriebsdoku Handy-Konten (Antworten 1, 2, 6). Doku: Kapitel 11 umgeschrieben, Terminal-Fotos `11-01`–`11-04` ersetzt, Tageshistorie-Foto, Index-Titel 11/17 (Antwort 17). v1.99.78, TS-199, keine Migration (vor Antwort 19: v1.99.74, TS-195). | offen | |
 
 ## Umsetzung Etappe 1 (2026-11-25)
@@ -902,6 +902,46 @@ Changelog [[2026-11-25-v1-99-76-bde-masken-etappe-4a-fa-sicht]].
 **Hinweise für Etappe 4b:** Zeilenquelle `BdeFaAngebot.FaSichtAsync`, Aktionsspalte in `Views/BdeTeileliste/Fa.cshtml` (heute Formular
 Rüsten/Produktion, ausgeblendet bei `LaeuftBeiMir`/`NurAgFertigmeldung`); `BdeTeilelisteController.Anstempeln` ist PRG ohne JS – Dialoge,
 Kopf-Buchungen, Scan, Tätigkeit und NurAg-„Fertig melden“ setzen dort an. `BdeTeilelisteViewModel.NurAgFertigmeldung` ist schon befüllt.
+
+## Umsetzung Etappe 4b (2026-11-25)
+
+Commit `d61ea22c` im Worktree `feature/2026-08-07-ideal-teile-1-5` (auf v1.99.76 `878aa76d`). **v1.99.77, TS-198, keine Migration.**
+Build 0 Fehler / 32 Warnungen (Basis), Tests Web 3690/1/0 (+5), Dienst 847/0/0. qa-agent steht aus (nach allen Etappen).
+Changelog [[2026-11-25-v1-99-77-bde-masken-etappe-4b-fa-buchungen]].
+
+**Bauweise:**
+- Kopf-Buchungen an EINEM Ort `Services/BdeKopfBuchungen.cs` (statisch, `LaufendeAsync`/`PausierteAsync` = die bisherigen Abfragen von
+  `BdeTerminalController.ActiveBookings`/`PausedBookings`; das Terminal mappt daraus dasselbe JSON). `BdeFaAngebot.KopfBuchungenAsync` liefert
+  beide Listen an die FA-Sicht; gerendert serverseitig in `Views/BdeTeileliste/_KopfBuchungen.cshtml` (nur Reiter FA, aus `_Kopf`).
+- Dialoge als Partial `Views/Shared/_BdeDialoge.cshtml` (Mengen, Kollision, Gruppe, Close-Others; IDs unverändert), eingebunden in
+  `Views/BdeTerminal/Index.cshtml` und `Views/BdeTeileliste/Fa.cshtml`. Tätigkeits-Modal des Terminals bleibt dort (bis Etappe 5).
+- `wwwroot/js/bde-fa-sicht.js`: alle Buchungen über die bestehenden JSON-Aktionen `/BdeTerminal/*` (StartSetup, StartProduction, StartActivity,
+  Pause, Resume, Finish, ReportPartial, ReportCompletion, FinishGroup, CloseOthers) mit Antiforgery und `wmsSperren`; Ergebnis-Auswertung
+  Kollision → `collisionModal`, GroupFinishRequired → Gruppen-Modal, Erfolg mit anderen aktiven Buchungen → Close-Others, sonst sichtbare
+  Meldung „… – nichts gebucht.“. Nach Erfolg Neuladen, Meldung über `sessionStorage` (`wms.bdeFaSicht.meldung`). Gut < Soll über
+  `window.bdeBestaetigen` (Bestätigungsfenster aus `bde-teileliste.js`), kein Browser-Dialog. Anstempeln-Formular bleibt PRG-Fallback ohne JS.
+- NurAg-Werkbänke: je Zeile „Fertig melden“ → `ReportCompletion` mit Sollmenge vorbelegt.
+- Scan: Feld `#faScan` (einziges `data-hw-scan-ziel`), `/api/bde/resolve-scan?faSicht=true` – neuer Parameter `faSicht` ignoriert
+  `BdeNurFaMeldung` (G5). Eindeutig → Zeile markieren (`?markiert=<woId>`, Controller blättert über `SeiteMitZeile`, sonst Warnung
+  „… mit den aktuellen Spaltenfiltern nicht sichtbar“), mehrdeutig → Auswahl-Modal, NotFound/NotInScope → Meldung.
+- Schalter „Zeiten und Details“ je Werker in `localStorage` (`wms.bdeKopfDetails.<operatorId>`), nur Anzeige.
+- Manifest: `v1.99.77-BdeFaSichtBuchungenInfo` (beide, Info).
+
+**Abweichungen von der Spec:**
+- Kopf-Buchungen nur im Reiter FA, nicht in den Teile-Reitern (dort wird nicht angestempelt).
+- Laufzeit = Stand Seitenaufbau, kein Live-Ticker.
+- Scan „eindeutig“ schliesst bereits laufende Arbeitsgänge aus (Verhalten von `BdeScanResolver`) → Meldung „nicht gefunden (oder läuft bereits)“.
+- Die Terminal-Modals bekamen `btn-lg` und `label for` (Barrierefreiheit), sonst unverändert.
+- Die JSON-Aktionen nehmen `terminalId` weiter vom Client (wie am Terminal); die FA-Sicht übergibt den serverseitig ermittelten Terminal.
+
+**Befunde:**
+- Kein UI-Lauf lokal (DB nur AKESQL20, verboten) – Dialoge, Fokus und Kontrast prüft qa-agent/Manual-UAT (TS-198).
+- Foto nicht aufgenommen: neu `docs/anwender/bilder/11-06-kopf-buchungen.jpg` (Meine Buchungen mit laufender und pausierter Buchung, Feld FA scannen).
+
+**Hinweise für Etappe 5:** Tageshistorie gibt es nur im alten Terminal (`today-history`) – als eigene Seite bauen. Vom alten Terminal hängen noch ab:
+`wwwroot/js/bde-terminal.js`, `Views/BdeTerminal/Index.cshtml` (inkl. `activityModal`), Test `HardwareScannerTests.BdeTerminal_BeideScanfelderSindZiele_OhneEigeneLogik`,
+Redirects auf das Terminal. Die JSON-Aktionen von `BdeTerminalController` **bleiben** (die FA-Sicht bucht darüber), ebenso `_BdeDialoge`
+und `BdeKopfBuchungen`. Beim Löschen der Terminal-View `BdeFaSichtViewTests` anpassen (prüft die Terminal-Einbindung).
 
 ## Deploy
 
