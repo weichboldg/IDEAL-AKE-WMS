@@ -103,6 +103,12 @@ Weitere Knöpfe in der Leiste:
   „Vollständig“). Dieselbe Liste steht oben in der Stückliste des FA. Das Badge verschwindet nach dem nächsten Nachtlauf, wenn nichts
   mehr übersteht.
 
+![Leitstand-Zeile mit gelbem Badge „⚠ Stückliste kleiner“ unter den Kommissionieraufträgen des FA](bilder/01-19-leitstand-stueckliste-kleiner.jpg)
+
+![Leitstand als Benutzer ohne Admin-Rolle: zwischen Filter und Tabelle fehlt der Knopf „Fehlende Kommissionieraufträge für alle freigegebenen FAs erzeugen“](bilder/01-20-leitstand-ohne-admin-knoepfe.jpg)
+
+![Stückliste des FA mit gelbem Hinweis „⚠ Stückliste kleiner als offene Kommissionierzeilen“ über der Filterkarte](bilder/01-21-stueckliste-kleiner-hinweis.jpg)
+
 ### 3. Kommissionierer: Auftragsliste
 
 Menü **Kommissionierung**. Jede Zeile ist **ein** Kommissionierauftrag – ein FA kann also
