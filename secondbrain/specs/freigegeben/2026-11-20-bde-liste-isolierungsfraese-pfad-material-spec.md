@@ -2,7 +2,7 @@
 type: spec
 title: BDE-Teileliste – Material/Blechdicke/Bemerkung/Fertigungsinfo, Fräsen-Pfad je Artikel, Lagerbestell-Positionen an der Isolierungsfräse
 slug: 2026-11-20-bde-liste-isolierungsfraese-pfad-material-spec
-status: InUmsetzung
+status: Testbereit
 created: 2026-11-20
 updated: 2026-11-25
 source_backlog: "[[2026-11-19-bde-liste-isolierungsfraese-pfad-material]]"
@@ -646,7 +646,9 @@ Branch vor Beginn mit `scripts/sync-worktree.ps1` aktuell halten.
 
 ## Deploy
 
-*Vorläufig – der QA-Lauf bestätigt gegen den echten Diff.*
+**Final (qa-agent 2026-11-25, gegen den echten Diff `47a23d32..d49a3f39`):** Web **ja** (`IdealAkeWms/` geändert), Service **ja** (`IDEALAKEWMSService/` geändert: `SdataArtikelReader`, `AppVersion.cs`), Migration **ja** (zwei neue Dateien unter `IdealAkeWms/Migrations/`: `20261125173002_AddArticleCamPath`, `20261125173021_AddBdeTeilelisteLagerbestellungen`). Publish erledigt: `C:\Git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-07-ideal-teile-1-5\publish\` (IDEALAKEWMSWeb + IDEALAKEWMSWebService + SQL + deploy, `publish-info.txt` Version 1.99.72, Commit `4e8a344cd1dedcadd207f946ddae6cc791d37cc1`). Reihenfolge am Zielsystem: DB-Backup → Dienst/Web stoppen → SQL/164 → SQL/165 (das Update-Skript `deploy\Update-IdealAkeWms.ps1` erledigt beides über das Manifest) → Web → Service → Prüfung `RolleFraesenpfadPflegen` → (nur IDEAL) Einmal-Skript **Trockenlauf**, SCHARF erst nach Klärung der Rückfragen 15/16 → `FraesenPfadAktiv` an (nur IDEAL, nach dem Erstimport) → Werkbank IF Option setzen. Nach dem Merge nur dann neu aus `main` publishen, wenn der Merge getestete Dateien mit parallelen main-Änderungen kombiniert hat.
+
+*Vorläufig – der QA-Lauf bestätigt gegen den echten Diff.* (Fassung des Spec-Agenten, durch den Absatz oben bestätigt.)
 
 - **Web-App:** ja (Teileliste, Artikel-Masken, Bestandsübersicht, Lagerbestellung, Rolle, Einstellungen, Werkbänke, Teilmeldungen, Hilfe).
 - **Service:** ja (Blechteile-Nachlese liest das zusätzliche Feld über `BfArtikelFelder`/`SageUserfelder`, beide im Web-Projekt, vom Dienst referenziert; dazu `AppVersion.cs`).
@@ -890,3 +892,117 @@ Freigabe-Antwort:
     (G-BL, 51 Zeilen) enthalten, markiert, vor SCHARF Rückfrage 16 klären.
   - Fußzeile „Stand“ in `docs/TESTSZENARIEN.md` veraltet, nicht angefasst.
   - Fotos für `docs/anwender/` 03, 10, 17 und Artikelinfo stehen aus (qa-agent/DEV).
+
+## QA-Nachweis (qa-agent, 2026-11-25)
+
+Geprüft: Umsetzungs-Commit `d49a3f39` (Bereich `47a23d32..d49a3f39`), Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5`. Doku-Commit des QA-Laufs: `4e8a344c` (Fotos Kap. 03/10/17).
+
+### 1. Build und Tests
+- `dotnet build IdealAkeWms.slnx`: **0 Fehler, 32 Warnungen** (Baseline 32).
+- `dotnet test`: **IdealAkeWms.Tests 3631 bestanden / 1 übersprungen / 0 rot (3632)** (Skip = `ProductionOrderEagerCreateAgentJobTests`, vorbestehend); **IDEALAKEWMSService.Tests 847 / 0 / 0**.
+
+### 2. Code-Review (selbst, synchron)
+Untersucht: Migrationen + SQL/164/165 (Guards, eigene Batches, History-Insert, FreshInstall an beiden Stellen, Index-Neuaufbau mit Filtern), `FraesenPfad`-Helper (UNC-Prüfung, file-URI-Kodierung), `_FraesenPfad`-Partial + delegierter Kopier-Handler in `site.js` (kein `@Html.Raw`, Werte Razor-kodiert, kein Inline-Script mit Werten), `ArticlesController.FraesenPfad` (Rollen-/Schalter-Filter, Server-Validierung, Audit-Felder, Edit-POST lässt `CamPath` unberührt – F14), Filter `RequireFraesenPfadPflegenAccess`/`RequireFraesenPfadAktiv`, Rollen-Dreifachpflicht, `BdeTeilelisteService` (LB-Schlüssel `LB|<ItemId>`, Termin über `BusinessDayService` + Feiertage, Meldung ohne Lagerbuchung, Abweisung geschlossener Bestellungen), Werkbank-Validierung serverseitig, View-JSON der Spaltenauswahlen (`defaultHidden`), `hidden` + `d-*`, stille Fallbacks, `nachlauf.psd1`, Einmal-Skript.
+
+| # | Befund | Schwere | Behandlung |
+|---|---|---|---|
+| F-1 | **AK 9 Blechdicke:** Ist das Feld nicht konfiguriert (leere Einstellungszeile), lässt die Nachlese den alten Wert stehen und protokolliert „nicht konfiguriert – Merkmal unverändert“ (`IDEALAKEWMSService/…/SdataArtikelReader.cs:360`), statt „–“ zu zeigen. Das Verhalten schont die Daten und ist nachvollziehbar; der AK-Text verlangt aber „–“. | Niedrig | Offen für Gerald: AK 9 an das gebaute Verhalten anpassen (Empfehlung) oder nachbessern. Nicht blockierend. |
+| F-2 | `USER_OSBlechdicke` ist ohne Einstellungszeile **sofort aktiv**, aber P-1 (Feld existiert in Sage IDEAL/SData?) ist nicht geprüft. Fehlt das Feld in der SData-Abfrage, kann die ganze Blechteile-Nachlese scheitern (Arbeitsschritte/Material mit). | Mittel (Deploy-Risiko) | Manual-UAT P-1 vor dem Einschalten der Nachlese auf Test/Prod; Checkliste Punkt 2. |
+| F-3 | Lagerbestell-Zeilen filtern nicht nach `Type` – auch **Glasbestellungen** mit IF-Artikel erscheinen (auf DEV mit QA-F / Bestellung 13 bestätigt). | Niedrig | Rückfrage an Gerald/Walter (in der Umsetzung schon gemeldet); nicht gebaut. |
+| F-4 | Werkbank-Validierung („Lagerbestellungen in der Teileliste“ braucht „BDE-Teileliste“) ohne Unit-Test. | Niedrig | Auf DEV manuell belegt (Server weist ab, DB unverändert). Test optional nachrüsten. |
+| F-5 | „Artikel bearbeiten“-POST mit ungültigem ModelState rendert die View ohne die Fräsen-Pfad-Karte (Flags nur im GET gesetzt). | Kosmetisch | Notiert; kein Datenverlust (Edit-POST schreibt `CamPath` nie). |
+| F-6 | Bestandsübersicht: Spalte `current-stock` in der neuen Spaltenauswahl nicht `Locked` (ausblendbar). | Niedrig | Notiert; Abweichung schon in der Umsetzung genannt. |
+| F-7 | Das Einmal-Skript hat keinen Standort-Guard im Skript (nur Manifest `Firma: IDEAL`). Auf AKE gestartet, würde es über Matchcodes schreiben. | Niedrig | Notiert; das Manifest steuert den Standort, Trockenlauf ist Default. |
+| F-8 | Rückfragen **15/16** sind im Einmal-Skript Annahmen (Pfad wie Spalte E; Belegestation-Block G-BL enthalten). | Offene Frage | **Vor SCHARF von Gerald/Walter zu klären** (siehe unten). |
+| F-9 | Vorbestehend: `innerHTML` in `WarehouseRequisitions/Edit` (nicht aus diesem Diff). | Hinweis | Kein Handlungsbedarf in dieser Spec. |
+
+Keine Befunde zu: Script-Einbettung (JSON/Razor korrekt), `hidden`+`d-*`, `?? 0`-Fallbacks, positionalem Binding paralleler Arrays (Formulare binden Einzelwerte), reiner Client-Validierung (UNC-Prüfung + Werkbank-Regel serverseitig), einer Regel an mehreren Orten (Termin nur in `BdeTeilelisteService`; UNIQUE in DB + App-Guard deckungsgleich).
+
+### 3. Nachweisart je AK
+| AK | Nachweis |
+|---|---|
+| 1–4 | Teilweise automatisiert (`ViewKeyDriftGuardTests`, `ColumnFilterTypesDriftTests`); Zahnrad/Reload/Filter = Browser-JS → **Manual-UAT**, auf DEV IDEAL OK |
+| 5 | Automatisiert (`FraesenPfadTests`, InMemory) + DEV OK (UNC getrimmt, `Y:\` abgewiesen, Audit) |
+| 6 | Automatisiert (Edit-POST lässt `CamPath`) + DEV OK an AKE und IDEAL (Schalter an/aus); direkter POST bei aus: Filter-Attribut im Code belegt |
+| 7 | Filter-Attribute im Code + DEV OK (vier Rollenkombinationen); Manifest-Prüfung per SQL nachvollzogen |
+| 8 | Unit-Test `FraesenPfad` (URI); Kopieren DEV OK; Öffnen am Fräsen-PC **Manual-UAT** |
+| 9 | Sage-/Dienst-Read → **Manual-UAT** (P-1); siehe F-1/F-2 |
+| 9a, 9b | `ViewKeyDriftGuardTests` (defaultHidden) + DEV OK (Bestände, Besteller, Artikel-Liste, Lager-Detail) |
+| 10 | Nur DEV (F-4) |
+| 11, 12, 13 | `BdeTeilelisteLagerTests` (InMemory) + DEV OK |
+| 14 | UNIQUE-Index = **Manual-UAT**; auf DEV per SQL belegt (Duplikat → Fehler 2601); Lauf mit zwei Terminals offen |
+| 15 | Nur automatisiert (`Melden_Lager_Negativfaelle_Abgewiesen`) → Checkliste |
+| 16 | Admin-Storno DEV OK (Meldung 12 storniert, danach Neumeldung vom Index zugelassen); Werker-Rücknahme nutzt JS-`confirm()` → offen |
+| 17 | Bestehende Tests grün |
+| 18 | `BdeTeilelisteLagerTests.Teilmeldungen_*` + DEV OK |
+| 19 | `CsvFetch_IstKeineNavigation` (Unit); Download im Browser **Manual-UAT** |
+| 20 | Raw-SQL-Skript → **Manual-UAT**; Trockenlauf auf DEV IDEAL OK, SCHARF nicht ausgeführt |
+| 21 | Build/Tests grün |
+
+### 4. Geänderte bestehende Tests
+- Typ-/Konstruktor-Anpassung (Compile-Fix; neue Ctor-Parameter `IArticleRepository`/`IBusinessDayService`/`IHolidayRepository`, `FakeCurrentUserService` mit neuem Member): `ArticlesControllerTests`, `ArtikelinfoLieferantenTests`, `FehlteileKarteV181Tests`, `PurchaseProposalsNachbesserungE4Tests`, `StockOverviewControllerTests`, `WarehouseRequisitionsControllerTests`, `BdeTeilelisteServiceTests`.
+- `BdeTeilelisteMeldenTests`: Die Fixture nutzt echte InMemory-Repositories statt Mocks (der Service liest Artikel/Hierarchie jetzt darüber), und `OffeneSchluessel` wird als Text verglichen (Schlüssel jetzt auch `LB|…`). Typänderung, Erwartung inhaltlich gleich.
+- Durch die Spec bewusst geändert: `AppSettingDefinitionsTests` 68 → 70 (zwei neue Settings), `SageUserfelderTests` (+`USER_OSBlechdicke`, AK 9/21), `ArtikelNachbesserungV185Tests` (`fraesen-pfad` DefaultHidden, AK 9b), `NachlaufManifestDriftTests` (+SQL/164, SQL/165).
+- „Sonstiges“: keine.
+
+### 5. Checkliste CLAUDE.md
+Migration + `SQL/164`/`165` idempotent mit Guard und eigenem History-Batch ✔; FreshInstall an beiden Stellen ✔; Audit-Felder (`FraesenPfad`, Werkbank) ✔ (in der DEV-DB geprüft); Version 1.99.72 in beiden `AppVersion.cs` ✔ + Anwender-Changelog ✔ + Brain-Changelog ✔ (Brain-Commit `6b8ced5d`); `docs/TESTSZENARIEN.md` TS-193 ✔, [[testszenarien-index]] Zeile 193 ✔; Rolle an drei Stellen ✔; `nachlauf.psd1` mit SQL, Rollen-Prüfung, Einmalig, Einstellung, Info ✔; Einmal-Skript unter `SQL/Einmalig/` ✔ (nicht live ausgeführt). `docs/anwender` 03/10/17 mit Fotos ✔ (Commit `4e8a344c`).
+
+### 5a. ADR 0020 (Einstellungen)
+`FraesenPfadAktiv` (bool als Auswahl; Anzeigename, Wirkung, Verwendung, Default aus, Standort IDEAL) und `BdeTeilelisteLagerbestellungArbeitstage` (Zahl, Server-Validierung, Default 10) sind im Katalog vollständig; die Werkbank-Option hat eine Server-Regel und Erklärtext mit Warnhinweis. Keine Lücke.
+
+### 6. DEV-Deploy und TS-193
+- Standort laut Frontmatter IDEAL; zusätzlich AKE für die Regression. Shell eleviert. `dev-deploy.ps1 -Standort IDEAL` Exit 0, Fußzeile **v1.99.72** (http://localhost:8082); `-Standort AKE` Exit 0, Fußzeile **v1.99.72** (http://localhost:8081). Quelle: Worktree.
+- DB: beide Migrationen in `__EFMigrationsHistory`; Index-Filter `UX_BdeTeilMeldungen_Schluessel` (`IsCancelled=0 AND WarehouseRequisitionItemId IS NULL`) und `UX_BdeTeilMeldungen_Lagerbestellung` (`… IS NOT NULL`) korrekt; zweiter Lauf von SQL/165 idempotent.
+- Einmal-Skript **Trockenlauf** auf IDEAL_WMS_DEV: Exit 0, „TROCKENLAUF: nichts geaendert“, Schreiben 5 / BereitsGleich 0 / Meldeliste 174 / ListenZeilen 179 (168 „Matchcode unbekannt“ wegen DEV-Stammdaten, 6 „kein gueltiger Pfad“ = Zeilen 155, 157, 161, 164, 165, 166, wie AK 20).
+
+| Schritt | Ergebnis |
+|---|---|
+| AKE: Artikel bearbeiten speichert unverändert; kein Fräsen-Pfad in Edit/Artikel-Liste/Bestände/Besteller-Zahnrad | OK |
+| IDEAL, Schalter aus (Ausgangszustand, nach dem Test wiederhergestellt): Artikelinfo, Bestände, Besteller ohne Fräsen-Pfad | OK |
+| Werkbank-Option ohne „BDE-Teileliste“ | OK – Server weist ab („… braucht „BDE-Teileliste“.“), DB unverändert |
+| Werkbank-Option mit „BDE-Teileliste“ | OK, Audit-Felder gesetzt |
+| Teileliste LB-Zeilen: Entwurf/Geschlossen/Storniert ausgeblendet, „KA LA“ nicht, „if“ (klein) getroffen; Termin 15.12. bzw. 09.12.2026 (10 AT, Feiertag 08.12. übersprungen) | OK |
+| Glasbestellung QA-F erscheint ebenfalls | bestätigt F-3 |
+| FA-Zeilen mit Blechdicke; Summiert „LB 8, LB 13“, Material, Blechdicke | OK |
+| Spalte Fräsen-Pfad Standard aus, über Zahnrad ein, bleibt nach Reload | OK |
+| Pfad pflegen `Y:\Fraesen\Test` | OK – abgewiesen, DB unverändert |
+| Pfad pflegen UNC mit Leerzeichen und Rändern | OK – getrimmt, `ModifiedBy/ByWindows` gesetzt, „Fräsen-Pfad gespeichert.“ |
+| Link `file://idealfs1/Daten$/Produktion/CAM/EKW%20ISO/Boden%201230-620`; „Pfad kopieren“ → Zwischenablage = UNC | OK |
+| F14: Edit-POST bei Schalter an lässt `CamPath` | OK |
+| Rollen: nur `masterdata_read` (Anzeige, kein Formular) / + `fraesenpfad_pflegen` (Formular) / nur `fraesenpfad_pflegen` (Zugriff verweigert) / `masterdata` (Karte, leeren → NULL) | OK |
+| LB-Zeile melden (Modal) → `BdeTeilMeldung` 12 mit `WarehouseRequisitionItemId` 11, `BdeBookingId` NULL, 0 StockMovements, Bestellung unverändert | OK |
+| UNIQUE: Duplikat (11, IF) → 2601; anderes Kürzel erlaubt (Rollback) | OK |
+| Teilmeldungen: Spalte „Lagerbestellung“ „9 / Pos. 1“, Haupt-FA „–“ | OK |
+| Admin-Storno mit Grund (Modal) → `IsCancelled=1`, Grund, `ModifiedBy`; Bestellung/Position unverändert; Neumeldung danach vom Index zugelassen (Insert mit Rollback) | OK |
+| Werker-Rücknahme am Terminal, Blockmeldung | NICHT MOEGLICH – JS-`confirm()` (Dialogverbot) |
+| Link am Fräsen-PC öffnen | NICHT MOEGLICH – GPO/Fräsen-PC |
+| Blechdicke-Nachlese-Lauf | NICHT MOEGLICH – `Sync:BlechteileFelderNachlesen` aus (DEV-Sicherheit); Werte per SQL gesetzt |
+| P-1 SData-Feld | NICHT MOEGLICH – kein Sage-Test-Login |
+| Zwei Terminals gleichzeitig | NICHT MOEGLICH – nur DB-seitig belegt |
+| Einmal-Skript SCHARF | NICHT MOEGLICH – Agenten führen Einmal-Skripte nicht aus |
+
+Testdaten auf IDEAL_WMS_DEV (bleiben): Sage-Attribut-Definitionen/-Werte an 50002070, 50001536, 50001534, 50002192, 50002170; Lagerbestellungen 8–13 (Kommentar „TS-193 QA-x“, Werkbank 36); Rolle `fraesenpfad_pflegen` (Id 24); `CamPath` an Artikel 7878 und 9214; `BdeTeilMeldung` 12 (storniert); Spaltenwahl „Fräsen-Pfad“ für User 8. **Zurückgesetzt:** AppSetting `FraesenPfadAktiv` (Zeile gelöscht = Ausgangszustand, aus); Werkbank 75 „Isolierfräsen“ auf BdeAktiv/BdeTeileliste/Option = 0 (Ausgangswert); User 8 wieder nur `admin`. Kein Sync-, Sage- oder Mail-Schalter angefasst.
+
+### 7. Publish
+`C:\Git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-07-ideal-teile-1-5\publish\`: Ordner geleert, `IDEALAKEWMSWeb` + `IDEALAKEWMSWebService` (Release), `SQL\`, `deploy\`, `publish-info.txt` (Version 1.99.72, Commit `4e8a344cd1dedcadd207f946ddae6cc791d37cc1`, Erstellt 2026-11-25 19:28). Für alle Deploy-Schritte gibt es Manifest-Einträge.
+
+### Offene Fragen für Gerald (vor SCHARF des Einmal-Skripts)
+- **Rückfrage 15:** Pfad wie Spalte E übernehmen; Zeilen „ist enthalten in …“ nur melden (nicht den Pfad des genannten Artikels übernehmen) – bestätigen.
+- **Rückfrage 16:** Belegestation/Twin Kundenseite (Block G-BL, 51 Zeilen) importieren oder streichen; Zeile 161 nur melden – bestätigen.
+- F-1 (Text von AK 9) und F-3 (Glasbestellungen an der Fräse) entscheiden.
+
+### Manuelle Testcheckliste (Mensch, Testsystem)
+1. Update-Paket aus `publish\` einspielen (DB-Backup, SQL/164/165 über das Manifest); Fußzeile 1.99.72 an AKE und IDEAL.
+2. **P-1:** Ist `USER_OSBlechdicke` in Sage IDEAL (Test) vorhanden, und bedeutet das Format „3,00“ mm? Erst dann die Blechteile-Nachlese laufen lassen; Aktivitäts-Protokoll ohne Fehler, Teileliste zeigt die Blechdicke (F-2).
+3. P-2/P-4 aus der Spec (Lagerartikel-Grenze, IF-Isolierungen vorhanden).
+4. Einmal-Skript **Trockenlauf** auf Test-IDEAL, Meldeliste sichten; nach Klärung von 15/16 SCHARF, zweiter Trockenlauf `TREFFER: 0`, handgepflegter Pfad bleibt (AK 20).
+5. `FraesenPfadAktiv` an (nur IDEAL); Werkbank IF: „BDE-Teileliste“ + „Lagerbestellungen in der Teileliste“.
+6. Am Fräsen-PC: Link öffnet den Ordner im Explorer; sonst Pfad kopieren → Strg+L (AK 8).
+7. Am Terminal: LB-Zeile einzeln, als Block und in Summiert melden; zweites Terminal/Doppelklick → „bereits gemeldet“ (AK 13/14).
+8. Werker-Rücknahme bis zur Frist (confirm-Dialog); Zeile wieder offen (AK 16).
+9. Bestellung abschließen, dann LB-Zeile melden → abgewiesen mit Grund, Rest der Sammelmeldung läuft (AK 15).
+10. CSV der Teileliste: alle gefilterten Zeilen, sichtbare Spalten, danach gleiche Seitengröße (AK 19).
+11. Rollen am echten Konto des Pflegers (`fraesenpfad_pflegen` + `masterdata_read`); Manifest-Prüfung `FraesenpfadOhneStammdatenLesen` = 0.
+12. AKE: Schalter aus, keine Fräsen-Spalte, Artikel bearbeiten unverändert.
+13. F-1 und F-3 entscheiden; danach Merge (Schranke 2).
