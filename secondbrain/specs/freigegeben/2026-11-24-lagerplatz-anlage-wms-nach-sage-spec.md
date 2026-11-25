@@ -683,7 +683,7 @@ lesen (`SageBookingWorker.cs:267-268`).
     Transaktion (S2): scheitert ein Teil (Unit-Test: Ausnahme beim zweiten `SaveChanges` bzw. Unique-Verletzung am relationalen Provider), ist
     **nichts** angelegt – kein `StorageArea`, kein Platz, kein Outbox-Eintrag – und das Formular zeigt den Fehler. Ohne Platzverwaltung: nur
     `StorageArea` + Lager-Eintrag. Bei `LTD0ST` ist Platzverwaltung gesperrt. (Die InMemory-Tests prüfen den Ablauf; die echte Atomarität am
-    relationalen Provider zeigt TS-189 Schritt .p per SQL: `StorageAreas`/`StorageLocations`/`SageStammdatenOutbox` gleich viele neue Zeilen.)
+    relationalen Provider zeigt TS-192 Schritt .p per SQL: `StorageAreas`/`StorageLocations`/`SageStammdatenOutbox` gleich viele neue Zeilen.)
 27. Dienst: das Lager wird vor seinen Plätzen gesendet; in Sage entstehen genau eine `KHKLagerorte`-Zeile (`WarenflussKZ = 'SWF'`, alle
     `IstWE/IstHauptWE/IstWA/IstHauptWALager = 0`, `Aktiv = -1`, `IstDispoLager = -1`, `AnzahlLagerplaetze = 1` vor den Plätzen) und der Basisplatz
     `TL-WMS;0;0;0` mit Platzbezeichnung = Lagerbezeichnung; `KHKTan` steigt um 1 für das Lager. Lager-Outbox `Bestaetigt`; danach die Plätze wie AK 8,
@@ -698,7 +698,7 @@ lesen (`SageBookingWorker.cs:267-268`).
 31. Lager-Fehler 50005 (Basisplatz-Kurzbezeichnung vergeben), 50004 (Artikel-Zuordnungen an Plätzen dieser Kennung, Join über `PlatzID`, S1),
     50007 (Plätze dieser Kennung ohne Lager), 50001 (Technik unbekannt), 50006 (Technik nicht freigegeben und Lager in Sage nicht vorhanden),
     515/207 (Pflicht-/fremde Spalte) → fachlicher Fehler mit Klartext, nichts in Sage, kein Wiederholen ohne „Erneut senden“. Der Lager-Befehl
-    kompiliert gegen `ake_TEST2026` (kein 207 für `KHKArtikelVariantenLagerplatz`; TS-189 Schritt .q).
+    kompiliert gegen `ake_TEST2026` (kein 207 für `KHKArtikelVariantenLagerplatz`; TS-192 Schritt .q).
 32. Das WMS schreibt an einem bestehenden Sage-Lager nie `Bezeichnung`, `Lagertechnik`, `WarenflussKZ` oder WE/WA-Kennzeichen (Abnahmevergleich
     und Mitschnitt/Diff des Befehls: nur Zähler-Spalten im UPDATE).
 33. Platz-Konflikt mandantenweit: existiert die Kurzbezeichnung des neuen Platzes in Sage in einem **anderen** Lager → Konflikt 50014, nichts
@@ -716,24 +716,24 @@ lesen (`SageBookingWorker.cs:267-268`).
 39. H4: Lager-Eintrag, dessen Technik nach einem Konflikt nicht (mehr) freigegeben ist, das Lager in Sage aber mit gleichen Werten existiert →
     „Erneut senden“ führt zu „vorhanden – übernommen“ (Mock: `neuanlageErlaubt = false` wird übergeben, Ergebnis `Vorhanden`).
 40. Jeder Lauf mit Arbeit enthält genau eine Info „Sage-Datenbank: <Server>/<DB>“; auf DEV AKE lautet sie auf `…/ake_TEST2026`
-    (Freigabe-Antwort 8, TS-189 Vorbedingung V3).
+    (Freigabe-Antwort 8, TS-192 Vorbedingung V3).
 
 Unit-testbar (InMemory + Mock `ISageLagerplatzAnlage`): AK 1–8 (WMS-Seite), 12–19 (Status-Automat, Übernahme, Wiederholung, Einmal-Meldung),
 22 (a–e), 24–26, 28, 29 (Fehlend-Schleife, Muster `LagerplatzSdataTests.cs`), 30–31 (Status-Automat Lager mit gemocktem Ergebnis), 34, 35,
 37–39. Der SQL-Befehl selbst (AK 9–11, 13–14, 27, 30–33 Sage-Seite, 36 nur per Code-Review, 40) ist **nicht** InMemory-testbar → Manual-UAT am
 Testmandanten (fallstricke „Tests, EF, SQL Server“). UNIQUE auf `Code` und `Lagerkennung` erzwingt InMemory nicht: die Prüfungen in F1a/F2 sind
-App-Code und werden getestet. Die Transaktion (AK 26) ist unter InMemory ein No-op (`IsRelational`-Guard) – die Atomarität belegt TS-189 .p.
+App-Code und werden getestet. Die Transaktion (AK 26) ist unter InMemory ein No-op (`IsRelational`-Guard) – die Atomarität belegt TS-192 .p.
 
 ## Test-Szenarien
 
-Neues Kapitel **TS-189** in `docs/TESTSZENARIEN.md` (H2: TS-188 ist im Bündel vergeben, nächste freie 189; der Dev-Lauf prüft erneut)
+Neues Kapitel **TS-192** in `docs/TESTSZENARIEN.md` (H2: TS-188 ist im Bündel vergeben, nächste freie 189; der Dev-Lauf prüft erneut)
 „Lager und Lagerplätze im WMS erfassen und in Sage anlegen (Direkt-SQL)“, Index in `secondbrain/tests/testszenarien-index.md`.
 Standort: **beide** – das Szenario läuft an jedem Standort am Testmandanten vollständig durch, bevor dort eingeschaltet wird.
 
 **Vorbedingungen je Standort:**
 - **V1 IDEAL:** WMS-Testsystem `idealakeweb01.ideal.ideal-ake.at:88` (greift auf `IDEAL_TEST_2026_05_03` auf `idealsql2\SAGE100TEST` zu,
   Freigabe-Antwort 5); vor dem Test V3 für dessen Dienst. IDEAL-Prüfung P-1 bis P-9 erledigt (Voraussetzung **vor dem Einschalten**, Abschnitt
-  Migrations-/SQL-Auswirkungen). Die Sage-seitigen Testlager legt **Benjamin** an.
+  Migrations-/SQL-Auswirkungen). Die Sage-seitigen Testlager legt **Benjamin** an (nur IDEAL; AKE siehe V2: Gerald, in `ake_TEST2026`).
 - **V2 AKE (Freigabe-Antwort 7):** **DEV AKE** – Web `http://localhost:8081`, Dienst `AKE_WMS_DEV_Service`, DB `AKE_WMS_DEV` (Instanz `.`),
   Sage-Lesung/-Schreibung über `D:\Dev\AKE\Service\appsettings.DEV.json:4` → `ake_TEST2026` auf `AKESQL20.ake.at`. Die Sage-seitigen Testlager
   (Paar 1 komplett, Paar 2 `TL-SAGE`, Inventur- und Technik-Paare) legt **Gerald** an. P-4 für das Konto des DEV-Dienstes (`sc qc
@@ -845,7 +845,7 @@ Lager danach** (jeder Schritt baut und testet grün):
 4. Liste/„Erneut senden“ Platz/Hinweistexte (F6), Spalte „Übergabe-Fehler“.
 5. Lager-Anlage: Einstellung `SageLagerAnlageLagertechniken`, Formular F1a, F3a, Lager-SQL, Fehlend-Schleife im Abgleich, Lager-Hinweis und
    „Erneut senden“ Lager, Sperre fehlerhafter Lager (S10).
-6. Doku, ADR 0036, `fallstricke.md`, Testszenario TS-189, Manifest.
+6. Doku, ADR 0036, `fallstricke.md`, Testszenario TS-192, Manifest.
 
 | # | Etappe | Status | Commit |
 |---|--------|--------|--------|
@@ -875,17 +875,17 @@ Lager danach** (jeder Schritt baut und testet grün):
   ```
   Nachprüfung P-4 **aus dem Dienstkontext**. Am Testmandanten den GRANT erst nach Testschritt .l (entfällt laut V4, wenn schon Schreibrecht).
 - **Reihenfolge je Standort:** Publish aus dem Worktree → Test-/DEV-System (Schalter aus; IDEAL `idealakeweb01.ideal.ideal-ake.at:88` auf
-  `IDEAL_TEST_2026_05_03`, AKE **DEV AKE** auf `ake_TEST2026`, Freigabe-Antwort 7) → **V3 Beleg Sage-Ziel per SQL** (harte Vorbedingung, TS-189)
+  `IDEAL_TEST_2026_05_03`, AKE **DEV AKE** auf `ake_TEST2026`, Freigabe-Antwort 7) → **V3 Beleg Sage-Ziel per SQL** (harte Vorbedingung, TS-192)
   → Prüfabfragen (IDEAL: P-1 bis P-9 vor dem Einschalten; AKE: P-4 nach GRANT, P-10 Information) → Schalter am Test-/DEV-System an,
   Testschritt .l → GRANT → Testszenario inkl. aller Abnahmevergleiche → Schalter zurück auf Default (.w) → Merge (Schranke 2). Produktiv:
   Deploy mit beiden Einstellungen **aus**; Einschalten je Standort erst nach P-1 bis P-7 (P-9) gegen die Produktiv-Sage-DB, GRANT + P-4 und
   Sage-DB-Backup. `SageLagerAnlageLagertechniken` nur auf die Stufe stellen, deren Abnahmevergleich am Testmandanten desselben Standorts 0
   Abweichungen zeigte (je Paar seiner Techniken, H8). ~~DPS-Abstimmung~~ entfällt (Freigabe-Antwort 6). Testlager in den Sage-Test-DBs räumt
-  ein Sage-Anwender nach der Abnahme auf (H11, Liste aus TS-189 .w).
+  ein Sage-Anwender nach der Abnahme auf (H11, Liste aus TS-192 .w).
 - **QA auf DEV (Freigabe-Antwort 8, Auslegung):** Der `qa-agent` führt nach dem DEV-Deploy die SELECT-Prüfungen gegen die Sage-Test-DBs selbst
   aus und schaltet `SageLagerplatzAnlageAktiv`/`SageLagerAnlageLagertechniken` auf DEV **nur nach V3** ein (SQL-Beleg: Sage-Verbindung des
   DEV-Dienstes zeigt auf `ake_TEST2026` bzw. `IDEAL_TEST_*`, nie `ake`/Produktiv); nach dem Test beide zurück auf Default und per SQL belegt.
-  Produktiv nie durch QA; Sage-Dialog-, Abgleich-, GRANT- und DBA-Schritte bleiben beim Menschen (Liste in TS-189 „QA-Regel“).
+  Produktiv nie durch QA; Sage-Dialog-, Abgleich-, GRANT- und DBA-Schritte bleiben beim Menschen (Liste in TS-192 „QA-Regel“).
 - **Manifest-Einträge** (`scripts/deploy/nachlauf.psd1`, ADR 0022/0023; Texte nur ASCII, Drift-Test `NachlaufManifestDriftTests.cs:304-314`;
   Version = Version des Dev-Laufs):
   - `Id='v<X>-SageLagerplatzRechte'`, Typ `Info`, Firma `beide`, Phase `Vorher`, Ausfuehrung `anzeigen`, Text: „Lager-/Lagerplatz-Anlage in
@@ -924,9 +924,9 @@ Lager danach** (jeder Schritt baut und testet grün):
    legt Benjamin an.
 6. ~~**DPS**~~ – **beantwortet** (Freigabe-Antwort 6): nein.
 7. ~~**AKE-Abnahme**~~ – **beantwortet 2026-11-24** (Freigabe-Antwort 7, Prüfbefund B1): DEV AKE (`AKE_WMS_DEV_Service`,
-   `appsettings.DEV.json` → `ake_TEST2026`), Testlager legt Gerald an; eingearbeitet in TS-189 V2/V3 und Deploy.
+   `appsettings.DEV.json` → `ake_TEST2026`), Testlager legt Gerald an; eingearbeitet in TS-192 V2/V3 und Deploy.
 8. ~~**QA und Sage-Schreibschritte**~~ – **beantwortet 2026-11-24** (Freigabe-Antwort 8, Prüfbefund B2): QA darf die Prüfungen per SQL selbst
-   aufrufen; Auslegung (SELECT gegen Test-DBs, Schalter auf DEV nur nach SQL-Beleg der Test-DB, danach wieder aus, Produktiv nie) in TS-189
+   aufrufen; Auslegung (SELECT gegen Test-DBs, Schalter auf DEV nur nach SQL-Beleg der Test-DB, danach wieder aus, Produktiv nie) in TS-192
    „QA-Regel“ und Deploy.
 
 Keine offenen Rückfragen.
@@ -1137,3 +1137,15 @@ Anwenderdoku mit Fotos. In einem Lauf machbar, aber der Lager-Teil trägt S1, S1
 NACHBESSERUNG NOETIG: B1/B2 brauchen Geralds Antwort; der Lager-Befehl referenziert eine nicht existierende Spalte (S1), die Erfassung ist nicht atomar (S2).
 
 Eingearbeitet 2026-11-24: B1 (Antwort 7), B2 (Antwort 8, als Auslegung), S1 (Join über PlatzID + 50007 für verwaiste Plätze), S2, S3, S4 (P-10 nur Information), S5, S6 (Variante „Übernahme setzt Sage-Werte“), S7, S8, S9, S10, H1–H12; H13 ohne Handlungsbedarf; S11 bewusst abgelehnt (kein Split, Entscheid Gerald; Etappen-Reihenfolge Plätze vor Lager).
+
+## Umsetzung (2026-11-25)
+
+- Worktree-Commit `5b6fa696` (v1.99.71), kein SQL, keine Migration. TS-Nummer **TS-192** (statt TS-189, vergeben). ADR [[0036-lagerplatz-anlage-in-sage-per-direkt-sql-hinter-austauschbarer-schnittstelle]], Fallstrick §66.
+- Build 0 Fehler, 28 Warnungen (Baseline 30); Tests Web 3586 grün / 1 übersprungen (vorher 3551), Dienst 847 grün (vorher 801).
+- Korrektur Testlager: AKE legt **Gerald** in `ake_TEST2026` an, Benjamin nur IDEAL.
+- Kein SQL gegen Sage ausgeführt, keine Einstellung umgeschaltet; Schreibweg nur über Fakes und SQL-Text-Tests belegt. Live-Test = qa-agent (TS-192, V1–V4).
+- Abweichungen/Funde:
+  - Atomarität der Web-Anlage (AK 26) ist InMemory nicht prüfbar (keine Transaktion); belegt per DbUpdateException-Test, live in TS-192.
+  - Manifest-Eintrag `Pruefung/LagerorteFuerSageAnlage` mit `Firma = 'beide'`, braucht SQL/98.
+  - Mandant fest 1 in `SqlSageLagerplatzAnlage` (`ponytail:`-Kommentar), wie der Lese-Abgleich.
+  - Zusatzfund bestätigt, nicht gebaut: `SageLagerplatzReader.cs:26` verbindet ohne `Mandant`.

@@ -265,3 +265,14 @@ ein Aufruf: FA-Handle = BelID, Position mit `PositionHandle 0`, `RessourceTyp 1`
 `IDEALAKEWMSService/Services/SageFaArbeitsgangClient.cs`. Erfolg nur ohne ErrorText **und** mit Handle in der Antwort; Timeout/ohne Handle =
 unklar (nie automatisch). Vorher Lesen des FA (Status, Menge, vorhandene AG-Positionen). Kein ServiceOption 5 (Einlasten). Das WMS löscht
 in Sage nichts. Schreibtest TS-159.x nur nach Freigabe Gerald.
+
+## Sage – Lager und Lagerplätze per Direkt-SQL anlegen (v1.99.71, schreibt, Schalter aus, ADR [[0036-lagerplatz-anlage-in-sage-per-direkt-sql-hinter-austauschbarer-schnittstelle]])
+
+> [!warning] Einziger direkter Schreibweg in eine Sage-DB
+> Die Korrektur oben („nur SData schreibt“) gilt weiter für alle anderen Wege. Hier schreibt der Dienst über die bestehende `SageConnection`
+> mit Objekt-GRANTs (`INSERT` `KHKLagerplaetze`, `INSERT, UPDATE` `KHKLagerorte`, `EXECUTE` `spSysTan`).
+
+`IDEALAKEWMSService/Services/SqlSageLagerplatzAnlage.cs`: je Platz bzw. Lager eine Transaktion (`XACT_ABORT`, `DEADLOCK_PRIORITY LOW`,
+`UPDLOCK, HOLDLOCK`), Nummern über `spSysTan`, Ergebnis nach `COMMIT`, idempotent (vorhanden = übernehmen). Lager nur mit WarenflussKZ `SWF`
+und nur für Techniken der Stufe `SageLagerAnlageLagertechniken`. Prüfabfragen P-1 bis P-10 in der Spec; vor jedem Einschalten und nach jedem
+Sage-Update P-1 bis P-3 (P-9). Betrieb: `docs/betrieb/05-schnittstellen.md` § 4b. [[2026-11-24-lagerplatz-anlage-wms-nach-sage-spec]]

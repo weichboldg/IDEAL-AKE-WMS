@@ -314,3 +314,9 @@ oben ist durch SQL/149 ueberholt (jetzt 45).
   ausbuchen (`StockMovementsController.Outbound`/`OutboundAllConfirm`, serverseitig gegen die Liste geprüft); alle anderen Schreibwege lassen NULL.
   Kein Update-Weg. Gelesen nur von `SageLagerbuchungPayloadBuilder` (Sage-Referenz) und der Spalte „Abteilung“ in Sage-Buchungen.
   [[2026-11-24-sage-buchung-referenz-benutzer-abteilung-spec]]
+
+
+- `SageStammdatenOutbox` neuer `EntityType` `StorageArea` (v1.99.71, `SageStammdatenOutbox.TypLagerort`, keine Migration – Spalte ohne CHECK):
+  EntityKey = `StorageArea.Id`. Der Sende-Lauf der Lagerplatz-Anlage schreibt Status (Offen/Gesendet/Bestaetigt/Fehler), `AttemptCount`,
+  `LastError` und Audit (`system:sage-lagerplatz-anlage`). Ein über „Lagerplätze in Sage anlegen“ erfasster Platz hat `Source = Manual` +
+  `StorageAreaId` bis zur Übernahme (`Source = Sage`, `SageLagerplatzId`, Sperr-/Maßwerte aus der Sage-Zeile). [[2026-11-24-lagerplatz-anlage-wms-nach-sage-spec]]

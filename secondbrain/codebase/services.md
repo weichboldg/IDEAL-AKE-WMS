@@ -568,3 +568,20 @@ Quellen-Weiche je Abgleich: [[0019-quellen-weiche-view-sdata-je-abgleich]]. Ordn
   `NotSupportedException`); Registrierung über die statische `KommissionierNachtragService.Registrieren`.
 - `AddKommissionierauftraege` (`IdealAkeWms/Services/PickingOrderRegistrierung.cs`): EINE Registrierung des Kommissionierauftrags-Graphen
   (Workflow, Repositories, BOM) für Web-`Program.cs`, Dienst und `BomDiResolutionTests` ([[fallstricke]] §65).
+
+## Lager-/Lagerplatz-Anlage in Sage (v1.99.71, [[2026-11-24-lagerplatz-anlage-wms-nach-sage-spec]], ADR [[0036-lagerplatz-anlage-in-sage-per-direkt-sql-hinter-austauschbarer-schnittstelle]])
+
+- Schritt im `SageBookingWorker` (`ProcessSageLagerplatzAnlageAsync`, eigenes try nach dem FA-AG-Schritt): nur bei `SageLagerplatzAnlageAktiv`
+  (Bool, Default false, **nicht** Safe gelesen); Stufe `SageLagerAnlageLagertechniken` (Choice `Aus`/`Mitschnitt`/`Alle`, Default `Aus`);
+  Hängend-Grenze `Sync:SageLagerbuchungStuckMinutes`. Mail nur beim Wechsel des technischen Fehlertexts (`MeldenBeimWechsel`, Merker
+  `_lpTechnischGemeldet`).
+- `IDEALAKEWMSService/Services/SageLagerplatzAnlageService.cs` (`RunOnceAsync` → technischer Fehlertext oder null), SyncLog-Service
+  `SageLagerplatzAnlage` („Lagerplätze → Sage“), ServiceActor `system:sage-lagerplatz-anlage`. Erst Lager (Outbox `StorageArea`), dann Plätze
+  (`StorageLocation`); Plätze eines nicht bestätigten Lagers warten und sind keine Arbeit; Lauf erst beim ersten Ergebnis geöffnet, je Lauf einmal
+  Info `Sage-Datenbank: <Server>/<DB>`. Counts `angelegt`, `vorhanden`, `fehler`, `uebersprungen`, `lager_angelegt`, `lager_vorhanden`, `lager_fehler`.
+- Schreibstelle `ISageLagerplatzAnlage` / `SqlSageLagerplatzAnlage` (SQL wörtlich aus der Spec, `SageConnection`, Mandant fest 1,
+  `IstTechnisch` = Fehlerklassen S3). Austauschstelle gegen einen künftigen SData-Service.
+- Web: `StorageLocationsController.CreateInSage` (GET/POST, `RequireMasterDataAccess`), `ErneutSenden`, `LagerErneutSenden`; Helfer
+  `IdealAkeWms/Services/SageLagerplatzAnlage.cs` (Keys, Stufen, Techniken, Code, Grenzen 200/9999); Repository `AddSageAnlageAsync`
+  (eine Transaktion bei relationaler DB), `ErneutSendenAsync`, `GetOffeneLagerUebergabenAsync`.
+- `LagerplatzSyncService.SyncStorageAreasAsync`: Lager mit Lager-Outbox ≠ Bestätigt werden nicht als fehlend markiert ([[fallstricke]] §66).

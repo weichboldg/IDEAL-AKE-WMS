@@ -2290,3 +2290,18 @@ Code: `hardware-scanner.js` Block „Scannen ohne Feld“, CSS `.hw-scan-bereit`
   und eine fehlende Abhängigkeit zeigt sich erst zur Laufzeit im Dienst nachts (`ValidateOnBuild` im Test belegt den Graphen).
 - **`SyncLogs.Message` hat 1000 Zeichen und wird beim Schreiben nicht gekürzt** (siehe oben, Diagnosen). Meldungen mit Fremdtext (Ausnahmen,
   Artikellisten des Markers) kürzt der Lauf selbst auf 1000. **Warum:** Sonst fehlt genau die Warnzeile, die den Fehler eines FA erklärt.
+
+## 66. Direkt-SQL nach Sage: Fehlerklasse entscheidet über Blockade und Mail (v1.99.71, [[2026-11-24-lagerplatz-anlage-wms-nach-sage-spec]])
+
+- **Problem:** Ein Direkt-SQL-Schreibweg kennt zwei Arten Fehler: Sage ist weg (Timeout, Deadlock, Recht, Netz) – oder genau dieser Datensatz
+  passt nicht (THROW, NULL-Pflichtfeld, Konflikt). Behandelt man alles gleich, blockiert entweder ein kaputter Platz die ganze Warteschlange
+  oder jeder Takt eines Netzausfalls schreibt einen Protokoll-Lauf und eine Mail.
+- **Regel:** Abschließende Liste technischer Fehler an **einer** Stelle (`SqlSageLagerplatzAnlage.IstTechnisch`): technisch = Eintrag zurück auf
+  `Offen`, Rest des Takts überspringen, Lauf und Mail nur bei **neuem** Text; alles andere = fachlich am Eintrag (`Fehler`, keine Mail, weiter).
+  Neue Fehlernummer = erst einordnen, dann ergänzen (Test der Fehlerklassen in `SageLagerplatzAnlageServiceTests`).
+- **Regel:** Hängend `Gesendet` darf hier erneut gesendet werden, **weil** der Befehl in einer Transaktion unter `UPDLOCK, HOLDLOCK` prüft und
+  anlegt (idempotent) – anderswo gilt weiter „nie blind neu senden“. Wer den SQL-Text ändert, muss die Idempotenz erhalten.
+- **Regel:** Ein im WMS erfasstes Lager fehlt im Sage-Feed, bis der Dienst es angelegt hat. Der Lagerplatz-Abgleich darf es bis zur Bestätigung
+  nicht als fehlend markieren (sonst inaktiv, aus der Auswahl verschwunden).
+- **Warum:** Direkt-SQL hat keine Sage-Geschäftslogik als Puffer; jeder Fehler landet roh beim WMS. Nur eine harte Trennung hält die Warteschlange
+  lauffähig und die Admin-Mailbox lesbar.
