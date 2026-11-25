@@ -159,27 +159,29 @@ Mail-Entwurf [[2026-11-26-mail-wms-neuerungen-v1-99-70-80]] (nicht gesendet). qa
 Ob eine Seite schon existiert, wurde nicht geprüft (Confluence in diesem Lauf verboten) – vor dem Anlegen im Bereich nach dem Titel suchen.
 Seit 2026-11-19 wird Confluence nicht mehr nachgezogen; Kapitel ab dann sind vermutlich „neu anlegen“.
 
-| Datei | Confluence-Seite | Aktion |
-|---|---|---|
-| `docs/anwender/README.md` | WMS-Anleitung – Übersicht | aktualisieren (Stand, Versionstabelle 1.99.80) |
-| `docs/anwender/01-kommissionierung.md` | WMS-Anleitung 01 – Kommissionierung | aktualisieren |
-| `docs/anwender/03-lagerbestellung-glasbestellung.md` | WMS-Anleitung 03 – Lagerbestellung und Glasbestellung | aktualisieren |
-| `docs/anwender/10-bestaende-spaltenfilter.md` | WMS-Anleitung 10 – Bestände und Spaltenfilter-Suche | aktualisieren |
-| `docs/anwender/11-bde-terminal.md` | WMS-Anleitung 11 – BDE: Arbeitsgänge buchen | aktualisieren (stark geändert seit 1.99.76) |
-| `docs/anwender/17-bde-teileliste-werkbank.md` | WMS-Anleitung 17 – BDE-Teileliste an der Werkbank | aktualisieren bzw. neu anlegen, falls nicht vorhanden |
-| `docs/anwender/19-lagerplaetze-in-sage-anlegen.md` | WMS-Anleitung 19 – Lagerplätze in Sage anlegen | **neu anlegen** (Kapitel seit v1.99.71) |
-| `docs/betrieb/00-index.md` | WMS-Betrieb 00 – Übersicht | aktualisieren |
-| `docs/betrieb/03-installation-update-rollback.md` | WMS-Betrieb 03 – Installation, Update und Rückfall | aktualisieren |
-| `docs/betrieb/04-konfiguration.md` | WMS-Betrieb 04 – Konfiguration | aktualisieren |
-| `docs/betrieb/05-schnittstellen.md` | WMS-Betrieb 05 – Schnittstellen zu Fremdsystemen | aktualisieren |
-| `docs/betrieb/06-logs-ueberwachung.md` | WMS-Betrieb 06 – Logs und Überwachung | aktualisieren |
-| `docs/betrieb/07-troubleshooting.md` | WMS-Betrieb 07 – Troubleshooting | aktualisieren |
-| `docs/betrieb/08-diagnose-abfragen.md` | WMS-Betrieb 08 – Diagnose-Abfragen (nur lesend) | aktualisieren |
-| `docs/betrieb/09-sicherheit-konten-rechte.md` | WMS-Betrieb 09 – Sicherheit, Konten und Rechte | aktualisieren |
-| `docs/betrieb/AGENTS.md` | WMS-Betrieb – Leitfaden für KI-Assistenten (AGENTS) | aktualisieren bzw. neu anlegen |
-| WMS-Hilfeseite `/Help` (Karte BDE) | – (liegt in der Anwendung) | kein Confluence |
+| Datei | Confluence-Seite | Aktion | Seiten-ID | Version (2026-11-26) |
+|---|---|---|---|---|
+| `docs/anwender/README.md` | WMS-Anleitung – Übersicht | aktualisieren (Stand, Versionstabelle 1.99.80) | 680853506 | v5 → v6, aktualisiert |
+| `docs/anwender/01-kommissionierung.md` | WMS-Anleitung 01 – Kommissionierung | aktualisieren | 681082881 | v3 → v4, aktualisiert |
+| `docs/anwender/03-lagerbestellung-glasbestellung.md` | WMS-Anleitung 03 – Lagerbestellung und Glasbestellung | aktualisieren | 681115649 | v2 → v3, aktualisiert |
+| `docs/anwender/10-bestaende-spaltenfilter.md` | WMS-Anleitung 10 – Bestände und Spaltenfilter-Suche | aktualisieren | 681017366 | v2 → v3, aktualisiert |
+| `docs/anwender/11-bde-terminal.md` | WMS-Anleitung 11 – BDE: Arbeitsgänge buchen | aktualisieren (stark geändert seit 1.99.76) | 681017386 | v3 → v4, aktualisiert + Titel umbenannt |
+| `docs/anwender/17-bde-teileliste-werkbank.md` | WMS-Anleitung 17 – BDE-Teileliste an der Werkbank | aktualisieren bzw. neu anlegen, falls nicht vorhanden | 688160769 | v1 → v2, aktualisiert |
+| `docs/anwender/19-lagerplaetze-in-sage-anlegen.md` | WMS-Anleitung 19 – Lagerplätze in Sage anlegen | **neu anlegen** (Kapitel seit v1.99.71) | 701005871 | v1, neu angelegt (unter WMS Anwender-Anleitungen) |
+| `docs/betrieb/00-index.md` | WMS-Betrieb 00 – Übersicht | aktualisieren | 681050113 | v3 → v4, aktualisiert |
+| `docs/betrieb/03-installation-update-rollback.md` | WMS-Betrieb 03 – Installation, Update und Rückfall | aktualisieren | 680820744 | v3 → v4, aktualisiert |
+| `docs/betrieb/04-konfiguration.md` | WMS-Betrieb 04 – Konfiguration | aktualisieren | 680787999 | v6 → v7, aktualisiert |
+| `docs/betrieb/05-schnittstellen.md` | WMS-Betrieb 05 – Schnittstellen zu Fremdsystemen | aktualisieren | 681181205 | v3 → v4, aktualisiert |
+| `docs/betrieb/06-logs-ueberwachung.md` | WMS-Betrieb 06 – Logs und Überwachung | aktualisieren | 681050153 | v2 → v3, aktualisiert |
+| `docs/betrieb/07-troubleshooting.md` | WMS-Betrieb 07 – Troubleshooting | aktualisieren | 680722435 | v2 → v3, aktualisiert |
+| `docs/betrieb/08-diagnose-abfragen.md` | WMS-Betrieb 08 – Diagnose-Abfragen (nur lesend) | aktualisieren | 681246721 | v3 → v4, aktualisiert |
+| `docs/betrieb/09-sicherheit-konten-rechte.md` | WMS-Betrieb 09 – Sicherheit, Konten und Rechte | aktualisieren | 680722455 | v2 → v3, aktualisiert |
+| `docs/betrieb/AGENTS.md` | WMS-Betrieb – Leitfaden für KI-Assistenten (AGENTS) | aktualisieren bzw. neu anlegen | 681050133 | v3 → v4, aktualisiert |
+| WMS-Hilfeseite `/Help` (Karte BDE) | – (liegt in der Anwendung) | kein Confluence | – | – |
 
 Zusätzlich für die Mail gebraucht: Seite „WMS – Fehler melden und Wünsche einreichen“ (Bestand prüfen).
+
+**Übernommen 2026-11-26** (Auftrag Gerald, einmalige Ausnahme von „Confluence derzeit nicht“): alle Zeilen aus `docs/` Stand v1.99.80 (67868774), Versionsmeldung „Übernahme aus docs/ Stand v1.99.80 (67868774)“, Bilder eingebettet, interne `.md`-Links auf die Confluence-Seiten umgestellt. „Fehler melden“ = bestehende Seite 683933697 (unverändert, nur verlinkt). Offen: Kapitel 18 hat keine Confluence-Seite (Verweise als „im Repository“); Obsidian-Wikilinks `[[…]]` in den Betriebs-Kapiteln bleiben Text; Callout `[!warning]` in B08 als einfaches Zitat.
 
 **Offen / Widersprüche aus dem Nachzug:**
 - `USER_OSBlechdicke` in Sage IDEAL unbelegt (F-16); Doku nennt nur die Prüfabfrage.

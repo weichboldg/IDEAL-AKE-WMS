@@ -8,8 +8,8 @@ source: "[[2026-11-25-kommission-lagerplatz-bde-goal-lauf]]"
 # Mail-Entwurf: WMS-Neuerungen v1.99.70 bis v1.99.80
 
 > [!warning] Nur Entwurf – nicht gesendet
-> Versand durch einen Menschen. Vorher: Versionen auf den Zielsystemen eingespielt? Confluence-Seiten angelegt (Liste in
-> [[2026-11-25-kommission-lagerplatz-bde-goal-lauf]], Abschnitt „Doku-Nachzug v1.99.80“)? Platzhalter `[Link Confluence: …]` ersetzen.
+> Versand durch einen Menschen. Vorher: Versionen auf den Zielsystemen eingespielt? Confluence-Seiten sind seit 2026-11-26 übernommen (IDs und Versionen in
+> [[2026-11-25-kommission-lagerplatz-bde-goal-lauf]], Abschnitt „Doku-Nachzug v1.99.80“); die Links unten sind eingesetzt.
 > Stand des Codes: alles **Testbereit**, noch nicht gemergt und nicht ausgerollt – das Datum „ab …“ erst nach dem Deploy eintragen.
 
 **Betreff:** WMS – Neuerungen ab Version 1.99.80: BDE-Seite, Teilfertigmeldung, Kommissionier-Nachtrag, Lagerplätze in Sage
@@ -25,12 +25,12 @@ müssen. Was nur für einen Standort gilt, ist mit **(AKE)** oder **(IDEAL)** ma
 
 - **Eine BDE-Seite für alles.** *BDE → Terminal* öffnet jetzt immer die neue BDE-Seite mit den Reitern *Teile Einzeln*, *Teile Summiert*
   und *FA*. Die alte Terminal-Seite gibt es nicht mehr. Anmelden wie gewohnt mit Ihrer Personalnummer.
-  [Link Confluence: WMS-Anleitung 11 – BDE: Arbeitsgänge buchen]
+  WMS-Anleitung 11 – BDE: Arbeitsgänge buchen: https://ideal-ake.atlassian.net/wiki/spaces/AKEDOKUMEN/pages/681017386
 - **Reiter FA mit „Meine Buchungen“.** Dort sehen Sie Ihre laufenden und pausierten Arbeitsgänge und können Pause, Teilfertig, Fertig und
   Fortsetzen direkt drücken. Mit „FA scannen“ springt die Liste zum gescannten Auftrag.
 - **Teilfertig melden (IDEAL).** In der Teileliste können Sie eine Teilmenge melden; die Zeile bleibt offen und zeigt „gemeldet X von Soll“.
   „Fertig melden“ schließt die Zeile ab. Eine eigene Meldung lässt sich zurücknehmen.
-  [Link Confluence: WMS-Anleitung 17 – BDE-Teileliste an der Werkbank]
+  WMS-Anleitung 17 – BDE-Teileliste an der Werkbank: https://ideal-ake.atlassian.net/wiki/spaces/AKEDOKUMEN/pages/688160769
 - **Tageshistorie.** Der Knopf im Werker-Balken (oder Menü *BDE → Tageshistorie*) zeigt alle Ihre Buchungen und Meldungen von heute.
 - **Meldung „Dieses Terminal ist nicht dem angemeldeten Benutzer zugeordnet“:** Seite neu laden. Es wurde nichts gebucht. Bleibt die
   Meldung, bitte beim BDE-Admin melden.
@@ -41,14 +41,14 @@ müssen. Was nur für einen Standort gilt, ist mit **(AKE)** oder **(IDEAL)** ma
 
 - **Fehlende Kommissionieraufträge kommen nachts von selbst.** Ein nächtlicher Lauf legt für freigegebene Fertigungsaufträge die noch
   fehlenden Kommissionieraufträge an. Sie müssen dafür nichts mehr drücken.
-  [Link Confluence: WMS-Anleitung 01 – Kommissionierung]
+  WMS-Anleitung 01 – Kommissionierung: https://ideal-ake.atlassian.net/wiki/spaces/AKEDOKUMEN/pages/681082881
 - **Hinweis „⚠ Stückliste kleiner“.** Wurde die Stückliste in Sage verkleinert, zeigt das WMS diesen Hinweis. Bereits offene Zeilen werden
   nicht gekürzt – bitte die Menge prüfen.
 - **Bestandsübersicht.** Die Spalte „Aktueller Bestand“ bleibt immer sichtbar.
-  [Link Confluence: WMS-Anleitung 10 – Bestände und Spaltenfilter-Suche]
+  WMS-Anleitung 10 – Bestände und Spaltenfilter-Suche: https://ideal-ake.atlassian.net/wiki/spaces/AKEDOKUMEN/pages/681017366
 - **Lagerplätze in Sage anlegen.** Neue Lagerplätze können im WMS erfasst werden; das WMS legt sie dann in Sage an. Diese Funktion schaltet
   die IT erst nach Abnahme frei – bis dahin bleibt alles wie bisher.
-  [Link Confluence: WMS-Anleitung 19 – Lagerplätze in Sage anlegen]
+  WMS-Anleitung 19 – Lagerplätze in Sage anlegen: https://ideal-ake.atlassian.net/wiki/spaces/AKEDOKUMEN/pages/701005871
 
 ## Leitstand
 
@@ -56,13 +56,13 @@ müssen. Was nur für einen Standort gilt, ist mit **(AKE)** oder **(IDEAL)** ma
   holt die Aufträge dann nach.
 - **Knöpfe „Fehlende Kommissionieraufträge …“** sind nur noch für Administratoren sichtbar – der nächtliche Lauf erledigt das.
 - **Werkbank-Einstellung „BDE-Standardsicht“ (IDEAL).** Je Werkbank lässt sich festlegen, ob die BDE-Seite mit den Teilen oder mit den
-  FA startet. [Link Confluence: WMS-Anleitung 17 – BDE-Teileliste an der Werkbank]
+  FA startet. WMS-Anleitung 17 – BDE-Teileliste an der Werkbank: https://ideal-ake.atlassian.net/wiki/spaces/AKEDOKUMEN/pages/688160769
 
 ## Einkauf
 
 - **Lagerbestellungen an der Isolierungsfräse (IDEAL).** Abgeschickte Lagerbestellungen mit dem Kürzel der Werkbank erscheinen in deren
   Teileliste. Der Termin ist Abschicken plus 10 Arbeitstage.
-  [Link Confluence: WMS-Anleitung 03 – Lagerbestellung und Glasbestellung]
+  WMS-Anleitung 03 – Lagerbestellung und Glasbestellung: https://ideal-ake.atlassian.net/wiki/spaces/AKEDOKUMEN/pages/681115649
 - **Fräsen-Pfad je Artikel (IDEAL).** Der Pfad steht in Artikel-Liste, Bestandsübersicht und Lagerbestellung (über das Zahnrad
   einblendbar). Pflegen dürfen ihn Personen mit der Rolle „Fräsen-Pfad pflegen“.
 - **Artikelsuche in der Lagerbestellung.** Bezeichnungen mit Sonderzeichen wie `&` werden jetzt richtig angezeigt.
@@ -70,21 +70,21 @@ müssen. Was nur für einen Standort gilt, ist mit **(AKE)** oder **(IDEAL)** ma
 ## IT-Admin
 
 - **Update mit dem Update-Skript.** Datenbank-Änderungen: SQL/168 (Kommissionierung) und SQL/169 (Teilmeldungen), beide automatisch. Neue
-  Prüfungen und Hinweise stehen im Handbuch. [Link Confluence: WMS-Betrieb 03 – Installation, Update und Rückfall]
+  Prüfungen und Hinweise stehen im Handbuch. WMS-Betrieb 03 – Installation, Update und Rückfall: https://ideal-ake.atlassian.net/wiki/spaces/AKEDOKUMEN/pages/680820744
 - **Schalter, die aus bleiben, bis die Abnahme erfolgt ist:** `SageLagerplatzAnlageAktiv` und `SageLagerAnlageLagertechniken` (schreiben
   per SQL in Sage, vorher Rechte und Sage-Backup), `FraesenPfadAktiv` (IDEAL, erst nach dem Einmal-Skript Fräsen-Pfad).
-  [Link Confluence: WMS-Betrieb 04 – Konfiguration] · [Link Confluence: WMS-Betrieb 05 – Schnittstellen zu Fremdsystemen]
+  WMS-Betrieb 04 – Konfiguration: https://ideal-ake.atlassian.net/wiki/spaces/AKEDOKUMEN/pages/680787999 · WMS-Betrieb 05 – Schnittstellen zu Fremdsystemen: https://ideal-ake.atlassian.net/wiki/spaces/AKEDOKUMEN/pages/681181205
 - **BDE am Handy und Terminals.** Jedes Konto, das bucht, braucht eine eigene Terminal-Zuordnung; seit 1.99.79 nimmt das WMS nur Buchungen
   vom eigenen Terminal an. Handy-Konten (lokales Konto, Formular-Anmeldung) bitte anlegen.
-  [Link Confluence: WMS-Betrieb 09 – Sicherheit, Konten und Rechte]
+  WMS-Betrieb 09 – Sicherheit, Konten und Rechte: https://ideal-ake.atlassian.net/wiki/spaces/AKEDOKUMEN/pages/680722455
 - **Neue Protokoll-Einträge:** „Kommissionier-Nachtrag“ und „Lagerplätze → Sage“ im Aktivitäts-Protokoll; Fehlerbilder und Prüfabfragen
-  im Handbuch. [Link Confluence: WMS-Betrieb 06 – Logs und Überwachung] · [Link Confluence: WMS-Betrieb 07 – Troubleshooting] ·
-  [Link Confluence: WMS-Betrieb 08 – Diagnose-Abfragen (nur lesend)]
+  im Handbuch. WMS-Betrieb 06 – Logs und Überwachung: https://ideal-ake.atlassian.net/wiki/spaces/AKEDOKUMEN/pages/681050153 · WMS-Betrieb 07 – Troubleshooting: https://ideal-ake.atlassian.net/wiki/spaces/AKEDOKUMEN/pages/680722435 ·
+  WMS-Betrieb 08 – Diagnose-Abfragen (nur lesend): https://ideal-ake.atlassian.net/wiki/spaces/AKEDOKUMEN/pages/681246721
 - **Einstellung „Nur FA-Meldung“** (`BdeNurFaMeldung`) ist eine Altlast und sollte aus sein; das Update-Skript meldet es.
 
 ## Fragen und Fehler
 
-Bitte Fehler und Wünsche über die Seite [Link Confluence: WMS – Fehler melden und Wünsche einreichen] melden – mit Bildschirmfoto,
+Bitte Fehler und Wünsche über die Seite „WMS – Fehler melden und Wünsche einreichen“ (https://ideal-ake.atlassian.net/wiki/spaces/AKEDOKUMEN/pages/683933697/WMS+Fehler+melden+und+W+nsche+einreichen) melden – mit Bildschirmfoto,
 Uhrzeit und Standort.
 
 Danke und viele Grüße
