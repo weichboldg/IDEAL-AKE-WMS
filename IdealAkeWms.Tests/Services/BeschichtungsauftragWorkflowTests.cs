@@ -425,7 +425,7 @@ public class BeschichtungsauftragWorkflowTests
         var r = await fx.Wf.StatusWechselnAsync(a.Id, BeschichtungsauftragStatus.Versendet, a.RowVersion);
 
         r.Erfolg.Should().BeFalse();
-        r.Fehler.Single().Should().Contain("A2 (Pos. 2)").And.Contain("anhaken oder entfernen");
+        r.Fehler.Single().Should().Contain("A2 (Pos. 2, VaterFA 100)").And.Contain("anhaken oder entfernen");
         (a.Status, a.VersendetAt).Should().Be((BeschichtungsauftragStatus.Uebergeben, (DateTime?)null));
     }
 
@@ -508,7 +508,7 @@ public class BeschichtungsauftragWorkflowTests
         var r = await fx.Wf.BearbeitenAsync(a.Id, null, new Dictionary<int, decimal> { [p1.Id] = 9m }, new[] { p1.Id }, a.RowVersion,
             verpacktIds: Array.Empty<int>());
 
-        r.Fehler.Single().Should().Contain("A1 (Pos. 1)").And.Contain("nur nicht verpackte");
+        r.Fehler.Single().Should().Contain("A1 (Pos. 1, VaterFA 100)").And.Contain("nur nicht verpackte");
         a.Positionen.Should().HaveCount(3);
         (p1.Menge, p1.Verpackt).Should().Be((2m, true));
     }
@@ -543,9 +543,82 @@ public class BeschichtungsauftragWorkflowTests
 
         var r = await fx.Wf.BearbeitenAsync(a.Id, null, KeineMengen, new[] { p2.Id }, a.RowVersion, verpacktIds: new[] { p2.Id });
 
-        r.Fehler.Single().Should().Contain("A2 (Pos. 2)").And.Contain("„Verpackt“ und „Entfernen“");
+        r.Fehler.Single().Should().Contain("A2 (Pos. 2, VaterFA 100)").And.Contain("„Verpackt“ und „Entfernen“");
         a.Positionen.Should().HaveCount(3);
         p2.Verpackt.Should().BeFalse();
+    }
+
+    // ===== v1.99.67 Freigabe-Nachtrag: VaterFA in der Bezeichnung (B-1), kein Uebergeben mit 0 Positionen (F1) =====
+
+    [Theory]
+    [InlineData(4711, 1, null, false, "50002326 (Pos. 1, VaterFA 4711)")]
+    [InlineData(null, 1, null, false, "50002326 (Pos. 1)")]
+    [InlineData(4711, null, "1a", false, "50002326 (Pos. 1a, VaterFA 4711)")]
+    [InlineData(4711, null, null, false, "50002326 (VaterFA 4711)")]
+    [InlineData(null, null, null, false, "50002326")]
+    [InlineData(null, null, null, true, "50002326 (ohne FA)")]
+    public void PositionBezeichnung_NenntVaterFaWennGesetzt(int? vater, int? pos, string? posText, bool ohneFa, string erwartet)
+    {
+        var p = new BeschichtungsauftragPosition { Artnr = "50002326", VaterFA = vater, Position = pos, PositionText = posText, OhneFa = ohneFa };
+        BeschichtungsauftragWorkflow.PositionBezeichnung(p).Should().Be(erwartet);
+    }
+
+    [Fact]
+    public async Task Bearbeiten_MitZielUebergeben_AlleEntfernt_Abgelehnt_NichtsGespeichert()
+    {
+        // v1.99.67 F1: Uebergeben, nach dem 0 Positionen uebrig blieben, lehnt der Server ab — vor dem Speichern
+        var fx = new Fx();
+        fx.Standard();
+        var a = await fx.Anlegen();
+
+        var r = await fx.Wf.BearbeitenAsync(a.Id, null, KeineMengen, a.Positionen.Select(p => p.Id).ToArray(), a.RowVersion,
+            verpacktIds: Array.Empty<int>(), ziel: BeschichtungsauftragStatus.Uebergeben);
+
+        r.Fehler.Single().Should().Contain("0 Positionen").And.Contain("stornieren");
+        a.Positionen.Should().HaveCount(3);
+        (await fx.Repo.GetVergabenAsync(HauptFa)).Should().HaveCount(3, "nichts entfernt, nichts frei");
+    }
+
+    [Fact]
+    public async Task Bearbeiten_MitZielUebergeben_AlleEntferntAberNeueHinzu_Erlaubt()
+    {
+        var fx = new Fx();
+        fx.Standard();
+        var a = await fx.Anlegen();
+        var neu = PositionsSchluessel.Von(fx.Node(100, 0, 5, artnr: "A5"));
+
+        (await fx.Wf.BearbeitenAsync(a.Id, null, KeineMengen, a.Positionen.Select(p => p.Id).ToArray(), a.RowVersion,
+            verpacktIds: Array.Empty<int>(), hinzu: new[] { neu }, ziel: BeschichtungsauftragStatus.Uebergeben)).Fehler.Should().BeEmpty();
+        a.Positionen.Should().ContainSingle(p => p.Position == 5);
+    }
+
+    [Fact]
+    public async Task Bearbeiten_OhneZiel_AlleEntfernt_ErlaubtImEntwurf()
+    {
+        // Speichern allein darf den Entwurf leeren (danach Stornieren oder neue Positionen) — nur Uebergeben braucht Positionen
+        var fx = new Fx();
+        fx.Standard();
+        var a = await fx.Anlegen();
+
+        (await fx.Wf.BearbeitenAsync(a.Id, null, KeineMengen, a.Positionen.Select(p => p.Id).ToArray(), a.RowVersion,
+            verpacktIds: Array.Empty<int>())).Fehler.Should().BeEmpty();
+        a.Positionen.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Uebergeben_OhnePositionen_Abgelehnt_BleibtEntwurf()
+    {
+        var fx = new Fx();
+        fx.Standard();
+        var a = await fx.Anlegen();
+        (await fx.Wf.BearbeitenAsync(a.Id, null, KeineMengen, a.Positionen.Select(p => p.Id).ToArray(), a.RowVersion,
+            verpacktIds: Array.Empty<int>())).Fehler.Should().BeEmpty();
+
+        var r = await fx.Wf.StatusWechselnAsync(a.Id, BeschichtungsauftragStatus.Uebergeben, a.RowVersion);
+
+        r.Fehler.Single().Should().Contain("0 Positionen").And.Contain("stornieren");
+        (a.Status, a.UebergebenAt).Should().Be((BeschichtungsauftragStatus.Entwurf, (DateTime?)null));
+        (await fx.Wf.StatusWechselnAsync(a.Id, BeschichtungsauftragStatus.Storniert, a.RowVersion)).Fehler.Should().BeEmpty("Stornieren bleibt der Weg");
     }
 
     [Fact]

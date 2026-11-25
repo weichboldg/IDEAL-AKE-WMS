@@ -59,6 +59,18 @@
         if (!k && !d) return true;   // Kopf nicht bearbeitbar: Server entscheidet
         return !!((k && k.value) || (d && d.value.trim()));
     }
+    // v1.99.67 F1: bleibt nach dem Entfernen der offenen nichts uebrig (keine verpackte, keine neu hinzugefuegte Position), bietet
+    // das Fenster statt „entfernen und übergeben“ das Stornieren an. Der Server lehnt Uebergeben mit 0 Positionen zusaetzlich ab.
+    function nichtsBliebe(anzahlOffen) {
+        var fd = new FormData(entwurf);
+        var verbleibend = Array.prototype.filter.call(document.querySelectorAll('[data-verpackt]'), function (v) {
+            var entf = document.querySelector('[data-entfernen="' + v.getAttribute('data-verpackt') + '"]');
+            return !(entf && entf.checked);
+        }).length;
+        var neu = fd.getAll('schluessel').length + fd.getAll('freiArtikelId').filter(function (x) { return x; }).length;
+        return anzahlOffen === verbleibend && neu === 0;
+    }
+    function zeigen(sel, an) { modalEl.querySelector(sel).hidden = !an; }
     document.addEventListener('click', function (e) {
         var ziel = e.target.closest('[data-uebergeben-frage]');
         if (!ziel) return;
@@ -66,6 +78,10 @@
         if (liste.length === 0 || !dienstleisterGesetzt()) return;   // ohne Dienstleister lehnt der Server zuerst ab – nichts entfernen
         e.preventDefault();
         knopf = ziel;
+        var leer = nichtsBliebe(liste.length) && !!document.getElementById('storno-form');
+        zeigen('[data-uebergeben-wahl="entfernen"]', !leer);
+        zeigen('[data-uebergeben-wahl="stornieren"]', leer);
+        zeigen('[data-uebergeben-alle-offen]', leer);
         modalEl.querySelector('[data-uebergeben-anzahl]').textContent =
             liste.length === 1 ? '1 Position' : liste.length + ' Positionen';
         var ul = modalEl.querySelector('[data-uebergeben-liste]');
@@ -79,6 +95,19 @@
     modalEl.addEventListener('click', function (e) {
         var wahl = e.target.closest('[data-uebergeben-wahl]');
         if (!wahl || !knopf) return;
+        if (wahl.getAttribute('data-uebergeben-wahl') === 'stornieren') {
+            // vorhandener Stornieren-Weg (POST Status, ziel=Storniert); das Fenster selbst ist die Rueckfrage, kein confirm()
+            wahl.disabled = true;
+            document.getElementById('storno-form').requestSubmit();
+            return;
+        }
+        // v1.99.67 B-2: erst pruefen, dann aendern und sperren. Ungueltiges Feld => nichts angehakt, Knopf frei, Fenster zu und die
+        // Browser-Meldung am Feld (hinter dem offenen Fenster waere sie verdeckt).
+        if (!entwurf.checkValidity()) {
+            modalEl.addEventListener('hidden.bs.modal', function () { entwurf.reportValidity(); }, { once: true });
+            modal.hide();
+            return;
+        }
         if (wahl.getAttribute('data-uebergeben-wahl') === 'entfernen') {
             offene().forEach(function (v) {
                 var entf = document.querySelector('[data-entfernen="' + v.getAttribute('data-verpackt') + '"]');

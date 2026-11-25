@@ -210,7 +210,7 @@ public class BeschichtungsauftraegeController : Controller
 
         var kopf = nurPositionen ? null : new KopfDaten(Leer(dienstleister), Leer(ral), startBeschichtung, beschichtenRetour, creditorId);
         var r = await _workflow.BearbeitenAsync(id, kopf, mengenWerte, entfernen ?? Array.Empty<int>(), rv,
-            hakenGesendet ? verpackt ?? Array.Empty<int>() : null, keys, frei, kreditorNachtragen: nurPositionen ? creditorId : null);
+            hakenGesendet ? verpackt ?? Array.Empty<int>() : null, keys, frei, kreditorNachtragen: nurPositionen ? creditorId : null, ziel: ziel);
         var neu = keys.Distinct().Count() + frei.Count;
         var gespeichert = neu > 0 ? $"Gespeichert, {neu} Position(en) hinzugefügt." : "Gespeichert.";
         if (ziel is null || !r.Erfolg) return Ergebnis(id, r, gespeichert);

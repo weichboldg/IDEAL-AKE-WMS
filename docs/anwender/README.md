@@ -44,7 +44,7 @@ FA-Nummer und einem Bildschirmfoto.
 
 ## Stand und was noch folgt
 
-Stand der Anleitungen: Version **1.99.66** (25.11.2026) für die Kapitel 05, 09 und 18 (Text, Foto 05-05 neu), Version **1.99.65** (25.11.2026) für Kapitel 15 (Text; Fotos siehe Kapitel), Version **1.99.62** (24.11.2026) für die Kapitel 05 und 10 (Text, Kapitel 10 mit Foto), Version **1.99.58** (23.11.2026) für die Kapitel 01, 03 und 10 (Text; Fotos siehe Kapitel), Version **1.99.47** (20.11.2026) für Kapitel 09, Version **1.99.59** (23.11.2026) für die Kapitel 05 und 13 (Text), Version **1.99.53** für die Kapitel 05 (Fotos) und 18 (mit Fotos) und Kapitel 03 (Foto zu „Entnahme aus“ folgt nach Einschalten), Version **1.99.45** (19.11.2026) für Kapitel 14, Version **1.99.44** für Kapitel 16, Version **1.99.43** für die Kapitel 01, 11, 13, 15 und 17; die übrigen Kapitel Version **1.99.29**. Seit Version 1.99.22 neu bzw. ergänzt:
+Stand der Anleitungen: Version **1.99.67** (25.11.2026) für Kapitel 15 (Text; Fotos siehe Kapitel), Version **1.99.66** (25.11.2026) für die Kapitel 05, 09 und 18 (Text, Foto 05-05 neu), Version **1.99.62** (24.11.2026) für die Kapitel 05 und 10 (Text, Kapitel 10 mit Foto), Version **1.99.58** (23.11.2026) für die Kapitel 01, 03 und 10 (Text; Fotos siehe Kapitel), Version **1.99.47** (20.11.2026) für Kapitel 09, Version **1.99.59** (23.11.2026) für die Kapitel 05 und 13 (Text), Version **1.99.53** für die Kapitel 05 (Fotos) und 18 (mit Fotos) und Kapitel 03 (Foto zu „Entnahme aus“ folgt nach Einschalten), Version **1.99.45** (19.11.2026) für Kapitel 14, Version **1.99.44** für Kapitel 16, Version **1.99.43** für die Kapitel 01, 11, 13, 15 und 17; die übrigen Kapitel Version **1.99.29**. Seit Version 1.99.22 neu bzw. ergänzt:
 
 | Version | Änderung | Anleitung |
 |---|---|---|
@@ -82,6 +82,7 @@ Stand der Anleitungen: Version **1.99.66** (25.11.2026) für die Kapitel 05, 09 
 | 1.99.62 | Alle Tabellen: Streifen, Zeile unter der Maus hellblau, markierte Eingabezeile, dunklere Links/Symbole | [10](10-bestaende-spaltenfilter.md), [05](05-wareneingang-zu-bestellung.md) |
 | 1.99.65 | Beschichtungsauftrag: ohne Haken anlegen (alle frei, offen), Rückfrage beim Übergeben, Entfernen in Übergeben nur offene, Verpackt oder Entfernen | [15](15-beschichtung-beschichtungsauftrag.md) |
 | 1.99.66 | „Sage-Buchungen“: Lagerbuchungen und Sage-Wareneingänge in einer Liste, Menüpunkt „Sage-Wareneingänge“ entfällt | [05](05-wareneingang-zu-bestellung.md), [09](09-einbuchen-ausbuchen-umbuchen.md), [18](18-startseite-und-menue.md) |
+| 1.99.67 | Beschichtungsauftrag: Positionen mit VaterFA in Meldungen, kein Übergeben ohne Positionen (stattdessen Entwurf stornieren) | [15](15-beschichtung-beschichtungsauftrag.md) |
 
 Änderungen aus 1.99.30, 1.99.31, 1.99.33 und 1.99.38–1.99.40 (Bestellvorschläge, offene Bestellungen, Wareneingang
 Sammellieferschein, Arbeitsgänge in Sage, Sage-Benutzerfelder) sind in den betroffenen Kapiteln noch nicht nachgezogen.

@@ -113,7 +113,8 @@
                         data-uebergeben-frage="@(ziel == BeschichtungsauftragStatus.Uebergeben ? "true" : null)">Auf „@BeschichtungsauftragWorkflow.Anzeige(ziel)“ setzen</button>
                 continue;
             }
-            <form method="post" asp-action="Status" asp-route-id="@a.Id" class="d-inline">
+            <form method="post" asp-action="Status" asp-route-id="@a.Id" class="d-inline"
+                  id="@(ziel == BeschichtungsauftragStatus.Storniert ? "storno-form" : null)">
                 <input type="hidden" name="ziel" value="@ziel" />
                 <input type="hidden" name="rowVersion" value="@Model.RowVersion" />
                 @if (ziel == BeschichtungsauftragStatus.Storniert)
@@ -312,7 +313,7 @@
                             <span class="visually-hidden">@Menge(p.Menge)</span>
                             <input name="mengen[@p.Id]" form="entwurf-form" value="@Menge(p.Menge)" inputmode="decimal"
                                    class="form-control form-control-sm text-end ms-auto" style="max-width: 7rem;"
-                                   aria-label="Menge @p.Artnr Position @(p.PositionText is { Length: > 0 } ? p.PositionText : p.Position?.ToString())" />
+                                   aria-label="Menge @BeschichtungsauftragWorkflow.PositionBezeichnung(p)" />
                         }
                         else
                         {
@@ -365,7 +366,9 @@
 
     @if (Model.IstEntwurf)
     {
-        @* v1.99.65 (Antwort R-1): Uebergeben mit offenen Positionen fragt (beschichtung-bemerkung.js); kein Browser-Dialog *@
+        @* v1.99.65 (Antwort R-1): Uebergeben mit offenen Positionen fragt (beschichtung-bemerkung.js); kein Browser-Dialog.
+           v1.99.67 F1: Sind ALLE Positionen offen, ersetzt „Entwurf stornieren“ (sendet #storno-form, das Fenster ist die
+           Rueckfrage) das „entfernen und übergeben“ — Uebergeben mit 0 Positionen lehnt der Server ohnehin ab. *@
         <div class="modal fade" id="uebergeben-frage-modal" tabindex="-1" aria-labelledby="uebergeben-frage-titel" aria-hidden="true">
             <div class="modal-dialog">
                 <div class="modal-content">
@@ -377,11 +380,14 @@
                         <p><span data-uebergeben-anzahl></span> ohne Verpackt-Kennzeichen:</p>
                         <ul class="mb-2" data-uebergeben-liste></ul>
                         <p class="mb-0 small">Versendet geht erst, wenn alle Positionen verpackt sind. In Übergeben lassen sich offene Positionen noch entfernen.</p>
+                        <p class="mb-0 mt-2 small" data-uebergeben-alle-offen hidden>Keine Position ist verpackt. Alle zu entfernen ließe 0 Positionen
+                            übrig — das lässt sich nicht übergeben. Ist nichts zu beschichten, den Entwurf stornieren; die Positionen werden wieder frei.</p>
                     </div>
                     <div class="modal-footer flex-wrap">
                         <button type="button" class="btn btn-outline-secondary me-auto" data-bs-dismiss="modal">Abbrechen</button>
                         <button type="button" class="btn btn-outline-primary" data-uebergeben-wahl="beibehalten">Nicht verpackt beibehalten und übergeben</button>
                         <button type="button" class="btn btn-primary" data-uebergeben-wahl="entfernen">Positionen ohne Verpackt-Kennzeichen entfernen und übergeben</button>
+                        <button type="button" class="btn btn-danger" data-uebergeben-wahl="stornieren" hidden>Entwurf stornieren</button>
                     </div>
                 </div>
             </div>

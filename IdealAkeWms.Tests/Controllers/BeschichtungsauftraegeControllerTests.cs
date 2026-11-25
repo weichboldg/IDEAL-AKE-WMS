@@ -360,6 +360,21 @@ public class BeschichtungsauftraegeControllerTests
     }
 
     [Fact]
+    public async Task Bearbeiten_ZielUebergeben_AlleEntfernt_Warnung_NichtsGespeichert()
+    {
+        // v1.99.67 F1: auch ohne JS bzw. von Hand — kein Uebergeben mit 0 Positionen, nichts gespeichert
+        var a = await Anlegen();
+        var c = Ctrl();
+
+        await c.Bearbeiten(a.Id, null, null, null, null, null, a.Positionen.Select(p => p.Id).ToArray(), Rv(a), nurPositionen: true,
+            hakenGesendet: true, ziel: BeschichtungsauftragStatus.Uebergeben);
+
+        Warnung(c).Should().Contain("0 Positionen");
+        var geladen = Laden(a.Id);
+        (geladen.Status, geladen.Positionen.Count).Should().Be((BeschichtungsauftragStatus.Entwurf, 3));
+    }
+
+    [Fact]
     public async Task Bearbeiten_Uebergeben_HakenUndFreiePosition_KopfUnveraendert()
     {
         var a = await Anlegen();

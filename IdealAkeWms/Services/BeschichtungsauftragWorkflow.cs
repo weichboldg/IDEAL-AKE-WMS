@@ -244,11 +244,13 @@ public class BeschichtungsauftragWorkflow
     /// Entfernen, Haken (<paramref name="verpacktIds"/> = angehakte Ids; null = Haken unveraendert), Kandidaten
     /// (<paramref name="hinzu"/>) und freie Positionen (<paramref name="frei"/>). Alles oder nichts: ein Fehler lehnt die ganze
     /// Aenderung ab. Hinzufuegen prueft die Vergabe in der Serializable-Transaktion (wie die Anlage).
+    /// v1.99.67 F1: <paramref name="ziel"/> = der Statuswechsel, der nach dem Speichern folgt; bei Uebergeben wird abgelehnt, wenn
+    /// danach 0 Positionen uebrig blieben — vor dem Speichern, damit nichts entfernt ist.
     /// </summary>
     public async Task<BeschichtungsauftragErgebnis> BearbeitenAsync(int id, KopfDaten? kopf,
         IReadOnlyDictionary<int, decimal> mengen, IReadOnlyCollection<int> entfernteIds, byte[] rowVersion,
         IReadOnlyCollection<int>? verpacktIds = null, IReadOnlyCollection<PositionsSchluessel>? hinzu = null,
-        IReadOnlyCollection<FreiePosition>? frei = null, int? kreditorNachtragen = null)
+        IReadOnlyCollection<FreiePosition>? frei = null, int? kreditorNachtragen = null, BeschichtungsauftragStatus? ziel = null)
     {
         var r = new BeschichtungsauftragErgebnis();
         var a = await LadenAsync(id, r);
@@ -274,6 +276,9 @@ public class BeschichtungsauftragWorkflow
                 r.Fehler.Add($"Position {PositionBezeichnung(p)} ist verpackt — in {Anzeige(a.Status)} lassen sich nur nicht verpackte " +
                              $"Positionen entfernen ({a.Nummer}).");
         }
+        if (ziel == BeschichtungsauftragStatus.Uebergeben
+            && a.Positionen.Count(p => !entfernteIds.Contains(p.Id)) + (hinzu?.Count ?? 0) + (frei?.Count ?? 0) == 0)
+            r.Fehler.Add(OhnePositionen(a));
         if (kopf is not null)
             foreach (var (feld, wert) in new[] { ("Dienstleister", kopf.Dienstleister), ("RAL", kopf.Ral) })
                 if (wert?.Trim().Length > MaxKopfTextLaenge)
@@ -507,6 +512,8 @@ public class BeschichtungsauftragWorkflow
                           "Entwurf → Übergeben → Versendet → Erledigt sowie Entwurf → Storniert.");
         if (ziel == BeschichtungsauftragStatus.Uebergeben && string.IsNullOrWhiteSpace(a.Dienstleister))
             return Fehler("Dienstleister fehlt — vor dem Uebergeben am Auftrag eintragen.");
+        if (ziel == BeschichtungsauftragStatus.Uebergeben && a.Positionen.Count == 0)
+            return Fehler(OhnePositionen(a));
         if (ziel == BeschichtungsauftragStatus.Versendet)
         {
             // A6: Versendet nur mit mindestens einer Position und allen Haken „verpackt“ — fehlende werden genannt, nie still uebergangen.
@@ -534,10 +541,21 @@ public class BeschichtungsauftragWorkflow
 
     // ===================== Bausteine =====================
 
-    /// <summary>Kurzbezeichnung einer Position fuer Meldungen: Artnr, sonst Matchcode; freie Positionen mit „(ohne FA)“.</summary>
-    internal static string PositionBezeichnung(BeschichtungsauftragPosition p) =>
-        (string.IsNullOrWhiteSpace(p.Artnr) ? p.Matchcode ?? $"#{p.Id}" : p.Artnr) +
-        (p.OhneFa ? " (ohne FA)" : p.Position is int pos ? $" (Pos. {pos})" : string.IsNullOrWhiteSpace(p.PositionText) ? "" : $" (Pos. {p.PositionText})");
+    /// <summary>v1.99.67 F1 (Gerald 2026-11-25): Uebergeben ohne Positionen ergibt keinen Sinn — der Weg ist Stornieren.</summary>
+    private static string OhnePositionen(Beschichtungsauftrag a) =>
+        $"Übergeben mit 0 Positionen ist nicht möglich ({a.Nummer}) — nichts gespeichert. Ist nichts zu beschichten, " +
+        "den Entwurf stornieren; die Positionen werden wieder frei.";
+
+    /// <summary>Kurzbezeichnung einer Position fuer Meldungen, Uebergeben-Fenster und Aria-Labels: Artnr, sonst Matchcode; freie
+    /// Positionen mit „(ohne FA)“. v1.99.67 B-1: mit VaterFA, wenn gesetzt — Artnr + Pos. allein ist an IDEAL nicht eindeutig.</summary>
+    internal static string PositionBezeichnung(BeschichtungsauftragPosition p)
+    {
+        var name = string.IsNullOrWhiteSpace(p.Artnr) ? p.Matchcode ?? $"#{p.Id}" : p.Artnr;
+        if (p.OhneFa) return name + " (ohne FA)";
+        var pos = p.Position is int nr ? $"Pos. {nr}" : string.IsNullOrWhiteSpace(p.PositionText) ? null : $"Pos. {p.PositionText}";
+        var teile = new[] { pos, p.VaterFA is int v ? $"VaterFA {v}" : null }.Where(t => t is not null).ToList();
+        return teile.Count == 0 ? name : $"{name} ({string.Join(", ", teile)})";
+    }
 
     private async Task<Beschichtungsauftrag?> LadenAsync(int id, BeschichtungsauftragErgebnis r)
     {

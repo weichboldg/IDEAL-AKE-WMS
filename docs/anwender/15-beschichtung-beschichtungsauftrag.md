@@ -1,6 +1,6 @@
 # 15 Beschichtung – Vorschlagsliste und Beschichtungsauftrag
 
-Stand: Version 1.99.65 · Standorte AKE und IDEAL · Bilder aus dem IDEAL-Testsystem
+Stand: Version 1.99.67 · Standorte AKE und IDEAL · Bilder aus dem IDEAL-Testsystem
 
 ## Zweck
 
@@ -96,6 +96,11 @@ Oben im Auftrag zeigt der **Statusverlauf** jeden Schritt mit Zeit und Benutzer.
    - **Nicht verpackt beibehalten und übergeben** – die offenen Teile bleiben im Auftrag; vor *Versendet* müssen sie angehakt werden.
    - **Abbrechen** – nichts passiert, der Auftrag bleibt im Entwurf.
 
+   Ist **keine** Position verpackt, steht statt „entfernen und übergeben“ der Knopf **Entwurf stornieren** im Fenster (seit 1.99.67):
+   Ein Auftrag ohne Positionen lässt sich nicht übergeben – das WMS lehnt es ab und speichert nichts. Stornieren gibt alle Positionen
+   in der Vorschlagsliste wieder frei. Das Fenster nennt jede Position mit Artikelnummer, Position und VaterFA, z. B.
+   „50002326 (Pos. 1, VaterFA 4711)“; so heißen die Positionen auch in den Meldungen.
+
    Ab jetzt ist der Kopf fest. Menge, Haken und Hinzufügen lassen sich noch ändern. **Entfernen** geht nur noch bei Positionen
    **ohne** Haken *Verpackt*; verpackte zeigen „nicht entfernbar“.
 2. **Drucken** oder **PDF** – das Blatt geht mit den Teilen zum Lackierer (siehe Abschnitt 7).
@@ -160,6 +165,9 @@ unter **Positionen hinzufügen** anhaken und **Speichern**. Die neue Position is
 **Speichern**. Eine verpackte Position bleibt im übergebenen Auftrag (seit 1.99.65).
 
 **Kann ich „Aus Vorschlagsliste erstellen“ ohne Haken klicken?** Ja (seit 1.99.65). Dann stehen alle freien Positionen offen im Entwurf.
+
+**Es geht doch nichts zum Lackierer. Kann ich den Entwurf leer übergeben?** Nein (seit 1.99.67). Den Entwurf **stornieren** – das
+Fenster beim Übergeben bietet es an, wenn keine Position verpackt ist. Die Positionen sind danach wieder frei.
 
 **Warum lässt sich der Auftrag nicht auf „Versendet“ setzen?** Mindestens eine Position hat keinen Haken *Verpackt*. Die Meldung nennt sie.
 
