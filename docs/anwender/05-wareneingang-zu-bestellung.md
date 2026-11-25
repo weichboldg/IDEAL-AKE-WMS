@@ -153,7 +153,7 @@ Wareneingang, der an Sage gehen soll, als Zeile mit Herkunft **Wareneingang** �
 standardmäßig ausgeblendet. Ohne Datum „von“ gelten die letzten 30 Tage; offene Einträge stehen immer in der Liste. „Nur in Sage buchen“
 steht nicht mehr in der Liste.
 
-![Liste „Sage-Wareneingänge“ mit Filter Status, Bestellung, Zeitraum (Bild vor 1.99.66, neues Bild folgt)](bilder/05-05-sage-wareneingaenge.jpg)
+![Seite „Sage-Buchungen“ mit Herkunft Wareneingang: Filterkarte (Herkunft, Status, nur offene, Bestellung, Zeitraum), ein Vorgang mit drei Positionen auf „klären“, darunter übergebene Wareneingänge (DEV, v1.99.66)](bilder/05-05-sage-wareneingaenge.jpg)
 
 - Status: **wartet**, **gesendet**, **übergeben**, **Fehler** (der Dienst wiederholt selbst) und **klären**; der ursprüngliche Status steht
   in der Spalte „Status im Weg“.
