@@ -15,7 +15,7 @@ Auftrag Gerald 2026-11-25 („passt“): Reihenfolge Bugfix → Gesamtsicht → 
 | [[2026-11-25-beschichtungsauftrag-vorschlag-ohne-auswahl-spec]] | Spec (Bugfix) | – | 1.99.65 | **Testbereit** | 8ffa4c4a, QA 186e63dd | |
 | [[2026-11-25-beschichtungsauftrag-vorschlag-ohne-auswahl-spec]] Nachtrag (VaterFA, kein Übergeben mit 0 Pos.) | Nachtrag | – | 1.99.67 | **Testbereit** | fcc894c6, QA 2b4dceaf | |
 | [[2026-11-23-sage-buchungen-gesamtsicht-spec]] | Spec | – | 1.99.66 | **Testbereit** | 0725fc3e, Foto 2c20cfea, QA 56851a66 | |
-| [[2026-11-24-sage-buchung-referenz-benutzer-abteilung-spec]] | Spec | 167 | 1.99.68 | InUmsetzung | | |
+| [[2026-11-24-sage-buchung-referenz-benutzer-abteilung-spec]] | Spec | 167 | 1.99.68 | feature-complete, QA folgt mit v1.99.69 | 19244bfa | P-2 Sage-Testsystem (Mensch) |
 
 ## Vorprüfung
 - Alle drei: status Freigegeben, worktree/branch = Bündel, Freigabe-Antworten vollständig, kein Epic.
@@ -31,3 +31,5 @@ Auftrag Gerald 2026-11-25 („passt“): Reihenfolge Bugfix → Gesamtsicht → 
 - Nachtrag v1.99.67 QA bestanden (2b4dceaf). Befund N-1 (mittel, Altbestand): leerer Entwurf lässt sich nicht absenden („ungültiger Wert in .“), vermutlich Dictionary-Binding `mengen` – Gerald entscheidet. DEV IDEAL BA-8 Start Beschichtung versehentlich auf 12.07.2026.
 - Gerald 2026-11-25: N-1 beheben → FREIGABE-NACHTRAG 2, Bau als v1.99.69 nach der Referenz.
 - Gerald 2026-11-25: Gesamtsicht B3 → WE-Zeilen auch für Einkauf nur mit Modul, in v1.99.69 mit N-1.
+- Referenz v1.99.68: 19244bfa, SQL/167 + Migration 20261125134408_AddStockMovementAbteilung, TS-190, Build 0 Fehler, Tests Web 3536/1 skip/0, Service 798/0. Offen P-2: übernimmt Sage die gesendete Zeilen-Referenz / zeigt es Zeilen-Memo? (nur Mensch, Testsystem).
+- v1.99.69 (N-1 leerer Entwurf + Gesamtsicht B3) wird vor der gemeinsamen QA 68+69 gebaut.
