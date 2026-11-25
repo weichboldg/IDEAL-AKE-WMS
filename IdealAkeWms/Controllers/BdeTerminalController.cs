@@ -53,6 +53,7 @@ public class BdeTerminalController : Controller
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> StartProductionForOrder(int operatorId, int productionOrderId, int workplaceId, int terminalId)
     {
+        if (await FremdesTerminalAsync(terminalId) is { } fremd) return fremd;
         // QA v1.63.0 (FA-a9/Antwort 12): VOR dem Anlegen des Default-AG „01" pruefen, deckungsgleich mit dem Angebot
         // (nur NurFA-Modus, nur FAs der Terminal-Werkbank) — sonst legt ein manipulierter POST einen „01"-AG an einem
         // fremden FA an der Terminal-Werkbank an und besteht danach die Familien-Pruefung im Normal-Modus.
@@ -71,6 +72,7 @@ public class BdeTerminalController : Controller
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> StartSetup(int operatorId, int workOperationId, int workplaceId, int terminalId)
     {
+        if (await FremdesTerminalAsync(terminalId) is { } fremd) return fremd;
         var result = await _bookingSvc.StartSetupAsync(operatorId, workOperationId, workplaceId, terminalId);
         return Json(MapResult(result));
     }
@@ -78,6 +80,7 @@ public class BdeTerminalController : Controller
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> StartProduction(int operatorId, int workOperationId, int workplaceId, int terminalId)
     {
+        if (await FremdesTerminalAsync(terminalId) is { } fremd) return fremd;
         var result = await _bookingSvc.StartProductionAsync(operatorId, workOperationId, workplaceId, terminalId);
         return Json(MapResult(result));
     }
@@ -85,6 +88,7 @@ public class BdeTerminalController : Controller
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> StartActivity(int operatorId, int activityId, int workplaceId, int terminalId)
     {
+        if (await FremdesTerminalAsync(terminalId) is { } fremd) return fremd;
         var result = await _bookingSvc.StartActivityAsync(operatorId, activityId, workplaceId, terminalId);
         return Json(MapResult(result));
     }
@@ -99,6 +103,7 @@ public class BdeTerminalController : Controller
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> Resume(int pausedBookingId, int operatorId, BdeBookingType resumeAs, int workplaceId, int terminalId)
     {
+        if (await FremdesTerminalAsync(terminalId) is { } fremd) return fremd;
         try
         {
             var result = await _bookingSvc.ResumeAsync(pausedBookingId, operatorId, resumeAs, workplaceId, terminalId);
@@ -184,6 +189,7 @@ public class BdeTerminalController : Controller
     public async Task<IActionResult> ReportCompletion(int operatorId, int workOperationId, int workplaceId, int terminalId,
         decimal? goodQty, decimal? scrapQty)
     {
+        if (await FremdesTerminalAsync(terminalId) is { } fremd) return fremd;
         var result = await _bookingSvc.ReportCompletionAsync(operatorId, workOperationId, workplaceId, terminalId, goodQty, scrapQty);
         return Json(MapResultWithOthers(result, await OtherActiveBookingsAsync(result)));
     }
@@ -262,6 +268,16 @@ public class BdeTerminalController : Controller
     {
         var result = await _bookingSvc.CloseOtherBookingsOnWorkOperationAsync(workOperationId, exceptOperatorId: operatorId);
         return Ok(new { closedCount = result.ClosedCount });
+    }
+
+    /// <summary>v1.99.79 F-28: <c>terminalId</c> kommt vom Client. Gueltig ist nur das Terminal des angemeldeten Benutzers – dasselbe,
+    /// das die BDE-Seite in data-terminal-id rendert (BdeTeilelisteController). Sonst Ablehnung statt Buchung auf fremdes Terminal.</summary>
+    private async Task<JsonResult?> FremdesTerminalAsync(int terminalId)
+    {
+        var userId = _userSvc.GetCurrentAppUserId();
+        var eigenes = userId == null ? null : await _terminals.GetByUserIdAsync(userId.Value);
+        return eigenes?.Id == terminalId ? null
+            : Json(MapResult(BdeBookingResult.Invalid("Dieses Terminal ist nicht dem angemeldeten Benutzer zugeordnet – Seite neu laden.")));
     }
 
     private static object MapResult(BdeBookingResult r) => new

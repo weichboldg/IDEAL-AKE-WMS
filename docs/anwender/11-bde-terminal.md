@@ -1,6 +1,6 @@
 # 11 – BDE: Arbeitsgänge buchen
 
-Stand: Version 1.99.78 (Terminal-Seite abgelöst, Kapitel umgeschrieben, Tageshistorie neu; alle Fotos 1.99.78), 1.99.77
+Stand: Version 1.99.79 (Scan „läuft bereits“, Sub-FA und Laufzeit in „Meine Buchungen“, Tageshistorie nach Anmeldung; Text), 1.99.78 (Terminal-Seite abgelöst, Kapitel umgeschrieben, Tageshistorie neu; alle Fotos 1.99.78), 1.99.77
 (Meine Buchungen, Scan, Tätigkeit), 1.99.76 (FA-Sicht) · Standorte AKE und IDEAL · Bilder aus dem IDEAL-Testsystem
 
 ## Zweck
@@ -79,7 +79,8 @@ Mengen gibt man im Fenster **Mengen melden** ein:
    - Produktion läuft: **Pause**, **Teilfertig**, **Fertig** (jeweils mit dem Fenster „Mengen melden“; bei Fertig unter Sollmenge kommt eine Rückfrage),
    - Tätigkeit läuft: **Beenden**,
    - pausiert: **Fortsetzen** (setzt als Produktion fort).
-   Nach jeder Buchung lädt die Seite neu und zeigt oben eine grüne Meldung.
+   Nach jeder Buchung lädt die Seite neu und zeigt oben eine grüne Meldung. Seit 1.99.79 steht bei Arbeitsgängen eines Sub-FA
+   „<FA> · Sub-FA <Sub> / <AG>“, und die Laufzeit zählt ohne Neuladen weiter (alle 15 Sekunden).
 2. **Zeiten und Details** (Schalter rechts): blendet je Buchung Startzeit, Laufzeit, Werkbank, Terminal und Personalnummer ein. Die Wahl
    merkt sich der Browser **je Werker**; sie ändert nur die Anzeige.
 3. **Fertig mit weiteren Werkern:** Arbeiten andere noch auf demselben Arbeitsgang (Einstellung Mehrfachbuchung je Arbeitsgang), fragt das
@@ -89,7 +90,8 @@ Mengen gibt man im Fenster **Mengen melden** ein:
    **Abbrechen** bucht nichts.
 5. **FA scannen** (Feld über der Tabelle, auch mit dem Handscanner ohne Antippen): `FA` oder `FA/AG` (bzw. `FA,AG`). Eindeutig: die Zeile wird
    **markiert** (Rahmen und Balken), die Seite blättert zu ihr und der Knopf **Rüsten** bzw. **Fertig melden** ist gewählt. Mehrere offene
-   Arbeitsgänge: Fenster **„Arbeitsgang wählen“**. Unbekannt oder an dieser Werkbank nicht offen: gelbe Meldung. Ist die Zeile durch einen
+   Arbeitsgänge: Fenster **„Arbeitsgang wählen“**. Gelbe Meldung (seit 1.99.79 getrennt): **„nicht gefunden“** bei unbekannter Nummer,
+   **„läuft bereits (offene Buchung)“**, wenn der Arbeitsgang schon gebucht wird, sonst **„hat an dieser Werkbank keinen offenen Arbeitsgang“**. Ist die Zeile durch einen
    Spaltenfilter ausgeblendet, sagt das eine Meldung – Spaltenfilter zurücksetzen.
 6. **Tätigkeit starten** (Knopf rechts oben): Auswahl der ungeplanten Tätigkeiten (z. B. Reinigung); die Tätigkeit erscheint dann unter
    „Meine Buchungen“ mit **Beenden**.
@@ -105,10 +107,10 @@ Knopf **Tageshistorie** im Werker-Balken oder Menü **BDE → Tageshistorie**.
 2. **Art** *Buchung*: Typ Rüsten, Produktion oder Tätigkeit, Zeit von–bis, Dauer in Minuten, Gut und Ausschuss, Status *läuft*, *pausiert*,
    *fortgesetzt* oder *beendet*. Stornierte Buchungen fehlen.
 3. **Art** *Teilmeldung* (Teileliste, IDEAL): Typ **Teilfertig** oder **Fertig**, Auftrag als „FA … / Sub-FA … · Pos. … · Matchcode“, Gut und
-   Ausschuss. Meldungen auf Lagerbestell-Zeilen beginnen mit „Lagerbestellung · “. Die Fertigmeldung einer Baugruppe steht nur einmal da.
+   Ausschuss. Meldungen auf Lagerbestell-Zeilen beginnen mit „Lagerbestellung · “. Fehlt FA oder Sub-FA (Wert 0), entfällt der Teil (seit 1.99.79). Die Fertigmeldung einer Baugruppe steht nur einmal da.
 4. Jede Spalte hat einen **Spaltenfilter**, lange Listen werden geblättert. **Spaltenfilter zurücksetzen** hebt alle Filter auf.
 5. **Zurück zur Liste** führt auf die BDE-Seite der Werkbank.
-6. Über den Menüpunkt ohne angemeldeten Werker kommt zuerst die Anmeldung; danach den Knopf **Tageshistorie** antippen.
+6. Über den Menüpunkt ohne angemeldeten Werker kommt zuerst die Anmeldung; danach öffnet direkt die Tageshistorie (seit 1.99.79).
 
 ### 5. Werkbank mit BDE-Teileliste (IDEAL, seit Version 1.99.32)
 

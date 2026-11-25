@@ -101,8 +101,10 @@
         var t = ev.target;
         if (t.dataset && t.dataset.gruppe != null) {
             document.querySelectorAll('.tl-auswahl[data-in-gruppe="' + t.dataset.gruppe + '"]').forEach(function (c) { c.checked = t.checked; });
-        } else if (t.dataset && t.dataset.inGruppe != null && !t.checked && summe(t.dataset.inGruppe)) {
-            summe(t.dataset.inGruppe).checked = false;
+        } else if (t.dataset && t.dataset.inGruppe != null && summe(t.dataset.inGruppe)) {
+            // v1.99.79 F-36: Summen-Haken folgt den Einzel-Haken in beide Richtungen (alle gesetzt → wieder gesetzt)
+            summe(t.dataset.inGruppe).checked = Array.prototype.every.call(
+                document.querySelectorAll('.tl-auswahl[data-in-gruppe="' + t.dataset.inGruppe + '"]'), function (c) { return c.checked; });
         }
         if (ev.target === alle || ev.target.classList.contains('tl-auswahl')) aktualisieren();
     });

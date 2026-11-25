@@ -162,3 +162,8 @@
     .bde-tl-seite .bde-teileliste > tbody > tr > td.tl-zelle-aktion > .btn { flex: 1 1 auto; justify-content: center; }
     .bde-tl-seite .bde-teileliste > tbody > tr > td[colspan] { display: block; text-align: center; }
 }
+
+/* v1.99.79 F-33 (Epic-QA N1): Bootstrap-Primaer #0d6efd hat auf dem Seitengrau #F5F5F5 nur 4,13:1. Inaktive Reiter und Outline-Primaer-Knoepfe
+   („Tätigkeit starten“) bekommen den Bootstrap-Ton primary-emphasis #0a58ca: 5,91:1 auf #F5F5F5, 6,44:1 auf Weiss (WCAG AA 4,5:1). */
+.bde-terminal .nav-pills { --bs-nav-link-color: #0a58ca; --bs-nav-link-hover-color: #084298; }
+.bde-terminal .btn-outline-primary { --bs-btn-color: #0a58ca; --bs-btn-border-color: #0a58ca; }

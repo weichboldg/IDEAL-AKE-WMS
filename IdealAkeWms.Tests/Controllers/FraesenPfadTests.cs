@@ -3,6 +3,7 @@ using IdealAkeWms.Controllers;
 using IdealAkeWms.Data.Repositories;
 using IdealAkeWms.Helpers;
 using IdealAkeWms.Models;
+using IdealAkeWms.Models.ViewModels;
 using IdealAkeWms.Services;
 using IdealAkeWms.Tests.Helpers;
 using Microsoft.AspNetCore.Http;
@@ -64,7 +65,7 @@ public class FraesenPfadTests
     [InlineData(@"Y:\Gerhard")]
     public void FileUri_ohne_Unc_null(string? wert) => FraesenPfad.FileUri(wert).Should().BeNull();
 
-    private static (ArticlesController ctrl, IdealAkeWms.Data.ApplicationDbContext db) Controller()
+    private static (ArticlesController ctrl, IdealAkeWms.Data.ApplicationDbContext db) Controller(bool fraesenAktiv = false)
     {
         var db = TestDbContextFactory.Create();
         db.Articles.Add(new Article
@@ -79,7 +80,8 @@ public class FraesenPfadTests
         user.Setup(u => u.GetWindowsUserName()).Returns(@"IDEAL\pflegera");
         var ctrl = new ArticlesController(new ArticleRepository(db), Mock.Of<IStockMovementRepository>(), user.Object,
             Mock.Of<IArticleAttributeRepository>(), Mock.Of<IArticleCategoryRepository>(), Mock.Of<IPlannedConsumptionService>(),
-            Mock.Of<IStorageLocationRepository>(), Mock.Of<ICreditorRepository>(), Mock.Of<IAppSettingRepository>());
+            Mock.Of<IStorageLocationRepository>(), Mock.Of<ICreditorRepository>(),
+            Mock.Of<IAppSettingRepository>(s => s.GetValueAsync(AppSettingKeys.FraesenPfadAktiv) == Task.FromResult<string?>(fraesenAktiv ? "true" : null)));
         var http = new DefaultHttpContext();
         ctrl.ControllerContext = new ControllerContext { HttpContext = http };
         ctrl.TempData = new TempDataDictionary(http, Mock.Of<ITempDataProvider>());
@@ -113,6 +115,21 @@ public class FraesenPfadTests
 
         r.Should().BeOfType<RedirectToActionResult>().Which.ActionName.Should().Be("Info");
         db.Articles.Single().CamPath.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Edit_Validierungsfehler_FraesenPfadKarte_bleibt()
+    {
+        // v1.99.79 F-17: im Fehlerfall Schalter + gespeicherter Pfad wieder setzen (CamPath kommt nie aus dem Edit-POST)
+        var (ctrl, db) = Controller(fraesenAktiv: true);
+        var id = db.Articles.Single().Id;
+        ctrl.ModelState.AddModelError("Article.Description", "Pflicht");
+
+        var r = await ctrl.Edit(id, new ArticleEditViewModel { Article = new Article { Id = id, ArticleNumber = "ISO-1" } });
+
+        var vm = r.Should().BeOfType<ViewResult>().Which.Model.Should().BeOfType<ArticleEditViewModel>().Which;
+        vm.Article.CamPath.Should().Be(@"\\alt\pfad");
+        ((bool?)ctrl.ViewData["FraesenPfadAktiv"]).Should().BeTrue();
     }
 
     [Fact]

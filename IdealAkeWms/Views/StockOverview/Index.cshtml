@@ -200,12 +200,12 @@
     { "key": "reorder-level", "label": "Meldebestand", "locked": false, "defaultWidth": null },
     @if (Model.FraesenPfade != null)
     {
-        @:{ "key": "current-stock", "label": "Aktueller Bestand", "locked": false, "defaultWidth": null },
+        @:{ "key": "current-stock", "label": "Aktueller Bestand", "locked": true, "defaultWidth": null },
         @:{ "key": "fraesen-pfad", "label": "Fräsen-Pfad", "locked": false, "defaultWidth": null, "defaultHidden": true }
     }
     else
     {
-        @:{ "key": "current-stock", "label": "Aktueller Bestand", "locked": false, "defaultWidth": null }
+        @:{ "key": "current-stock", "label": "Aktueller Bestand", "locked": true, "defaultWidth": null }
     }
 ]
 </script>

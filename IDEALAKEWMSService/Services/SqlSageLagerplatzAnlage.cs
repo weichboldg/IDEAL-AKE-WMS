@@ -23,7 +23,7 @@ public sealed class SqlSageLagerplatzAnlage : ISageLagerplatzAnlage
         SET DEADLOCK_PRIORITY LOW;                                            -- S4: WMS ist Deadlock-Opfer, nicht der Sage-Dialog
         DECLARE @LagerBez varchar(40), @B1 varchar(50), @B2 varchar(50), @B3 varchar(50), @Aktiv smallint, @Ebenen smallint,
                 @InvUeb datetime, @InvZaehl datetime, @InvJahr smallint, @PlatzID int, @Kurz varchar(50), @Bez varchar(200), @n int,
-                @Angelegt bit = 0;
+                @Angelegt bit = 0, @Msg varchar(2000);
         BEGIN TRAN;
           SELECT @LagerBez = o.Bezeichnung, @Aktiv = o.Aktiv,
                  @B1 = t.BezeichnungDimension1, @B2 = t.BezeichnungDimension2, @B3 = t.BezeichnungDimension3
@@ -45,7 +45,13 @@ public sealed class SqlSageLagerplatzAnlage : ISageLagerplatzAnlage
             AND ((Lagerkennung = @Lager AND Dimension1 = @D1 AND Dimension2 = @D2 AND Dimension3 = @D3) OR Kurzbezeichnung = @Kurz);
           IF @n > 1 OR (@n = 1 AND NOT EXISTS (SELECT 1 FROM KHKLagerplaetze WHERE PlatzID = @PlatzID AND Mandant = @Mandant AND Lagerkennung = @Lager
                                                 AND Dimension1 = @D1 AND Dimension2 = @D2 AND Dimension3 = @D3 AND Kurzbezeichnung = @Kurz))
-             THROW 50014, 'Konflikt in Sage: Koordinaten oder Kurzbezeichnung schon anders belegt', 1;
+          BEGIN                                                              -- AK 13: belegende PlatzID/Kurzbezeichnung im Text (v1.99.79 F-6)
+            SELECT @Msg = LEFT(CONCAT('Konflikt in Sage: Koordinaten oder Kurzbezeichnung schon anders belegt (',
+                   STRING_AGG(CONCAT('PlatzID ', PlatzID, ' ', RTRIM(Lagerkennung), ' = ', RTRIM(Kurzbezeichnung)), ', ') WITHIN GROUP (ORDER BY PlatzID), ')'), 2000)
+            FROM KHKLagerplaetze WHERE Mandant = @Mandant
+              AND ((Lagerkennung = @Lager AND Dimension1 = @D1 AND Dimension2 = @D2 AND Dimension3 = @D3) OR Kurzbezeichnung = @Kurz);
+            THROW 50014, @Msg, 1;
+          END
           IF @n = 0
           BEGIN
             SELECT @InvUeb = LetztesInventurUebernahmedatum, @InvZaehl = LetztesInventurZaehldatum, @InvJahr = LetztesInventurjahr
@@ -146,7 +152,7 @@ public sealed class SqlSageLagerplatzAnlage : ISageLagerplatzAnlage
                 Laenge: Dez(r, "Laenge"), Breite: Dez(r, "Breite"), Hoehe: Dez(r, "Hoehe"), Volumen: Dez(r, "Volumen"), Tragkraft: Dez(r, "Tragkraft"),
                 SageDb: Text(r, "SageDb"));
         }
-        catch (SqlException ex) when (!IstTechnisch(ex))
+        catch (SqlException ex) when (!ct.IsCancellationRequested && !IstTechnisch(ex))   // F-5: Abbruch beim Dienst-Stopp bleibt technisch (Offen)
         {
             var dimensionen = ex.Number == 50012 ? await DimensionenAsync(conn, lagerkennung, ct) : null;
             return SageLagerplatzAnlageErgebnis.Abgelehnt(Klartext(ex.Number, ex.Message, dimensionen));
@@ -166,7 +172,7 @@ public sealed class SqlSageLagerplatzAnlage : ISageLagerplatzAnlage
                 Bit(r, "Angelegt") ? SageLagerplatzAnlageArt.Angelegt : SageLagerplatzAnlageArt.Vorhanden,
                 Int(r, "PlatzID"), Text(r, "Platzbezeichnung"), null, SageDb: Text(r, "SageDb"));
         }
-        catch (SqlException ex) when (!IstTechnisch(ex))
+        catch (SqlException ex) when (!ct.IsCancellationRequested && !IstTechnisch(ex))   // F-5: Abbruch beim Dienst-Stopp bleibt technisch (Offen)
         {
             return SageLagerplatzAnlageErgebnis.Abgelehnt(Klartext(ex.Number, ex.Message, null));
         }

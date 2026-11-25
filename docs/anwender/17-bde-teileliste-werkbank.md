@@ -1,6 +1,6 @@
 # 17 BDE-Teileliste an der Werkbank (vereinfachte Fertigmeldung)
 
-Stand: Version 1.99.78 (Abschnitt 1 Verweise auf Kapitel 11, Tageshistorie, Text), 1.99.77 (Abschnitt 1 Reiter FA mit Buchungen, Text), 1.99.76 (Wer darf, Reiter, Abschnitt 1, Text), 1.99.73 (Abschnitt 2 und Handy, Text; Fotos 1.99.78), 1.99.72 (Abschnitte 8 und 9, Text; Fotos folgen) bzw. 1.99.43 · nur Standort IDEAL · Bilder aus dem IDEAL-Testsystem
+Stand: Version 1.99.79 (Summen-Haken kommt zurück, Text), 1.99.78 (Abschnitt 1 Verweise auf Kapitel 11, Tageshistorie, Text), 1.99.77 (Abschnitt 1 Reiter FA mit Buchungen, Text), 1.99.76 (Wer darf, Reiter, Abschnitt 1, Text), 1.99.73 (Abschnitt 2 und Handy, Text; Fotos 1.99.78), 1.99.72 (Abschnitte 8 und 9, Text; Fotos folgen) bzw. 1.99.43 · nur Standort IDEAL · Bilder aus dem IDEAL-Testsystem
 
 ## Zweck
 
@@ -162,7 +162,7 @@ Seit 1.99.74:
   darunter.
 - **Reicht die Menge nicht für alle**, nur einzelne Aufträge anhaken (z. B. die mit dem frühesten FE-Termin). Gemeldet werden nur diese, die
   übrigen bleiben offen. Nimmt man bei gesetztem Summen-Haken einen Auftrags-Haken weg, ist auch der Summen-Haken weg – die anderen Aufträge
-  bleiben angehakt. Der Knopf „Auswahl fertigmelden (n Zeilen …)“ zählt jeden Auftrag nur einmal.
+  bleiben angehakt. Setzt man alle Auftrags-Haken wieder, ist auch der Summen-Haken wieder gesetzt (seit 1.99.79). Der Knopf „Auswahl fertigmelden (n Zeilen …)“ zählt jeden Auftrag nur einmal.
 - Bereits gemeldete Aufträge (nur mit „gemeldete zeigen“ sichtbar) haben keinen Haken; ihre Statuszelle zeigt „✓ fertig gemeldet“ und, bei eigenen,
   „Zurücknehmen“.
 - **AG-Status der Summenzeile** zeigt je Kürzel den **schlechtesten Stand** der Aufträge: erledigt (Haken) nur, wenn alle erledigt sind; ist

@@ -179,7 +179,12 @@
             .then(r => r.json())
             .then(data => {
                 const cell = row.querySelector('.stock-cell');
-                if (cell) cell.innerHTML = `<small class="text-muted">${data.locations || '—'}</small>`;
+                if (!cell) return;
+                // v1.99.79 F-19: Lagerplatz-Codes (Sage-Stammdaten) als Text, nie als HTML
+                const s = document.createElement('small');
+                s.className = 'text-muted';
+                s.textContent = data.locations || '—';
+                cell.replaceChildren(s);
             });
     }
     document.querySelectorAll('#items-table tbody tr').forEach(loadStock);
@@ -210,7 +215,15 @@
                                 </div>`;
                             return;
                         }
-                        results.innerHTML = arr.map(a => `<button type="button" class="list-group-item list-group-item-action" data-art="${a.text.split(' - ')[0]}">${a.text}</button>`).join('');
+                        // v1.99.79 F-19: Artikeltexte (Sage) als Text/Attribut setzen – Zeichen wie < oder " brechen sonst das HTML
+                        results.replaceChildren(...arr.map(a => {
+                            const b = document.createElement('button');
+                            b.type = 'button';
+                            b.className = 'list-group-item list-group-item-action';
+                            b.dataset.art = a.text.split(' - ')[0];
+                            b.textContent = a.text;
+                            return b;
+                        }));
                     });
             }, 250);
         });

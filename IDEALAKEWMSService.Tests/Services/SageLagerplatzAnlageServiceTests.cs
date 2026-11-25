@@ -361,7 +361,7 @@ public class SageLagerplatzAnlageServiceTests
         var sql = SqlSageLagerplatzAnlage.PlatzSql;
         sql.Should().StartWith("SET XACT_ABORT ON;").And.Contain("SET DEADLOCK_PRIORITY LOW;")
             .And.Contain("WITH (UPDLOCK, HOLDLOCK)").And.Contain("EXEC spSysTan @Table = 'KHKLagerplaetze'")
-            .And.Contain("THROW 50014").And.Contain("IstPlatzverwaltet = -1");
+            .And.Contain("THROW 50014, @Msg, 1;").And.Contain("STRING_AGG(CONCAT('PlatzID '").And.Contain("IstPlatzverwaltet = -1");
         sql.IndexOf("COMMIT;", StringComparison.Ordinal).Should().BeLessThan(sql.LastIndexOf("SELECT p.PlatzID", StringComparison.Ordinal), "Ergebnis erst nach COMMIT (S5)");
         sql.Should().NotContain("nvarchar").And.NotContain("MAX(PlatzID)");
 

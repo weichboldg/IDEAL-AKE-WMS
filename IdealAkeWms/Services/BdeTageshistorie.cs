@@ -70,8 +70,14 @@ public static class BdeTageshistorie
                 "Teilmeldung",
                 m.IstAbschliessend ? "Fertig" : "Teilfertig",
                 m.GemeldetAm, null,
-                (m.Lager ? "Lagerbestellung · " : "") + $"FA {m.HauptFA} / Sub-FA {m.SubFA}"
-                    + (m.Position != null ? $" · Pos. {m.Position}" : "") + (string.IsNullOrEmpty(m.Matchcode) ? "" : $" · {m.Matchcode}"),
+                // v1.99.79 F-34: 0 heisst „ohne“ (Lagerbestellung HauptFA/SubFA 0, Blechteil ohne Sub-FA) – nicht als „FA 0“ anzeigen
+                string.Join(" · ", new[]
+                {
+                    m.Lager ? "Lagerbestellung" : null,
+                    string.Join(" / ", new[] { m.HauptFA != 0 ? $"FA {m.HauptFA}" : null, m.SubFA != 0 ? $"Sub-FA {m.SubFA}" : null }.Where(t => t != null)),
+                    m.Position != null ? $"Pos. {m.Position}" : null,
+                    string.IsNullOrEmpty(m.Matchcode) ? null : m.Matchcode,
+                }.Where(t => !string.IsNullOrEmpty(t))),
                 m.Werkbank, null, m.GoodQuantity, m.ScrapQuantity, "gemeldet")))
             .OrderByDescending(z => z.Start)
             .ToList();

@@ -30,10 +30,13 @@ public class BdeKopfBuchungenTests
         ctx.BdeBookings.Add(kind);
         await ctx.SaveChangesAsync();
 
+        ctx.ProductionOrders.Single(po => po.Id == ids.ProductionOrderId).SubOrderNumber = "SUB-7";
+        await ctx.SaveChangesAsync();
         var l = await BdeKopfBuchungen.LaufendeAsync(ctx, ids.OperatorId);
         l.Select(b => b.BookingId).Should().Equal(laufend.Id, taetigkeit.Id);
         l[0].TargetQuantity.Should().Be(10);
         l[0].OrderNumber.Should().NotBeEmpty();
+        l[0].SubOrderNumber.Should().Be("SUB-7"); // v1.99.79 F-35
         l[1].ActivityName.Should().Be("Test Activity");
 
         var p = await BdeKopfBuchungen.PausierteAsync(ctx, ids.OperatorId);

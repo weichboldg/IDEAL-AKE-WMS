@@ -95,7 +95,7 @@ public class BdeTeilelisteController : Controller
         _userSvc.GetCurrentAppUserId() is int uid ? await _terminals.GetByUserIdAsync(uid) : null;
 
     public async Task<IActionResult> Index(int workplaceId, int? operatorId, string? personalnummer, string? sicht, string? kwVon, string? kwBis,
-        bool gemeldete = false, int page = 1, int? pageSize = null, int? markiert = null)
+        bool gemeldete = false, int page = 1, int? pageSize = null, int? markiert = null, string? ziel = null)
     {
         var terminal = await TerminalAsync();
         if (terminal == null)
@@ -117,7 +117,10 @@ public class BdeTeilelisteController : Controller
         if (!string.IsNullOrWhiteSpace(personalnummer))
         {
             var op = await _operators.GetByPersonnelNumberAsync(personalnummer.Trim());
-            if (op is { IsActive: true }) return RedirectToAction(nameof(Index), new { workplaceId, operatorId = op.Id });
+            var zurHistorie = ziel == "historie"; // v1.99.79 F-31
+            if (op is { IsActive: true })
+                return RedirectToAction(zurHistorie ? nameof(Tageshistorie) : nameof(Index), new { workplaceId, operatorId = op.Id });
+            if (zurHistorie) vm.Sicht = "historie";
             vm.AnmeldeFehler = $"Unbekannte oder inaktive Personalnummer: {personalnummer.Trim()}";
             return View("Anmelden", vm);
         }

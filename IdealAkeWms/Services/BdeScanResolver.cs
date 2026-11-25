@@ -43,6 +43,8 @@ public enum BdeScanResolutionKind
     Ambiguous,
     /// <summary>Kein offener Treffer an dieser Werkbank, obwohl der HauptFA global existiert.</summary>
     NotInScope,
+    /// <summary>v1.99.79 F-27 (nur Normal-Modus): der passende Arbeitsgang im Werkbank-Scope hat schon eine laufende Buchung.</summary>
+    Running,
     /// <summary>Weder <c>OrderNumber</c>- noch <c>SubOrderNumber</c>-Treffer.</summary>
     NotFound
 }
@@ -103,7 +105,7 @@ public class BdeScanResolver : IBdeScanResolver
         // 2. Kein Treffer im Scope, aber HauptFA existiert global → eigene Meldung (KP2-6 Randfall a).
         var hauptFaExists = await _ctx.ProductionOrders.AsNoTracking().AnyAsync(po => po.OrderNumber == fa, ct);
         if (hauptFaExists)
-            return new BdeScanResolution(BdeScanResolutionKind.NotInScope, Array.Empty<BdeScanCandidate>());
+            return await NichtImScopeAsync(workplaceId, fa, bySubOrder: false, operationNumber, nurFaMode, ct);
 
         // 3. Fallback SubOrderNumber (Scan einer Sub-FA, seit v1.64.0 ohne AG erreichbar), ebenfalls werkbank-gescopt.
         var bySub = await BuildCandidatesAsync(workplaceId, fa, bySubOrder: true, operationNumber, nurFaMode, operatorId, ct);
@@ -114,10 +116,38 @@ public class BdeScanResolver : IBdeScanResolver
 
         // 3b. Sub-FA existiert, hat aber an dieser Werkbank nichts Offenes → nicht „nicht gefunden“ melden (v1.64.0 FA-4.5).
         if (await _ctx.ProductionOrders.AsNoTracking().AnyAsync(po => po.SubOrderNumber == fa, ct))
-            return new BdeScanResolution(BdeScanResolutionKind.NotInScope, Array.Empty<BdeScanCandidate>());
+            return await NichtImScopeAsync(workplaceId, fa, bySubOrder: true, operationNumber, nurFaMode, ct);
 
         // 4. Kein Treffer → bestehende Fehlerbehandlung.
         return BdeScanResolution.NotFound;
+    }
+
+    /// <summary>v1.99.79 F-27: fehlt der Treffer nur, weil der AG im Scope schon laeuft → <see cref="BdeScanResolutionKind.Running"/>
+    /// statt „kein offener Arbeitsgang“ (gleicher Scope wie <see cref="BuildNormalCandidatesAsync"/>).</summary>
+    private async Task<BdeScanResolution> NichtImScopeAsync(int workplaceId, string value, bool bySubOrder, string? operationNumber,
+        bool nurFaMode, CancellationToken ct)
+    {
+        var kind = BdeScanResolutionKind.NotInScope;
+        if (!nurFaMode)
+        {
+            var familie = await FamilieAsync(workplaceId, ct);
+            var laufend = _ctx.BdeBookings.AsNoTracking().Where(b => b.EndedAt == null && !b.IsCancelled && b.WorkOperation != null
+                && b.WorkOperation.ProductionWorkplaceId != null && familie.Contains(b.WorkOperation.ProductionWorkplaceId.Value)
+                && !b.WorkOperation.IsReported);
+            laufend = bySubOrder
+                ? laufend.Where(b => b.WorkOperation!.ProductionOrder.SubOrderNumber == value)
+                : laufend.Where(b => b.WorkOperation!.ProductionOrder.OrderNumber == value);
+            if (!string.IsNullOrEmpty(operationNumber)) laufend = laufend.Where(b => b.WorkOperation!.OperationNumber == operationNumber);
+            if (await laufend.AnyAsync(ct)) kind = BdeScanResolutionKind.Running;
+        }
+        return new BdeScanResolution(kind, Array.Empty<BdeScanCandidate>());
+    }
+
+    private async Task<HashSet<int>> FamilieAsync(int workplaceId, CancellationToken ct)
+    {
+        var alle = await _ctx.ProductionWorkplaces.AsNoTracking().ToListAsync(ct);
+        var self = alle.FirstOrDefault(w => w.Id == workplaceId);
+        return self == null ? new HashSet<int> { workplaceId } : WerkbankKuerzelFamilie.FamilieIds(self, alle);
     }
 
     private Task<List<BdeScanCandidate>> BuildCandidatesAsync(int workplaceId, string value, bool bySubOrder,
@@ -169,9 +199,7 @@ public class BdeScanResolver : IBdeScanResolver
     private async Task<List<BdeScanCandidate>> BuildNormalCandidatesAsync(int workplaceId, string value,
         bool bySubOrder, string? operationNumber, int? operatorId, CancellationToken ct)
     {
-        var alle = await _ctx.ProductionWorkplaces.AsNoTracking().ToListAsync(ct);
-        var self = alle.FirstOrDefault(w => w.Id == workplaceId);
-        var familie = self == null ? new HashSet<int> { workplaceId } : WerkbankKuerzelFamilie.FamilieIds(self, alle);
+        var familie = await FamilieAsync(workplaceId, ct);
         var q = _ctx.WorkOperations.AsNoTracking()
             .Include(w => w.ProductionOrder)
             .Where(w => w.ProductionWorkplaceId != null && familie.Contains(w.ProductionWorkplaceId.Value) && !w.IsReported

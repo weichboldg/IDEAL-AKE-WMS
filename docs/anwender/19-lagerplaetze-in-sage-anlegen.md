@@ -1,6 +1,6 @@
 # 19 – Lagerplätze in Sage anlegen
 
-**Stand:** Version 1.99.71 (25.11.2026). Standorte: AKE und IDEAL.
+**Stand:** Version 1.99.79 (25.11.2026; Kennung zu lang, Konflikt mit Platz-ID), 1.99.71. Standorte: AKE und IDEAL.
 
 ## 1. Zweck
 
@@ -37,7 +37,7 @@ Ist die Einstellung aus, fehlt der Knopf; ein direkter Aufruf meldet „Lagerpla
 ### 3.2 Neues Lager mit Plätzen
 
 1. Im Feld Lagerort **„Neues Lager erfassen …“** wählen.
-2. **Kennung** (bis 10 Zeichen, Buchstaben, Ziffern, `-`, `_`), **Bezeichnung** (bis 40 Zeichen) und **Lagertechnik** eingeben.
+2. **Kennung** (bis 10 Zeichen, Buchstaben, Ziffern, `-`, `_`; längere Eingaben werden seit 1.99.79 am Feld gemeldet statt gekürzt), **Bezeichnung** (bis 40 Zeichen) und **Lagertechnik** eingeben.
    Beim Bodenlager ohne Plätze (LTD0ST) gibt es keine Koordinaten; das Lager hat dann nur seinen Basisplatz.
 3. Koordinatenbereich wie oben, **„Erfassen und an Sage übergeben“**.
 
@@ -54,7 +54,7 @@ Der Dienst legt zuerst das Lager in Sage an, danach seine Plätze. Bis dahin ste
 ## 4. Hinweise und Stolperfallen
 
 - **Übergabe-Fehler:** Lehnt Sage einen Platz ab (z. B. Code in Sage schon anders belegt, Koordinaten passen nicht zur Lagertechnik), steht der
-  Grund in der Spalte **„Übergabe-Fehler“**. Ursache beheben, dann in der Zeile **„Erneut senden“**. Das WMS wiederholt einen solchen Fehler nicht
+  Grund in der Spalte **„Übergabe-Fehler“** – bei einem Konflikt seit 1.99.79 mit dem belegten Sage-Platz („PlatzID <n> <Lager> = <Kurzbezeichnung>“). Ursache beheben, dann in der Zeile **„Erneut senden“**. Das WMS wiederholt einen solchen Fehler nicht
   von selbst.
 
 ![Liste mit Spalte „Übergabe an Sage“ (Fehler/Offen) und „Übergabe-Fehler“](bilder/19-04-liste-uebergabe-fehler.jpg)

@@ -879,7 +879,7 @@ public static class ColumnDefinitions
             new ColumnDef("storage-location", "Lagerplatz",        Locked: false),
             new ColumnDef("unit",             "Einheit",           Locked: false),
             new ColumnDef("reorder-level",    "Meldebestand",      Locked: false),
-            new ColumnDef("current-stock",    "Aktueller Bestand", Locked: false),
+            new ColumnDef("current-stock",    "Aktueller Bestand", Locked: true),    // v1.99.79 F-12: Bestand nie ausblendbar
             new ColumnDef("fraesen-pfad",     "Fräsen-Pfad",       Locked: false, DefaultHidden: true),
         ]
     };

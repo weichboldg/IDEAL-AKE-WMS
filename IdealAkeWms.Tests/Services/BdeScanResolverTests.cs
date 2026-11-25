@@ -183,10 +183,10 @@ public class BdeScanResolverTests
     }
 
     [Fact]
-    public async Task Normal_NotInScope_WhenOnlyMatchIsAlreadyActivelyBooked()
+    public async Task Normal_Running_WhenOnlyMatchIsAlreadyActivelyBooked()
     {
         // Deckungsgleich mit GetAvailableOperations: ein bereits aktiv gebuchter AG faellt aus dem
-        // Scope → 0 Treffer, HauptFA existiert → NotInScope.
+        // Scope → 0 Treffer. v1.99.79 F-27: statt NotInScope eigene Art Running („läuft bereits“).
         var ctx = TestDbContextFactory.Create();
         SeedPo(ctx, 1, "GRP-1", "SUB-1", Wp);
         var wo = SeedWo(ctx, 10, 1, Wp, "01");
@@ -207,8 +207,13 @@ public class BdeScanResolverTests
         await ctx.SaveChangesAsync();
 
         var res = await Resolver(ctx).ResolveAsync(Wp, "GRP-1", "01", nurFaMode: false, operatorId: null);
+        res.Kind.Should().Be(BdeScanResolutionKind.Running);
+        res.Candidates.Should().BeEmpty();
 
-        res.Kind.Should().Be(BdeScanResolutionKind.NotInScope);
+        // Sub-FA-Scan desselben laufenden AG ebenso; anderer AG (02) bzw. fremde Werkbank bleiben NotInScope
+        (await Resolver(ctx).ResolveAsync(Wp, "SUB-1", null, false, null)).Kind.Should().Be(BdeScanResolutionKind.Running, "Sub-FA-Fallback, AG laeuft");
+        (await Resolver(ctx).ResolveAsync(Wp, "GRP-1", "02", false, null)).Kind.Should().Be(BdeScanResolutionKind.NotInScope);
+        (await Resolver(ctx).ResolveAsync(OtherWp, "GRP-1", "01", false, null)).Kind.Should().Be(BdeScanResolutionKind.NotInScope);
     }
 
     [Fact]

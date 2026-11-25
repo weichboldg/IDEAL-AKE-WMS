@@ -202,6 +202,9 @@ public class ArticlesController : Controller
             var sageCheck = await _articleRepository.GetByIdAsync(id);
             vm.IsPrimarySageControlled = !string.IsNullOrWhiteSpace(sageCheck?.SagePrimaryStorageLocation);
             vm.SageKarten = await SageKartenAsync(id);
+            // v1.99.79 F-17: Fraesen-Pfad-Karte auch im Fehlerfall (CamPath kommt nie aus dem Edit-POST)
+            if (sageCheck != null) vm.Article.CamPath = sageCheck.CamPath;
+            await FraesenPfadFlagsAsync();
             var activeDefinitions = await _attributeRepository.GetActiveDefinitionsOrderedAsync();
             // Re-fill options for dropdown attributes
             foreach (var attr in vm.Attributes)

@@ -8,6 +8,35 @@
     <div class="col-lg-8">
         <div class="card mb-3">
             <div class="card-header text-white" style="background-color: var(--ake-primary);">
+                <strong>v1.99.79</strong> <span class="text-white-50 ms-2">25.11.2026</span>
+            </div>
+            <div class="card-body">
+                <h6>Fehlerbehebungen</h6>
+                <ul>
+                    <li>BDE-Seite: Scan eines Arbeitsgangs, der schon läuft, meldet jetzt &bdquo;Der Arbeitsgang läuft bereits&ldquo; statt
+                        &bdquo;nicht gefunden&ldquo;. &bdquo;Meine Buchungen&ldquo; zeigt den Sub-FA und zählt die Laufzeit ohne Neuladen weiter.</li>
+                    <li>Tageshistorie: nach dem Anmelden öffnet wieder die Tageshistorie; die Ziel-Spalte zeigt kein &bdquo;FA 0&ldquo; oder
+                        &bdquo;Sub-FA 0&ldquo; mehr.</li>
+                    <li>Teile Summiert: der Summen-Haken wird wieder gesetzt, wenn alle Einzel-Haken gesetzt sind. Kollisionsdialog: der Fokus
+                        liegt auf &bdquo;OK&ldquo;. Inaktive Reiter und &bdquo;Tätigkeit starten&ldquo; mit stärkerem Kontrast.</li>
+                    <li>Buchungen nehmen nur noch das Terminal des angemeldeten Benutzers an.</li>
+                    <li>Lager/Lagerplätze in Sage anlegen: zu lange Lagerkennung wird gemeldet statt still gekürzt; ein Konflikt in Sage nennt
+                        die belegte Platz-ID; Lager ohne Lagerplätze erscheinen im Abgleich.</li>
+                    <li>Leitstand &bdquo;Altbestand geprüft&ldquo;: scheitert das Anlegen der Kommissionieraufträge, erscheint ein Hinweis statt
+                        einer Fehlerseite (der Nachtlauf holt sie nach).</li>
+                    <li>Artikel bearbeiten: bei einem Eingabefehler bleibt die Karte &bdquo;Fräsen-Pfad&ldquo; sichtbar. Bestandsübersicht:
+                        &bdquo;Aktueller Bestand&ldquo; ist fest eingeblendet. Werkbank: &bdquo;Lagerbestellungen&ldquo; nur mit &bdquo;BDE-Teileliste&ldquo;.</li>
+                    <li>Blechdicke ohne Einstellung zeigt &bdquo;–&ldquo;; Lagerbestellung: Artikeltexte aus Sage werden nur als Text angezeigt.</li>
+                </ul>
+                <h6>Hinweis zum Update</h6>
+                <ul>
+                    <li>Keine Datenbank-Änderung. Das Einmal-Skript Fräsen-Pfad-Erstimport bricht auf AKE jetzt ab.</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header text-white" style="background-color: var(--ake-primary);">
                 <strong>v1.99.78</strong> <span class="text-white-50 ms-2">25.11.2026</span>
             </div>
             <div class="card-body">

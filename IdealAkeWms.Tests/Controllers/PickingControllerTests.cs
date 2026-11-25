@@ -135,6 +135,7 @@ public class PickingControllerTests
         settings.Setup(s => s.GetValueAsync(AppSettingKeys.LeitstandAktiv)).ReturnsAsync("true"); // v1.88.0: sonst legt Bom Auftraege an
         var po = new Mock<IPickingOrderRepository>();
         po.Setup(r => r.GetByProductionOrderAsync(It.IsAny<int>())).ReturnsAsync(new List<PickingOrder>());
+        po.Setup(r => r.GetAktiveZeilenAsync(It.IsAny<int>())).ReturnsAsync(new List<PickingOrderLine>()); // F-1: Repo liefert nie null
 
         var serviceSetting = new Mock<IServiceSettingRepository>();
         serviceSetting.Setup(s => s.GetValueAsync(It.IsAny<string>())).ReturnsAsync((string?)null);

@@ -11,6 +11,8 @@
         <div class="card-body">
             <form method="get" asp-action="Index">
                 <input type="hidden" name="workplaceId" value="@Model.Werkbank.Id" />
+                @* v1.99.79 F-31: aus der Tageshistorie angemeldet → zurueck dorthin (festes Ziel statt freier returnUrl, kein Open Redirect) *@
+                @if (Model.Sicht == "historie") { <input type="hidden" name="ziel" value="historie" /> }
                 <label for="personalnummer" class="form-label">Personalnummer</label>
                 <div class="input-group">
                     @* data-hw-scan-ziel (v1.66.0): Hardware-Scan landet ohne Fokus hier, Enter sendet das Formular. *@

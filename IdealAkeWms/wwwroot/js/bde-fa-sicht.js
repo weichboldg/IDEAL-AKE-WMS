@@ -34,6 +34,21 @@
         u.searchParams.delete('markiert');
         location.assign(u.toString());
     }
+    // v1.99.79 F-26: Laufzeit in „Meine Buchungen“ live (Muster Elapsed-Ticker des alten Terminals); Basis = Serverstand, nur die
+    // seit dem Seitenaufbau vergangene Zeit kommt vom Browser – eine falsch gestellte Terminal-Uhr verfaelscht nichts.
+    var laufzeiten = document.querySelectorAll('.bde-laufzeit[data-sekunden]');
+    if (laufzeiten.length) {
+        var t0 = Date.now();
+        setInterval(function () {
+            var plus = Math.floor((Date.now() - t0) / 1000);
+            laufzeiten.forEach(function (el) {
+                var s = parseInt(el.dataset.sekunden, 10) + plus;
+                var m = Math.floor(s / 60);
+                el.textContent = Math.floor(m / 60) + ':' + String(m % 60).padStart(2, '0') + ' h';
+            });
+        }, 15000);
+    }
+
     try {
         var alt = sessionStorage.getItem(MELDUNG);
         if (alt) { sessionStorage.removeItem(MELDUNG); melden(alt, 'success'); }
@@ -62,6 +77,10 @@
             case 'CollisionOtherOperator':
                 document.getElementById('collisionText').textContent = 'AG ist bereits in Arbeit durch ' + (json.collidingOperator || 'einen anderen Werker')
                     + ' an ' + (json.collidingWorkplace || 'einer anderen Werkbank') + ' seit ' + zeit(json.collidingSince) + '.';
+                // v1.99.79 F-37: Fokus auf „OK“ (Enter/Scanner-Enter schliesst), nicht auf den Dialog-Rahmen
+                document.getElementById('collisionModal').addEventListener('shown.bs.modal', function () {
+                    this.querySelector('.modal-footer .btn').focus();
+                }, { once: true });
                 modal('collisionModal').show(); return;
             case 'GroupFinishRequired': gruppe(json); return;
             case 'QuantityRequired': melden('Mengen-Eingabe erforderlich – nichts gebucht.', 'warning'); return;
@@ -319,7 +338,9 @@
                 }), function (c) { markieren(c.id); });
             return;
         }
-        melden(res.kind === 'NotInScope' ? 'FA ' + fa + ' hat an dieser Werkbank keinen offenen Arbeitsgang.'
-            : 'FA „' + roh + '“ nicht gefunden (oder der Arbeitsgang läuft bereits).', 'warning');
+        // v1.99.79 F-27: „läuft bereits“ eindeutig (Server-Ergebnis Running), „nicht gefunden“ nur noch für unbekannte Nummern
+        melden(res.kind === 'Running' ? 'FA ' + fa + (ag ? ' / ' + ag : '') + ': Der Arbeitsgang läuft bereits (offene Buchung) – eigene Buchungen stehen oben unter „Meine Buchungen“.'
+            : res.kind === 'NotInScope' ? 'FA ' + fa + ' hat an dieser Werkbank keinen offenen Arbeitsgang.'
+            : 'FA „' + roh + '“ nicht gefunden.', 'warning');
     });
 })();

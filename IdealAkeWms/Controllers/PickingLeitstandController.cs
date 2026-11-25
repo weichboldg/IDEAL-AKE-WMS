@@ -573,7 +573,16 @@ public class PickingLeitstandController : Controller
             // Dieselbe Bedingung wie GetReleasedForPickingAsync (Knopf, Nachtlauf).
             if (ps is { IsReleasedForPicking: true, IsDonePicking: false } && !order.IsDone && !order.IsCancelled)
             {
-                await AuftraegeMeldenAsync(new[] { (order.OrderNumber, await _pickingOrderWorkflow.ErzeugeOffeneAsync(id)) });
+                // v1.99.79 F-2: Kennzeichen ist schon geloescht; scheitert das Erzeugen, holt der Nachtlauf den FA nach.
+                try
+                {
+                    await AuftraegeMeldenAsync(new[] { (order.OrderNumber, await _pickingOrderWorkflow.ErzeugeOffeneAsync(id)) });
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Altbestand geprueft: Auftraege fuer FA {Fa} nicht angelegt", order.OrderNumber);
+                    TempData["WarningMessage"] = $"FA {order.OrderNumber}: Kommissionieraufträge konnten nicht angelegt werden ({ex.Message}). Der Nachtlauf holt sie nach.";
+                }
                 TempData["SuccessMessage"] = $"{geprueft} {TempData["SuccessMessage"]}".TrimEnd();
             }
             else

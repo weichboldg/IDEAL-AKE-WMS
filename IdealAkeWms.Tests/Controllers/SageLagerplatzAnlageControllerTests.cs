@@ -230,6 +230,23 @@ public class SageLagerplatzAnlageControllerTests
     }
 
     [Fact]
+    public async Task CreateInSage_NeuesLager_ElfZeichen_MeldungAmFeld_NichtsAngelegt()
+    {
+        // v1.99.79 F-7: das Feld kuerzt nicht mehr still (kein maxlength) – der Server weist 11 Zeichen sichtbar ab.
+        using var ctx = TestDbContextFactory.Create();
+        ctx.StorageAreas.Add(Lager("TB"));
+        await ctx.SaveChangesAsync();
+        var ctrl = Ctrl(new StorageLocationRepository(ctx), stufe: SageLagerplatzAnlage.StufeMitschnitt);
+
+        var r = await ctrl.CreateInSage(new StorageLocationSageAnlageViewModel
+            { Lagerort = StorageLocationSageAnlageViewModel.NeuesLagerWert, NeueKennung = "ABCDEFGHIJK", NeueBezeichnung = "x", NeueTechnik = "LTD1BL" });
+
+        r.Should().BeOfType<ViewResult>();
+        ctrl.ModelState[nameof(StorageLocationSageAnlageViewModel.NeueKennung)]!.Errors.Single().ErrorMessage.Should().StartWith("Lagerkennung: 1 bis 10 Zeichen");
+        ctx.StorageAreas.Should().ContainSingle();
+    }
+
+    [Fact]
     public async Task CreateInSage_NeuesLager_NichtPlatzverwaltet_NurLager()
     {
         using var ctx = TestDbContextFactory.Create();

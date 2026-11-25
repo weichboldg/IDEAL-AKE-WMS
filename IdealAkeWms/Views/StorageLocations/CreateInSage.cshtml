@@ -46,7 +46,9 @@
                                 <div class="row g-3">
                                     <div class="col-sm-4">
                                         <label asp-for="NeueKennung" class="form-label"></label>
-                                        <input asp-for="NeueKennung" class="form-control" maxlength="10" autocomplete="off" />
+                                        @* v1.99.79 F-7: kein maxlength – der Browser kuerzte 11 Zeichen still; der Server weist mit Meldung ab *@
+                                        <input asp-for="NeueKennung" class="form-control" autocomplete="off" />
+                                        <span asp-validation-for="NeueKennung" class="text-danger small"></span>
                                         <div class="form-text">1–10 Zeichen: A–Z, Ziffern, „-“, „_“.</div>
                                     </div>
                                     <div class="col-sm-8">

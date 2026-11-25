@@ -20,6 +20,7 @@ public class BdeTerminalControllerTests
         var userSvc = new Mock<ICurrentUserService>();
         userSvc.Setup(u => u.GetDisplayName()).Returns("tester");
         userSvc.Setup(u => u.GetWindowsUserName()).Returns("tester");
+        userSvc.Setup(u => u.GetCurrentAppUserId()).Returns(1);
 
         var settings = new Mock<IAppSettingRepository>();
         settings.Setup(s => s.GetValueAsync(AppSettingKeys.BdeMehrfachBuchungProArbeitsgang))
@@ -34,7 +35,12 @@ public class BdeTerminalControllerTests
         var bookingSvc = new BdeBookingService(ctx, userSvc.Object, settings.Object);
         var defaultWoSvc = new BdeDefaultWorkOperationService(ctx, settings.Object);
 
-        terminals ??= new Mock<IBdeTerminalRepository>();
+        if (terminals == null)
+        {
+            // v1.99.79 F-28: Standard = das geseedete Terminal gehoert dem angemeldeten Benutzer
+            terminals = new Mock<IBdeTerminalRepository>();
+            terminals.Setup(t => t.GetByUserIdAsync(1)).ReturnsAsync(() => ctx.BdeTerminals.FirstOrDefault());
+        }
 
         return new BdeTerminalController(terminals.Object, bookingSvc, user ?? userSvc.Object,
             defaultWoSvc, settings.Object, ctx, NullLogger<BdeTerminalController>.Instance);
@@ -183,6 +189,21 @@ public class BdeTerminalControllerTests
         var json = System.Text.Json.JsonSerializer.Serialize((result as JsonResult)!.Value);
         json.Should().Contain("\"otherActiveBookings\"");
         json.Should().Contain($"\"operatorId\":{op2}");
+    }
+
+    // v1.99.79 F-28: fremde terminalId aus dem Client wird abgewiesen, es entsteht keine Buchung.
+    [Fact]
+    public async Task StartProduction_FremdeTerminalId_Abgewiesen_KeineBuchung()
+    {
+        var ctx = TestDbContextFactory.Create();
+        var ids = await BdeBookingTestSeed.SeedAsync(ctx);
+
+        var result = await CreateTerminalController(ctx)
+            .StartProduction(ids.OperatorId, ids.WorkOperationId, ids.WorkplaceId, ids.TerminalId + 999);
+
+        var json = System.Text.Json.JsonSerializer.Serialize((result as JsonResult)!.Value);
+        json.Should().Contain("\"outcome\":\"InvalidState\"").And.Contain("nicht dem angemeldeten Benutzer");
+        ctx.BdeBookings.Count().Should().Be(0);
     }
 
     // v1.63.0 (AK 30): Fertigmeldung bei erlaubter Mehrfachbuchung -> Antwort traegt die anderen Laufenden.

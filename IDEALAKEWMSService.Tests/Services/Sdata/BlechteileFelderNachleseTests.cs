@@ -60,6 +60,24 @@ public class BlechteileFelderNachleseTests
     }
 
     [Fact]
+    public async Task Lesen_BlechdickeNichtKonfiguriert_WertGeleert_Hinweis()
+    {
+        // v1.99.79 F-10 (Spec Isolierfraese AK 9): leere Einstellungszeile → Blechdicke leer („–“) + Hinweis „nicht konfiguriert“, kein Abbruch.
+        var client = Client(new[]
+        {
+            U("""{"Artikelnummer":"FT-2","Basismengeneinheit":"Stk","Lagermengeneinheit":"Stk","USER_OSIstLagerartikel":-1,"USER_OSMaterial":"4301"}"""),
+        }, V("FT-2", 1, 1m));
+        var felder = SageUserfelder.Aus(k => k == SageUserfelder.Key(SageUserfelder.Blechfertigung, BfArtikelFelder.Blechdicke) ? "" : null);
+        var hinweise = new List<SdataHinweis>();
+
+        var dtos = await Reader(client).BlechteileFelderLesenAsync(Ziel, hinweise, CancellationToken.None, felder);
+
+        var ft = dtos!.Single().Benutzerfelder!;
+        ft.Should().ContainKey(BfArtikelFelder.Blechdicke).WhoseValue.Should().BeNull("Writer entfernt den alten Wert → Anzeige „–“");
+        hinweise.Should().Contain(h => h.Text.Contains(BfArtikelFelder.Blechdicke) && h.Text.Contains("nicht konfiguriert"));
+    }
+
+    [Fact]
     public async Task Lesen_NullZeilen_Warnung_NichtsSchreiben()
     {
         var hinweise = new List<SdataHinweis>();

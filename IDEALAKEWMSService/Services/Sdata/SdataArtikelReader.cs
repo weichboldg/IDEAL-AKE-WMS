@@ -357,8 +357,11 @@ public sealed class SdataArtikelReader : ISageArtikelReader
             return null;
         }
         var konfiguriert = userfelder.Konfiguriert(SageUserfelder.Blechfertigung, BfArtikelFelder.SageFelder);
+        // v1.99.79 F-10 (Spec Isolierfraese AK 9): Blechdicke nicht konfiguriert → Wert leeren (Anzeige „–“); die uebrigen Felder bleiben unveraendert.
+        var blechdickeLeeren = konfiguriert.All(k => k.Logisch != BfArtikelFelder.Blechdicke);
         foreach (var logisch in BfArtikelFelder.SageFelder.Where(f => konfiguriert.All(k => k.Logisch != f)))
-            hinweise.Add(new($"Blechteile-Feld „{logisch}“ nicht konfiguriert – nicht gelesen, Merkmal unverändert."));
+            hinweise.Add(new($"Blechteile-Feld „{logisch}“ nicht konfiguriert – nicht gelesen, "
+                + (logisch == BfArtikelFelder.Blechdicke ? "Wert geleert (Anzeige „–“)." : "Merkmal unverändert.")));
         var where = WhereLagerartikelFuer(ist);
         var r = await _client.QueryAllAsync<Dictionary<string, JsonElement>>(ziel, SageSdataReadClient.VertragResources, RessourceArtikel,
             where, "Artikelnummer,Basismengeneinheit,Lagermengeneinheit," + string.Join(",", konfiguriert.Select(k => k.Feld)), "Artikelnummer", ct);
@@ -378,6 +381,7 @@ public sealed class SdataArtikelReader : ISageArtikelReader
             if (nr is null)
                 throw new SdataLeseException(RessourceArtikel, 0, "Blechteile-Felder: Zeile ohne Artikelnummer – Feldnamen prüfen (P-S1).");
             var werte = konfiguriert.ToDictionary(k => k.Logisch, k => AlsText(zeile.GetValueOrDefault(k.Feld)), StringComparer.OrdinalIgnoreCase);
+            if (blechdickeLeeren) werte[BfArtikelFelder.Blechdicke] = null;
             if (!werteJe.TryAdd(Schluessel(nr), werte)) continue;
             if (!string.Equals(AlsText(zeile.GetValueOrDefault("Basismengeneinheit")), AlsText(zeile.GetValueOrDefault("Lagermengeneinheit")),
                     StringComparison.OrdinalIgnoreCase))

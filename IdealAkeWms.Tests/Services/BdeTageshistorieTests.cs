@@ -78,6 +78,24 @@ public class BdeTageshistorieTests
         z[0].Ziel.Should().StartWith("Lagerbestellung · ");
     }
 
+    // v1.99.79 F-34: 0 = „ohne“ – keine „FA 0“/„Sub-FA 0“ in der Ziel-Spalte
+    [Fact]
+    public async Task NullNummern_NichtAngezeigt()
+    {
+        var ctx = TestDbContextFactory.Create();
+        var ids = await BdeBookingTestSeed.SeedAsync(ctx);
+        var heute = DateTime.Today;
+        var blech = Meldung(ids, heute.AddHours(9), fertig: true, subFa: 0);
+        var lager = Meldung(ids, heute.AddHours(8), fertig: true, subFa: 0, lagerItem: 77);
+        lager.HauptFA = 0; lager.Position = null;
+        ctx.BdeTeilMeldungen.AddRange(blech, lager);
+        await ctx.SaveChangesAsync();
+
+        var z = await BdeTageshistorie.LadenAsync(ctx, ids.OperatorId, heute);
+
+        z.Select(x => x.Ziel).Should().Equal("FA 100 · Pos. 1 · Blech", "Lagerbestellung · Blech");
+    }
+
     [Fact]
     public void Spalten_RendernWieDieZelle()
     {

@@ -30,6 +30,14 @@ BEGIN
     RETURN;
 END
 
+-- v1.99.79 F-18: eigene Standortpruefung (nicht nur das Manifest) - nur IDEAL = hierarchische Produktionsauftraege
+-- (ServiceSetting ProduktionsauftragHierarchisch, dieselbe Auslegung wie ProductionWorkplacesController.IsHierarchicalMasterAsync).
+IF NOT EXISTS (SELECT 1 FROM dbo.ServiceSettings WHERE [Key] = N'ProduktionsauftragHierarchisch' AND LOWER(LTRIM(RTRIM([Value]))) IN (N'true', N'1', N'on'))
+BEGIN
+    RAISERROR(N'Kein IDEAL-Standort (ServiceSetting ProduktionsauftragHierarchisch ist nicht true) - Skript nur fuer IDEAL. Abbruch, nichts geaendert.', 16, 1);
+    RETURN;
+END
+
 IF OBJECT_ID('tempdb..#Liste') IS NOT NULL DROP TABLE #Liste;
 IF OBJECT_ID('tempdb..#Kand') IS NOT NULL DROP TABLE #Kand;
 CREATE TABLE #Liste (Zeile INT NOT NULL, Matchcode NVARCHAR(400) NOT NULL, PfadRoh NVARCHAR(1000) NOT NULL);

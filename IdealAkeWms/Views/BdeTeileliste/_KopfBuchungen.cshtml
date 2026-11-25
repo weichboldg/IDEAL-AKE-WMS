@@ -4,12 +4,14 @@
 @* v1.99.77 (Spec 2026-11-25-bde-masken-vereinheitlichung E4-4/E4-6, AK 25): laufende und pausierte Buchungen des Werkers im Kopf der
    FA-Sicht, serverseitig aus BdeKopfBuchungen (dieselbe Abfrage wie das Terminal). Knoepfe rufen ueber bde-fa-sicht.js die bestehenden
    JSON-Aktionen von BdeTerminal, danach Neuladen. Zustand = Text + Balkenform (durchgezogen/gestrichelt), nie Farbe allein.
-   Schalter „Zeiten und Details“ nur Anzeige, je Werker im localStorage. *@
+   Schalter „Zeiten und Details“ nur Anzeige, je Werker im localStorage.
+   v1.99.79 F-26: Laufzeit zaehlt in bde-fa-sicht.js live weiter (data-sekunden = Stand Seitenaufbau, Serveruhr; Terminal-Uhr egal). *@
 @{
     var jetzt = DateTime.Now;
     var inv = System.Globalization.CultureInfo.InvariantCulture;
     string Was(BdeKopfBuchung b) => b.Typ == BdeBookingType.Activity ? (b.ActivityName == "" ? "Tätigkeit" : b.ActivityName)
-        : $"{b.OrderNumber} / {b.OperationNumber.Trim()}" + (b.OperationName == "" ? "" : $" {b.OperationName}");
+        : b.OrderNumber + (string.IsNullOrEmpty(b.SubOrderNumber) || b.SubOrderNumber == b.OrderNumber ? "" : $" · Sub-FA {b.SubOrderNumber}") // v1.99.79 F-35
+          + $" / {b.OperationNumber.Trim()}" + (b.OperationName == "" ? "" : $" {b.OperationName}");
     string Art(BdeKopfBuchung b) => b.Typ switch { BdeBookingType.Setup => "Rüsten", BdeBookingType.Production => "Produktion", _ => "Tätigkeit" };
     var leer = Model.KopfLaufend.Count == 0 && Model.KopfPausiert.Count == 0;
 }
@@ -37,7 +39,7 @@
                     data-soll="@b.TargetQuantity?.ToString(inv)" data-bez="@was">
                     <span class="bde-kopf-art">@Art(b) läuft</span>
                     <span class="bde-kopf-was">@was</span>
-                    <span class="bde-kopf-detail">Start @b.StartedAt.ToString("HH:mm"), Laufzeit @BdeKopfBuchungen.Laufzeit(b.StartedAt, jetzt),
+                    <span class="bde-kopf-detail">Start @b.StartedAt.ToString("HH:mm"), Laufzeit <span class="bde-laufzeit" data-sekunden="@((long)Math.Max(0, (jetzt - b.StartedAt).TotalSeconds))">@BdeKopfBuchungen.Laufzeit(b.StartedAt, jetzt)</span>,
                         @b.WorkplaceName, Terminal @(b.TerminalName == "" ? "–" : b.TerminalName), Personalnr. @Model.Werker!.PersonnelNumber</span>
                     <span class="bde-kopf-knoepfe">
                         @switch (b.Typ)

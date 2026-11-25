@@ -6,6 +6,8 @@ using IdealAkeWms.Services;
 using IdealAkeWms.Tests.Helpers;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using IdealAkeWms.Data.Repositories;
+using Moq;
 using Xunit;
 
 namespace IdealAkeWms.Tests.Controllers;
@@ -118,6 +120,24 @@ public class BdeTeilelisteOptionTests
         (await ctx.ProductionWorkplaces.SingleAsync()).Name.Should().Be("Kanten");
     }
 
+    [Fact]
+    public async Task Edit_LagerbestellungenOhneTeileliste_Abgewiesen()
+    {
+        // v1.99.79 F-13 (Spec Isolierfraese F6): „Lagerbestellungen in der Teileliste“ nur zusammen mit „BDE-Teileliste“
+        var ctx = TestDbContextFactory.Create();
+        var wp = Wp(); ctx.ProductionWorkplaces.Add(wp); await ctx.SaveChangesAsync();
+        var controller = ProductionWorkplacesControllerTests.CreateController(ctx, master: true);
+
+        var result = await controller.Edit(wp.Id, new ProductionWorkplaceEditViewModel
+            { Id = wp.Id, Name = "Geaendert", BdeAktiv = true, ArbeitsschrittCode = "KA", BdeTeileliste = false, BdeTeilelisteLagerbestellungen = true });
+
+        result.Should().BeOfType<ViewResult>();
+        controller.ModelState[nameof(ProductionWorkplaceEditViewModel.BdeTeilelisteLagerbestellungen)]!.Errors.Single().ErrorMessage
+            .Should().Contain("braucht „BDE-Teileliste“");
+        ctx.ChangeTracker.Clear();
+        (await ctx.ProductionWorkplaces.SingleAsync()).BdeTeilelisteLagerbestellungen.Should().BeFalse();
+    }
+
     // v1.99.76 (AK 29): Sicht-Aufloesung – ohne Angabe Standardsicht, Teile-Reiter ohne Teile-Sicht → FA.
     [Theory]
     [InlineData(null, true, true, "einzeln")]
@@ -187,5 +207,31 @@ public class BdeTeilelisteOptionTests
     {
         var w = new ProductionWorkplace { BdeAktiv = true, BdeTeileliste = true, ArbeitsschrittCode = "KA", BdeStandardsichtTeile = standardTeile };
         WerkbankKuerzelFamilie.TeileStandard(w, hierarchisch).Should().Be(erwartet);
+    }
+
+    // v1.99.79 F-31: Anmeldung aus der Tageshistorie fuehrt zurueck in die Historie (festes Ziel), sonst wie bisher auf die Liste.
+    [Theory]
+    [InlineData("historie", "Tageshistorie")]
+    [InlineData(null, "Index")]
+    [InlineData("https://boese.example/", "Index")]
+    public async Task Anmelden_ZielHistorie_LeitetInHistorie(string? ziel, string erwartet)
+    {
+        var wp = new ProductionWorkplace { Id = 7, Name = "Kanten", BdeAktiv = true, ArbeitsschrittCode = "KA" };
+        var user = new Mock<ICurrentUserService>(); user.Setup(u => u.GetCurrentAppUserId()).Returns(1);
+        var terminals = new Mock<IBdeTerminalRepository>();
+        terminals.Setup(t => t.GetByUserIdAsync(1)).ReturnsAsync(new BdeTerminal { Id = 3, DefaultProductionWorkplaceId = 7 });
+        var wps = new Mock<IProductionWorkplaceRepository>();
+        wps.Setup(w => w.GetBdeActiveAsync()).ReturnsAsync(new List<ProductionWorkplace> { wp });
+        wps.Setup(w => w.GetByIdAsync(7)).ReturnsAsync(wp);
+        var ops = new Mock<IBdeOperatorRepository>();
+        ops.Setup(o => o.GetByPersonnelNumberAsync("4711")).ReturnsAsync(new BdeOperator { Id = 9, IsActive = true });
+        var ctrl = new BdeTeilelisteController(null!, terminals.Object, wps.Object, ops.Object, Mock.Of<IAppSettingRepository>(),
+            Mock.Of<IFaHierarchyOrderInfoRepository>(), user.Object, Mock.Of<IUserViewPreferenceRepository>(), Mock.Of<IServiceSettingRepository>(), null!, null!);
+
+        var r = await ctrl.Index(7, null, "4711", null, null, null, ziel: ziel);
+
+        var rd = r.Should().BeOfType<RedirectToActionResult>().Which;
+        rd.ActionName.Should().Be(erwartet);
+        rd.RouteValues!["operatorId"].Should().Be(9);
     }
 }

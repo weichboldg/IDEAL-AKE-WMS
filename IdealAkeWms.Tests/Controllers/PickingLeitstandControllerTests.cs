@@ -552,6 +552,22 @@ public class PickingLeitstandControllerTests
     }
 
     [Fact]
+    public async Task AltbestandGeprueft_ErzeugenWirft_WarnungStattFehlerseite()
+    {
+        // v1.99.79 F-2: Stueckliste nicht lesbar → Kennzeichen bleibt geloescht, Meldung statt Ausnahme.
+        _orderRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(MakeOrder(1, "FA-100"));
+        _pickingStatusRepo.Setup(r => r.GetByProductionOrderIdAsync(1)).ReturnsAsync(MakePs(1, released: true));
+        _pickingOrderRepo.Setup(r => r.GetByProductionOrderAsync(1)).ReturnsAsync(new List<PickingOrder> { AltbestandAuftrag() });
+        _bomRepo.Setup(b => b.GetBomItemsAsync(It.IsAny<BomKey>(), It.IsAny<BomScope>())).ThrowsAsync(new InvalidOperationException("Sage weg"));
+
+        var result = await _controller.AltbestandGeprueft(1, null);
+
+        result.Should().BeOfType<RedirectToActionResult>();
+        _controller.TempData["SuccessMessage"].Should().BeOfType<string>().Which.Should().StartWith("FA FA-100: Altbestand geprüft");
+        _controller.TempData["WarningMessage"].Should().BeOfType<string>().Which.Should().Contain("Nachtlauf");
+    }
+
+    [Fact]
     public async Task AltbestandGeprueft_NichtFreigegeben_NurKennzeichen()
     {
         _orderRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(MakeOrder(1, "FA-100"));

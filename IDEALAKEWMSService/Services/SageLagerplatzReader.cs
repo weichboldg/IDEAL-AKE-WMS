@@ -18,12 +18,11 @@ public class SageLagerplatzReader : ISageLagerplatzReader
         var sageConnection = _configuration.GetConnectionString("SageConnection")
             ?? throw new InvalidOperationException("SageConnection nicht konfiguriert.");
 
-        // ANNAHME: KHKLagerorte hat eine Mandant-Spalte (analog Artikel-Sync).
-        // Falls Sage-Schema das nicht hat, "AND lo.Mandant = 1" entfernen.
+        // v1.99.79 F-8: Plaetze ueber Mandant UND Lagerkennung verbinden – wie der Schreibweg (SqlSageLagerplatzAnlage, Mandant 1)
         const string sql = """
             SELECT lo.Lagerkennung, lp.Kurzbezeichnung, lp.Platzbezeichnung, lp.PlatzID
             FROM KHKLagerorte lo
-            LEFT JOIN KHKLagerplaetze lp ON lo.Lagerkennung = lp.Lagerkennung
+            LEFT JOIN KHKLagerplaetze lp ON lp.Mandant = lo.Mandant AND lp.Lagerkennung = lo.Lagerkennung
             WHERE lo.Mandant = 1
               AND lo.Aktiv = -1
             """;

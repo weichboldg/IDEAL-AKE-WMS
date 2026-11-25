@@ -106,5 +106,11 @@ public class ViewKeyDriftGuardTests
             cfg.SupportsReorder.Should().BeFalse();
             cfg.Columns.Where(c => c.Locked).Select(c => c.Key).Should().Equal("pos", "article-number");
         }
+        if (viewKey == "StockOverview")
+        {
+            // v1.99.79 F-12: Bestandsspalte fixiert – Katalog und beide Razor-Zweige des #column-config
+            cfg.Columns.Where(c => c.Locked).Select(c => c.Key).Should().Equal("article-number", "current-stock");
+            Regex.Matches(html, "\"key\": \"current-stock\", \"label\": \"Aktueller Bestand\", \"locked\": true").Count.Should().Be(2);
+        }
     }
 }
