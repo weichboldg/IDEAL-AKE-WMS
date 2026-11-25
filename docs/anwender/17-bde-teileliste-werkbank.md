@@ -122,8 +122,24 @@ Danach nennt die Meldung oben, was passiert ist, z. B. „Gemeldet: 2.“ War ei
 ### 5. Ansicht „Summiert“
 
 Der Umschalter **Summiert** fasst gleiche Teile zusammen: je **Matchcode** eine Zeile mit **Summe Menge**, Anzahl **Positionen**,
-**Hauptaufträge**, **Abteilung**, **FE-Termine** und **Offen**. Ein Haken nimmt alle offenen Positionen dieses Matchcodes mit voller
-Sollmenge. Das ist praktisch, wenn ein Teil für mehrere Aufträge in einem Durchgang gefertigt wird.
+**Hauptaufträge**, **Abteilung**, **FE-Termine**, **AG-Status** und **Offen**. Das ist praktisch, wenn ein Teil für mehrere Aufträge in
+einem Durchgang gefertigt wird.
+
+Seit 1.99.74:
+
+- **Aufträge (n) ▸** neben dem Matchcode klappt die einzelnen Aufträge auf: eingerückte, grau hinterlegte Zeilen mit „↳“, sortiert nach
+  **FE-Termin** (früheste zuerst, ohne Termin zuletzt). Jede Zeile hat Menge, Hauptauftrag, Abteilung, FE-Termin, AG-Status und Status wie in
+  *Einzeln*. Nochmals antippen klappt zu (Zeichen ▾/▸).
+- **Haken auf der Summenzeile** = alle offenen Aufträge darunter mit voller Sollmenge fertig melden. Er setzt auch die Haken aller Aufträge
+  darunter.
+- **Reicht die Menge nicht für alle**, nur einzelne Aufträge anhaken (z. B. die mit dem frühesten FE-Termin). Gemeldet werden nur diese, die
+  übrigen bleiben offen. Nimmt man bei gesetztem Summen-Haken einen Auftrags-Haken weg, ist auch der Summen-Haken weg – die anderen Aufträge
+  bleiben angehakt. Der Knopf „Auswahl fertigmelden (n Zeilen …)“ zählt jeden Auftrag nur einmal.
+- Bereits gemeldete Aufträge (nur mit „gemeldete zeigen“ sichtbar) haben keinen Haken; ihre Statuszelle zeigt „✓ gemeldet“ und, bei eigenen,
+  „Zurücknehmen“.
+- **AG-Status der Summenzeile** zeigt je Kürzel den **schlechtesten Stand** der Aufträge: erledigt (Haken) nur, wenn alle erledigt sind; ist
+  einer überfällig, steht das Dreieck; läuft einer und ein anderer ist überfällig, stehen Sanduhr und Dreieck. Aufträge ohne BDE-Arbeitsgang
+  für das Kürzel zählen nicht mit. Der Spaltenfilter AG-Status filtert die Aufträge (z. B. `überfällig` zeigt nur überfällige Aufträge).
 
 ![Ansicht Summiert: je Matchcode eine Zeile](bilder/17-06-teileliste-summiert.jpg)
 

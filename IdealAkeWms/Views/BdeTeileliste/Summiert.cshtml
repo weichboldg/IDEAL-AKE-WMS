@@ -3,7 +3,7 @@
 @{
     ViewData["Title"] = "BDE-Teileliste – Summiert";
     ViewData["FraesenPfadTouch"] = true; // v1.99.72: Knopf „Pfad kopieren“ ≥ 44 px am Terminal
-    var colCount = 12 + (Model.FraesenPfadAktiv ? 1 : 0);
+    var colCount = 13 + (Model.FraesenPfadAktiv ? 1 : 0);
 }
 <link rel="stylesheet" href="~/css/bde.css" asp-append-version="true" />
 
@@ -19,7 +19,7 @@
             <label class="form-check-label" for="alleAuswaehlen">alle auf dieser Seite</label>
         </div>
         <button type="submit" class="btn btn-primary btn-lg" id="blockMelden" disabled>Auswahl fertigmelden</button>
-        <span class="small text-muted d-none d-lg-inline">je Matchcode alle offenen Positionen mit voller Sollmenge</span>
+        <span class="small text-muted d-none d-lg-inline">Haken am Matchcode meldet alle offenen Aufträge darunter, Haken am Auftrag nur diesen – volle Sollmenge</span>
     </form>
 
     <div class="d-flex justify-content-end mb-1" data-table-toolbar></div>
@@ -34,6 +34,7 @@
                     <th data-filterable data-col-key="hauptfa">Hauptaufträge</th>
                     <th data-filterable data-col-key="montage-abteilung">Abteilung</th>
                     <th class="text-nowrap" data-filterable data-col-key="fe-termin" data-date-filter>FE-Termine</th>
+                    <th data-filterable data-col-key="ag-status" title="Arbeitsgang-Status je Kürzel: schlechtester Stand der Aufträge (Zeichen + Kürzel; filtert die Aufträge, z. B. überfällig)">AG-Status</th>
                     <th data-filterable data-col-key="material">Material</th>
                     <th data-filterable data-filter-type="number" data-col-key="blechdicke">Blechdicke</th>
                     <th data-filterable data-col-key="bemerkungpn">Bemerkung PN</th>
@@ -50,23 +51,30 @@
                 {
                     <tr><td colspan="@colCount" class="text-center text-muted py-4">Keine offenen Teile mit Kürzel @Model.Kuerzel im gewählten Zeitraum.</td></tr>
                 }
-                @foreach (var a in Model.Aggregate)
+                @for (var i = 0; i < Model.Aggregate.Count; i++)
                 {
-                    <tr>
+                    var a = Model.Aggregate[i];
+                    <tr data-tl-eltern-id="@i">
                         <td class="tl-zelle-auswahl" data-label="Auswahl">
                             @if (a.OffeneSchluessel.Count > 0)
                             {
                                 <label class="tl-check"><input class="form-check-input tl-auswahl" type="checkbox" form="blockForm" name="schluessel"
-                                       value="@string.Join("\n", a.OffeneSchluessel)" data-anzahl="@a.OffeneSchluessel.Count"
-                                       data-soll="@a.SummeSollmengeOffen.ToString(System.Globalization.CultureInfo.InvariantCulture)" aria-label="@a.Matchcode auswählen" /></label>
+                                       value="@string.Join("\n", a.OffeneSchluessel)" data-anzahl="@a.OffeneSchluessel.Count" data-gruppe="@i"
+                                       data-soll="@a.SummeSollmengeOffen.ToString(System.Globalization.CultureInfo.InvariantCulture)" aria-label="@a.Matchcode: alle @a.OffeneSchluessel.Count offenen Aufträge auswählen" /></label>
                             }
                         </td>
-                        <td data-label="Matchcode">@a.Matchcode</td>
+                        <td data-label="Matchcode">
+                            @a.Matchcode
+                            @* E2-1: Einzelauftraege aufklappen – gleicher Knopf wie „Teile (n)“ in Einzeln (Etappe 1) *@
+                            <button type="button" class="btn btn-outline-secondary bde-touch ms-1 bde-tl-teile" data-bs-toggle="collapse" data-bs-target="[data-eltern='@i']"
+                                    aria-expanded="false" aria-controls="@string.Join(" ", a.Einzelzeilen.Select((_, j) => $"auftrag-{i}-{j}"))">Aufträge (@a.Einzelzeilen.Count)<span class="bde-tl-teile-zeichen" aria-hidden="true"></span></button>
+                        </td>
                         <td class="text-end" data-label="Summe Menge">@VormontageService.FormatMenge(a.SummeSollmenge)</td>
                         <td class="text-end" data-label="Positionen">@a.Anzahl</td>
                         <td data-label="Hauptaufträge">@a.HauptFas</td>
                         <td data-label="Abteilung">@a.Abteilungen</td>
                         <td data-label="FE-Termine">@a.FeTermine</td>
+                        <td data-label="AG-Status"><partial name="_FaAgSymbole" model="a.Arbeitsgaenge" /></td>
                         <td data-label="Material">@a.Materialien</td>
                         <td data-label="Blechdicke">@(a.Blechdicken ?? "–")</td>
                         <td data-label="Bemerkung PN">@a.BemerkungenPn</td>
@@ -86,6 +94,45 @@
                         }
                         <td data-label="Offen">@a.OffeneSchluessel.Count offen</td>
                     </tr>
+                    @for (var j = 0; j < a.Einzelzeilen.Count; j++)
+                    {
+                        var z = a.Einzelzeilen[j];
+                        var n = z.Node;
+                        @* E2-1/E2-2: Einzelauftrag im selben <tbody> (Muster Etappe 1), eigener Haken sendet nur seinen Schluessel an Melden *@
+                        <tr class="bde-tl-kind collapse" id="auftrag-@i-@j" data-eltern="@i">
+                            <td class="tl-zelle-auswahl" data-label="Auswahl">
+                                @if (z.Meldbar)
+                                {
+                                    <label class="tl-check"><input class="form-check-input tl-auswahl" type="checkbox" form="blockForm" name="schluessel"
+                                           value="@z.FormSchluessel" data-in-gruppe="@i" data-soll="@n.Sollmenge.ToString(System.Globalization.CultureInfo.InvariantCulture)"
+                                           aria-label="@n.Matchcode, @(z.Lager is { } l ? $"Lagerbestellung {l.RequisitionId}" : $"Haupt-FA {n.HauptFA} Pos. {n.Position}") auswählen" /></label>
+                                }
+                            </td>
+                            <td data-label="Matchcode">
+                                <span class="bde-tl-kind-pfeil" aria-hidden="true">&#8627;</span><span class="visually-hidden">Auftrag zu @n.Matchcode: </span>@n.Matchcode
+                                @if (z.IstBaugruppe)
+                                {
+                                    <span class="badge text-bg-dark ms-1">Baugruppe</span>
+                                }
+                            </td>
+                            <td class="text-end" data-label="Menge">@VormontageService.FormatMenge(n.Sollmenge)</td>
+                            <td class="text-end" data-label="Positionen"></td>
+                            <td data-label="Hauptauftrag">@Model.Spalten["hauptfa"](z)</td>
+                            <td data-label="Abteilung">@Model.Spalten["montage-abteilung"](z)</td>
+                            <td data-label="FE-Termin">@Model.Spalten["fe-termin"](z)</td>
+                            <td data-label="AG-Status"><partial name="_FaAgSymbole" model="z.Arbeitsgaenge" /></td>
+                            <td data-label="Material">@n.Material</td>
+                            <td data-label="Blechdicke">@(Model.Spalten["blechdicke"](z) ?? "–")</td>
+                            <td data-label="Bemerkung PN">@n.BemerkungPN</td>
+                            <td data-label="Fertigungsinfo PN">@n.FertigungsInfoPN</td>
+                            @if (Model.FraesenPfadAktiv)
+                            {
+                                var pfad = Model.Spalten["fraesen-pfad"](z);
+                                <td data-label="Fräsen-Pfad"><partial name="_FraesenPfad" model="pfad" /></td>
+                            }
+                            <td data-label="Status"><partial name="_TeilStatus" model="(z, Model)" /></td>
+                        </tr>
+                    }
                 }
             </tbody>
         </table>
@@ -106,6 +153,7 @@
     { "key": "hauptfa", "label": "Hauptaufträge", "locked": false, "defaultWidth": null },
     { "key": "montage-abteilung", "label": "Abteilung", "locked": false, "defaultWidth": null },
     { "key": "fe-termin", "label": "FE-Termine", "locked": false, "defaultWidth": null },
+    { "key": "ag-status", "label": "AG-Status", "locked": false, "defaultWidth": null },
     { "key": "material", "label": "Material", "locked": false, "defaultWidth": null },
     { "key": "blechdicke", "label": "Blechdicke", "locked": false, "defaultWidth": null },
     { "key": "bemerkungpn", "label": "Bemerkung PN", "locked": false, "defaultWidth": null, "defaultHidden": true },

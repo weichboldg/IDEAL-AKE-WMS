@@ -41,8 +41,14 @@
     var knopf = document.getElementById('blockMelden');
     var alle = document.getElementById('alleAuswaehlen');
     var boxen = function () { return Array.prototype.slice.call(document.querySelectorAll('.tl-auswahl')); };
+    // v1.99.74 (E2-2, Summiert): Summen-Haken [data-gruppe] traegt alle offenen Schluessel der Gruppe; ein mit ihm gesetzter Einzel-Haken
+    // [data-in-gruppe] zaehlt nicht doppelt (gesendet wird er trotzdem – der Server entdoppelt per DistinctBy).
+    var summe = function (g) { return document.querySelector('.tl-auswahl[data-gruppe="' + g + '"]'); };
     var auswahl = function () {
-        var gewaehlt = boxen().filter(function (c) { return c.checked; });
+        var gewaehlt = boxen().filter(function (c) {
+            var s = c.dataset.inGruppe != null ? summe(c.dataset.inGruppe) : null;
+            return c.checked && !(s && s.checked);
+        });
         return {
             zeilen: gewaehlt.reduce(function (s, c) { return s + parseInt(c.dataset.anzahl || '1', 10); }, 0),
             summe: gewaehlt.reduce(function (s, c) { return s + parseFloat(c.dataset.soll); }, 0)
@@ -55,6 +61,12 @@
     };
     document.addEventListener('change', function (ev) {
         if (ev.target === alle) boxen().forEach(function (c) { c.checked = alle.checked; });
+        var t = ev.target;
+        if (t.dataset && t.dataset.gruppe != null) {
+            document.querySelectorAll('.tl-auswahl[data-in-gruppe="' + t.dataset.gruppe + '"]').forEach(function (c) { c.checked = t.checked; });
+        } else if (t.dataset && t.dataset.inGruppe != null && !t.checked && summe(t.dataset.inGruppe)) {
+            summe(t.dataset.inGruppe).checked = false;
+        }
         if (ev.target === alle || ev.target.classList.contains('tl-auswahl')) aktualisieren();
     });
     form.addEventListener('submit', function (ev) {

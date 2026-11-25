@@ -1,0 +1,53 @@
+@model (IdealAkeWms.Services.TeilelisteZeile Z, IdealAkeWms.Models.ViewModels.BdeTeilelisteViewModel Vm)
+@using IdealAkeWms.Services
+@* v1.99.74: Statuszelle einer Teilezeile – Einzeln (Index) und Einzelauftraege in Summiert (vorher lokale Funktion in Index.cshtml). *@
+@{
+    var z = Model.Z;
+    var vm = Model.Vm;
+    var n = z.Node;
+}
+<div class="tl-status">
+    @if (z.Lager is { } lb)
+    {
+        @* v1.99.72 (F7): Lagerbestell-Zeile sicher von Auftragsteilen unterscheidbar *@
+        <span class="badge text-bg-warning">Lagerbestellung #@lb.RequisitionId</span>
+        @if (!string.IsNullOrWhiteSpace(lb.Kommentar))
+        {
+            <div class="small">@lb.Kommentar</div>
+        }
+    }
+    @if (z.Meldung != null)
+    {
+        <span class="text-success-emphasis fw-semibold">&#10003; gemeldet</span>
+        <div class="small">von @z.Meldung.BdeOperator?.DisplayName, @z.Meldung.GemeldetAm.ToString("dd.MM. HH:mm"),
+            Gut @VormontageService.FormatMenge(z.Meldung.GoodQuantity) / Ausschuss @VormontageService.FormatMenge(z.Meldung.ScrapQuantity)</div>
+        @if (z.Meldung.BdeOperatorId == vm.Werker!.Id)
+        {
+            <form method="post" asp-action="Zuruecknehmen" class="mt-1"
+                  onsubmit="return confirm('Meldung zurücknehmen? Die Zeile ist danach wieder offen.');">
+                <input type="hidden" name="meldungId" value="@z.Meldung.Id" />
+                <input type="hidden" name="workplaceId" value="@vm.Werkbank.Id" />
+                <input type="hidden" name="operatorId" value="@vm.Werker.Id" />
+                <input type="hidden" name="returnUrl" value="@vm.ReturnUrl" />
+                <button type="submit" class="btn btn-outline-danger bde-touch">Zurücknehmen</button>
+            </form>
+        }
+    }
+    else if (z.Verschwunden)
+    {
+        <partial name="_FaStrukturBadge" model="n" />
+        <div class="small">nicht meldbar</div>
+    }
+    else if (!z.Eindeutig)
+    {
+        <span class="text-danger-emphasis fw-semibold">&#9888; Strukturzeile nicht eindeutig – bitte AV</span>
+    }
+    else
+    {
+        <span>offen</span>
+    }
+    @if (z.KeinWmsAuftrag)
+    {
+        <div class="small text-muted">kein WMS-Auftrag</div>
+    }
+</div>

@@ -676,5 +676,8 @@ WHERE NOT EXISTS (SELECT 1 FROM dbo.Roles r WHERE r.[Key] = v.k);'
 @{ Id='v1.99.73-BdeTeilelisteAgStatusMobilInfo'; Version='1.99.73'; Typ='Info'; Firma='IDEAL'; Phase='Nachher'; Ausfuehrung='anzeigen'
    Text='BDE-Teileliste: neue Spalte AG-Status, Baugruppen-Teile als Zeilen (Knopf neben dem Matchcode), kompakte Ansicht am Handy. Werker kurz informieren; Browser-Cache am Terminal ggf. leeren.'
    Quelle='2026-11-25-v1-99-73-bde-masken-etappe-1-teile-einzeln' }
+@{ Id='v1.99.74-BdeTeilelisteSummiertInfo'; Version='1.99.74'; Typ='Info'; Firma='IDEAL'; Phase='Nachher'; Ausfuehrung='anzeigen'
+   Text='BDE-Teileliste Summiert: Auftraege je Matchcode aufklappbar (eigener Haken je Auftrag), Haken auf der Summenzeile meldet alle offenen Auftraege darunter fertig, AG-Status je Kuerzel zeigt den schlechtesten Stand. Werker kurz informieren; Browser-Cache am Terminal ggf. leeren.'
+   Quelle='2026-11-25-v1-99-74-bde-masken-etappe-2-teile-summiert' }
 )
 }

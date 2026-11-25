@@ -520,6 +520,7 @@ public static class ColumnDefinitions
             new ColumnDef("hauptfa", "Hauptaufträge", Locked: false),
             new ColumnDef("montage-abteilung", "Abteilung", Locked: false),
             new ColumnDef("fe-termin", "FE-Termine", Locked: false),
+            new ColumnDef("ag-status", "AG-Status", Locked: false),                         // v1.99.74 (E2-3), Text, filtert je Auftrag
             new ColumnDef("material", "Material", Locked: false),                             // v1.99.72 (F2)
             new ColumnDef("blechdicke", "Blechdicke", Locked: false),
             new ColumnDef("bemerkungpn", "Bemerkung PN", Locked: false, DefaultHidden: true),

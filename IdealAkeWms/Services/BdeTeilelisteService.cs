@@ -84,6 +84,10 @@ public sealed class TeilelisteAggregat
     public string? FertigungsinfosPn { get; init; }
     /// <summary>Verschiedene Fraesen-Pfade (je Wert ein Baustein <c>_FraesenPfad</c>); Zelltext = kommagetrennt.</summary>
     public IReadOnlyList<string> Pfade { get; init; } = Array.Empty<string>();
+    /// <summary>v1.99.74 (E2-1): die Zeilen der Gruppe, FE-Termin aufsteigend (ohne Termin zuletzt), dann Haupt-FA.</summary>
+    public IReadOnlyList<TeilelisteZeile> Einzelzeilen { get; init; } = Array.Empty<TeilelisteZeile>();
+    /// <summary>v1.99.74 (E2-3, Antwort 11): je Kuerzel der schlechteste Stand der Einzelzeilen, <see cref="BdeTeilelisteService.AgAggregieren"/>.</summary>
+    public IReadOnlyList<FaArbeitsschrittSymbol> Arbeitsgaenge { get; init; } = Array.Empty<FaArbeitsschrittSymbol>();
 }
 
 /// <param name="Waisen">F15: offene Meldungen dieses Kuerzels, deren Schluessel keine Zeile mehr trifft (HauptFA noch in der Struktur).</param>
@@ -434,10 +438,12 @@ public class BdeTeilelisteService
     /// <summary>F7: je Matchcode (getrimmt, ordinal wie Vormontage). Die Zeilen sind schon je Position gefiltert (Einzeln-Spalten);
     /// hier wirken nur Matchcode, Summe und Anzahl auf der Aggregat-Projektion.</summary>
     public static List<TeilelisteAggregat> Summieren(IEnumerable<TeilelisteZeile> zeilen, IEnumerable<FaHierarchyOrderInfo> infos,
-        IReadOnlyDictionary<string, string>? colf, IReadOnlyDictionary<string, ArtikelZusatz>? zusatz = null)
+        IReadOnlyDictionary<string, string>? colf, IReadOnlyDictionary<string, ArtikelZusatz>? zusatz = null, DateTime? heute = null)
     {
         var infosJeHauptFa = infos.GroupBy(o => o.HauptFA).ToDictionary(g => g.Key, g => g.ToList());
         var kopf = infosJeHauptFa.ToDictionary(e => e.Key, e => VormontageService.BuildKopfWerte(e.Value));
+        DateTime? Termin(TeilelisteZeile z) => z.Lager is { } l ? l.Termin
+            : infosJeHauptFa.TryGetValue(z.Node.HauptFA, out var li) ? li.Select(i => i.FE_Termin).Min() : null;
         var aggregate = zeilen
             .GroupBy(z => (z.Node.Matchcode ?? string.Empty).Trim(), StringComparer.Ordinal)
             .Select(g =>
@@ -466,11 +472,34 @@ public class BdeTeilelisteService
                     FertigungsinfosPn = VormontageService.FormatTexte(g.Select(z => z.Node.FertigungsInfoPN)),
                     Pfade = zus.Select(z => z?.Pfad).OfType<string>().Distinct(StringComparer.OrdinalIgnoreCase)
                         .OrderBy(p => p, StringComparer.OrdinalIgnoreCase).ToList(),
+                    Einzelzeilen = g.OrderBy(z => Termin(z) is null).ThenBy(Termin).ThenBy(z => z.Node.HauptFA).ThenBy(z => z.Node.VaterFA)
+                        .ThenBy(z => z.Node.Position).ThenBy(z => z.Lager?.ItemId).ToList(),
+                    Arbeitsgaenge = AgAggregieren(g, heute ?? DateTime.Today),
                 };
             })
             .OrderBy(a => a.Matchcode, StringComparer.OrdinalIgnoreCase);
         return ColumnFilterHelper.Apply(aggregate, colf, SpaltenSummiert, ColumnFilterTypes.For("BdeTeileliste/Summiert")).ToList();
     }
+
+    /// <summary>
+    /// v1.99.74 (E2-3, Antwort 11): aggregierte Ampel je Kuerzel (Reihenfolge des ersten Auftretens, Gross/Klein egal) – schlechtester Stand
+    /// gewinnt ueber <see cref="ArbeitsgangStatusRegel.Ableiten"/>(alle erledigt, irgendeine laeuft, fruehester Soll der nicht erledigten).
+    /// Neutrale und „kein BDE-Arbeitsgang“-Symbole zaehlen nicht mit; hat ein Kuerzel nur solche, bleibt es so (kein erfundener Status).
+    /// </summary>
+    public static IReadOnlyList<FaArbeitsschrittSymbol> AgAggregieren(IEnumerable<TeilelisteZeile> zeilen, DateTime heute) =>
+        zeilen.SelectMany(z => z.Arbeitsgaenge)
+            .GroupBy(a => a.Kuerzel.Trim(), StringComparer.OrdinalIgnoreCase)
+            .Select(g =>
+            {
+                var mitStatus = g.Where(a => a.Status is not (null or FaAgStatus.KeinBdeArbeitsgang)).ToList();
+                var basis = new FaArbeitsschrittSymbol(g.Key, g.Select(a => a.Name).FirstOrDefault(n => n != null));
+                if (mitStatus.Count == 0) return basis with { Status = g.Any(a => a.Status != null) ? FaAgStatus.KeinBdeArbeitsgang : null };
+                var erledigt = mitStatus.All(a => a.Status == FaAgStatus.Erledigt);
+                var laeuft = mitStatus.Any(a => a.Status is FaAgStatus.Laeuft or FaAgStatus.LaeuftUeberfaellig);
+                var soll = mitStatus.Where(a => a.Status != FaAgStatus.Erledigt).Select(a => a.Soll).Min();
+                return basis with { Soll = soll, Status = ArbeitsgangStatusRegel.Ableiten(erledigt, laeuft, soll, heute) };
+            })
+            .ToList();
 
     // ---------------------------------------------------------------- Melden (E3)
 

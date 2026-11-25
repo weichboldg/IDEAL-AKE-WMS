@@ -149,6 +149,7 @@ public class BdeTeilelisteController : Controller
             var vorfilter = colf.Where(c => !BdeTeilelisteService.SpaltenSummiert.ContainsKey(c.Key)).ToDictionary(c => c.Key, c => c.Value);
             var daten = await _svc.LadenAsync(vm.Kuerzel, kw, gemeldete, vorfilter, vm.Beschichtet, vm.FraesenPfadAktiv, mitLager);
             var aggregate = BdeTeilelisteService.Summieren(daten.Zeilen, infos, colf, daten.Zusatz);
+            vm.Spalten = BdeTeilelisteService.SpaltenZeile(vm.Kopf, vm.Beschichtet, daten.Zusatz); // v1.99.74: Zellen der Einzelauftraege
             vm.Waisen = daten.Waisen;
             total = aggregate.Count;
             vm.Aggregate = aggregate.Skip((page - 1) * size).Take(size).ToList();
