@@ -80,6 +80,7 @@ Rollen-Bedeutungen: [[glossar]].
 | `[RequireFaHierarchyKommissionierlistenAktiv]` | *(kein Rollen-Filter — AppSetting-Gate)* | FaHierarchyKommissionierListenController (class-level), **kumulativ** zu `[RequireLagerProcessingAccess]`. Toggle `FaHierarchyKommissionierlistenAktiv` (Default false): MVC → Redirect Home + WarningMessage. Invert-default-Attribut-Muster (v1.31.0). |
 | `[RequireFaHierarchyBeschichtungAktiv]` | *(kein Rollen-Filter — AppSetting-Gate)* | FaHierarchyBeschichtungController, BeschichtungsauftraegeController (class-level), **kumulativ** zu `[RequireBeschichtungsauftragAccess]`. Toggle `FaHierarchyBeschichtungAktiv` (Default false). |
 | `[RequireEinkaufAccess]` | admin, **`einkauf`** *(neue Rolle, v1.99.20)* | PurchaseProposalsController, seit v1.99.31 auch EinkaufPurchaseOrdersController (class-level, nur Lesen – keine POST-Action, Wächter-Test). Kumulativ dazu `[RequireEinkaufAktiv]`. |
+| `[RequireStockReadOrEinkaufAccess]` | stock_read-Kreis (admin, stock, stock_keyuser, picking, stock_read) **oder** admin/einkauf bei `EinkaufAktiv` = "true" *(v1.99.66, [[2026-11-23-sage-buchungen-gesamtsicht-spec]] Rückfrage 12a)* | `SageBookingQueueController.Index` („Sage-Buchungen“, action-level). Der Controller blendet für Einkauf ohne Lager-Recht die Lagerbuchungen und alle Knöpfe aus; `Requeue` bleibt `[RequireStockReadAccess]` + `[RequireStockKeyUserAccess]`. Nachgetragen durch QA 2026-11-25 (Drei-Stellen-Regel). |
 | `[RequireEinkaufAktiv]` | *(kein Rollen-Filter — AppSetting-Gate)* | PurchaseProposalsController, EinkaufPurchaseOrdersController (class-level), kumulativ zu `[RequireEinkaufAccess]`. Toggle `EinkaufAktiv` (Default false, nur exakt "true" schaltet frei; sonst Startseite mit Warnung, seit v1.99.31 „Einkauf ist deaktiviert (Einstellung „Einkauf aktiv“).“). |
 | `[RequireFaHierarchyVormontageAktiv]` | *(kein Rollen-Filter — AppSetting-Gate)* | FaHierarchyVormontageController (class-level), **kumulativ** zu `[RequireVorbauAccess]`. Toggle `FaHierarchyVormontageAktiv` (Default false). |
 | *(kein Filter)* | jeder eingeloggte User | UserViewPreferencesApiController (Login-Check, kein Rollen-Filter) |
@@ -131,6 +132,11 @@ sie nur bei Schreibrecht, der POST geht an `BeschichtungsauftraegeController.Cre
 
 `/ProductionOrders/ToggleRelease|BulkRelease|SetPriority|ChangeAssignedPicker` sind seit v1.12.0
 301-Redirects auf die entsprechenden `/PickingLeitstand/...`-Endpoints.
+
+Seit v1.99.66 ([[2026-11-23-sage-buchungen-gesamtsicht-spec]] F10): `GET /PurchaseOrders/SageWareneingaenge` und
+`GET /EinkaufPurchaseOrders/SageWareneingaenge` sind 301 auf `/SageBookingQueue?herkunft=Wareneingang` (Status über die F2-Zuordnung
+übersetzt, `bestellung`/`von`/`bis` weitergereicht; Einkauf zusätzlich `nurOffene=true`). Die WE-POST-Actions bleiben am
+`PurchaseOrdersController` und springen über `returnUrl` (nur `Url.IsLocalUrl`) zurück.
 
 ## Toggle-APIs
 

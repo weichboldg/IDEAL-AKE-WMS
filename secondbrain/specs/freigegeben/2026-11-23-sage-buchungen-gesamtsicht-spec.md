@@ -2,9 +2,9 @@
 type: spec
 title: Sage-Buchungen – eine Seite für Lagerbuchungen und Sage-Wareneingänge
 slug: 2026-11-23-sage-buchungen-gesamtsicht-spec
-status: InUmsetzung
+status: Testbereit
 created: 2026-11-23
-updated: 2026-11-24
+updated: 2026-11-25
 source_backlog: "[[2026-11-23-sage-buchungen-gesamtsicht]]"
 task: ""
 jira: ""
@@ -389,7 +389,19 @@ Wareneingang“; Fundstellen `docs/TESTSZENARIEN.md` im Worktree): Kap. 56 Über
 
 ## Deploy
 
-**Vorläufig** – der QA-Lauf bestätigt es am echten Diff.
+**Final (QA 2026-11-25, aus dem echten Diff `0725fc3e^..0725fc3e` + Doku-Commit `2c20cfea`):**
+- **Web-App: ja** (Controller, Filter `RequireStockReadOrEinkaufAccess`, Repositories, View, Navigation, Hilfe, Changelog).
+- **Service: nein** (unter `IDEALAKEWMSService/` nur `AppVersion.cs` 1.99.66; mitliefern schadet nicht, das Paket enthält beide).
+- **Migration: nein** (keine Datei unter `*/Migrations/`, kein `SQL/`).
+- **Manifest:** `v1.99.66-SageBuchungenInfo` (Info, beide, Nachher, anzeigen) steht in `scripts/deploy/nachlauf.psd1` – geprüft.
+- **Publish erledigt:** `C:\Git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-07-ideal-teile-1-5\publish` (Web + Dienst, `SQL\`, `deploy\`,
+  `publish-info.txt` Version 1.99.66, Commit `2c20cfeae977c52341c12d7ca06dd79bf67019df`). Ablauf Mensch: publish → Testsystem → testen → Merge.
+- Reihenfolge: keine DB-Schritte; Web-App tauschen, danach Info-Schritt des Manifests (Lager/Einkauf informieren).
+- Nach dem Merge nur dann neu aus `main` publishen, wenn der Merge getestete Dateien mit parallelen main-Änderungen zusammengeführt hat:
+  `dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWMSWeb` und
+  `dotnet publish IDEALAKEWMSService/IDEALAKEWMSService.csproj -c Release -o .\publish\IDEALAKEWMSWebService`.
+
+**Vorläufig (Spec-Agent)** – durch den Abschnitt oben ersetzt.
 
 - **Web-App:** ja (Controller, View, Repositories, Navigation/Layout, Hilfe, Changelog, Version in beiden `AppVersion.cs`).
 - **Service:** nein (kein Dienst-Code; `IDEALAKEWMSService/AppVersion.cs` wird nur hochgezählt).
@@ -479,3 +491,131 @@ Antwort Gerald 2026-11-24 zu 1–11: „ok, wie Empfehlungen“.
 10. Standard-Zeitraum 30 Tage, offene Zeilen (wartet/gesendet/Fehler/klären) immer + Hinweis mit Anzahl älterer offener. → **ok, wie Empfehlungen (Gerald 2026-11-24)**
 11. „nacherfasst“-Zusatz in „Erfasst von“. → **ok, wie Empfehlungen (Gerald 2026-11-24)**
 12. Einkauf ohne Lager-Recht: (a) Sage-Buchungen auch für Einkauf lesbar (nur WE-Zeilen, keine Knöpfe), (b) Einkauf-Ansicht bleibt, (c) Einkauf braucht stock_read? → **(a), Gerald 2026-11-24: „12a ja, passt“. Festlegungen des Spec-Agents (Knöpfe an der ersten Zeile des Vorgangs auf der angezeigten Seite; NurInSage in keiner Liste mehr; Umleitung betrifft nur Browser-Lesezeichen) ebenfalls bestätigt.**
+
+## QA-Nachweis (qa-agent, 2026-11-25)
+
+Geprüft: Umsetzung `0725fc3e` (v1.99.66) im Bündel-Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5`, Branch
+`feature/2026-08-07-ideal-teile-1-5`. QA-Commit im Worktree: `2c20cfea` (Foto 05-05 neu + Bildunterschrift + Stand in `docs/anwender/README.md`).
+Brain (Hauptcheckout): [[controller]] um `RequireStockReadOrEinkaufAccess` und die beiden 301-Umleitungen ergänzt (Befund B1).
+
+### 1. Build und Tests
+
+- `dotnet build IdealAkeWms.slnx`: 0 Fehler, 30 Warnungen (bestehend).
+- `dotnet test`: `IdealAkeWms.Tests` 3519 bestanden / 1 übersprungen / 0 Fehler (3520); `IDEALAKEWMSService.Tests` 790 / 0 / 0.
+
+### 2. Code-Review `0725fc3e^..0725fc3e` (selbst, in diesem Lauf)
+
+Angesehen: `SageBookingQueueController` (Index, Requeue, `Zurueck`), `PurchaseOrdersController.SageWe.cs` (Umleitung, drei POST-Actions),
+`EinkaufPurchaseOrdersController`, neuer Filter `RequireStockReadOrEinkaufAccessAttribute`, beide Repository-Abfragen (Zeitraum-Regel),
+`SageBuchungenGesamtsicht`, ViewModel, `Views/SageBookingQueue/Index.cshtml`, `ColumnDefinitions`, `ColumnFilterSyntax`, `NavigationKatalog`,
+`_Layout`, `ServiceSettings`/`Receive`/`RoleOverview`, Manifest, Tests.
+
+- **Rollen/Read-Edit-Split:** Index `[RequireStockReadOrEinkaufAccess]` (Action), Requeue `[RequireStockReadAccess]` + `[RequireStockKeyUserAccess]`;
+  WE-POSTs weiter hinter dem Klassen-Gate des `PurchaseOrdersController` (stock_read + `WareneingangBestellungAktiv`) + `[RequireStockKeyUserAccess]`.
+  Knöpfe: `CanRequeue = stockRead && CanTransfer`, `CanWeAktionen = CanRequeue && Modul` – Einkauf ohne Lager-Recht sieht nie Knöpfe. OK.
+- **Paging/Spaltenfilter (ADR 0005):** Filterkarte und `ColumnFilterHelper.Apply` über die ganze Union, danach `Skip/Take`; `MarkiereErsteJeVorgang`
+  nach dem Paging; Seitenklemmung zentral über `PaginationSeiteKlemmenFilter` (Fallstrick 50, auf DEV bestätigt). OK.
+- **returnUrl/Open-Redirect:** `Zurueck` nutzt `Url.IsLocalUrl` + `LocalRedirect` (doppelt abgesichert), sonst `RedirectToAction`. Test
+  `Aktion_Ruecksprung_LokaleReturnUrl_SonstSageBuchungen` mit fremder URL. OK.
+- **301:** `RedirectToActionPermanent`, Status über `SageBuchungenGesamtsicht.Anzeige` übersetzt; die Einkauf-Instanz `_listen` ohne ControllerContext
+  ist unkritisch (UrlHelper entsteht beim Ausführen) – auf DEV bestätigt.
+- Script-Blöcke: `#column-config` über `@Json.Serialize`, `#view-config` statisch – OK. Kein `hidden` + `d-*`. Keine stillen `?? 0`-Fallbacks
+  (`Queue?.… ?? We!.…` ist Quellenwahl). Keine Parallel-Arrays. Belegnummer-Länge serverseitig geprüft (nicht nur `maxlength`).
+- Eine Regel an mehreren Stellen: Zeitraum-Regel in beiden Repositories (LINQ) und `ImZeitraum` (nur für den Hinweis-Zähler), Kommentare verweisen
+  aufeinander; „offen“ = nicht Bestätigt/Übergeben überall gleich. Die Queue-Abfrage ist InMemory nicht getestet, auf DEV aber bestätigt.
+
+**Befunde**
+
+| # | Schwere | Befund | Behandlung |
+|---|---|---|---|
+| B1 | mittel | Neuer Filter `RequireStockReadOrEinkaufAccess` fehlte in [[controller]] (Drei-Stellen-Regel; Attribut und `RoleOverview` waren da). | **Behoben durch QA** im Hauptcheckout (Filtertabelle + Abschnitt „Abgeloeste Routen“). |
+| B2 | niedrig | Einleitungstext: zwischen den beiden `<text>`-Blöcken fehlt ein Leerzeichen („…(kein Doppelbuchen).Wareneingänge gehen …“), `Views/SageBookingQueue/Index.cshtml`, Einleitungs-`<p>`. | Offen, kosmetisch – beim nächsten Anfassen der View; kein Blocker. |
+| B3 | niedrig (Hinweis) | Admin bzw. Rolle einkauf sieht bei `EinkaufAktiv` = true WE-Zeilen auch mit `WareneingangBestellungAktiv` = aus (ODER-Regel F7/Rückfrage 12a; Knöpfe dann aus). AK 10 („Modul aus: keine WE-Zeilen“) gilt damit nur für Benutzer ohne Einkauf-Lesekreis. | Spec-konform (F7 „ohne Modulbedingung, wie heute“), akzeptiert; Checkliste Punkt 5. |
+| B4 | Hinweis (DEV) | Per SQL auf „Fehler“ gesetzte Sage-WE-Zeilen stellt der Dienst bei ausgeschaltetem Sage-Wareneingang binnen Sekunden auf „klären“ (Q-2, `system:sage-wareneingang`). Kein Fehler; 189.4 wurde mit „klären“ geprüft. | Keine Aktion. |
+| B5 | Hinweis (Lauf) | Brain-Changelog `secondbrain/changelog/…v1-99-66…` und Eintrag in `feature-map.md` fehlen noch (ebenso für v1.99.65). | Gehört zum Lauf-Abschluss (goal-Lauf), nicht zur QA. |
+
+**Bewertung der Abweichungen des Umsetzers**
+1. Einkauf sieht WE-Zeilen schon mit `EinkaufAktiv` ohne Modul – entspricht F7 + Rückfrage 12a („ohne Modulbedingung, wie heute“); Knöpfe korrekt am Modul. **Akzeptiert** (siehe B3).
+2. `?herkunft=Wareneingang` ohne WE-Recht wird ignoriert → Lagerbuchungen. Unschädlich (die alte Lager-URL liegt ohnehin hinter dem Modul-Gate), in TS-189.10 so beschrieben. **Akzeptiert.**
+3. Foto 05-05 alt – **erledigt durch QA** (`2c20cfea`, headless Edge gegen DEV AKE, nur angesehen).
+4. Testdateiname `SageWareneingaengeListeTests.cs` bleibt – Testindex und TS verweisen darauf. **Akzeptiert.**
+5. `docs/betrieb/04` ohne eigenen Stempel – Stand steht zentral in `docs/betrieb/00-index.md` (im Diff). **Akzeptiert.**
+
+### 3. Nachweisart je AK
+
+| AK | Nachweis |
+|---|---|
+| 1 Menü/Titel | `NavigationSichtTests` (Titel) + DEV OK |
+| 2 Union, NichtNoetig/NurInSage | `SageWareneingaengeListeTests.Liste_OhneNichtNoetig…`, `Build_WeOhneAnzeige…` + DEV OK |
+| 3 Status-Zuordnung | automatisiert (`Anzeige_*_JederWert`, neuer Enum-Wert bricht) |
+| 4 Herkunft | `Herkunft_Lagerbestellung_VorBewegungsart` + DEV OK |
+| 5 Requeue Lagerbuchung | Rücksprung automatisiert (an der WE-Action); Requeue selbst **Manual-UAT** (auf DEV nicht ausgelöst, kein Senden) |
+| 6 3 Positionen, Knöpfe erste Zeile | `ErsteZeileJeVorgang_TraegtDieKnoepfe…` + DEV OK (mit „klären“) |
+| 7 Als übergeben (leer/46/gültig) | automatisiert (`AlsUebergeben_*`) + DEV „gültig“ OK |
+| 8 CSV erneut schreiben | DEV OK (Manual) |
+| 9 Zahnrad | Manual, DEV OK |
+| 10 Rechte | `Einkauf_OhneLagerRecht…`, `ModulAus_KeineWeZeilen…` automatisiert; DEV IDEAL Modul aus OK; `stock_read` ohne Keyuser + POST verweigert **Manual-UAT offen** |
+| 11 Zeitraum | `Zeitraum_ErledigteAelterAls30TageWeg…` (WE-Abfrage) + DEV OK (Queue-Abfrage nur DEV) |
+| 12 nacherfasst | `ErfasstVon_Nacherfasst…` + DEV OK |
+| 13 Umleitungen 301 | `Umleitung_AlteLagerUrl_301…` (Permanent) + DEV Ziel-URL OK |
+| 14 Filter vor Paging, Klemmen | DEV OK (Manual; InMemory teilweise) |
+| 15 Hinweise | DEV: TLS-Banner, Q-2-Hinweis, Knopf „Wareneingang zu Bestellung“ OK; CSV-Hinweise nicht prüfbar (CSV auf DEV aus) |
+| 16 Build/Tests | grün (s. o.) |
+
+### 4. Geänderte bestehende Tests
+
+- `PurchaseOrdersControllerTests` (Wächter liest jetzt `Views/SageBookingQueue/Index.cshtml`) – Verhalten absichtlich geändert (F5, View umgezogen).
+- `NavigationSichtTests` (Titel „Sage-Buchungen“) – absichtlich geändert (AK 1).
+- `SageWareneingaengeListeTests`: Aufrufe auf `SageBookingQueueController.Index` bzw. den `returnUrl`-Parameter umgestellt (Signatur-Anpassung);
+  `Einkauf_NurOffene_…_v1_99_31_F2a` ersetzt durch `Einkauf_OhneLagerRecht…_Rueckfrage12` – absichtlich geändert (Rückfrage 12a, NurInSage nicht mehr
+  gelistet, AK 2/10). Keine Fixture „grün gebogen“.
+
+### 5. Checkliste CLAUDE.md / ADR 0020
+
+Keine Migration, kein SQL, kein FreshInstall/AgentJobs-Bezug. Audit-Felder: nur bestehende Schreibwege (DEV: `ModifiedBy`/`ModifiedByWindows` gesetzt).
+Version 1.99.66 in beiden `AppVersion.cs`, Anwender-Changelog ergänzt. TS-189 in `docs/TESTSZENARIEN.md`, Indexzeile 189 vorhanden.
+Einstellungen: nur Verwendungstexte geändert, keine neue/geänderte Einstellung – ADR 0020 nicht berührt. Brain-Changelog/feature-map: B5.
+
+### 6. DEV-Deploy und Testlauf
+
+`standort: beide` (Frontmatter). Elevated Shell, `dev-deploy.ps1 -Quelle <Worktree>` je Standort, Exit 0:
+- AKE: „HTTP 200, Fusszeile v1.99.66 … Fertig: AKE v1.99.66 auf http://localhost:8081/“
+- IDEAL: „HTTP 200, Fusszeile v1.99.66 … Fertig: IDEAL v1.99.66 auf http://localhost:8082/“
+
+Testdaten (DEV AKE, per SQL, danach zurückgesetzt): Receipts 37–39 ein Vorgang (Fehler → vom Dienst „klären“), 20 „klären“, 19 `NurInSage`,
+CSV-Export 3 auf Fehler, Queue 14 als Lagerbestellung (WarehouseRequisitionItemId 155), 15 Bestätigt im Zeitraum, 16 nacherfasst; Queue 1–6 (Fehler,
+August) = offene außerhalb des Zeitraums. Erwartung vorher gerechnet, Ergebnis deckungsgleich.
+
+| Schritt | Ergebnis | |
+|---|---|---|
+| 189.1 | Titel „Sage-Buchungen“, Menü Lager ohne „Sage-Wareneingänge“, 16 Zeilen beider Herkünfte (9 Queue + 7 WE), Badges/„Status im Weg“ passend zur DB-Abfrage | OK |
+| 189.2 | Herkunft WE 7, Lagerbestellung 1; Status Fehler 6 / klären 4; nur offene 10; Bestellung „168715“ 2 (nur WE); von=bis=12.11. 12 Zeilen + Hinweis 10; Spaltenfilter Fehler „Timeout“ 3; `page=3` → auf Seite 1 geklemmt | OK |
+| 189.3 | Ohne „von“: Feld 26.10.2026, erledigte Queue 7–13 (Sept.) fehlen, offene 1–6 (Aug.) da, Hinweis „6 offene Buchungen außerhalb …“ | OK |
+| 189.4 | Vorgang WE#37#: Knöpfe nur an 406229, Rest „gehört zu Vorgang WE#37#“; `colf_pos=406230` → 1 Treffer mit Knöpfen | OK |
+| 189.5 | „Als übergeben markieren“ WE#20# mit `QA-189-TEST` → Meldung „1 Position(en) … markiert“, DB Status 3 + Beleg + Modified*, Rücksprung auf dieselbe URL inkl. `colf_pos`; „CSV erneut schreiben“ → Meldung, Export Status 3→1, Rücksprung OK. Leer/46 Zeichen nur automatisiert | OK |
+| 189.5 | Lagerbuchung „Erneut senden“, WE „Erneut senden“ | **NICHT MOEGLICH** (Auftrag: keine Requeue-/Sende-Aktion) |
+| 189.6 | Zahnrad: fünf WE-Spalten standardmäßig aus, Herkunft/Status gesperrt; Lieferschein ein → nach Neuladen sichtbar, wieder aus | OK |
+| 189.7 | Queue 16: „Gerald Weichbold (nacherfasst)“ | OK |
+| 189.8 | `/PurchaseOrders/SageWareneingaenge?status=Klaeren&bestellung=168965&von=2026-11-01` → `/SageBookingQueue?herkunft=Wareneingang&status=Klaeren&bestellung=168965&von=2026-11-01`; Einkauf-URL → `?herkunft=Wareneingang&nurOffene=True`; `/ServiceSettings` „Zu den Sage-Buchungen“; Receive-Hinweis im Diff. 301-Code nur per Unit-Test | OK |
+| 189.9 | `stock_read`-Benutzer | **NICHT MOEGLICH** (kein zweiter Test-Login in diesem Lauf) |
+| 189.10 | DEV IDEAL, `WareneingangBestellungAktiv` kurz auf false (danach wieder true): keine Auswahl „Wareneingang“, kein Feld Bestellung, keine WE-Spalten; `?herkunft=Wareneingang` → Lagerbuchungen | OK |
+| 189.11 | `NurInSage` (19) und `NichtNoetig` nicht als WE-Zeile | OK |
+| 189.12 | Einkauf ohne Lager-Recht | **NICHT MOEGLICH** (kein Einkauf-Test-Login); automatisiert über `Einkauf_OhneLagerRecht…` |
+| 189.13 | Herkunft WE + Status Fehler bzw. IDEAL: „Keine Einträge.“, Pagination „Keine Eintraege“ | OK |
+| 189.14 | Badges mit Text (Bild 05-05) OK; 390 px | **NICHT MOEGLICH** (Headless-Fenster rendert nicht unter ~500 px, Chrome-Screenshot reagierte nicht) |
+
+### 7. Publish
+
+`C:\Git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-07-ideal-teile-1-5\publish\` (Zielordner vorher geleert): `IDEALAKEWMSWeb`, `IDEALAKEWMSWebService`, `SQL`,
+`deploy`, `publish-info.txt` (Version 1.99.66, Commit `2c20cfeae977c52341c12d7ca06dd79bf67019df`). Manifest-Eintrag geprüft.
+
+### Manuelle Test-Checkliste (Mensch, Schranke 2)
+
+1. 189.5 Lagerbuchung „Erneut senden“ mit Filter (z. B. Status Fehler, Seite 2) – Rücksprung mit Filtern; nur bei ausgeschaltetem Dienst oder gegen Sage-Test.
+2. 189.5 WE „Erneut senden“ (Q-2-Sperre bei ausgeschaltetem Sage-WE, sonst Einreihen) – nur mit Sage-Test.
+3. 189.9 als `stock_read` ohne Keyuser: Liste ohne Knöpfe; POST `SageWeErneutSenden`/`Requeue` per Werkzeug → Zugriff verweigert, nichts geändert.
+4. 189.12 als Einkauf ohne Lager-Recht: Einkauf → Sage-Wareneingänge (offen) → nur WE-Zeilen, „nur offene“, keine Knöpfe, kein „Wareneingang zu Bestellung“.
+5. 189.10 zusätzlich als admin bei `EinkaufAktiv` = true und Modul aus (B3: WE-Zeilen sichtbar, ohne Knöpfe – so gewollt?).
+6. 189.14 bei 390 px Breite: genau ein Scrollbalken, keine Seiten-Querscrollleiste.
+7. CSV-Hinweise (AK 15) mit eingeschalteter CSV-Übergabe auf dem Testsystem.
+8. Testsystem-Lauf mit dem Paket aus `publish\` (Web tauschen, Manifest-Info), danach Merge.
