@@ -18,26 +18,28 @@ affected_code:
   - "IDEALAKEWMSService/Program.cs (Registrierung Workflow + BOM-Graph über gemeinsame Methode, DienstBenutzer, neuer Service)"
   - "IdealAkeWms/Services/PickingOrderRegistrierung.cs (neu: eine Registrierungsmethode für BOM-Weiche + Kommissionierauftrag-Repos + PickingOrderWorkflow, genutzt von Web- und Dienst-Program.cs)"
   - "IdealAkeWms/Program.cs (:89-115, :130-132, :195 auf die gemeinsame Methode umstellen)"
-  - "IdealAkeWms/Services/PickingOrderWorkflow.cs (Zeilenzähler in PickingOrderErzeugung, Fehlertext :143-144; ggf. Überdeckung je Rückfrage 2)"
-  - "IdealAkeWms/Services/PickingOrderRestmengen.cs (nur bei Rückfrage 2 = b: Überdeckungs-Liste)"
+  - "IdealAkeWms/Services/PickingOrderWorkflow.cs (Zeilenzähler und Überdeckung in PickingOrderErzeugung, Soll-Aufbau :79-87 als statische Methode SollListe, Marker StuecklisteKleiner schreiben, Fehlertext :143-144)"
+  - "IdealAkeWms/Services/PickingOrderRestmengen.cs (neu: record Ueberdeckung + Funktion Ueberdeckt, gleiche Abdeckungs-Regel Abgedeckt :19-27)"
+  - "IdealAkeWms/Models/ProductionOrderPickingStatus.cs (neu: string? StuecklisteKleiner)"
+  - "IdealAkeWms/Data/Repositories/IProductionOrderPickingStatusRepository.cs + ProductionOrderPickingStatusRepository.cs (neu: SetStuecklisteKleinerAsync nach Muster SetPickingStatusTextAsync :123-135)"
+  - "IdealAkeWms/Migrations/<ts>_AddPickingStatusStuecklisteKleiner.cs (neu) + SQL/168_AddPickingStatusStuecklisteKleiner.sql (neu, Nummer prüft der Dev-Lauf) + SQL/00_FreshInstall.sql (:447 Spalte, History-Block nach :3554)"
   - "IdealAkeWms/Services/SyncLogger/SyncLogServices.cs (neuer Name in All + DisplayNames)"
   - "IdealAkeWms/Models/ServiceSettingDefinitions.cs (2 Keys: Basis, Meta, Int-Bereich)"
-  - "IdealAkeWms/Controllers/PickingLeitstandController.cs (AuftraegeNachziehen :532-548 Filter; AltbestandGeprueft :550-567 je Rückfrage 3; Index setzt IsAdmin)"
-  - "IdealAkeWms/Models/ViewModels/PickingLeitstandViewModel.cs (IsAdmin)"
+  - "IdealAkeWms/Controllers/PickingLeitstandController.cs (AuftraegeNachziehen :532-548 [RequireAdminAccess]; AltbestandGeprueft :550-567 legt sofort an; MapItem :125-163 übernimmt StuecklisteKleiner; Index setzt IsAdmin)"
+  - "IdealAkeWms/Models/ViewModels/PickingLeitstandViewModel.cs (IsAdmin; PickingLeitstandItem :60 + StuecklisteKleiner)"
   - "IdealAkeWms/Views/PickingLeitstand/Index.cshtml (:86-99 beide Formulare nur für Admins)"
+  - "IdealAkeWms/Views/PickingLeitstand/_PickingLeitstandRow.cshtml (:185-197 Badge „Stückliste kleiner“)"
+  - "IdealAkeWms/Controllers/PickingController.cs (BomSeiteAsync :260-420 Überdeckung live) + Models/ViewModels/BomViewModels.cs (:157 neue Liste) + Views/Picking/Bom.cshtml (Warnung vor :84)"
   - "IdealAkeWms/Views/Help/Index.cshtml (:1771-1773), Views/Picking/Bom.cshtml (:66), Views/Picking/Index.cshtml (:55-56), Views/Help/Changelog.cshtml"
   - "docs/TESTSZENARIEN.md (TS-191 neu, Hinweis an TS-120.2/120.6/120.13), docs/anwender/01-kommissionierung.md (:93-95, :262), docs/anwender/02-kommissionierbereiche.md (:100, :118), docs/betrieb/07-troubleshooting.md (:88-89), docs/betrieb/08-diagnose-abfragen.md (:413)"
-  - "IDEALAKEWMSService.Tests (neu: KommissionierNachtragServiceTests inkl. DI-Test), IdealAkeWms.Tests (Leitstand-Filter, BomDiResolutionTests auf die gemeinsame Methode)"
-open_questions:
-  - "Was heißt „Admin“ für den Knopf: Rolle admin über das vorhandene [RequireAdminAccess] (Empfehlung) oder ein neues eigenes Recht?"
-  - "Stückliste nach der Freigabe kleiner geworden (Menge gesenkt oder Position entfernt): (a) nur dokumentieren, (b) nichts ändern, aber im Nachtlauf je FA melden (Empfehlung), (c) offene Zeilen automatisch kürzen/entfallen lassen?"
-  - "„Altbestand geprüft“ durch einen Leitstand-Benutzer ohne Admin: sofort die fehlenden Aufträge dieses einen FA anlegen (Empfehlung) oder bis zum Nachtlauf warten?"
+  - "IDEALAKEWMSService.Tests (neu: KommissionierNachtragServiceTests inkl. DI-Test), IdealAkeWms.Tests (Leitstand-Filter, BomDiResolutionTests auf die gemeinsame Methode, PickingOrderRestmengen.Ueberdeckt, Workflow-Marker, AltbestandGeprueft legt an)"
+open_questions: []
 epic: false
 etappen: []
 deploy:
   web: true
   service: true
-  migration: false
+  migration: true
 freigabe_entscheidung: ""
 freigabe_von: ""
 freigabe_am: ""
@@ -81,9 +83,13 @@ Notfall-Werkzeug, aber **nur für Admins** sichtbar und serverseitig geschützt.
   `Index.cshtml:91/98`).
 - Texte, die auf den Knopf verweisen: Hilfe, Stückliste, Auftragsliste, Fehlertext im Workflow, Meldung nach „Altbestand geprüft“, Anwender- und
   Betriebsdoku, Testszenarien.
+- „Altbestand geprüft“ legt danach sofort die fehlenden Aufträge dieses FA an (Antwort 3).
+- Warnung „Stückliste kleiner als offene Kommissionierzeilen“ (Antwort 2): im Nachtlauf-Protokoll, in der Stückliste (live) und je FA-Zeile im
+  Leitstand (gespeicherter Marker, eine neue Spalte).
 
 **Out-of-Scope**
-- Verhalten bei kleiner gewordener Stückliste über eine Meldung hinaus (Rückfrage 2).
+- Offene Zeilen bei kleiner gewordener Stückliste kürzen oder entfallen lassen (Antwort 2: nichts kürzen). Die Leitstand-Leitung entscheidet
+  selbst.
 - FAs mit `IsDonePicking = true` (alle Aufträge erledigt): Eine spätere Stücklisten-Erweiterung bekommt keinen Auftrag mehr. Das ist schon
   heute so (der Knopf nimmt dieselbe Liste, `PickingLeitstandController.cs:538`) und bleibt so.
 - Modus ohne Leitstand (`LeitstandAktiv` aus): dort entstehen Aufträge weiter beim Öffnen der Stückliste (`PickingController.cs:241-247`).
@@ -110,9 +116,11 @@ F4 – **Audit.** Aufträge und Zeilen aus dem Nachtlauf tragen `CreatedBy = Cre
 schreiben ihren Namen; Muster `LetzteBestellungSyncService.cs:40,173,195`).
 
 F5 – **Aktivitäts-Protokoll** (Dienstname `KommissionierNachtrag`, Anzeige „Kommissionier-Nachtrag“). Zähl-Schlüssel:
-`fa_geprueft`, `fa_mit_nachtrag`, `auftraege_angelegt`, `zeilen_angelegt`, `ohne_rest`, `altbestand_pruefen`, `ohne_stueckliste`, `fehler`
-(bei Rückfrage 2 = b zusätzlich `stueckliste_kleiner`). Zeilen:
+`fa_geprueft`, `fa_mit_nachtrag`, `auftraege_angelegt`, `zeilen_angelegt`, `ohne_rest`, `altbestand_pruefen`, `ohne_stueckliste`, `fehler`,
+`stueckliste_kleiner`. Zeilen:
 - Info je FA mit Nachtrag: „FA <Nr>: <KO-Nummern> (<n> Zeilen)“.
+- Warnung je FA mit Überdeckung (F8): „FA <Nr>: Stückliste kleiner als offene Kommissionierzeilen – <Artikel> Pos <P>: Stückliste <x>,
+  beauftragt <y>; …“.
 - Warnung je FA mit „Altbestand prüfen“, ohne Stückliste oder mit Bereichs-Meldung (`PickingOrderErzeugung.Meldungen`, Workflow `:67`,
   `:75`, `:112`).
 - Warnung je FA mit `Fehler`. Das sind fehlender Standardbereich (`:93`) und Nummernkreis nach 3 Versuchen (`:143`). Wirft der
@@ -125,20 +133,40 @@ F6 – **Knopf nur für Admins.** Beide Formulare zu `AuftraegeNachziehen` sehen
 `Account/AccessDenied` wie bei jedem `[RequireAdminAccess]` (`Filters/RequireAdminAccessAttribute.cs:23-27`). Das Verhalten für Admins
 (markierte oder alle, Prüfung „nur freigegebene“, Sammelmeldung) bleibt wie in `PickingLeitstandController.cs:535-548`.
 
-F7 – **„Altbestand geprüft“** hängt an Rückfrage 3. Empfehlung: Die Action legt danach sofort die fehlenden Aufträge **dieses FA** an (ein
-Aufruf `ErzeugeOffeneAsync(id)`, Sammelmeldung wie bei der Freigabe). So muss ein Leitstand-Benutzer ohne Admin nicht bis zur Nacht warten.
-Die heutige Meldung `:561-562` verweist auf den Knopf, den er nicht mehr sieht.
+F7 – **„Altbestand geprüft“** (Antwort 3): Die Action legt danach sofort die fehlenden Aufträge **dieses FA** an (ein Aufruf
+`ErzeugeOffeneAsync(id)`, Meldung wie bei der Einzelfreigabe über `AuftraegeMeldenAsync`, `PickingLeitstandController.cs:451`). Voraussetzung wie
+beim Knopf: Der FA ist freigegeben, nicht erledigt und nicht storniert. Sonst bleibt es beim Löschen des Kennzeichens, und die Meldung sagt, dass
+der FA nicht freigegeben ist. Die Action bleibt `[RequireLeitstandAccess]` (`:554`). Der heutige Verweis auf den Knopf (`:561-562`) entfällt.
 
-F8 – **Kleiner gewordene Stückliste** hängt an Rückfrage 2 (heutiges Verhalten unten belegt).
+F8 – **Kleiner gewordene Stückliste** (Antwort 2: nichts kürzen, melden und anzeigen). Heutiges Verhalten unten belegt.
+- **Regel (eine Stelle):** Ein Stücklistenschlüssel (Ressource + Position, `PickingOrderRestmengen.Schluessel`) ist *überdeckt*, wenn
+  1. es zu ihm mindestens eine **offene Kommissionierzeile** gibt (Status `Offen` oder `Gepickt`, also noch nicht umgebucht, in einem nicht
+     stornierten Auftrag), und
+  2. die beauftragte Menge (Summe `Abgedeckt` über alle Zeilen nicht stornierter Aufträge, `PickingOrderRestmengen.cs:19-27`) größer ist als das
+     aktuelle Soll. Eine entfallene oder bei IDEAL nicht mehr kommissionier-relevante Position hat Soll 0.
+
+  Bedingung 1 hält abgeschlossene Schlüssel heraus: Wurde mehr umgebucht als verlangt, ist nichts mehr zu tun, und eine Warnung wäre nur Lärm.
+- **Nachtlauf:** zählt `stueckliste_kleiner` und schreibt je FA eine Warnung (F5). Offene Zeilen bleiben unverändert.
+- **Leitstand:** In der FA-Zelle steht das Badge „⚠ Stückliste kleiner“. Der Tooltip nennt Artikel, Position, Stückliste und beauftragt. Sichtbar
+  für alle, die den Leitstand sehen, nicht nur für Admins. Quelle ist der gespeicherte Marker `ProductionOrderPickingStatus.StuecklisteKleiner`;
+  der Leitstand lädt keine Stückliste.
+  - Den Marker setzt oder löscht jeder Aufruf von `ErzeugeOffeneAsync`: Nachtlauf, Freigabe, Admin-Knopf, „Altbestand geprüft“ und das Öffnen
+    der Stückliste ohne Leitstand.
+  - Nach einem Abschluss oder Storno verschwindet er spätestens mit dem nächsten Nachtlauf.
+- **Stückliste (`Picking/Bom`, FA- und Auftragsmodus):** Ein Hinweis über der Filterkarte mit dem Text „⚠ Stückliste kleiner als offene
+  Kommissionierzeilen“ und der Liste der Schlüssel. Er wird live berechnet, denn die Seite lädt die Stückliste ohnehin. So ist er nach einer
+  Stücklistenänderung sofort aktuell, auch wenn der Leitstand-Marker noch den Stand der letzten Erzeugung zeigt.
+- Auch die Sammelmeldung nach Freigabe, Knopf und „Altbestand geprüft“ nennt die Überdeckung. Dafür kommt eine Zeile in
+  `PickingOrderErzeugung.Meldungen`, die `Sammelmeldung` (`PickingOrderWorkflow.cs:322-333`) als Warnung ausgibt.
 
 F9 – **Texte.** Alle Verweise auf den Knopf nennen künftig den Nachtlauf, der Knopf nur noch als Admin-Notfall:
 - `Views/Help/Index.cshtml:1771-1773`. Der Backlog nennt `:1742`, im Worktree steht der Text jetzt bei `:1773`.
 - `Views/Picking/Bom.cshtml:66`, `Views/Picking/Index.cshtml:55-56`.
 - `PickingOrderWorkflow.cs:143-144`, neuer Text: „… – der nächtliche Lauf versucht es erneut; sofort: Admin im Leitstand „Fehlende
   Kommissionieraufträge erzeugen“.“
-- `PickingLeitstandController.cs:561-562`, Text je Rückfrage 3.
+- `PickingLeitstandController.cs:561-562`: Der Verweis auf den Knopf entfällt, die Action legt sofort an (F7).
 
-### Heutiges Verhalten bei kleiner gewordener Stückliste (Beleg für Rückfrage 2)
+### Heutiges Verhalten bei kleiner gewordener Stückliste (Beleg für Rückfrage 2, beantwortet: F8)
 
 - `PickingOrderRestmengen.Berechne` geht nur über die **Soll**-Positionen der aktuellen Stückliste und gibt nur Reste `> 0` zurück
   (`PickingOrderRestmengen.cs:36-41`). Eine gesenkte Menge oder eine entfernte Position erzeugt also nichts und ändert nichts.
@@ -221,8 +249,10 @@ Befund:
        (`PickingOrderWorkflow.cs:139`, `Nummernkreis.cs:39-46`).
      - Zählen, Zeilen loggen, `FinishSuccessAsync(counts)`.
    - Der FA-Name für die Meldung kommt aus der FA-Liste (`OrderNumber`), ohne zweiten Lesezugriff.
-4. **`PickingOrderErzeugung`** bekommt `int ZeilenAngelegt`, gesetzt in der Schleife `PickingOrderWorkflow.cs:118-136` und übernommen bei
-   `:147-149`. Das ist der kleinste Weg zum Zähler `zeilen_angelegt`, ohne die Aufträge nachzulesen.
+4. **`PickingOrderErzeugung`** bekommt:
+   - `int ZeilenAngelegt`, gesetzt in der Schleife `PickingOrderWorkflow.cs:118-136` und übernommen bei `:147-149`. Das ist der kleinste Weg
+     zum Zähler `zeilen_angelegt`, ohne die Aufträge nachzulesen.
+   - `List<PickingOrderRestmengen.Ueberdeckung> Ueberdeckt` (siehe Punkt 8).
 5. **`SyncWorker`**: neuer Block nach der Arbeitsgang-Erkennung (`SyncWorker.cs:543`), also nach FA-Import (`:44`), BOM-Cache (`:205`),
    FA-Hierarchie (`:352`) und Materialisierung (`:372`). Damit sieht der Lauf die frischste Stückliste:
    - AKE: Cache zuerst (`BomRepository.cs:27-30`), gepflegt vom BOM-Cache-Sync.
@@ -235,7 +265,14 @@ Befund:
      (`:12`) bleibt.
    - `PickingLeitstandViewModel` bekommt `IsAdmin`, gesetzt in `Index` aus `IsAdminAsync()` (`CurrentUserService.cs:82-83`).
    - `Index.cshtml:86-93` und `:95-99` werden zusätzlich in `@if (Model.IsAdmin)` gefasst. Das JS ist bereits null-sicher (`:664`, `:733`).
-   - `AltbestandGeprueft` (`:550-567`) je Rückfrage 3.
+   - `AltbestandGeprueft` (`:550-567`, F7):
+     - Nach `AltbestandGeprueftAsync` den Status lesen (`_pickingStatusRepository.GetByProductionOrderIdAsync(id)`,
+       `IProductionOrderPickingStatusRepository.cs:16`).
+     - Bei `IsReleasedForPicking && !IsDonePicking && !order.IsDone && !order.IsCancelled` (dieselbe Bedingung wie
+       `GetReleasedForPickingAsync`, `ProductionOrderPickingStatusRepository.cs:193`) folgt
+       `await AuftraegeMeldenAsync(new[] { (order.OrderNumber, await _pickingOrderWorkflow.ErzeugeOffeneAsync(id)) })`.
+     - Die Erfolgsmeldung nennt zuerst die geprüften Altbestand-Nummern, danach die Meldung der Erzeugung.
+     - Summary-Kommentar `:550-551` nachziehen.
 7. **Nebenläufigkeit** mit Freigaben, Knopf oder einem zweiten Lauf: kein neuer Mechanismus nötig, weil der Workflow das abdeckt.
    - Die Restmengen werden **innerhalb** der Serializable-Transaktion aus den aktiven Zeilen berechnet (`PickingOrderWorkflow.cs:100-103`,
      `PickingOrderRepository.cs:17-20, 72-79`). Die nächste Nummer wird dort ebenfalls gelesen (`:117`).
@@ -245,14 +282,100 @@ Befund:
      nichts doppelt.
    - Unter InMemory läuft die Aktion ohne Transaktion (`PickingOrderRepository.cs:74`). Gleichzeitigkeit ist damit nur manuell prüfbar (TS-191.9).
    - Die Altbestand-Prüfung (`:64`) und das Lesen der Stückliste (`:71`) liegen außerhalb der Transaktion, wie heute bei der Freigabe.
+8. **Warnung „Stückliste kleiner“ (F8): wie sie billig ermittelt wird.**
+
+   Befund:
+   - Der Leitstand lädt je Seitenaufruf weder Stücklisten noch Kommissionierzeilen.
+     - `AuftraegeAnhaengenAsync` (`PickingLeitstandController.cs:364-369`) holt nur die Auftragsköpfe in einer Abfrage
+       (`PickingOrderRepository.GetByProductionOrdersAsync`, `:42-48`, ohne `Zeilen`).
+     - Die Status-Zeile `ProductionOrderPickingStatus` liegt dagegen schon je FA im Speicher (`GetByProductionOrderIdsAsync`, Controller `:218`
+       und `:303`) und geht als `ps` in `MapItem` (`:125-163`), das flach und hierarchisch dieselbe Methode nutzt (`:227`, `:305`).
+     - Ein Feld dort kostet den Leitstand **keine** zusätzliche Abfrage.
+   - Live im Leitstand zu rechnen hieße je FA eine Stückliste zu laden: Sage-View, OSEON oder FA-Hierarchie (`BomRepository.cs:27-57`). Das
+     schließt der Backlog aus.
+   - Der Ort, an dem Soll und Zeilen ohnehin zusammenkommen, ist `ErzeugeOffeneAsync`. Dort liegt `soll` vor (`:81-87`), und die aktiven Zeilen
+     werden in der Transaktion gelesen (`:103`). Die Überdeckung kostet dort keinen Lesezugriff extra.
+   - Die Stücklistenseite lädt die Stückliste ohnehin (`PickingController.cs:283`). Sie braucht nur die Zeilen aller Aufträge, eine Abfrage
+     `GetAktiveZeilenAsync(id)` (`PickingOrderRepository.cs:17-20`, schon ohne stornierte Aufträge und mit `PickingOrder` für die Regel
+     `Abgedeckt`).
+
+   Umsetzung:
+   - **`PickingOrderRestmengen`**:
+     - `record Ueberdeckung(string ArticleNumber, string? BomPosition, decimal Soll, decimal Beauftragt)`.
+     - `static List<Ueberdeckung> Ueberdeckt(IEnumerable<Soll> soll, IEnumerable<PickingOrderLine> zeilen)`: Gruppen über `Schluessel`. Soll wird je
+       Schlüssel summiert wie in `Berechne` (`:36-38`), Beauftragt über `Abgedeckt`. Treffer sind Schlüssel mit mindestens einer Zeile
+       `Offen`/`Gepickt` und `Beauftragt > Soll` (Soll 0, wenn der Schlüssel fehlt). Sortiert nach Artikel und Position. Die Funktion ist DB-frei
+       und unit-testbar wie `Berechne`.
+     - `static string? Text(IReadOnlyList<Ueberdeckung>)` gibt `null` bei leer zurück, sonst „<Artikel> Pos <P>: Stückliste <x>, beauftragt <y>“,
+       mit „; “ verbunden und auf 1000 Zeichen gekürzt (Ende „…“). Leitstand-Tooltip, Nachtlauf-Warnung und Marker nutzen denselben Text.
+   - **`PickingOrderWorkflow`**:
+     - Den Soll-Aufbau `:79-87` als `public static List<PickingOrderRestmengen.Soll> SollListe(BomQueryResult bom, ProductionOrder order)`
+       (`IBomRepository.cs:10`) herausziehen. `ErzeugeOffeneAsync` und `BomSeiteAsync` nutzen dieselbe Methode, damit die Relevanz-Regel bei
+       IDEAL nicht zweimal existiert.
+     - In der Transaktion `lauf.Ueberdeckt = PickingOrderRestmengen.Ueberdeckt(soll, zeilen)` **vor** dem frühen Return bei `OhneRest` (`:104`). Die
+       Zeilen von `:103` werden dafür in eine Variable gelegt.
+     - Nach erfolgreicher Transaktion `r.Ueberdeckt` übernehmen. Bei Treffern kommt eine Meldung in `r.Meldungen` („FA <Nr>: Stückliste kleiner
+       als offene Kommissionierzeilen – <Text>“).
+     - Marker schreiben **nur bei Änderung**, damit die Audit-Felder nicht jede Nacht wechseln:
+       `if (ps != null && ps.StuecklisteKleiner != neu) await _status.SetStuecklisteKleinerAsync(id, neu, _user.GetDisplayName(), _user.GetWindowsUserName())`.
+       `ps` ist bei `:98` schon geladen.
+     - Kein Marker-Update bei den frühen Returns (Altbestand `:64`, ohne Stückliste `:72`, ohne Standardbereich `:91`) und bei `!ok`. Dort
+       gibt es keine verlässliche Berechnung, und der alte Stand bleibt.
+   - **`ProductionOrderPickingStatusRepository.SetStuecklisteKleinerAsync(int productionOrderId, string? text, string modifiedBy, string modifiedByWindows)`**
+     nach dem Muster `SetPickingStatusTextAsync` (`:123-135`) mit Audit-Feldern. Einen Caching-Decorator für dieses Repository gibt es nicht,
+     also ist nichts zu invalidieren. Web und Dienst registrieren direkt die Klasse (`IdealAkeWms/Program.cs:80`,
+     `IDEALAKEWMSService/Program.cs:93`).
+   - **Leitstand:**
+     - `PickingLeitstandItem` (`PickingLeitstandViewModel.cs:60`) bekommt `string? StuecklisteKleiner`, in `MapItem` gesetzt mit
+       `ps?.StuecklisteKleiner`.
+     - `_PickingLeitstandRow.cshtml` zeigt direkt nach dem Altbestand-Block (`:185-197`) bei `!string.IsNullOrEmpty(item.StuecklisteKleiner)` an:
+       `<div class="mt-1"><span class="badge text-bg-warning" title="Stückliste kleiner als offene Kommissionierzeilen: @item.StuecklisteKleiner">⚠ Stückliste kleiner</span></div>`.
+     - Das ist dasselbe Badge-Muster wie „⚠ Altbestand prüfen“ (`:189`): Symbol und Text, also nicht nur Farbe. Es wird keine Spalte und kein
+       Spaltenfilter hinzugefügt.
+   - **Stückliste:**
+     - `BomViewModel` (`BomViewModels.cs`, bei `:157`) bekommt `List<PickingOrderRestmengen.Ueberdeckung> StuecklisteKleiner`.
+     - `BomSeiteAsync` setzt sie aus `PickingOrderRestmengen.Ueberdeckt(PickingOrderWorkflow.SollListe(bomResult, order), await _pickingOrderRepository.GetAktiveZeilenAsync(id))`.
+       Es rechnet mit dem **ungefilterten** `bomResult`, also vor der Auftragsfilterung `:291-293`.
+     - `Bom.cshtml` zeigt vor der Filterkarte (`:84`) ein `alert alert-warning` mit Überschrift „⚠ Stückliste kleiner als offene
+       Kommissionierzeilen“, einer Liste der Schlüssel (Artikel, Position, Stückliste, beauftragt) und dem Satz „Offene Zeilen werden nicht
+       automatisch gekürzt – bitte im Leitstand entscheiden.“
+     - Andere Aufrufer der View setzen die Liste nicht (Default leer), also zeigen sie nichts.
+   - **Nachtlauf:** `stueckliste_kleiner` zählt FAs mit `Ueberdeckt.Count > 0`. Die Warnzeile kommt aus `Meldungen` (F5).
+
+   Verworfen:
+   - (i) Nur der Nachtlauf schreibt den Marker. Das ist nicht weniger Code, der Marker bliebe aber nach einer Freigabe bis zur Nacht veraltet.
+   - (ii) Der Marker hängt am `PickingOrder` wie `AltbestandPruefen`. Die Überdeckung gilt aber je FA, nicht je Auftrag, und der Leitstand lädt
+     die Aufträge nur als Liste.
+   - (iii) Der Marker kommt ins Aktivitäts-Protokoll, und der Leitstand liest es. Das wäre ein Lesepfad quer zu ADR 0010 und würde bei einer
+     Freigabe am Tag nicht aktualisiert.
 
 Muster: Repository-Pattern + Decorator (ADR 0001) unverändert; Aktivitäts-Protokoll (ADR 0010); ServiceSettings-Katalog (ADR 0008/0020);
 Read/Edit-Split mit Action-Filter (ADR 0006). Keine neue Listen-View.
 
 ## Migrations-/SQL-Auswirkungen
 
-Keine Migration, kein `SQL/XX_*.sql`, `00_FreshInstall.sql` unverändert. Die beiden neuen ServiceSettings legt der Web-Start aus dem Katalog an
-(`IdealAkeWms/Program.cs:310-324`, idempotent). `SQL/AgentJobs/` ist nicht betroffen: Es gibt kein neues Pflichtfeld und keinen Folge-MERGE.
+*Überholt (Stand vor den Freigabe-Antworten): „Keine Migration“. Antwort 2 verlangt die Leitstand-Anzeige je FA, dafür gibt es eine Spalte.*
+
+Eine additive Migration, nicht daten-destruktiv, kein Backfill (ADR 0004):
+1. Model: `ProductionOrderPickingStatus.StuecklisteKleiner` (`string?`, `[MaxLength(1000)]`). Der Text wird auf 1000 Zeichen gekürzt (Punkt 8).
+2. `dotnet ef migrations add AddPickingStatusStuecklisteKleiner --project IdealAkeWms`.
+3. `SQL/168_AddPickingStatusStuecklisteKleiner.sql` nach dem Muster `SQL/167_AddStockMovementAbteilung.sql`:
+   - Tabellen-Guard `OBJECT_ID(N'dbo.ProductionOrderPickingStatuses', N'U')` mit `NOEXEC`.
+   - `IF COL_LENGTH(N'dbo.ProductionOrderPickingStatuses', N'StuecklisteKleiner') IS NULL ALTER TABLE … ADD [StuecklisteKleiner] NVARCHAR(1000) NULL;`
+     im eigenen Batch.
+   - `__EFMigrationsHistory`-Insert im separaten Batch.
+   - Nummer 168: höchste im Worktree ist `SQL/167` (Manifest `nachlauf.psd1:125`). Der Dev-Lauf prüft die Nummer erneut, weil parallele
+     Entwürfe sie beanspruchen können.
+4. `SQL/00_FreshInstall.sql` an **zwei** Stellen nachziehen:
+   - die Spalte im `CREATE TABLE` der `ProductionOrderPickingStatuses` (bei `:447`, nach `IsDonePicking`)
+   - die `MigrationId` im History-Block nach `:3552-3554`
+5. `SQL/AgentJobs/`: nicht betroffen. Die Suche nach `ProductionOrderPickingStatuses` in `SQL/AgentJobs/` trifft nichts, und die Spalte ist
+   nullable.
+
+Die beiden neuen ServiceSettings legt der Web-Start aus dem Katalog an (`IdealAkeWms/Program.cs:310-324`, idempotent), ohne SQL.
+
+Bestand nach dem Deploy: Die Spalte ist überall `NULL`. Der erste Dienststart holt den Nachtlauf nach (F2) und setzt den Marker für alle
+freigegebenen, offenen HauptFAs. Vorher zeigt der Leitstand kein Badge, die Stückliste rechnet aber schon live.
 
 ## Einstellungen
 
@@ -269,8 +392,11 @@ Verwendung, Standort leer = beide, Warnhinweis (`ServiceSettingDefinitions.cs:35
 
 - Neue `PickingOrder`/`PickingOrderLine` aus dem Nachtlauf: `CreatedAt = DateTime.Now` (Workflow `:53`), `CreatedBy` und `CreatedByWindows` =
   `KommissionierNachtrag` (über `DienstBenutzer`).
-- Der Nachtlauf schreibt keine Updates an bestehenden Zeilen. Kommt Rückfrage 2 = (c), braucht es `ModifiedAt/By/ByWindows` an den
-  geänderten Zeilen.
+- Der Nachtlauf ändert keine bestehenden Kommissionierzeilen (Antwort 2: nichts kürzen).
+- `ProductionOrderPickingStatus.StuecklisteKleiner`: `SetStuecklisteKleinerAsync` setzt `ModifiedAt = DateTime.Now`, `ModifiedBy` und
+  `ModifiedByWindows`, nur bei geändertem Wert.
+  - Nachtlauf: `KommissionierNachtrag` (über `DienstBenutzer`).
+  - Freigabe, Knopf, „Altbestand geprüft“ und Stückliste ohne Leitstand: der angemeldete Benutzer.
 - Leitstand-Knopf (Admin) und „Altbestand geprüft“: unverändert aus `ICurrentUserService` des angemeldeten Benutzers.
 
 ## Akzeptanzkriterien
@@ -297,11 +423,23 @@ Verwendung, Standort leer = beide, Warnhinweis (`ServiceSettingDefinitions.cs:35
     abgelehnt.
 13. Die DI-Auflösung im Dienst gelingt mit `ValidateOnBuild` (`KommissionierNachtragService`, `PickingOrderWorkflow` mit `DienstBenutzer`).
     Web und Dienst registrieren den BOM-Graph über dieselbe Methode, und `BomDiResolutionTests` ist grün.
-14. *(nur bei Rückfrage 2 = b)* Liegt die bereits beauftragte Menge eines Stücklistenschlüssels über dem aktuellen Soll (oder ist die Position
-    entfallen), schreibt der Lauf je FA eine Warnung mit Artikel, Position, Soll und beauftragter Menge und zählt `stueckliste_kleiner`.
-    Offene Zeilen bleiben unverändert.
-15. *(nur bei Rückfrage 3 = Empfehlung)* „Altbestand geprüft“ durch einen Leitstand-Benutzer legt danach sofort die fehlenden Aufträge dieses
-    FA an und meldet sie wie die Freigabe.
+14. Ein Schlüssel ist überdeckt, wenn es eine offene Zeile (`Offen`/`Gepickt`) gibt und die beauftragte Menge über dem aktuellen Soll liegt
+    (entfallene Position = Soll 0). Dann schreibt der Lauf je FA eine Warnung mit Artikel, Position, Stückliste und beauftragt und zählt
+    `stueckliste_kleiner`. Offene Zeilen bleiben unverändert (SollMenge und Status vor/nach gleich).
+15. „Altbestand geprüft“ durch einen Leitstand-Benutzer ohne Admin legt für einen freigegebenen, offenen FA sofort die fehlenden Aufträge dieses
+    FA an und meldet sie wie die Einzelfreigabe. Für einen nicht freigegebenen FA wird nur das Kennzeichen gelöscht, und die Meldung sagt das.
+16. Leitstand: Nach einem `ErzeugeOffeneAsync`-Aufruf mit Überdeckung zeigt die FA-Zeile das Badge „⚠ Stückliste kleiner“ mit den Schlüsseln im
+    Tooltip, für jeden Leitstand-Benutzer.
+    - Nach einem Aufruf ohne Überdeckung ist das Badge weg.
+    - Der Leitstand-Seitenaufruf lädt dafür keine Stückliste: keine zusätzliche Abfrage, Feld aus der bereits geladenen Status-Zeile.
+    - Ein Aufruf, der den Wert nicht ändert, lässt `ModifiedAt` unverändert.
+17. Stückliste (`Picking/Bom`, FA- und Auftragsmodus): Bei überdeckten Schlüsseln erscheint vor der Filterkarte der Hinweis „⚠ Stückliste kleiner
+    als offene Kommissionierzeilen“ mit Artikel, Position, Stückliste und beauftragt.
+    - Er ist live berechnet, also sofort nach einer Stücklistenänderung sichtbar, ohne Nachtlauf.
+    - Ohne Überdeckung erscheint kein Hinweis.
+18. Freigabe, Admin-Knopf und „Altbestand geprüft“ melden eine Überdeckung zusätzlich als Warnung in der Sammelmeldung.
+19. Migration `SQL/168_…` ist idempotent: Zweimal ausgeführt gibt es keinen Fehler und keinen doppelten History-Eintrag. `00_FreshInstall.sql`
+    enthält Spalte und `MigrationId`.
 
 ## Test-Szenarien
 
@@ -324,9 +462,12 @@ ist unter InMemory nicht prüfbar (`PickingOrderRepository.cs:74`), Rollen-UAT b
 | 191.7 | IDEAL (hierarchisch): HauptFA freigegeben, Position mit Kommissionieren-Kennzeichen im Struktur-Test ergänzen; Lauf | Auftrag nur mit relevanten Positionen (`KommissionierRelevanzFilter`); Sub-FAs nie |
 | 191.8 | Leitstand als Leitstand-Benutzer öffnen; markieren; POST `/PickingLeitstand/AuftraegeNachziehen` (z. B. per Browser-Konsole mit Token) | Beide Knöpfe fehlen; POST → AccessDenied, kein Auftrag. Als Admin: beide Knöpfe sichtbar und wirksam |
 | 191.9 | Negativ/Gleichzeitig: Lauf auslösen und während des Laufs denselben FA im Leitstand (Admin) nachziehen | Keine doppelten Zeilen (Diagnose unten liefert nichts); höchstens Warnzeile „Versuch … gescheitert“ im Log |
-| 191.10 | *(Rückfrage 2 = b)* Stücklistenmenge eines beauftragten Artikels senken; Lauf | Warnung „Stückliste kleiner“ mit Artikel/Position/Soll/beauftragt; offene Zeile unverändert |
-| 191.11 | *(Rückfrage 3 = Empfehlung)* Als Leitstand-Benutzer „Altbestand geprüft“ | Sofort Auftrag/Aufträge für diesen FA, Meldung mit Nummern |
+| 191.10 | Stücklistenmenge eines beauftragten, noch offenen Artikels senken (bzw. Position entfernen); sofort `Picking/Bom` des FA öffnen; danach Lauf; danach Leitstand | Stückliste: Hinweis „⚠ Stückliste kleiner als offene Kommissionierzeilen“ mit Artikel/Position/Stückliste/beauftragt **schon vor dem Lauf**; Lauf: `stueckliste_kleiner` = 1, Warnzeile; Leitstand: Badge „⚠ Stückliste kleiner“, Tooltip mit demselben Text; offene Zeile unverändert (SollMenge, Status) |
+| 191.11 | Als Leitstand-Benutzer (ohne Admin) bei einem freigegebenen FA mit „Altbestand prüfen“ und Stücklisten-Nachtrag „Altbestand geprüft“ | Kennzeichen weg; sofort Auftrag/Aufträge für diesen FA; Meldung nennt geprüfte Nummern und neue KO-Nummern; kein Verweis auf den Knopf |
 | 191.12 | Hilfe, Stückliste ohne Aufträge, leere Auftragsliste ansehen | Texte nennen den Nachtlauf, den Knopf nur als Admin |
+| 191.13 | Negativ zu 191.10: Stücklistenmenge wieder auf den alten Wert; Stückliste öffnen; Lauf; Leitstand. Danach einen Artikel mit mehr Ist als Soll **umbuchen** (keine offene Zeile mehr) | Hinweis und Badge verschwinden nach dem Lauf; `ModifiedAt` der Status-Zeile ändert sich in einem zweiten Lauf ohne Änderung nicht. Über-Umbuchung ohne offene Zeile löst keine Warnung aus |
+| 191.14 | Freigabe (Einzel) eines FA, dessen Stückliste kleiner ist als vorhandene offene Aufträge (z. B. Freigabe zurückgenommen mit Fortschritt, Stückliste gesenkt, neu freigegeben) | Sammelmeldung enthält die Warnung „Stückliste kleiner …“; Badge sofort im Leitstand |
+| 191.15 | Migration: `SQL/168_…` zweimal gegen DEV ausführen | Zweiter Lauf ohne Fehler, kein doppelter History-Eintrag |
 
 Diagnose-Abfrage (TS-191.9; gleicher Stücklistenschlüssel mehrfach durch den Nachtlauf angelegt, soll leer sein; `Storniert = 90`,
 `Models/PickingOrder.cs:16`, gespeichert als Zahl):
@@ -341,7 +482,29 @@ GROUP BY l.ProductionOrderId, l.ArticleNumber, l.BomPosition
 HAVING COUNT(*) > 1;
 ```
 
-Grenze: Die Abfrage sieht nur Doppel innerhalb der Nachtlauf-Aufträge. Ein Doppel zwischen Nachtlauf und gleichzeitiger Freigabe findet man nur,
+Diagnose Marker (TS-191.10/191.13):
+
+```sql
+SELECT p.OrderNumber, s.StuecklisteKleiner, s.ModifiedAt, s.ModifiedBy
+FROM dbo.ProductionOrderPickingStatuses s
+JOIN dbo.ProductionOrders p ON p.Id = s.ProductionOrderId
+WHERE s.StuecklisteKleiner IS NOT NULL;
+```
+
+Unit-Tests (InMemory reicht): `PickingOrderRestmengen.Ueberdeckt` deckt diese Fälle ab:
+- Menge gesenkt
+- Position entfallen
+- nur umgebuchte Zeilen (kein Treffer)
+- „vollständig“ abgeschlossen (kein Treffer)
+- doppelter Stücklistenschlüssel
+- Text-Kürzung auf 1000
+
+Dazu Workflow-Tests:
+- Marker wird gesetzt und gelöscht.
+- Kein Update bei gleichem Wert.
+- Kein Update bei Altbestand oder ohne Stückliste.
+
+Grenze der ersten Abfrage (TS-191.9): Sie sieht nur Doppel innerhalb der Nachtlauf-Aufträge. Ein Doppel zwischen Nachtlauf und gleichzeitiger Freigabe findet man nur,
 indem man für den Test-FA `SUM(SollMenge)` je Schlüssel über alle nicht stornierten Aufträge mit dem Stücklisten-Soll vergleicht (von Hand,
 TS-191.9).
 
@@ -357,28 +520,36 @@ Kein Epic.
 
 *Vorläufig, der QA-Lauf bestätigt es gegen den echten Diff.*
 
-- **Web-App:** ja (Leitstand-Filter/View, Texte, gemeinsame Registrierung, Katalog-Seed der neuen ServiceSettings)
+- **Web-App:** ja (Leitstand-Filter/View, Badge, Stücklisten-Hinweis, Texte, gemeinsame Registrierung, Katalog-Seed der neuen ServiceSettings)
 - **Service:** ja (neuer Lauf, DI)
-- **Migration:** nein
-- **Reihenfolge:** Web zuerst (seedet die Keys, `IdealAkeWms/Program.cs:310-324`), dann Dienst. Ohne Seed liest der Dienst die Defaults
+- **Migration:** ja. `SQL/168_AddPickingStatusStuecklisteKleiner.sql` ist additiv und nullable, ohne Backfill und nicht daten-destruktiv. Ein
+  DB-Backup ist nach ADR 0004 nicht zwingend, das übliche Backup vor dem Deploy reicht.
+  *Überholt: „Migration: nein“ aus dem Stand vor den Freigabe-Antworten.*
+- **Reihenfolge:** Schema (SQL/168) vor dem Start von Web und Dienst. Beide lesen die Spalte über das EF-Modell, `ProductionOrderPickingStatus`
+  wird im Leitstand und im Workflow geladen. Danach Web (seedet die Keys, `IdealAkeWms/Program.cs:310-324`), dann Dienst. Ohne Seed liest der Dienst die Defaults
   (`GetBoolSafeAsync`/`GetIntSafeAsync`). Der erste Dienststart holt den Lauf sofort einmal nach (F2), auch tagsüber. Das ist gewollt und
   idempotent, an AKE nach dem Einmal-Lauf vom 2026-11-24 voraussichtlich ohne neue Aufträge.
 - **Manifest-Einträge** (`scripts/deploy/nachlauf.psd1`, ADR 0022; Version = nächste freie, Stand Worktree 1.99.69 → voraussichtlich 1.99.70):
+  - `@{ Id='SQL/168'; Version='1.99.70'; Typ='Schema'; Firma='beide'; Phase='Schema'; Ausfuehrung='automatisch'; Datei='168_AddPickingStatusStuecklisteKleiner.sql'; MigrationId='<ts>_AddPickingStatusStuecklisteKleiner'; Voraussetzung='additiv: ProductionOrderPickingStatuses.StuecklisteKleiner NVARCHAR(1000) NULL (Marker Stueckliste kleiner als offene Kommissionierzeilen, Leitstand-Badge), kein Backfill'; Quelle='2026-11-25-kommissionierauftraege-nachtrag-nachts-spec' }`. Die Position folgt der Deploy-Reihenfolge nach `SQL/167` (`nachlauf.psd1:125-126`), nicht der Dateisortierung.
   - `@{ Id='v1.99.70-KommNachtrag-Lauf'; Version='1.99.70'; Typ='Einstellung'; Firma='beide'; Phase='Nachher'; Ausfuehrung='anzeigen'; Text='Neuer Dienst-Lauf "Kommissionier-Nachtrag": Sync:KommissionierNachtragEnabled (Default true), Sync:KommissionierNachtragUhrzeit (Default 2). Der erste Dienststart holt den Lauf einmal sofort nach - danach Aktivitaetsprotokoll "Kommissionier-Nachtrag" pruefen (Zaehler fehler/altbestand_pruefen).'; Quelle='2026-11-25-kommissionierauftraege-nachtrag-nachts-spec' }`
-  - `@{ Id='v1.99.70-KommNachtrag-Knopf'; Version='1.99.70'; Typ='Info'; Firma='beide'; Phase='Nachher'; Ausfuehrung='anzeigen'; Text='Leitstand: Knoepfe "Fehlende Kommissionierauftraege ... erzeugen" nur noch fuer Admins; Nachtraege legt der Dienst nachts an. Leitstand-Benutzer informieren.'; Quelle='2026-11-25-kommissionierauftraege-nachtrag-nachts-spec' }`
-  - Keine Schema-, Daten-, Einmal- oder Prüfungs-Einträge: Es gibt kein SQL. Der Seed läuft beim Web-Start.
+  - `@{ Id='v1.99.70-KommNachtrag-Knopf'; Version='1.99.70'; Typ='Info'; Firma='beide'; Phase='Nachher'; Ausfuehrung='anzeigen'; Text='Leitstand: Knoepfe "Fehlende Kommissionierauftraege ... erzeugen" nur noch fuer Admins; Nachtraege legt der Dienst nachts an; "Altbestand geprueft" legt die Auftraege sofort an; neues Badge "Stueckliste kleiner" (offene Zeilen werden nicht gekuerzt). Leitstand-Benutzer informieren.'; Quelle='2026-11-25-kommissionierauftraege-nachtrag-nachts-spec' }`
+  - Keine Daten-, Einmal- oder Prüfungs-Einträge. Es gibt keinen Backfill (den Marker setzt der erste Nachtlauf), und der Seed läuft beim
+    Web-Start. *Überholt: „Keine Schema-… Einträge“.*
 - **Publish-Befehle** (im Worktree):
   `dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWMSWeb` und
   `dotnet publish IDEALAKEWMSService/IDEALAKEWMSService.csproj -c Release -o .\publish\IDEALAKEWMSWebService`
 
 **Brain-Nachzug (Dev-Lauf, Hauptcheckout):**
 - `codebase/services.md`: Lauf und Keys
+- `codebase/datenmodell.md`: `ProductionOrderPickingStatus.StuecklisteKleiner` (Schreiber nur `ErzeugeOffeneAsync`)
 - `codebase/controller.md:165`: `AuftraegeNachziehen` → `[RequireAdminAccess]`
 - `feature-map.md`, Changelog
 - `fallstricke.md`: „Web-Workflow im Dienst: `ICurrentUserService` gibt es dort nur als `DienstBenutzer`; Rollenabfragen werfen“ (mit Warum)
 - Anwender- und Betriebsdoku laut `affected_code`
 
 ## Offene Rueckfragen
+
+*Alle drei beantwortet (Freigabe-Antworten, Gerald 2026-11-25) und in den Rumpf übernommen: 1 → F6, 2 → F8, 3 → F7. Der Text bleibt als Verlauf.*
 
 1. **Was heißt „Admin“?**
    - Empfehlung: die Rolle `admin` über das vorhandene `[RequireAdminAccess]` (`Filters/RequireAdminAccessAttribute.cs:23`,
@@ -416,6 +587,6 @@ Kein Epic.
   als seinen Auftrag. Antworte je Frage in **fett** hinter dem Pfeil.
 -->
 
-1. „Admin“ = Rolle `admin` über `[RequireAdminAccess]` oder eigenes Recht? →
-2. Kleiner gewordene Stückliste: (a) dokumentieren, (b) melden im Nachtlauf, (c) offene Zeilen kürzen? →
-3. „Altbestand geprüft“: sofort Aufträge für diesen FA anlegen oder bis zur Nacht warten? →
+1. „Admin“ = Rolle `admin` über `[RequireAdminAccess]` oder eigenes Recht? → **Rolle `admin` über `[RequireAdminAccess]` (Gerald 2026-11-25).**
+2. Kleiner gewordene Stückliste: (a) dokumentieren, (b) melden im Nachtlauf, (c) offene Zeilen kürzen? → **(b), nichts kürzen. Zusätzlich die Warnung in der Stückliste bzw. im Leitstand der Kommissionierung anzeigen (Gerald 2026-11-25).**
+3. „Altbestand geprüft“: sofort Aufträge für diesen FA anlegen oder bis zur Nacht warten? → **Sofort für diesen FA anlegen (Gerald 2026-11-25).**
