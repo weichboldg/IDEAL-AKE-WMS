@@ -802,7 +802,7 @@ Befunde gegen die Spec (Koordination 2026-11-24, aus dem Dateiinhalt):
     Stammdaten-Schreiben (`ArticlesController.cs:10,100,144`). Soll die neue Rolle dort nur das Pfad-Feld ändern dürfen (eigene schmale Maske oder
     Rollenweiche im Edit, mehr Code), oder pflegt sie nur über den Stift der Teileliste? *Rumpf/Empfehlung:* nur Stift; Artikel bearbeiten bleibt Stammdaten. → **(Gerald 2026-11-25) „ja“** – Auslegung zusammen mit 22: die neue Rolle darf im Artikelstamm **nur das Pfad-Feld** ändern (schmale Pflege, z. B. eigene kleine Maske/Aktion am Artikel); übrige Felder bleiben Stammdaten-Schreiben.
 24. **(Gerald) „Lagerbestellung“ in Stufe 1:** Besteller-Seite (`WarehouseRequisitions/Edit`, Pfad unter der Bezeichnung, ohne neue Spalte) und
-    Lager-Detailseite (`WarehousePicking/Details`, Spalte über die Spaltenauswahl) – beide (Rumpf) oder nur eine? →
+    Lager-Detailseite (`WarehousePicking/Details`, Spalte über die Spaltenauswahl) – beide (Rumpf) oder nur eine? → **(Gerald 2026-11-25) „Wenn wir sie zur Verfügung haben: alles in den Settings, aber default nicht angezeigt.“** Auslegung: beide Seiten; der Pfad ist überall über die Spaltenauswahl einblendbar, Standard ausgeblendet – auch auf der Besteller-Seite (`WarehouseRequisitions/Edit`, bekommt dafür eine Spaltenauswahl statt „Pfad unter der Bezeichnung“; JS-Zugriff `cells[1]` beachten). Rumpf beim nächsten Nachzug anpassen.
 
 > [!note] Zweiter Rumpf-Nachzug 2026-11-25
 > Antworten 22/23 eingearbeitet: Pflege nur im Artikelstamm über **eine** schmale Aktion `Articles/FraesenPfad` (Artikelinfo + Karte auf
