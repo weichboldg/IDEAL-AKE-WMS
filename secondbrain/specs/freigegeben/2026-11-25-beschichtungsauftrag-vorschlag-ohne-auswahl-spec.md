@@ -433,3 +433,107 @@ Antworten Gerald 2026-11-25 auf die QA-Befunde:
   0 Positionen übrig ließe, lehnt der Server ab. Sind **alle** Positionen offen, bietet das Fenster statt „entfernen und übergeben“
   den Weg „Entwurf stornieren“ an (vorhandener Übergang Entwurf → Storniert; ein Löschen von Aufträgen gibt es nicht).
 - B-2 (Knopf bleibt nach Browser-Validierung gesperrt) wird im selben Zug mitbehoben (Knopf erst nach bestandener Prüfung sperren).
+
+## QA Nachtrag v1.99.67 (qa-agent, 2026-11-25)
+
+Geprüft: Commit `fcc894c6` (`fcc894c6^..fcc894c6`, v1.99.67) im Worktree `C:\Git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-07-ideal-teile-1-5`,
+HEAD `fcc894c64ad876374dda25f361be57258406a4ae`. Maßstab: FREIGABE-NACHTRAG 2026-11-25 (B-1, F1, B-2) plus übernommener Leerzeichen-Fix
+`Views/SageBookingQueue/Index.cshtml`. Status bleibt **Testbereit**.
+
+### 1. Build und Tests
+- `dotnet build IdealAkeWms.slnx`: 0 Fehler, 30 Warnungen (alt, nicht aus diesem Diff).
+- `dotnet test`: `IdealAkeWms.Tests` 3530 bestanden / 1 übersprungen / 0 Fehler (3531); `IDEALAKEWMSService.Tests` 790 / 0 / 0.
+
+### 2. Code-Review (selbst, synchron)
+Gelesen: Diff vollständig, dazu `BeschichtungsauftragWorkflow.BearbeitenAsync` / `StatusWechselnAsync` / `PositionBezeichnung` (alle 3 Aufrufer
+im Workflow + 3 Stellen in `Details.cshtml`), Controller `Bearbeiten` (Speichern, dann Statuswechsel), Statusknöpfe und `storno-form` in
+`Details.cshtml` (Storno-Knopf mit `onclick=confirm`), `beschichtung-bemerkung.js` komplett (Capture-Handler, Sperre, Fenster, `nichtsBliebe`,
+`checkValidity`). Fehlerklassen: keine Werte in `<script>` (Bezeichnung weiter über Razor-kodiertes `data-bezeichnung` + `textContent`);
+`hidden` nur an Elementen ohne `d-*` (`btn`, `p.small`; Bootstrap-Reboot `[hidden]{display:none!important}`); kein stiller Fallback
+(`hinzu?.Count ?? 0` zählt eine fehlende Liste als leer, korrekt); keine neue Parallel-Array-Bindung; F1 erzwingt der Server an beiden Wegen
+(Bearbeiten mit `ziel`, Status), das Fenster ist Komfort; `requestSubmit()` auf `storno-form` löst das `onclick=confirm` des Storno-Knopfs
+nicht aus (Fenster = Rückfrage, auf DEV bestätigt: kein Browser-Dialog).
+
+| # | Schwere | Befund | Behandlung |
+|---|---|---|---|
+| N-1 | mittel (Altbestand, nicht aus diesem Diff) | **Leerer Entwurf lässt sich nicht mehr bearbeiten.** Jede Absendung von `entwurf-form` aus einem Entwurf mit 0 Positionen endet in „Eingabe nicht gespeichert: ungültiger Wert in .“ (leerer ModelState-Schlüssel). DEV IDEAL BA-2026-00011: Kandidat angehakt + „Speichern“ → weiter 0 Positionen (DB); „Auf Übergeben setzen“ → dieselbe Meldung statt „Übergeben mit 0 Positionen …“. Vermutete Ursache (nicht per Debugger belegt): `Dictionary<int, string>? mengen` in `BeschichtungsauftraegeController.Bearbeiten` (seit `8d60cb10`/`b525cfba`) fällt ohne `mengen[..]`-Felder auf das leere Präfix zurück und versucht die übrigen Formularschlüssel (`ziel`, `rowVersion`, …) als int-Schlüssel zu binden. Folge: Der Hinweis der Ansicht „Keine Positionen — unten hinzufügen …“ führt ins Leere; Ausweg nur Stornieren. Sicherheit gewahrt (nichts gespeichert, Status bleibt Entwurf). Seit F1 relevanter, weil „Speichern allein darf den Entwurf leeren“ ausdrücklich erlaubt ist. InMemory-Tests rufen die Action direkt auf und sehen den Binder nicht. | offen, Entscheid Mensch: eigener kleiner Bugfix (z. B. `[Bind(Prefix = "mengen")]` am Parameter). Nicht mitgebaut (Umfang). |
+| N-2 | Hinweis | Regel „bliebe nichts übrig“ steht zweimal: Server (`BearbeitenAsync`: verbleibend + `hinzu` + `frei` = 0) und Client (`nichtsBliebe`: offene = verbleibende, keine `schluessel`/`freiArtikelId`). Der Client wählt nur den angebotenen Knopf, der Server entscheidet; Drift wäre kosmetisch. | akzeptiert. |
+| N-3 | Hinweis | Der Server zählt `hinzu` ohne `Distinct` und `frei`-Zeilen vor deren Prüfung mit; ungültige/vergebene Einträge lehnt dieselbe Prüfung („alles oder nichts“) ohnehin ab, ein doppelter Schlüssel ergibt mindestens eine Position. Kein Fehlerfall gefunden. | keine Änderung. |
+
+### 3. Beweisart je Punkt des Nachtrags
+| Punkt | Beweis |
+|---|---|
+| B-1 VaterFA in `PositionBezeichnung` | automatisiert (Theory `PositionBezeichnung_NenntVaterFaWennGesetzt`, 6 Fälle inkl. ohne FA / ohne VaterFA / PositionText); DEV IDEAL: Fenster, Aria-Labels (Haken, Entfernen, Menge) und Versendet-Meldung mit „(Pos. n, VaterFA x)“ OK; DEV AKE ohne VaterFA „87033912 (Pos. 5)“ OK |
+| F1 Server Bearbeiten mit `ziel` | automatisiert (`Bearbeiten_MitZielUebergeben_AlleEntfernt_Abgelehnt_NichtsGespeichert`, `…AberNeueHinzu_Erlaubt`, `Bearbeiten_OhneZiel_AlleEntfernt_ErlaubtImEntwurf`, Controller `Bearbeiten_ZielUebergeben_AlleEntfernt_Warnung_NichtsGespeichert`) + DEV OK; echte Formular-Bindung nur DEV |
+| F1 Server Status | automatisiert (`Uebergeben_OhnePositionen_Abgelehnt_BleibtEntwurf`); über die Oberfläche nicht erreichbar (leerer Entwurf scheitert vorher an N-1) |
+| F1 Fenster „Entwurf stornieren“ | Browser-JS, Manual-UAT; DEV IDEAL OK |
+| B-2 Knopf nach Validierungsabbruch frei | Browser-JS, Manual-UAT; DEV IDEAL OK (Meldungsblase selbst nicht sichtbar prüfbar) |
+| Leerzeichen SageBookingQueue, Aria-Label Menge | kein Test; Aria-Label auf DEV gesehen, Leerzeichen per Diff |
+
+### 4. Geänderte bestehende Tests
+- `BeschichtungsauftragWorkflowTests` (3 Stellen: Versendet-Meldung, Entfernen verpackter in Übergeben, Verpackt+Entfernen): erwarteter Text
+  „A2 (Pos. 2)“ → „A2 (Pos. 2, VaterFA 100)“ usw. — Verhalten absichtlich geändert (B-1). Kein Fall „sonstiges“.
+
+### 5. Checkliste CLAUDE.md
+Keine Migration, kein SQL, kein FreshInstall/AgentJobs. Audit: keine neuen Schreibwege (F1 lehnt vor dem Speichern ab; Storno über den
+bestehenden Übergang, DEV: `ModifiedAt`/`ModifiedBy` gesetzt). Version 1.99.67 in beiden `AppVersion.cs`, Anwender-Changelog, Hilfe,
+`docs/anwender/15-…` + `README.md`-Stand, `docs/TESTSZENARIEN.md` (162.26–162.29 + Fußzeile) und `testszenarien-index.md` nachgezogen.
+ADR 0020: keine Einstellung. Manifest `nachlauf.psd1`: kein Eintrag nötig.
+
+### 6. DEV-Deploy und Testlauf
+`standort: beide`. `dev-deploy.ps1` (erhöhte Shell, Admin = True) aus dem Worktree: **AKE** Exit 0, „HTTP 200, Fusszeile v1.99.67“,
+„Fertig: AKE v1.99.67 auf http://localhost:8081/“; **IDEAL** Exit 0, „HTTP 200, Fusszeile v1.99.67“, „Fertig: IDEAL v1.99.67 auf
+http://localhost:8082/“. DEV-Absicherung vom Skript neu gesetzt. Screenshots liefen wieder ins Zeitlimit; geprüft über den
+Barrierefreiheitsbaum (sichtbar/hidden, Texte) und `sqlcmd`.
+
+| Schritt | Ort / Daten | Ergebnis | Status |
+|---|---|---|---|
+| 162.26 Bezeichnung mit VaterFA | IDEAL BA-6 (Übergeben), BA-10 | Aria-Labels „Position 50002313 (Pos. 1, VaterFA 1067190) verpackt/entfernen“, „Menge … (Pos. 1, VaterFA 1067190)“, ohne FA „50000005 (ohne FA)“; Versendet auf BA-6 abgelehnt „… nicht verpackt (2): 50002313 (Pos. 1, VaterFA 10…“, Status bleibt 30; Fensterliste BA-10 mit VaterFA je Zeile | OK |
+| 162.26 gleiche Artnr+Pos. unter zwei VaterFA | – | auf DEV IDEAL keine zwei freien gleichen Artnr/Pos. mehr (die Dubletten 50002326 / 50000296 stecken in BA-9, Versendet); Format automatisiert belegt | NICHT MOEGLICH (Daten) |
+| 162.26 AKE ohne VaterFA | AKE BA-2026-00004 | „87033912 (Pos. 5)“, „86006770 (Pos. 9.2)“ | OK |
+| 162.27 alle offen → Fenster | IDEAL BA-10 (8 offen, ohne Haken angelegt) | Hinweis „Keine Position ist verpackt …“ sichtbar, „entfernen und übergeben“ hidden, „Entwurf stornieren“ sichtbar | OK |
+| 162.27 eine verpackt | IDEAL BA-10, 1 Haken gesetzt | „entfernen und übergeben“ sichtbar, „Entwurf stornieren“ und Hinweis hidden; Haken gelöst → wieder Stornieren | OK |
+| 162.27 Stornieren | IDEAL BA-10 | kein Browser-Dialog, Status 90, `StorniertAt`/`ModifiedBy` gesetzt; alle 8 Positionen in der Vorschlagsliste wieder frei | OK |
+| 162.27 zweiter Lauf mit „Positionen hinzufügen“ | – | keine passende Datenlage (Kandidaten + alle offen) ohne weiteren Entwurf; Client-Zweig `schluessel`/`freiArtikelId` nur per Review | NICHT MOEGLICH (Daten) |
+| 162.28 alle „Entfernen“ + Übergeben | IDEAL BA-10 | kein Fenster; Meldung „Übergeben mit 0 Positionen ist nicht möglich (BA-2026-00010) — nichts gespeichert …“; DB: Status 10, 8 Positionen, `ModifiedAt` NULL | OK |
+| 162.28 Speichern allein leert | IDEAL BA-2026-00011 (1 Position) | Entfernen + Speichern → Positionen (0), Status Entwurf | OK |
+| 162.28 Übergeben auf leerem Entwurf | IDEAL BA-11 | Meldung „Eingabe nicht gespeichert: ungültiger Wert in .“ statt der 0-Positionen-Meldung; Status bleibt 10 (DB) | FEHLER (N-1, Altbestand) |
+| 162.28 Status-POST ohne JS | – | Entwicklertools nicht verfügbar; automatisiert belegt | NICHT MOEGLICH (Browser) |
+| 162.29 Validierungsabbruch | IDEAL BA-10, Tag in „Start Beschichtung“ gelöscht | „beibehalten“: Fenster schließt, nichts gesendet (DB unverändert, `ModifiedAt` NULL), keine Entfernen-Haken; erneut geöffnet ist „beibehalten“ wieder klickbar (schließt erneut) | OK |
+| 162.29 Meldungsblase am Feld | – | ohne Screenshot nicht sichtbar prüfbar | NICHT MOEGLICH |
+| 162.29 gültig, einmal absenden | IDEAL BA-8, AKE BA-4 | je ein Statuswechsel | OK |
+| 162.21 entfernen und übergeben (Regression) | AKE BA-4: Kreditor QA-LACK1, Pos. 5 verpackt | Fenster „1 Position: 86006770 (Pos. 9.2)“, entfernen → Status 30, nur die verpackte Position bleibt, `ModifiedBy` gesetzt | OK |
+| 162.22 beibehalten (Regression) | IDEAL BA-8 (2 offen) | Status 30 mit 2 offenen Positionen | OK |
+| 162.23 Haken im selben Klick (Regression) | IDEAL BA-10 | Fenster nennt 7 statt 8 | OK |
+| 162.24 Sperre (Regression) | AKE BA-4 | Entfernen an → Verpackt `disabled`; Entfernen aus → frei | OK |
+
+DEV-Testdaten angelegt/geändert: IDEAL BA-6 (Versendet-Versuch, Speichern ohne Änderung), BA-8 (→ Übergeben, 2 offen; „Start Beschichtung“
+Tag auf **12.07.2026** überschrieben durch einen fehlgeschlagenen Validierungs-Testaufbau (vorheriger Tag nicht notiert)), BA-2026-00010 (angelegt, storniert),
+BA-2026-00011 (angelegt, **leerer Entwurf** – wegen N-1 nur noch stornierbar); AKE BA-2026-00004 (angelegt, Übergeben mit 1 Position).
+
+### 7. Publish
+`C:\Git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-07-ideal-teile-1-5\publish\` neu: `IDEALAKEWMSWeb`, `IDEALAKEWMSWebService`, `SQL`, `deploy`
+vorher geleert, beide `dotnet publish` Exit 0; `publish-info.txt`: Version 1.99.67, Commit `fcc894c64ad876374dda25f361be57258406a4ae`,
+Branch `feature/2026-08-07-ideal-teile-1-5`, Erstellt 2026-11-25 14:37. Ältere `paket*.zip` im Ordner unverändert.
+
+### Deploy (final für v1.99.67, aus dem Diff `fcc894c6^..fcc894c6`)
+- **Web-App:** ja (`IdealAkeWms/`: Workflow, Controller, `Details.cshtml`, `beschichtung-bemerkung.js`, Hilfe, Changelog, SageBookingQueue-View).
+- **Service:** nein (nur `IDEALAKEWMSService/AppVersion.cs`); das Paket enthält beide Komponenten (eine Version).
+- **Migration:** nein; kein SQL, kein Einmal-Skript, kein Manifest-Eintrag.
+- Reihenfolge Testsystem: `publish\` kopieren, `deploy\Update-IdealAkeWms.ps1` (Web; Dienst nur Versionsstand). Kein DB-Backup-Sonderfall.
+- Nach dem Merge nur dann neu aus `main` publizieren, wenn der Merge getestete Dateien mit parallelen `main`-Änderungen zusammengeführt hat
+  (`dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWMSWeb`,
+  `dotnet publish IDEALAKEWMSService/IDEALAKEWMSService.csproj -c Release -o .\publish\IDEALAKEWMSWebService`).
+
+**Ergebnis Nachtrag: Testbereit.** Der Nachtrag erfüllt B-1, F1 und B-2; der einzige FEHLER (N-1) ist Altbestand und blockiert nicht,
+gehört aber vor der Abnahme entschieden.
+
+### Manuelle Testcheckliste Nachtrag (Mensch, Schranke 2)
+1. Entscheid N-1: leerer Entwurf nicht mehr speicherbar („ungültiger Wert in .“) – eigener Bugfix vor oder nach dem Merge? (Repro: DEV IDEAL BA-2026-00011.)
+2. 162.26 mit echten Dubletten (gleiche Artnr + Pos. unter zwei VaterFA, z. B. 50002326 an IDEAL): Fenster und Versendet-Meldung unterscheidbar.
+3. 162.27 zweiter Lauf: alle offen + einen Kandidaten unter „Positionen hinzufügen“ anhaken → Fenster bietet „entfernen und übergeben“ statt Stornieren.
+4. 162.28 per Entwicklertools: `Status` mit `ziel=Uebergeben` auf einem leeren Entwurf → Meldung „Übergeben mit 0 Positionen …“.
+5. 162.29 Sichtprüfung: Browser-Meldung erscheint am Datumsfeld, nicht verdeckt.
+6. Sichtprüfung Fenster (Kontrast roter Knopf „Entwurf stornieren“, Tastatur/Esc) an beiden Standorten.
+7. DEV IDEAL BA-8: „Start Beschichtung“ steht durch den QA-Lauf auf 12.07.2026 (Tag überschrieben) – bei Bedarf korrigieren.
+8. Testsystem-Lauf mit dem Paket `publish\` (v1.99.67) an AKE und IDEAL, danach Merge.
