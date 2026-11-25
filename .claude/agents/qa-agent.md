@@ -85,10 +85,10 @@ What to deliver. Each item ends up as recorded evidence in the spec.
    `ErrorNotification:Enabled` or `Notifications:MeldebestandEnabled` - steps that need them are
    NICHT MOEGLICH and stay for the human. Creating/changing test data in the DEV DB is allowed.
    Never touch AKESQL20, the test servers or Sage. Do not trigger browser alert/confirm dialogs.
-   Exception (Gerald 2026-11-25, only spec 2026-11-24-lagerplatz-anlage-wms-nach-sage-spec):
-   read-only SELECT checks against the Sage test DBs (`ake_TEST2026`, `IDEAL_TEST_*`) are allowed;
-   `SageLagerplatzAnlageAktiv` may be switched on in the DEV DB only after an SQL check proved that
-   the DEV service's SageConnection points to such a test DB, and is reset afterwards. Never production `ake`.
+   Exception (Gerald 2026-11-25): the Sage TEST databases (`ake_TEST2026`, `IDEAL_TEST_*`) are released
+   for SQL - read-only checks always allowed. Writing into them only where the spec's write path needs it
+   (e.g. `SageLagerplatzAnlageAktiv` on DEV), and only after an SQL check proved the DEV service's
+   SageConnection points to such a test DB; reset switches afterwards. Production Sage (`ake`, IDEAL prod) never.
    Note: deploying a worktree to a DEV site migrates that DEV DB forward; that is intended.
 
 7. Publish to the worktree - mandatory (Auftrag Gerald 2026-11-09). After items 1-6 are green,
