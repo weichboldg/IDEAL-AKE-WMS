@@ -537,3 +537,9 @@ gehört aber vor der Abnahme entschieden.
 6. Sichtprüfung Fenster (Kontrast roter Knopf „Entwurf stornieren“, Tastatur/Esc) an beiden Standorten.
 7. DEV IDEAL BA-8: „Start Beschichtung“ steht durch den QA-Lauf auf 12.07.2026 (Tag überschrieben) – bei Bedarf korrigieren.
 8. Testsystem-Lauf mit dem Paket `publish\` (v1.99.67) an AKE und IDEAL, danach Merge.
+
+## FREIGABE-NACHTRAG 2 2026-11-25 (Gerald) – N-1 leerer Entwurf, Umsetzung als v1.99.69
+
+QA-Befund N-1 (Altbestand): Ein Entwurf mit 0 Positionen lässt sich nicht absenden („Eingabe nicht gespeichert: ungültiger Wert
+in .“), vermutet Model-Binding `Dictionary<int,string>? mengen` in `BeschichtungsauftraegeController.Bearbeiten`. Gerald 2026-11-25:
+„ja – bitte gleich ausbessern“ → Root Cause belegen, beheben, Test, im Anschluss an die Referenz-Spec (v1.99.68) als v1.99.69.

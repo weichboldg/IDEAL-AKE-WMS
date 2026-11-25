@@ -29,3 +29,4 @@ Auftrag Gerald 2026-11-25 („passt“): Reihenfolge Bugfix → Gesamtsicht → 
 - Gesamtsicht v1.99.66 QA bestanden (56851a66): DEV beide v1.99.66; B2 fehlendes Leerzeichen Intro (wird in v1.99.67 mitbehoben), B3 Einkauf/Admin sieht WE-Zeilen ohne Modul (Spec F7/12a, Gerald entscheidet). Nicht möglich: Erneut senden (kein Sage-POST), 189.9/189.12 (zweiter User), 390 px.
 - Nachtrag v1.99.67: fcc894c6, Build 0 Fehler, Tests Web 3530/1 skip/0, Service 790/0, TS-162.26–162.29; B2-Leerzeichen Gesamtsicht mitbehoben.
 - Nachtrag v1.99.67 QA bestanden (2b4dceaf). Befund N-1 (mittel, Altbestand): leerer Entwurf lässt sich nicht absenden („ungültiger Wert in .“), vermutlich Dictionary-Binding `mengen` – Gerald entscheidet. DEV IDEAL BA-8 Start Beschichtung versehentlich auf 12.07.2026.
+- Gerald 2026-11-25: N-1 beheben → FREIGABE-NACHTRAG 2, Bau als v1.99.69 nach der Referenz.
