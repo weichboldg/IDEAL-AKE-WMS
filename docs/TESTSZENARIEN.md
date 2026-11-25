@@ -14564,9 +14564,10 @@ Vorbedingung: Leitstand aktiv, ein FA mit Altbestand, dessen Stückliste beim Le
    direkt am Feld; nichts angelegt. Früher schnitt das Feld still auf 10 Zeichen ab.
 (`SageLagerplatzAnlageControllerTests.CreateInSage_NeuesLager_ElfZeichen_MeldungAmFeld_NichtsAngelegt`)
 
-**TS-200.4 Lager ohne Plätze im Abgleich (F-8)**
-1. Lager-Abgleich laufen lassen → ein Sage-Lager ohne Lagerplatz erscheint trotzdem unter den Lagern (LEFT JOIN statt INNER JOIN).
-   Gemessen auf ake_TEST2026: alte und neue Abfrage je 3284 Zeilen (dort hat jedes Lager Plätze).
+**TS-200.4 Lagerplatz-Abgleich verbindet je Mandant (F-8)**
+1. Lager-Abgleich laufen lassen → Lager und Plätze wie bisher; Plätze werden jetzt über Mandant **und** Lagerkennung zugeordnet (wie der
+   Schreibweg), Plätze eines anderen Mandanten mit gleicher Lagerkennung landen nicht mehr am Lager.
+   Gemessen auf ake_TEST2026 (nur lesend): alte und neue Abfrage je 3284 Zeilen (dort nur ein Mandant).
 
 **TS-200.5 Blechdicke ohne Einstellungszeile (F-10, IDEAL)**
 1. Einstellung Sage-Userfeld „Blechdicke“ leer → Nachlesen der Blechteile-Felder → Blechdicke zeigt „–“, Hinweis „… nicht gelesen, Wert
