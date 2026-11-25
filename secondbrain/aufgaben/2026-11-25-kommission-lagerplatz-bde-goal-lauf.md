@@ -148,3 +148,41 @@ qa-agent, synchron, Review und Szenarien selbst. Worktree `feature/2026-08-07-id
 5. F-28 mit einem Benutzer ohne Terminal; Entscheid H-A (Guard auch an Pause/Fertig/Teilmenge).
 6. F-33 Kontrast im Browser am Fertigungsterminal nachmessen.
 7. Testsystem-Lauf mit dem Publish-Paket, danach Merge (Schranke 2).
+
+## Doku-Nachzug v1.99.80 (2026-11-25)
+
+Auftrag Gerald: Anleitungen für User/Admin/KI nachziehen, damit am 2026-11-26 eine Mail rausgehen kann. Commit `67868774` (Worktree), keine
+Logik, keine Migration, TS-201. Build 0 Fehler / 32 Warnungen; Tests Web 3698/1/0, Dienst 848/0. Changelog [[2026-11-25-v1-99-80-doku-nachzug]],
+Mail-Entwurf [[2026-11-26-mail-wms-neuerungen-v1-99-70-80]] (nicht gesendet). qa-agent für v1.99.80 steht aus.
+
+**Geänderte Kapitel → Confluence-Seite (Bereich AKEDOKUMEN, für spätere Übernahme):**
+Ob eine Seite schon existiert, wurde nicht geprüft (Confluence in diesem Lauf verboten) – vor dem Anlegen im Bereich nach dem Titel suchen.
+Seit 2026-11-19 wird Confluence nicht mehr nachgezogen; Kapitel ab dann sind vermutlich „neu anlegen“.
+
+| Datei | Confluence-Seite | Aktion |
+|---|---|---|
+| `docs/anwender/README.md` | WMS-Anleitung – Übersicht | aktualisieren (Stand, Versionstabelle 1.99.80) |
+| `docs/anwender/01-kommissionierung.md` | WMS-Anleitung 01 – Kommissionierung | aktualisieren |
+| `docs/anwender/03-lagerbestellung-glasbestellung.md` | WMS-Anleitung 03 – Lagerbestellung und Glasbestellung | aktualisieren |
+| `docs/anwender/10-bestaende-spaltenfilter.md` | WMS-Anleitung 10 – Bestände und Spaltenfilter-Suche | aktualisieren |
+| `docs/anwender/11-bde-terminal.md` | WMS-Anleitung 11 – BDE: Arbeitsgänge buchen | aktualisieren (stark geändert seit 1.99.76) |
+| `docs/anwender/17-bde-teileliste-werkbank.md` | WMS-Anleitung 17 – BDE-Teileliste an der Werkbank | aktualisieren bzw. neu anlegen, falls nicht vorhanden |
+| `docs/anwender/19-lagerplaetze-in-sage-anlegen.md` | WMS-Anleitung 19 – Lagerplätze in Sage anlegen | **neu anlegen** (Kapitel seit v1.99.71) |
+| `docs/betrieb/00-index.md` | WMS-Betrieb 00 – Übersicht | aktualisieren |
+| `docs/betrieb/03-installation-update-rollback.md` | WMS-Betrieb 03 – Installation, Update und Rückfall | aktualisieren |
+| `docs/betrieb/04-konfiguration.md` | WMS-Betrieb 04 – Konfiguration | aktualisieren |
+| `docs/betrieb/05-schnittstellen.md` | WMS-Betrieb 05 – Schnittstellen zu Fremdsystemen | aktualisieren |
+| `docs/betrieb/06-logs-ueberwachung.md` | WMS-Betrieb 06 – Logs und Überwachung | aktualisieren |
+| `docs/betrieb/07-troubleshooting.md` | WMS-Betrieb 07 – Troubleshooting | aktualisieren |
+| `docs/betrieb/08-diagnose-abfragen.md` | WMS-Betrieb 08 – Diagnose-Abfragen (nur lesend) | aktualisieren |
+| `docs/betrieb/09-sicherheit-konten-rechte.md` | WMS-Betrieb 09 – Sicherheit, Konten und Rechte | aktualisieren |
+| `docs/betrieb/AGENTS.md` | WMS-Betrieb – Leitfaden für KI-Assistenten (AGENTS) | aktualisieren bzw. neu anlegen |
+| WMS-Hilfeseite `/Help` (Karte BDE) | – (liegt in der Anwendung) | kein Confluence |
+
+Zusätzlich für die Mail gebraucht: Seite „WMS – Fehler melden und Wünsche einreichen“ (Bestand prüfen).
+
+**Offen / Widersprüche aus dem Nachzug:**
+- `USER_OSBlechdicke` in Sage IDEAL unbelegt (F-16); Doku nennt nur die Prüfabfrage.
+- SQL-Server-Version IDEAL für `STRING_AGG` (50014-Text mit PlatzID) ungeprüft: `SELECT @@VERSION`.
+- Kapitel 18 (Startseite und Menü) erwähnt Tageshistorie nicht; Bilder 11-02/11-03 unreferenziert (F-30); Fotos nicht neu erstellt.
+- Handy-Konten noch nicht angelegt (Manifest `v1.99.78-BdeHandyKontenInfo`).
