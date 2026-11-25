@@ -2,7 +2,7 @@
 type: spec
 title: BDE-Teileliste – Material/Blechdicke/Bemerkung/Fertigungsinfo, Fräsen-Pfad je Artikel, Lagerbestell-Positionen an der Isolierungsfräse
 slug: 2026-11-20-bde-liste-isolierungsfraese-pfad-material-spec
-status: Entwurf
+status: Freigegeben
 created: 2026-11-20
 updated: 2026-11-25
 source_backlog: "[[2026-11-19-bde-liste-isolierungsfraese-pfad-material]]"
@@ -90,9 +90,9 @@ deploy:
   web: true
   service: true
   migration: true
-freigabe_entscheidung: ""
-freigabe_von: ""
-freigabe_am: ""
+freigabe_entscheidung: "Rumpf (alle offenen Punkte wie Vorschlag)"
+freigabe_von: Gerald
+freigabe_am: 2026-11-25
 ---
 
 # BDE-Teileliste: Material/Blechdicke/Bemerkung/Fertigungsinfo, Fräsen-Pfad, Lagerbestell-Positionen an der Isolierungsfräse
@@ -780,23 +780,23 @@ Befunde gegen die Spec (Koordination 2026-11-24, aus dem Dateiinhalt):
 -->
 
 1. Blechdicke: Sage-Feldname und Format (P-1)? → **(Gerald 2026-11-24) Feld heißt `USER_OSBlechdicke`.** Format (Typ, Einheit, z. B. „3,00“ = mm) noch offen – P-1 mit diesem Feldnamen laufen lassen.
-2. Fräsen-Pfad: Ordner oder Datei, wer pflegt? →
+2. Fräsen-Pfad: Ordner oder Datei, wer pflegt? → **(Gerald 2026-11-25) Freigabe mit Rumpf-Vorschlag; Antwort Fachbereich bzw. Bestätigung ausstehend, nicht blockierend – Abweichung = Nachbesserung.**
 3. „Datei direkt öffnen“: A Kopieren / B file-Link mit Richtlinie / C nein; Y: oder UNC? → **(Gerald 2026-11-23) Pfad als UNC eintragen (nicht Y:), damit direkt öffnen; Kopieren bleibt als Rückfall.** Folge: B mit UNC (`file://server/freigabe/…`), Edge-Richtlinie für Datei-Links mit der IT klären (unverifiziert); Einmal-Skript/Liste mit UNC-Ordnern.
-4. Lagerbestellungen: abgeschickt + teilgeliefert, abgeschlossene/stornierte weg? →
-5. KW-Filter für Lagerbestell-Positionen: immer sichtbar oder nach Abschickdatum? →
-6. Summiert-Spalten wie vorgeschlagen, Lagerbestell-Positionen zählen mit? →
-7. „Andere BDE-Ansichten“ = Teileliste, nicht BDE-Terminal? →
-8. Lagerartikel-Grenze akzeptiert, P-2/P-4 vor Abnahme? →
-9. Erstimport per Einmal-Skript (Liste als Datei) oder Handpflege? →
-10. CSV-Zusatzfund mitbeheben? →
-11. Fräsen-Meldung in der Lagerbestellung sichtbar? →
+4. Lagerbestellungen: abgeschickt + teilgeliefert, abgeschlossene/stornierte weg? → **(Gerald 2026-11-25) Freigabe mit Rumpf-Vorschlag; Antwort Fachbereich bzw. Bestätigung ausstehend, nicht blockierend – Abweichung = Nachbesserung.**
+5. KW-Filter für Lagerbestell-Positionen: immer sichtbar oder nach Abschickdatum? → **(Gerald 2026-11-25) Freigabe mit Rumpf-Vorschlag; Antwort Fachbereich bzw. Bestätigung ausstehend, nicht blockierend – Abweichung = Nachbesserung.**
+6. Summiert-Spalten wie vorgeschlagen, Lagerbestell-Positionen zählen mit? → **(Gerald 2026-11-25) Freigabe mit Rumpf-Vorschlag; Antwort Fachbereich bzw. Bestätigung ausstehend, nicht blockierend – Abweichung = Nachbesserung.**
+7. „Andere BDE-Ansichten“ = Teileliste, nicht BDE-Terminal? → **(Gerald 2026-11-25) Freigabe mit Rumpf-Vorschlag; Antwort Fachbereich bzw. Bestätigung ausstehend, nicht blockierend – Abweichung = Nachbesserung.**
+8. Lagerartikel-Grenze akzeptiert, P-2/P-4 vor Abnahme? → **(Gerald 2026-11-25) Freigabe mit Rumpf-Vorschlag; Antwort Fachbereich bzw. Bestätigung ausstehend, nicht blockierend – Abweichung = Nachbesserung.**
+9. Erstimport per Einmal-Skript (Liste als Datei) oder Handpflege? → **(Gerald 2026-11-25) Freigabe mit Rumpf-Vorschlag; Antwort Fachbereich bzw. Bestätigung ausstehend, nicht blockierend – Abweichung = Nachbesserung.**
+10. CSV-Zusatzfund mitbeheben? → **(Gerald 2026-11-25) Freigabe mit Rumpf-Vorschlag; Antwort Fachbereich bzw. Bestätigung ausstehend, nicht blockierend – Abweichung = Nachbesserung.**
+11. Fräsen-Meldung in der Lagerbestellung sichtbar? → **(Gerald 2026-11-25) Freigabe mit Rumpf-Vorschlag; Antwort Fachbereich bzw. Bestätigung ausstehend, nicht blockierend – Abweichung = Nachbesserung.**
 5. (Nachtrag Walter 2026-11-23) KW-Filter: Lagerbestell-Termin = Bestelldatum + 10 Werktage (Feiertage). → **(Gerald 2026-11-23) Ja; die Werktage in unseren Einstellungen (`/Settings`) konfigurierbar.**
 12. Pflege-Recht Fräsen-Pfad: Rolle Stammdaten oder schmale Pflege? → **(Gerald 2026-11-23) Neues Pflegerecht vergeben.** Folge: neue Rolle (nur Fräsen-Pfad pflegen) – drei Stellen: Attribut, `codebase/controller.md`, `Views/Users/RoleOverview.cshtml`; Pflegeweg (z. B. aus der Teileliste oder schmale Maske) im Spec-Nachzug festlegen.
 13. Termin Lagerbestellung: Bestelldatum = SubmittedAt? 10 Werktage fest oder Einstellung? → **(Gerald 2026-11-23) Ja, `SubmittedAt`; Werktage als Einstellung (AppSetting, Zahl, Default 10, IDEAL).**
-14. Kanten/Schweißen: Teileliste einschalten reicht, oder Teile im BDE-Terminal (eigene Spec)? →
-15. Pfad wie in Spalte E übernehmen (kein `\<Matchcode>.tcn`); „ist enthalten in …“ → Pfad des Artikels oder leer? →
-16. Belegestation/Twin Kundenseite pflegen oder leer; Zeile 161 nicht importieren? →
-17. Spalten C/D/G: Bedeutung, Zuschnittmaß im WMS anzeigen? →
+14. Kanten/Schweißen: Teileliste einschalten reicht, oder Teile im BDE-Terminal (eigene Spec)? → **(Gerald 2026-11-25) Freigabe mit Rumpf-Vorschlag; Antwort Fachbereich bzw. Bestätigung ausstehend, nicht blockierend – Abweichung = Nachbesserung.**
+15. Pfad wie in Spalte E übernehmen (kein `\<Matchcode>.tcn`); „ist enthalten in …“ → Pfad des Artikels oder leer? → **(Gerald 2026-11-25) Freigabe mit Rumpf-Vorschlag; Antwort Fachbereich bzw. Bestätigung ausstehend, nicht blockierend – Abweichung = Nachbesserung.**
+16. Belegestation/Twin Kundenseite pflegen oder leer; Zeile 161 nicht importieren? → **(Gerald 2026-11-25) Freigabe mit Rumpf-Vorschlag; Antwort Fachbereich bzw. Bestätigung ausstehend, nicht blockierend – Abweichung = Nachbesserung.**
+17. Spalten C/D/G: Bedeutung, Zuschnittmaß im WMS anzeigen? → **(Gerald 2026-11-25) Freigabe mit Rumpf-Vorschlag; Antwort Fachbereich bzw. Bestätigung ausstehend, nicht blockierend – Abweichung = Nachbesserung.**
 18. UNC-Freigabe hinter `Y:`? → **(Gerald 2026-11-25) `Y:` = `\\idealfs1\Daten$\Produktion\CAM`.** Erstimport ersetzt das Präfix `Y:` durch diese Freigabe (`Y:\Gerhard\…` → `\\idealfs1\Daten$\Produktion\CAM\Gerhard\…`).
     **Test 2026-11-25 (Gerald):** `file://idealfs1/Daten$/Produktion/CAM/…`-Links von einer http-Testseite (`http://127.0.0.1:8099`) in Edge
     öffnen – „funktioniert“. Vorbehalt: echte WMS-Adresse am Fräsen-PC beim Manual-UAT nochmals prüfen (Zone kann abweichen).
@@ -863,4 +863,4 @@ Freigabe-Antwort:
 
 Freigabe-Antwort:
 
-26. Detailseiten Artikelinfo/Artikel bearbeiten: Pfad immer sichtbar (Rumpf) oder eingeklappt? →
+26. Detailseiten Artikelinfo/Artikel bearbeiten: Pfad immer sichtbar (Rumpf) oder eingeklappt? → **(Gerald 2026-11-25) Freigabe mit Rumpf-Vorschlag; Antwort Fachbereich bzw. Bestätigung ausstehend, nicht blockierend – Abweichung = Nachbesserung.**
