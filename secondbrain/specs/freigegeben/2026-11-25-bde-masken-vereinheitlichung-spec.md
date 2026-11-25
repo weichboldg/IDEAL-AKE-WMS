@@ -740,7 +740,7 @@ Jede Etappe: `frontend-design` explizit aufrufen, Kontrast messen, Ampel nie nur
 | 2 | Teile Summiert: Einzelauftraege aufklappbar, Summen-Haken, aggregierte Ampel ueber `Ableiten` (Antwort 11). Doku: Kapitel 17 Abschnitt 5 + Foto `17-06`. v1.99.74, TS-195, keine Migration. | erledigt (2026-11-25, Umsetzung siehe unten) | `eecc47ac` |
 | 3 | Teilfertigmeldung: Migration + SQL/169 + FreshInstall, Service/Controller/Dialog, Ruecknahme, Waisen, Baugruppe `istFinal`, Admin-Spalte Art, ADR 0037. **Dieselbe Migration legt `ProductionWorkplaces.BdeStandardsichtTeile` an und belegt sie vor** (Antwort 3a; Model-Property ohne Leser bis Etappe 4a – Reihenfolge geprueft, siehe Etappe-3-Entwurf). Defaults beider Spalten nur in Migration/SQL/FreshInstall, kein `HasDefaultValue`, `IstAbschliessend` immer explizit gesetzt (Antwort 16, AK 18a). Index nach Antwort 12: wer zweitens baut, vereinigt den Filter mit SQL/164 – der Dev-Lauf prueft beim Start, ob SQL/164 schon im Branch liegt. Uebermeldung bei Teilfertig erlaubt mit Hinweis (Antwort 18, AK 15a). Doku: Kapitel 17 Abschnitte 3/4/6/7 + Fotos `17-05`, `17-07`. v1.99.75, TS-196. | erledigt (2026-11-25, Umsetzung siehe unten) | `94be5444` |
 | 4 | ~~FA-Sicht an beiden Standorten: Wirksamkeits-Helfer … `TeilelisteWirksam` entfernt, `BdeBookingService` mit Master-Lesung, … Banner, …~~ *(ueberholt, Antwort 15)* FA-Sicht an beiden Standorten: Wirksamkeits-Helfer ohne NurFA (`SeiteVerfuegbar`, `TeilelisteWirksam(w)` ohne `nurFa`, `TeileSichtVerfuegbar` = Master && `TeilelisteWirksam`, `TeileStandard` ueber `BdeStandardsichtTeile`), Gate `BdeBookingService.cs:288` inhaltlich wie heute (ohne `nurFa`, ohne Master, kein neuer Ctor-Parameter), Zeilenquelle als gemeinsame Service-Methode, View `Fa`, AG-Status aller AG der Sub-FA (Antwort 4), Kopf-Buchungen, Modal-Partials, Scan, Standardsicht-Auswahl neben `BdeTeileliste` („Teile“ nur mit `BdeTeileliste`), Teile-Reiter nur mit `BdeTeileliste` (sonst deaktiviert mit Hinweis, kein Banner), gemerkte Sicht, Pagination statt MaxHauptFa (Antwort 14). Doku: Kapitel 17 (Maske, Reiter, Foto `17-01`) + Kapitel 11 FA-Sicht (neue Fotos). v1.99.76, TS-197, keine weitere Migration. *(ueberholt, Antwort 19: aufgeteilt in 4a und 4b)* | – | |
-| 4a | FA-Sicht Grundgeruest an beiden Standorten (Antwort 19): Wirksamkeits-Helfer ohne NurFA (`SeiteVerfuegbar`, `TeilelisteWirksam(w)` ohne `nurFa`, `TeileSichtVerfuegbar` = Master && `TeilelisteWirksam`, `TeileStandard` ueber `BdeStandardsichtTeile`) samt Aufrufer-Umstellung, Gate `BdeBookingService.cs:288` inhaltlich wie heute (ohne `nurFa`, ohne Master, kein neuer Ctor-Parameter), Zeilenquelle als gemeinsame Service-Methode, View `Fa` mit Spalten/Filter/Pagination statt MaxHauptFa (Antwort 14), AG-Status aller AG der Sub-FA (Antwort 4), Anstempeln Ruesten/Produktion je Zeile (Kollision als sichtbare Meldung), Werkbank-Maske mit Standardsicht-Auswahl neben `BdeTeileliste` („Teile“ nur mit `BdeTeileliste`), Liste `ProductionWorkplaces`, Teile-Reiter nur mit `BdeTeileliste` (sonst deaktiviert mit Hinweis), gemerkte Sicht. AK 23, 24 (4a-Teil), 28–32d. Doku: Kapitel 17 (Maske, Reiter, Foto `17-01`) + Kapitel 11 FA-Sicht (Foto `11-05`). v1.99.76, TS-197, keine weitere Migration. | offen | |
+| 4a | FA-Sicht Grundgeruest an beiden Standorten (Antwort 19): Wirksamkeits-Helfer ohne NurFA (`SeiteVerfuegbar`, `TeilelisteWirksam(w)` ohne `nurFa`, `TeileSichtVerfuegbar` = Master && `TeilelisteWirksam`, `TeileStandard` ueber `BdeStandardsichtTeile`) samt Aufrufer-Umstellung, Gate `BdeBookingService.cs:288` inhaltlich wie heute (ohne `nurFa`, ohne Master, kein neuer Ctor-Parameter), Zeilenquelle als gemeinsame Service-Methode, View `Fa` mit Spalten/Filter/Pagination statt MaxHauptFa (Antwort 14), AG-Status aller AG der Sub-FA (Antwort 4), Anstempeln Ruesten/Produktion je Zeile (Kollision als sichtbare Meldung), Werkbank-Maske mit Standardsicht-Auswahl neben `BdeTeileliste` („Teile“ nur mit `BdeTeileliste`), Liste `ProductionWorkplaces`, Teile-Reiter nur mit `BdeTeileliste` (sonst deaktiviert mit Hinweis), gemerkte Sicht. AK 23, 24 (4a-Teil), 28–32d. Doku: Kapitel 17 (Maske, Reiter, Foto `17-01`) + Kapitel 11 FA-Sicht (Foto `11-05`). v1.99.76, TS-197, keine weitere Migration. | erledigt (2026-11-25, Umsetzung siehe unten) | `878aa76d` |
 | 4b | FA-Sicht Bedienung (Antwort 19): Kopf-Buchungen laufend/pausiert mit Teilfertig/Pause/Fertig/Fortsetzen und Detailangaben-Schalter, `bde-fa-sicht.js`, Modal-Partials aus `Views/BdeTerminal/Index.cshtml` (Mengen, Kollision, Gruppe, Close-Others; beide Seiten nutzen sie bis Etappe 5), Scanzeile, Taetigkeit, NurAg-„Fertig melden“ je Zeile. AK 24 (4b-Teil), 25, 26, 27. Doku: Kapitel 11 Kopf/Dialoge/Scan (Foto `11-06`). v1.99.77, TS-198, keine Migration. | offen | |
 | 5 | Tageshistorie inkl. Teilmeldungen (Seite, Knopf, NavZiel; Antwort 5), `BdeTerminal/Index` leitet an beiden Standorten immer um, alte View + `bde-terminal.js` geloescht, `BdeTerminalMaxHauptFa` entfernt, Katalogtext `BdeNurFaMeldung`, Betriebsdoku Handy-Konten (Antworten 1, 2, 6). Doku: Kapitel 11 umgeschrieben, Terminal-Fotos `11-01`–`11-04` ersetzt, Tageshistorie-Foto, Index-Titel 11/17 (Antwort 17). v1.99.78, TS-199, keine Migration (vor Antwort 19: v1.99.74, TS-195). | offen | |
 
@@ -858,6 +858,50 @@ qa-agent steht aus. Changelog [[2026-11-25-v1-99-75-bde-masken-etappe-3-teilfert
 **Hinweise für Etappe 4a:** `TeilelisteWirksam`/`nurFa` unverändert; `BdeStandardsichtTeile` hat noch keinen Leser, steht nicht in
 `EditableProperties` bzw. der Werkbank-Maske und nicht in der Liste `ProductionWorkplaces`. Neue Lesewege auf `BdeTeilMeldungen` (Tageshistorie
 Etappe 5) beachten Fallstrick §69.
+
+## Umsetzung Etappe 4a (2026-11-25)
+
+Commit `878aa76d` im Worktree `feature/2026-08-07-ideal-teile-1-5` (auf v1.99.75 `94be5444`). **v1.99.76, TS-197, keine Migration.**
+Build 0 Fehler / 32 Warnungen (Basis), Tests Web 3685/1/0 (+30), Dienst 847/0/0. qa-agent steht aus (nach allen Etappen).
+Changelog [[2026-11-25-v1-99-76-bde-masken-etappe-4a-fa-sicht]].
+
+**Bauweise:**
+- Wirksamkeit an EINEM Ort `Services/WerkbankKuerzelFamilie.cs`: `TeilelisteWirksam(w)` (BdeAktiv + BdeTeileliste + Kürzel, ohne NurFA),
+  `SeiteVerfuegbar(w)` (BdeAktiv), `TeileSichtVerfuegbar(w, hierarchisch)`, `TeileStandard(w, hierarchisch)`. Aufrufer: Gate
+  `BdeBookingService` (ohne `nurFa`, ohne Master, kein Ctor-Parameter), `BdeTeilelisteService.MeldenAsync`, `BdeTerminalController.Index`
+  (Redirect nur bei `TeileStandard`), `BdeTeilelisteController`.
+- Zeilenquelle `Services/BdeFaAngebot.cs` (scoped): `LadenAsync(..., eigeneLaufendeAusblenden)` ist der aus `BdeApiController` gezogene Kern
+  (API ruft mit `true`, JSON unverändert, `Ordnen` auf derselben Teilmenge); `FaSichtAsync` liefert alle Zeilen inkl. eigener laufender
+  (`LaeuftBeiMir`), AG-Status aller WOs des Auftrags (Antwort 4) mit Markierung des Zeilen-AG (`FaArbeitsschrittSymbol.Markiert`, CSS
+  `.fa-ag-markiert`), Knoten (SubFA = int(SubOrderNumber), SubFA ≠ 0, nicht verschwunden) und Kopfwerte. `Spalten` = ColumnMap für den Filter.
+- `BdeTeilelisteController`: `SichtAufloesen` (gespeicherte/gewählte Sicht, ohne Angabe Standardsicht, Teile ohne Teile-Sicht → `fa`),
+  Sicht in der gemerkten Ansicht; Zweig FA mit `ColumnFilterHelper.Apply` + `ColumnFilterTypes.For("BdeTeileliste/Fa")` + Pagination,
+  View `Fa` (viewKey `BdeTeilelisteFa`, `ColumnDefinitions`); `NichtAktiv` statt Redirect-Kreis; `Melden` mit Gate `TeileSichtVerfuegbar`;
+  neu `Anstempeln` (POST, Antiforgery, PRG) → `StartSetupAsync`/`StartProductionAsync`, Text über `AnstempelnText` (Kollision mit Werker,
+  Werkbank, Uhrzeit, „nichts gebucht“).
+- `_Kopf`: Reiter Teile Einzeln / Teile Summiert (nur hierarchisch; ohne Teile-Sicht `span.disabled` mit `aria-disabled` + Hinweis) / FA.
+- Werkbank-Maske: Auswahl `BdeStandardsichtTeile` (FA/Teile) im Partial `_BdeTeilelisteField` (nur Master), Server-Validierung „Teile“ nur
+  mit BdeAktiv + Kürzel + BdeTeileliste + Master (auch Ausschalten der Teileliste und AKE-POST), `EditableProperties`, ColumnMap/Kennzeichen
+  „Standard Teile“. Der NurFA-Hinweis am Teileliste-Schalter entfällt (Option wirkt jetzt unabhängig).
+- Manifest: `Pruefung/BdeNurFaMeldungAn` (beide, Vorher), `Pruefung/BdeStandardsichtOhneTeileSicht` (IDEAL, Nachher, Braucht SQL/169),
+  `v1.99.76-BdeStandardsichtEinstellung`, `v1.99.76-BdeFaSichtAkeInfo`.
+
+**Abweichungen von der Spec:**
+- Die Werkbank-Auswahl im Kopf zielt jetzt auf `BdeTeileliste/Index` (statt Terminal), damit der Wechsel in der neuen Seite bleibt.
+- AKE erreicht die FA-Sicht bis Etappe 5 nur über `/BdeTeileliste?workplaceId=…`; `BDE → Terminal` leitet nur bei `TeileStandard` um.
+- AG-Status der FA-Sicht ohne Werkbank-Gate (alle WOs des Auftrags, Status aus `GetBdeStatusAsync`) – Vereinfachung.
+- Haupt-FA-Zeilen (SubFA = HauptFA) treffen den Wurzelknoten; SubFA 0 (Blechteil) bewusst ohne Knoten.
+- Werkbänke „nur AG-Fertigmeldung“ zeigen in 4a keinen Knopf (Fertig melden je Zeile = 4b).
+- Manifest-Info AKE nennt zusätzlich den Aufrufweg.
+
+**Befunde:**
+- Tests zusammen mit dem Code geschrieben (neue Members → Kompilierfehler statt rot).
+- Fotos nicht aufgenommen: `docs/anwender/bilder/17-01-werkbank-option.jpg` ersetzen (mit Auswahl BDE-Standardsicht), neu
+  `docs/anwender/bilder/11-05-fa-sicht.jpg` (FA-Tabelle mit Rüsten/Produktion).
+
+**Hinweise für Etappe 4b:** Zeilenquelle `BdeFaAngebot.FaSichtAsync`, Aktionsspalte in `Views/BdeTeileliste/Fa.cshtml` (heute Formular
+Rüsten/Produktion, ausgeblendet bei `LaeuftBeiMir`/`NurAgFertigmeldung`); `BdeTeilelisteController.Anstempeln` ist PRG ohne JS – Dialoge,
+Kopf-Buchungen, Scan, Tätigkeit und NurAg-„Fertig melden“ setzen dort an. `BdeTeilelisteViewModel.NurAgFertigmeldung` ist schon befüllt.
 
 ## Deploy
 

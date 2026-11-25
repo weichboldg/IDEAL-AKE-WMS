@@ -470,6 +470,11 @@ Quellen-Weiche je Abgleich: [[0019-quellen-weiche-view-sdata-je-abgleich]]. Ordn
   Teilfertigmeldung (v1.99.75): `TeilelisteZeile.Meldungen`/`Abschluss`/`Gemeldet`/`Rest`, Mengenregel `MengenFuerArtOk` (Fertig Vorgabe Rest,
   Teilfertig Gut > 0, Übermeldung = Hinweis), `MeldeAuftrag.Abschliessend`; Controller-Parameter `art` (`teil`/`fertig`); Baugruppe über
   `BdeBookingService.ReportCompletionCoreAsync(..., istFinal)`. Bestätigungsfenster (`data-bestaetigen`) in `bde-teileliste.js` statt `confirm`.
+- v1.99.76 (FA-Sicht, Etappe 4a): Wirksamkeit an EINEM Ort `IdealAkeWms/Services/WerkbankKuerzelFamilie.cs` (`TeilelisteWirksam` ohne NurFA,
+  `SeiteVerfuegbar`, `TeileSichtVerfuegbar`, `TeileStandard` über `ProductionWorkplace.BdeStandardsichtTeile`). Zeilenquelle
+  `IdealAkeWms/Services/BdeFaAngebot.cs` (scoped, kein Interface): `LadenAsync` = Kern der Terminal-API `available-operations`,
+  `FaSichtAsync` = FA-Tabelle (eigene laufende als `LaeuftBeiMir`, AG-Status aller AG mit `Markiert`), `Spalten` = ColumnMap,
+  Typ-Register `ColumnFilterTypes.For("BdeTeileliste/Fa")`.
 
 ## OperationConfigSync: Sage-Arbeitsgangnummer (v1.99.27)
 
