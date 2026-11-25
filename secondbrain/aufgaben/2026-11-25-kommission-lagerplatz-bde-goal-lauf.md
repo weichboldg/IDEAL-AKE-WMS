@@ -13,7 +13,7 @@ Isolierfräse-Spec reserviert), höchstes TS 190, höchste ADR 0035, letztes Pak
 
 | Spec | Typ | SQL-Block | Version | TS | Status | Commits | Blocker |
 |---|---|---|---|---|---|---|---|
-| [[2026-11-25-kommissionierauftraege-nachtrag-nachts-spec]] | Spec | 168 | 1.99.70 | 191 | InUmsetzung | | |
+| [[2026-11-25-kommissionierauftraege-nachtrag-nachts-spec]] | Spec | 168 | 1.99.70 | 191 | umgesetzt, QA läuft | fa1b754b, Brain 639fbd0f | |
 | [[2026-11-24-lagerplatz-anlage-wms-nach-sage-spec]] | Spec | – (ADR 0036) | 1.99.71 | 192 (statt 189, vergeben) | offen | | |
 | [[2026-11-20-bde-liste-isolierungsfraese-pfad-material-spec]] | Spec | 164, 165 (reserviert) | 1.99.72 | 193 | offen | | |
 | [[2026-11-25-bde-masken-vereinheitlichung-spec]] | Epic (1, 2, 3, 4a, 4b, 5) | 169 (statt 168) | 1.99.73–1.99.78 | 194–199 | offen | | |
@@ -28,3 +28,4 @@ ADR des Epics: 0037 (statt 0036, an die Lagerplatz-Spec vergeben).
 
 ## Protokoll
 - 2026-11-25 Start, Specs auf InUmsetzung.
+- Kommissionier-Nachtrag v1.99.70: fa1b754b (Brain 639fbd0f), SQL/168 + Migration 20261125161741_AddPickingStatusStuecklisteKleiner, TS-191.1–191.16 + 191.11a, Build 0 Fehler/keine neuen Warnungen, Tests Web 3551/1 skip/0, Dienst 801/0. Befund: Tabelle heißt ProductionOrderPickingStatus (Spec korrigiert). Deploy-Hinweis: erster Dienststart legt offene Nachträge sofort an (Manifest-Info). QA läuft.
