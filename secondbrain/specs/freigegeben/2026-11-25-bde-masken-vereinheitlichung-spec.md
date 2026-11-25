@@ -2,7 +2,7 @@
 type: spec
 title: BDE-Masken vereinheitlichen - Teile- und FA-Sicht, AG-Status-Ampel, Teilfertigmeldung, BDE mobil kompakt
 slug: 2026-11-25-bde-masken-vereinheitlichung-spec
-status: Entwurf
+status: Freigegeben
 created: 2026-11-25
 updated: 2026-11-25
 source_backlog: "[[2026-11-25-bde-masken-vereinheitlichung]]"
@@ -69,9 +69,9 @@ deploy:
   web: true
   service: true
   migration: true
-freigabe_entscheidung: ""
-freigabe_von: ""
-freigabe_am: ""
+freigabe_entscheidung: "Antworten 1-22 (Gerald 2026-11-25); Bauweg A; Teile-Reiter nur mit BdeTeileliste; Etappe 4 als 4a/4b"
+freigabe_von: Gerald
+freigabe_am: 2026-11-25
 ---
 
 > [!info] Herkunft
