@@ -268,58 +268,21 @@ public class BdeTerminalController : Controller
         return Json(MapResult(result));
     }
 
+    // v1.99.77 (E4-4): Abfragen in BdeKopfBuchungen (gemeinsam mit dem Kopf der FA-Sicht); JSON-Form unveraendert.
     [HttpGet]
-    public async Task<IActionResult> PausedBookings(int operatorId)
-    {
-        var paused = await _ctx.BdeBookings
-            .Include(b => b.WorkOperation)
-                .ThenInclude(wo => wo!.ProductionOrder)
-            .Where(b => b.BdeOperatorId == operatorId
-                     && (b.Status == BdeBookingStatus.Paused || b.Status == BdeBookingStatus.AutoPaused)
-                     && !b.IsCancelled
-                     && !_ctx.BdeBookings.Any(child => child.ParentBookingId == b.Id))
-            .OrderBy(b => b.StartedAt)
-            .Select(b => new {
-                bookingId = b.Id,
-                orderNumber = b.WorkOperation != null ? b.WorkOperation.ProductionOrder!.OrderNumber : "",
-                operationNumber = b.WorkOperation != null ? b.WorkOperation.OperationNumber : "",
-                operationName = b.WorkOperation != null ? b.WorkOperation.Name : "",
-                pausedAt = b.EndedAt,
-                status = b.Status.ToString()
-            })
-            .ToListAsync();
-
-        return Ok(paused);
-    }
+    public async Task<IActionResult> PausedBookings(int operatorId) =>
+        Ok((await BdeKopfBuchungen.PausierteAsync(_ctx, operatorId)).Select(b => new {
+            bookingId = b.BookingId, orderNumber = b.OrderNumber, operationNumber = b.OperationNumber, operationName = b.OperationName,
+            pausedAt = b.PausedAt, status = b.Status.ToString()
+        }).ToList());
 
     [HttpGet]
-    public async Task<IActionResult> ActiveBookings(int operatorId)
-    {
-        var active = await _ctx.BdeBookings
-            .Include(b => b.WorkOperation)
-                .ThenInclude(wo => wo!.ProductionOrder)
-            .Include(b => b.BdeActivity)
-            .Include(b => b.ProductionWorkplace)
-            .Where(b => b.BdeOperatorId == operatorId
-                     && b.Status == BdeBookingStatus.Running
-                     && b.EndedAt == null
-                     && !b.IsCancelled)
-            .OrderBy(b => b.StartedAt)
-            .Select(b => new {
-                bookingId = b.Id,
-                bookingType = b.BookingType.ToString(),
-                startedAt = b.StartedAt,
-                orderNumber = b.WorkOperation != null ? b.WorkOperation.ProductionOrder!.OrderNumber : "",
-                operationNumber = b.WorkOperation != null ? b.WorkOperation.OperationNumber : "",
-                operationName = b.WorkOperation != null ? b.WorkOperation.Name : "",
-                activityName = b.BdeActivity != null ? b.BdeActivity.Name : "",
-                workplaceName = b.ProductionWorkplace != null ? b.ProductionWorkplace.Name : "",
-                targetQuantity = b.WorkOperation != null ? (decimal?)b.WorkOperation.ProductionOrder!.Quantity : null
-            })
-            .ToListAsync();
-
-        return Ok(active);
-    }
+    public async Task<IActionResult> ActiveBookings(int operatorId) =>
+        Ok((await BdeKopfBuchungen.LaufendeAsync(_ctx, operatorId)).Select(b => new {
+            bookingId = b.BookingId, bookingType = b.Typ.ToString(), startedAt = b.StartedAt, orderNumber = b.OrderNumber,
+            operationNumber = b.OperationNumber, operationName = b.OperationName, activityName = b.ActivityName,
+            workplaceName = b.WorkplaceName, targetQuantity = b.TargetQuantity
+        }).ToList());
 
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> CloseOthers(int workOperationId, int operatorId)

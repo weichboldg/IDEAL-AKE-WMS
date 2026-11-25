@@ -86,11 +86,12 @@ public class BdeApiController : ControllerBase
     // Umstieg der Terminal-JS traegt); GetWorkOperation bleibt fuer Bestandsaufrufer erhalten.
     [HttpGet("resolve-scan")]
     public async Task<IActionResult> ResolveScan([FromQuery] string faNumber, [FromQuery] string? opNumber,
-        [FromQuery] int workplaceId, [FromQuery] int? operatorId = null)
+        [FromQuery] int workplaceId, [FromQuery] int? operatorId = null, [FromQuery] bool faSicht = false)
     {
         if (string.IsNullOrWhiteSpace(faNumber) || workplaceId <= 0) return BadRequest();
 
-        var nurFa = (await _settings.GetValueAsync(AppSettingKeys.BdeNurFaMeldung))
+        // v1.99.77 (E4-5, G5): die FA-Sicht liest BdeNurFaMeldung nicht – dort loest der Scan immer auf Arbeitsgaenge auf.
+        var nurFa = !faSicht && (await _settings.GetValueAsync(AppSettingKeys.BdeNurFaMeldung))
             ?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
 
         var res = await _scanResolver.ResolveAsync(workplaceId, faNumber, opNumber, nurFa, operatorId);

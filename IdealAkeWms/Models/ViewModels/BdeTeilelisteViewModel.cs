@@ -26,8 +26,18 @@ public class BdeTeilelisteViewModel
     /// <summary>v1.99.76 (E4-1): Zeilen der FA-Sicht (aktuelle Seite).</summary>
     public IReadOnlyList<BdeFaSichtZeile> FaZeilen { get; set; } = Array.Empty<BdeFaSichtZeile>();
 
-    /// <summary>v1.99.76 (E4-3): Werkbank meldet nur fertig – in 4a ohne Knopf, „Fertig melden“ folgt mit 4b.</summary>
+    /// <summary>v1.99.76 (E4-3): Werkbank meldet nur fertig – v1.99.77: je Zeile „Fertig melden“ mit Mengendialog (Vorgabe Sollmenge).</summary>
     public bool NurAgFertigmeldung { get; set; }
+
+    /// <summary>v1.99.77 (E4-4): Terminal des Web-Benutzers (fuer die bestehenden JSON-Aktionen von BdeTerminal).</summary>
+    public int TerminalId { get; set; }
+
+    /// <summary>v1.99.77 (E4-4): laufende und pausierte Buchungen des Werkers im Kopf (Quelle <see cref="IdealAkeWms.Services.BdeKopfBuchungen"/>).</summary>
+    public IReadOnlyList<IdealAkeWms.Services.BdeKopfBuchung> KopfLaufend { get; set; } = Array.Empty<IdealAkeWms.Services.BdeKopfBuchung>();
+    public IReadOnlyList<IdealAkeWms.Services.BdeKopfBuchung> KopfPausiert { get; set; } = Array.Empty<IdealAkeWms.Services.BdeKopfBuchung>();
+
+    /// <summary>v1.99.77 (E4-5): per Scan markierter Arbeitsgang (Zeile hervorgehoben, Seite mit der Zeile).</summary>
+    public int? Markiert { get; set; }
     public string? KwVon { get; set; }
     public string? KwBis { get; set; }
     public bool GemeldeteZeigen { get; set; }

@@ -649,6 +649,30 @@ public class BdeApiControllerTests
         json.Should().Contain("\"nurFaMode\":true");
         json.Should().Contain("\"target\":\"ProductionOrder\"");
     }
+    /// <summary>v1.99.77 (E4-5, G5): die FA-Sicht liest BdeNurFaMeldung nicht - faSicht=true loest immer auf Arbeitsgaenge auf.</summary>
+    [Fact]
+    public async Task ResolveScan_FaSicht_IgnoriertNurFaMeldung()
+    {
+        var ctx = TestDbContextFactory.Create();
+        ctx.ProductionOrders.Add(new ProductionOrder
+        {
+            Id = 1, OrderNumber = "GRP-1", SubOrderNumber = "SUB-1", Description1 = "Desc", ProductionWorkplaceId = 5,
+            CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t"
+        });
+        ctx.WorkOperations.Add(new WorkOperation
+        {
+            Id = 10, ProductionOrderId = 1, OperationNumber = "01", Name = "AG 01", ProductionWorkplaceId = 5,
+            CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t"
+        });
+        await ctx.SaveChangesAsync();
+        _settings.Setup(s => s.GetValueAsync(AppSettingKeys.BdeNurFaMeldung)).ReturnsAsync("true");
+
+        var result = await Ctrl(ctx).ResolveScan("GRP-1", null, workplaceId: 5, faSicht: true);
+
+        var json = System.Text.Json.JsonSerializer.Serialize(result.Should().BeOfType<OkObjectResult>().Subject.Value);
+        json.Should().Contain("\"kind\":\"Exact\"").And.Contain("\"nurFaMode\":false").And.Contain("\"target\":\"WorkOperation\"");
+    }
+
     // ===== FA-Struktur Teil 3 (v1.57.0): Terminal-Liste mit Status, Fremdbuchung sichtbar (Antwort 6 = A) =====
 
     private BdeApiController Ctrl(ApplicationDbContext ctx) => new(_ops.Object, _activities.Object, _bookings.Object,

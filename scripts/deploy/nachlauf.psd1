@@ -700,5 +700,8 @@ WHERE NOT EXISTS (SELECT 1 FROM dbo.Roles r WHERE r.[Key] = v.k);'
 @{ Id='v1.99.76-BdeFaSichtAkeInfo'; Version='1.99.76'; Typ='Info'; Firma='AKE'; Phase='Nachher'; Ausfuehrung='anzeigen'
    Text='BDE-Seite mit FA-Sicht gilt auch an AKE (derzeit ohne BDE-Nutzung), erreichbar ueber /BdeTeileliste; das Terminal bleibt bis v1.99.78 unveraendert. Keine Aktion noetig.'
    Quelle='2026-11-25-v1-99-76-bde-masken-etappe-4a-fa-sicht' }
+@{ Id='v1.99.77-BdeFaSichtBuchungenInfo'; Version='1.99.77'; Typ='Info'; Firma='beide'; Phase='Nachher'; Ausfuehrung='anzeigen'
+   Text='BDE-Seite Reiter FA: Meine Buchungen im Kopf (Pause/Teilfertig/Fertig/Fortsetzen), Scan-Feld FA scannen, Taetigkeit starten, Fertig melden je Zeile an Werkbaenken mit nur Fertigmeldung; Dialoge wie am Terminal. Terminal unveraendert. Werker kurz informieren; Browser-Cache am Terminal ggf. leeren.'
+   Quelle='2026-11-25-v1-99-77-bde-masken-etappe-4b-fa-buchungen' }
 )
 }

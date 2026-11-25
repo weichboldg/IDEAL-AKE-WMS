@@ -113,6 +113,28 @@
 .bde-tl-seite .pagination-page-size { min-height: 44px; }
 .bde-tl-seite .bde-tl-hinweise > summary { cursor: pointer; color: #212529; }
 
+/* v1.99.77 (Etappe 4b, E4-4/E4-5): Kopf-Buchungen der FA-Sicht. Zustand = Text („läuft“/„pausiert“) + Balkenform (durchgezogen #212529
+   15,4:1 / gestrichelt #6c757d 4,7:1), nie Farbe allein. Details #495057 auf Weiss 8,6:1, auf #f8f9fa 8,2:1. */
+.bde-kopf-zeile {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 0.25rem 0.75rem; padding: 0.4rem 0.75rem; margin-bottom: 0.35rem;
+    background: #fff; color: #212529; border: 1px solid #6c757d; border-left: 6px solid #212529; border-radius: 0.375rem;
+}
+.bde-kopf-pausiert { border-left-style: dashed; border-left-color: #6c757d; background: #f8f9fa; }
+.bde-kopf-art { font-weight: 700; }
+.bde-kopf-was { font-weight: 600; }
+.bde-kopf-detail { order: 3; flex-basis: 100%; font-size: 0.95rem; color: #495057; }
+.bde-kopf:not(.bde-kopf-mit-details) .bde-kopf-detail { display: none; }
+.bde-kopf-knoepfe { margin-left: auto; display: flex; flex-wrap: wrap; gap: 0.35rem; }
+.bde-kopf-leer { color: #495057; }
+.bde-kopf .form-switch { padding-left: 3.4em; }
+.bde-kopf .form-switch .form-check-input { width: 2.6em; height: 1.4em; margin-left: -3.4em; margin-top: 0; }
+/* Scan-Zeile: sichtbar wie ein Pflichtfeld (Rand #212529), schmal. */
+.bde-fa-scan { max-width: 22rem; font-size: 1.15rem; border: 2px solid #212529; }
+/* Scan-Treffer: Umriss + Balken + Grund #fff3cd (Text 13:1), Zustand fuer Screenreader per aria-current. */
+.bde-tl-seite .bde-fa-sicht > tbody > tr.bde-fa-markiert { outline: 3px solid #212529; outline-offset: -3px; }
+.bde-tl-seite .bde-fa-sicht > tbody > tr.bde-fa-markiert > td { --bs-table-bg-type: #fff3cd; }
+.bde-tl-seite .bde-fa-sicht > tbody > tr.bde-fa-markiert > td:first-child { box-shadow: inset 6px 0 0 #212529; }
+
 /* E1-4 (F1, F4): unter 992 px (Antwort 8) kompakter Kopf und Kartenansicht. B3: site.css erzwingt max-content/nowrap mit !important →
    hier mit hoeherer Spezifitaet und !important aufheben. B6: KEIN !important auf display der Zellen (Zahnrad blendet per Inline-Stil aus).
    B7: nur tr:not(.collapse) und tr.collapse.show werden Karten – eine allgemeine tr-Regel wuerde zugeklappte Kinder sichtbar machen. */
@@ -134,6 +156,7 @@
     .bde-tl-seite .bde-teileliste > tbody > tr > td[data-label]::before { content: attr(data-label); font-weight: 600; color: #212529; text-align: left; }
     .bde-tl-seite .bde-teileliste > tbody > tr.bde-tl-kind { background: #eef1f4; }
     .bde-tl-seite .bde-teileliste > tbody > tr.bde-tl-treffer { border-left: 6px solid #212529; }
+    .bde-tl-seite .bde-teileliste > tbody > tr.bde-fa-markiert { border-left: 6px solid #212529; background: #fff3cd; }
     .bde-tl-seite .bde-teileliste > tbody > tr > td.tl-zelle-auswahl { order: -1; }
     .bde-tl-seite .bde-teileliste > tbody > tr > td.tl-zelle-aktion { order: 99; }
     .bde-tl-seite .bde-teileliste > tbody > tr > td.tl-zelle-aktion > .btn { flex: 1 1 auto; justify-content: center; }

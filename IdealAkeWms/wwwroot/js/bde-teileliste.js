@@ -51,16 +51,19 @@
             '<button type="button" class="btn btn-primary btn-lg" data-ja>Ja</button></div></div></div>';
         document.body.appendChild(el);
         var m = bootstrap.Modal.getOrCreateInstance(el);
-        var beiJa = null;
-        el.querySelector('[data-ja]').addEventListener('click', function () { var f = beiJa; beiJa = null; m.hide(); if (f) f(); });
+        var beiJa = null, beiNein = null;
+        el.querySelector('[data-ja]').addEventListener('click', function () { var f = beiJa; beiJa = null; beiNein = null; m.hide(); if (f) f(); });
+        // v1.99.77: optionaler Rueckruf bei Abbrechen/Schliessen (bde-fa-sicht.js gibt damit den gesperrten Knopf frei)
+        el.addEventListener('hidden.bs.modal', function () { var n = beiNein; beiJa = null; beiNein = null; if (n) n(); });
         el.addEventListener('shown.bs.modal', function () { el.querySelector('[data-bs-dismiss]').focus(); });
-        return function (text, jaText, f) {
+        return function (text, jaText, f, nein) {
             el.querySelector('#tlBestaetigenText').textContent = text;
             el.querySelector('[data-ja]').textContent = jaText;
-            beiJa = f;
+            beiJa = f; beiNein = nein || null;
             m.show();
         };
     })();
+    window.bdeBestaetigen = bestaetigen; // v1.99.77: auch fuer bde-fa-sicht.js (Gut < Soll), statt eines zweiten Bestaetigungs-Dialogs
     // Formulare mit data-bestaetigen (Ruecknahme in _TeilStatus): erst nach "Zuruecknehmen" im Modal absenden.
     document.addEventListener('submit', function (ev) {
         var f = ev.target;

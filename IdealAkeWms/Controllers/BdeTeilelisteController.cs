@@ -95,9 +95,10 @@ public class BdeTeilelisteController : Controller
         _userSvc.GetCurrentAppUserId() is int uid ? await _terminals.GetByUserIdAsync(uid) : null;
 
     public async Task<IActionResult> Index(int workplaceId, int? operatorId, string? personalnummer, string? sicht, string? kwVon, string? kwBis,
-        bool gemeldete = false, int page = 1, int? pageSize = null)
+        bool gemeldete = false, int page = 1, int? pageSize = null, int? markiert = null)
     {
-        if (await TerminalAsync() == null)
+        var terminal = await TerminalAsync();
+        if (terminal == null)
         {
             TempData["WarningMessage"] = "Für diesen Benutzer ist kein Terminal konfiguriert. Bitte an den BDE-Admin wenden.";
             return RedirectToAction("Index", "Home");
@@ -157,6 +158,15 @@ public class BdeTeilelisteController : Controller
             var zeilen = ColumnFilterHelper.Apply(await _faAngebot.FaSichtAsync(wp, vm.Werker.Id), colf, BdeFaAngebot.Spalten,
                 ColumnFilterTypes.For("BdeTeileliste/Fa")).ToList();
             vm.NurAgFertigmeldung = WerkbankKuerzelFamilie.NurAgFertigmeldungWirksam(wp, nurFaGlobal: false);
+            vm.TerminalId = terminal.Id;
+            (vm.KopfLaufend, vm.KopfPausiert) = await _faAngebot.KopfBuchungenAsync(vm.Werker.Id);
+            // E4-5: Scan-Treffer ausserhalb der aktuellen Seite → Seite mit der Zeile; ausgefiltert = sichtbarer Hinweis statt still nichts.
+            if (markiert is int m)
+            {
+                vm.Markiert = m;
+                if (SeiteMitZeile(zeilen.Select(z => z.Op.Id).ToList(), m, size) is int seite) page = seite;
+                else TempData["WarningMessage"] = "Der gescannte Arbeitsgang ist mit den aktuellen Spaltenfiltern nicht sichtbar. Spaltenfilter zurücksetzen.";
+            }
             vm.FaZeilen = zeilen.Skip((page - 1) * size).Take(size).ToList();
             vm.Pagination = new PaginationState
             {
@@ -203,6 +213,13 @@ public class BdeTeilelisteController : Controller
 
     /// <summary>v1.99.72 (F12): der CSV-Export holt dieselbe URL per fetch (<c>pageSize=0</c>) – das ist keine Navigation und darf den
     /// gespeicherten Werker-Filter nicht ueberschreiben. Fehlt der Header (alte Browser), wird wie bisher gespeichert.</summary>
+    /// <summary>v1.99.77 (E4-5): Seite (1-basiert), auf der der Arbeitsgang in der gefilterten Liste steht; null = nicht in der Liste.</summary>
+    internal static int? SeiteMitZeile(IList<int> woIds, int woId, int size)
+    {
+        var i = woIds.IndexOf(woId);
+        return i < 0 ? null : i / size + 1;
+    }
+
     internal static bool IstNavigation(HttpRequest request) =>
         !request.Headers.TryGetValue("Sec-Fetch-Mode", out var mode) || string.Equals(mode.ToString(), "navigate", StringComparison.OrdinalIgnoreCase);
 

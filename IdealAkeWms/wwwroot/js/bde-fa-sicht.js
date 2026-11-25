@@ -1,0 +1,325 @@
+// v1.99.77 (Spec 2026-11-25-bde-masken-vereinheitlichung, Etappe 4b, E4-3..E4-6): Buchen auf der FA-Sicht der BDE-Teileliste.
+// Ruft die BESTEHENDEN JSON-Aktionen von BdeTerminal (Pruefungen inkl. Kollision im BdeBookingService), danach Neuladen; die
+// Erfolgsmeldung ueberlebt das Neuladen in sessionStorage. Dialoge: _BdeDialoge (gemeinsam mit dem Terminal), Bestaetigung
+// window.bdeBestaetigen (bde-teileliste.js), Auswahl #faAuswahlModal. Keine Browser-Dialoge. Doppeltipp: window.wmsSperren (site.js).
+(function () {
+    'use strict';
+    var cfg = document.getElementById('bdeFaSicht');
+    if (!cfg) return;
+    var operatorId = cfg.dataset.operatorId, workplaceId = cfg.dataset.workplaceId, terminalId = cfg.dataset.terminalId;
+    var token = (document.querySelector('input[name="__RequestVerificationToken"]') || {}).value;
+    var MELDUNG = 'wms.bdeFaSicht.meldung';
+    var box = document.getElementById('faMeldung');
+    var modal = function (id) { return bootstrap.Modal.getOrCreateInstance(document.getElementById(id)); };
+    var zeit = function (d) { return d ? new Date(d).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }) : '–'; };
+    var zahl = function (s) { return s != null && s !== '' && !isNaN(parseFloat(s)) ? parseFloat(s) : null; };
+    var fmt = function (n) { return n.toLocaleString('de-DE', { maximumFractionDigits: 4 }); };
+
+    function melden(text, art) {
+        var d = document.createElement('div');
+        d.className = 'alert alert-' + art + ' alert-dismissible fade show';
+        d.setAttribute('role', art === 'success' ? 'status' : 'alert');
+        d.textContent = text;
+        var x = document.createElement('button');
+        x.type = 'button'; x.className = 'btn-close'; x.setAttribute('data-bs-dismiss', 'alert'); x.setAttribute('aria-label', 'Schließen');
+        d.appendChild(x);
+        box.replaceChildren(d);
+        box.scrollIntoView({ block: 'nearest' });
+    }
+
+    // Neu laden ohne „markiert“ (sonst wuerde der alte Scan-Treffer erneut markiert)
+    function neuLaden(text) {
+        try { sessionStorage.setItem(MELDUNG, text); } catch (e) { /* ponytail: ohne Speicher keine Meldung nach dem Neuladen, die Liste zeigt den Stand */ }
+        var u = new URL(location.href);
+        u.searchParams.delete('markiert');
+        location.assign(u.toString());
+    }
+    try {
+        var alt = sessionStorage.getItem(MELDUNG);
+        if (alt) { sessionStorage.removeItem(MELDUNG); melden(alt, 'success'); }
+    } catch (e) { }
+
+    async function post(url, daten) {
+        var f = new FormData();
+        Object.keys(daten).forEach(function (k) { if (daten[k] != null) f.append(k, daten[k]); });
+        f.append('__RequestVerificationToken', token);
+        try {
+            var r = await fetch(url, { method: 'POST', body: f });
+            if (!r.ok) return { outcome: 'Http', message: 'Serverfehler (HTTP ' + r.status + '). Seite neu laden und Buchung prüfen.' };
+            return await r.json();
+        } catch (e) {
+            return { outcome: 'Http', message: 'Keine Verbindung zum Server. Seite neu laden und Buchung prüfen.' };
+        }
+    }
+
+    // Ergebnis einer Buchung: Erfolg → ggf. weitere Buchungen beenden, sonst neu laden; Kollision/Gruppe → Dialog; Rest → sichtbare Meldung.
+    function ergebnis(json, okText, frei) {
+        if (json.outcome !== 'Success' && frei) frei();
+        switch (json.outcome) {
+            case 'Success':
+                if (json.otherActiveBookings && json.otherActiveBookings.length) { andereBeenden(json, okText); return; }
+                neuLaden(okText); return;
+            case 'CollisionOtherOperator':
+                document.getElementById('collisionText').textContent = 'AG ist bereits in Arbeit durch ' + (json.collidingOperator || 'einen anderen Werker')
+                    + ' an ' + (json.collidingWorkplace || 'einer anderen Werkbank') + ' seit ' + zeit(json.collidingSince) + '.';
+                modal('collisionModal').show(); return;
+            case 'GroupFinishRequired': gruppe(json); return;
+            case 'QuantityRequired': melden('Mengen-Eingabe erforderlich – nichts gebucht.', 'warning'); return;
+            case 'Http': melden(json.message, 'warning'); return;
+            default: melden((json.message || 'Aktion nicht möglich') + ' – nichts gebucht.', 'warning');
+        }
+    }
+
+    // Mengendialog (#quantityModal): Promise mit {gut, aus} oder null (Abbrechen/Schliessen). Fokus auf Gutmenge.
+    function mengen(soll, vorgabe) {
+        return new Promise(function (fertig) {
+            var el = document.getElementById('quantityModal'), m = modal('quantityModal');
+            var hint = document.getElementById('qty-sollmenge-hint');
+            hint.textContent = soll != null ? 'Sollmenge: ' + fmt(soll) : '';
+            hint.classList.toggle('d-none', soll == null);
+            var gut = document.getElementById('inputGood'), aus = document.getElementById('inputScrap');
+            gut.value = vorgabe != null ? vorgabe : '';
+            aus.value = '0';
+            var wert = null;
+            document.getElementById('btnQtyOk').onclick = function () {
+                if (!gut.reportValidity() || !aus.reportValidity()) return;
+                wert = { gut: parseFloat(gut.value || '0'), aus: parseFloat(aus.value || '0') };
+                m.hide();
+            };
+            document.getElementById('btnQtyCancel').onclick = function () { m.hide(); };
+            el.addEventListener('shown.bs.modal', function () { gut.select(); }, { once: true });
+            el.addEventListener('hidden.bs.modal', function () { fertig(wert); }, { once: true });
+            m.show();
+        });
+    }
+
+    // E4-6 / #13: Gut < Soll → Bestaetigung im Modal (statt des Browser-Dialogs im alten Terminal).
+    function gutOk(gut, soll) {
+        return new Promise(function (ja) {
+            if (soll == null || !(gut < soll)) { ja(true); return; }
+            window.bdeBestaetigen('Gutmenge ' + fmt(gut) + ' liegt unter der Sollmenge ' + fmt(soll) + '. Wirklich als fertig melden?',
+                'Fertig melden', function () { ja(true); }, function () { ja(false); });
+        });
+    }
+
+    function andereBeenden(json, okText) {
+        var liste = document.getElementById('close-others-list');
+        liste.replaceChildren.apply(liste, json.otherActiveBookings.map(function (o) {
+            var li = document.createElement('li');
+            li.textContent = o.operatorName + ' – seit ' + zeit(o.startedAt);
+            return li;
+        }));
+        var el = document.getElementById('close-others-modal'), m = modal('close-others-modal');
+        var text = okText;
+        var ja = document.getElementById('close-others-confirm');
+        ja.onclick = async function () {
+            var frei = window.wmsSperren(ja);
+            if (!frei) return;
+            var r = await post('/BdeTerminal/CloseOthers', { workOperationId: json.workOperationId, operatorId: operatorId });
+            frei();
+            text = r.closedCount != null ? okText + ' ' + r.closedCount + ' weitere Buchungen beendet.' : okText + ' Weitere Buchungen beenden fehlgeschlagen: ' + (r.message || '');
+            m.hide();
+        };
+        el.addEventListener('hidden.bs.modal', function () { neuLaden(text); }, { once: true });  // „Nein, nur meine“: die anderen laufen weiter
+        m.show();
+    }
+
+    function gruppe(json) {
+        var tbody = document.getElementById('group-finish-rows');
+        tbody.replaceChildren.apply(tbody, json.bookings.map(function (b) {
+            var tr = document.createElement('tr');
+            tr.dataset.bookingId = b.bookingId;
+            var fa = document.createElement('td');
+            fa.textContent = b.orderNumber + '/' + b.operationNumber + (b.operationName ? ' ' + b.operationName : '');
+            var soll = document.createElement('td');
+            soll.textContent = b.targetQuantity != null ? fmt(b.targetQuantity) : '–';
+            tr.append(fa, soll);
+            [['group-qty-good', 'Gut'], ['group-qty-scrap', 'Ausschuss']].forEach(function (f) {
+                var td = document.createElement('td'), i = document.createElement('input');
+                i.type = 'number'; i.min = '0'; i.step = '0.01'; i.value = '0'; i.className = 'form-control ' + f[0];
+                i.setAttribute('aria-label', f[1] + ' ' + fa.textContent);
+                td.appendChild(i); tr.appendChild(td);
+            });
+            var abs = document.createElement('td'), c = document.createElement('input');
+            abs.className = 'text-center';
+            c.type = 'checkbox'; c.checked = true; c.className = 'form-check-input group-is-final';
+            c.setAttribute('aria-label', 'Abschliessen ' + fa.textContent);
+            abs.appendChild(c); tr.appendChild(abs);
+            return tr;
+        }));
+        var m = modal('group-finish-modal'), ok = document.getElementById('group-finish-confirm');
+        ok.onclick = async function () {
+            var frei = window.wmsSperren(ok);
+            if (!frei) return;
+            var eintraege = Array.prototype.map.call(tbody.querySelectorAll('tr[data-booking-id]'), function (r) {
+                return {
+                    bookingId: parseInt(r.dataset.bookingId, 10),
+                    goodQty: parseFloat(r.querySelector('.group-qty-good').value) || 0,
+                    scrapQty: parseFloat(r.querySelector('.group-qty-scrap').value) || 0,
+                    isFinal: r.querySelector('.group-is-final').checked
+                };
+            });
+            var r = await post('/BdeTerminal/FinishGroup', { operatorId: operatorId, entriesJson: JSON.stringify(eintraege) });
+            if (r.outcome === 'Success') { neuLaden(r.closedCount + ' Buchungen fertig gemeldet.'); return; }
+            frei();
+            m.hide();
+            melden((r.message || 'Gruppen-Abschluss fehlgeschlagen') + ' – nichts gebucht.', 'warning');
+        };
+        m.show();  // „Abbrechen“ bucht nichts
+    }
+
+    var start = function (woId, ruesten) {
+        return post(ruesten ? '/BdeTerminal/StartSetup' : '/BdeTerminal/StartProduction',
+            { operatorId: operatorId, workOperationId: woId, workplaceId: workplaceId, terminalId: terminalId });
+    };
+
+    // Kopf-Buchungen (E4-4): Knoepfe je Zustand wie das Terminal (renderActionsForActive / Pausiert-Liste).
+    document.addEventListener('click', async function (e) {
+        var btn = e.target.closest('[data-kopf-aktion]');
+        if (!btn) return;
+        var z = btn.closest('.bde-kopf-zeile');
+        var id = z.dataset.bookingId, soll = zahl(z.dataset.soll);
+        var frei = window.wmsSperren(btn);
+        if (!frei) return;
+        var q, r, ok;
+        switch (btn.dataset.kopfAktion) {
+            case 'pause':
+                if (!(q = await mengen(soll, null))) return frei();
+                r = await post('/BdeTerminal/Pause', { bookingId: id, goodQty: q.gut, scrapQty: q.aus }); ok = 'Pausiert.'; break;
+            case 'teilfertig':
+                if (!(q = await mengen(soll, null))) return frei();
+                r = await post('/BdeTerminal/ReportPartial', { bookingId: id, goodQty: q.gut, scrapQty: q.aus }); ok = 'Teilmenge gemeldet.'; break;
+            case 'fertig':
+                if (!(q = await mengen(soll, null)) || !(await gutOk(q.gut, soll))) return frei();
+                r = await post('/BdeTerminal/Finish', { bookingId: id, goodQty: q.gut, scrapQty: q.aus }); ok = 'Fertig gemeldet.'; break;
+            case 'ruesten-fertig': r = await post('/BdeTerminal/Finish', { bookingId: id }); ok = 'Rüsten beendet.'; break;
+            case 'produktion': r = await start(z.dataset.woId, false); ok = 'Produktion gestartet.'; break;
+            case 'beenden': r = await post('/BdeTerminal/Finish', { bookingId: id }); ok = 'Tätigkeit beendet.'; break;
+            case 'fortsetzen':
+                r = await post('/BdeTerminal/Resume', { pausedBookingId: id, operatorId: operatorId, resumeAs: 2, workplaceId: workplaceId, terminalId: terminalId });
+                ok = 'Fortgesetzt.'; break;
+            default: return frei();
+        }
+        ergebnis(r, ok, frei);
+    });
+
+    // Zeilen: Anstempeln per JSON (Kollision als Dialog), Formular bleibt der Weg ohne JS. NurAg: „Fertig melden“ mit Mengendialog.
+    document.addEventListener('submit', async function (e) {
+        var f = e.target;
+        if (!f.matches || !f.matches('form[data-fa-anstempeln]')) return;
+        e.preventDefault();
+        var knoepfe = f.querySelectorAll('button[type="submit"]');
+        var ruesten = e.submitter && e.submitter.value === 'ruesten';
+        var frei = window.wmsSperren(knoepfe);
+        if (!frei) return;
+        ergebnis(await start(f.dataset.woId, ruesten), ruesten ? 'Rüsten gestartet.' : 'Produktion gestartet.', frei);
+    }, true);
+
+    document.addEventListener('click', async function (e) {
+        var btn = e.target.closest('[data-fa-fertig]');
+        if (!btn) return;
+        var frei = window.wmsSperren(btn);
+        if (!frei) return;
+        var soll = zahl(btn.dataset.soll);
+        var q = await mengen(soll, soll);
+        if (!q || !(await gutOk(q.gut, soll))) return frei();
+        ergebnis(await post('/BdeTerminal/ReportCompletion', {
+            operatorId: operatorId, workOperationId: btn.dataset.woId, workplaceId: workplaceId, terminalId: terminalId, goodQty: q.gut, scrapQty: q.aus
+        }), 'Fertig gemeldet: ' + btn.dataset.bez + '.', frei);
+    });
+
+    // Auswahl-Dialog: je Eintrag ein Knopf (Text escaped per textContent); Fokus auf den ersten Eintrag.
+    function auswahl(titel, text, eintraege, gewaehlt) {
+        var el = document.getElementById('faAuswahlModal'), m = modal('faAuswahlModal');
+        document.getElementById('faAuswahlTitel').textContent = titel;
+        document.getElementById('faAuswahlText').textContent = text;
+        var liste = document.getElementById('faAuswahlListe');
+        liste.replaceChildren.apply(liste, eintraege.map(function (x) {
+            var b = document.createElement('button');
+            b.type = 'button'; b.className = 'btn btn-outline-primary btn-lg text-start bde-touch';
+            b.textContent = x.text;
+            b.addEventListener('click', function () { m.hide(); gewaehlt(x); });
+            return b;
+        }));
+        el.addEventListener('shown.bs.modal', function () { var b = liste.querySelector('button'); if (b) b.focus(); }, { once: true });
+        m.show();
+    }
+
+    // #14 Taetigkeit: Auswahl aus /api/bde/activities, StartActivity.
+    document.getElementById('btnTaetigkeit').addEventListener('click', async function () {
+        var r;
+        try { r = await fetch('/api/bde/activities'); } catch (err) { r = null; }
+        if (!r || !r.ok) { melden('Tätigkeiten konnten nicht geladen werden.', 'warning'); return; }
+        var liste = await r.json();
+        if (!liste.length) { melden('Keine Tätigkeiten angelegt. Bitte an den BDE-Admin wenden.', 'warning'); return; }
+        auswahl('Tätigkeit starten', 'Ungeplante Tätigkeit wählen:', liste.map(function (a) { return { id: a.id, text: a.code + ' – ' + a.name }; }),
+            async function (a) {
+                ergebnis(await post('/BdeTerminal/StartActivity',
+                    { operatorId: operatorId, activityId: a.id, workplaceId: workplaceId, terminalId: terminalId }), 'Tätigkeit gestartet: ' + a.text + '.');
+            });
+    });
+
+    // Schalter „Zeiten und Details“ (nur Anzeige, je Werker gemerkt)
+    var kopf = document.querySelector('.bde-kopf'), schalter = document.getElementById('bdeKopfDetails');
+    var DETAILS = 'wms.bdeKopfDetails.' + operatorId;
+    try { schalter.checked = localStorage.getItem(DETAILS) === 'an'; } catch (e) { }
+    var zeigen = function () { kopf.classList.toggle('bde-kopf-mit-details', schalter.checked); };
+    zeigen();
+    schalter.addEventListener('change', function () {
+        zeigen();
+        try { localStorage.setItem(DETAILS, schalter.checked ? 'an' : 'aus'); } catch (e) { }
+    });
+
+    // E4-5 Scan: Treffer markieren (Zeile auf dieser Seite) bzw. auf die Seite mit der Zeile wechseln (Server: markiert=).
+    function markieren(woId) {
+        var tr = document.querySelector('tr[data-wo-id="' + woId + '"]');
+        if (!tr) {
+            var u = new URL(location.href);
+            u.searchParams.set('markiert', woId);
+            u.searchParams.delete('page');
+            location.assign(u.toString());
+            return;
+        }
+        document.querySelectorAll('tr.bde-fa-markiert').forEach(function (x) { x.classList.remove('bde-fa-markiert'); x.removeAttribute('aria-current'); });
+        tr.classList.add('bde-fa-markiert');
+        tr.setAttribute('aria-current', 'true');
+        tr.scrollIntoView({ block: 'center' });
+        var b = tr.querySelector('[data-fa-anstempeln] button, [data-fa-fertig]');
+        if (b) b.focus();
+        else melden('Dieser Arbeitsgang läuft bereits bei Ihnen – Buchung oben unter „Meine Buchungen“.', 'warning');
+    }
+    var vorab = cfg.dataset.markiert;
+    if (vorab) {
+        var tr0 = document.querySelector('tr[data-wo-id="' + vorab + '"]');
+        if (tr0) markieren(vorab);
+    }
+
+    var scanForm = document.getElementById('faScanForm'), scan = document.getElementById('faScan');
+    scanForm.addEventListener('submit', async function (e) {
+        e.preventDefault();
+        var roh = scan.value.trim();
+        scan.value = '';
+        if (!roh) return;
+        var teile = roh.split(/[,\/]/), fa = teile[0].trim(), ag = teile.length > 1 ? teile[1].trim() : '';
+        if (!fa) return;
+        var r;
+        try {
+            r = await fetch('/api/bde/resolve-scan?faSicht=true&faNumber=' + encodeURIComponent(fa) + (ag ? '&opNumber=' + encodeURIComponent(ag) : '')
+                + '&workplaceId=' + encodeURIComponent(workplaceId) + '&operatorId=' + encodeURIComponent(operatorId));
+        } catch (err) { r = null; }
+        if (!r || !r.ok) { melden('Scan „' + roh + '“ konnte nicht aufgelöst werden.', 'warning'); return; }
+        var res = await r.json();
+        var kand = res.candidates.filter(function (c) { return c.target === 'WorkOperation'; });
+        if (res.kind === 'Exact' && kand.length === 1) { markieren(kand[0].id); return; }
+        if (res.kind === 'Ambiguous' && kand.length > 1) {
+            auswahl('Arbeitsgang wählen', 'Zu „' + roh + '“ gibt es mehrere offene Arbeitsgänge an dieser Werkbank:',
+                kand.map(function (c) {
+                    return { id: c.id, text: (c.subOrderNumber ? c.subOrderNumber : c.orderNumber) + ' / ' + (c.operationNumber || '').trim()
+                        + (c.operationName ? ' ' + c.operationName : '') + (c.description ? ' – ' + c.description : '') };
+                }), function (c) { markieren(c.id); });
+            return;
+        }
+        melden(res.kind === 'NotInScope' ? 'FA ' + fa + ' hat an dieser Werkbank keinen offenen Arbeitsgang.'
+            : 'FA „' + roh + '“ nicht gefunden (oder der Arbeitsgang läuft bereits).', 'warning');
+    });
+})();

@@ -1,0 +1,72 @@
+@* v1.99.77 (Spec 2026-11-25-bde-masken-vereinheitlichung E4-6): Dialoge der BDE-Buchung, EINMAL fuer BDE-Terminal (bde-terminal.js) und
+   FA-Sicht der BDE-Teileliste (bde-fa-sicht.js). IDs bleiben die des Terminals. Klasse bde-terminal am Modal = Touch-Groessen aus bde.css. *@
+<div class="modal fade bde-terminal" id="quantityModal" tabindex="-1" aria-labelledby="quantityModalTitel" aria-hidden="true">
+  <div class="modal-dialog"><div class="modal-content">
+    <div class="modal-header"><h5 class="modal-title" id="quantityModalTitel">Mengen melden</h5></div>
+    <div class="modal-body">
+      <div id="qty-sollmenge-hint" class="alert alert-info py-2 mb-3 d-none"></div>
+      <div class="mb-3"><label for="inputGood" class="form-label">Gutmenge</label><input type="number" id="inputGood" class="form-control form-control-lg" step="1" min="0" /></div>
+      <div class="mb-3"><label for="inputScrap" class="form-label">Ausschuss</label><input type="number" id="inputScrap" class="form-control form-control-lg" step="1" min="0" value="0" /></div>
+    </div>
+    <div class="modal-footer"><button type="button" id="btnQtyCancel" class="btn btn-secondary btn-lg">Abbrechen</button><button type="button" id="btnQtyOk" class="btn btn-primary btn-lg">Bestätigen</button></div>
+  </div></div>
+</div>
+
+<div class="modal fade bde-terminal" id="collisionModal" tabindex="-1" aria-labelledby="collisionModalTitel" aria-hidden="true">
+  <div class="modal-dialog"><div class="modal-content">
+    <div class="modal-header bg-warning"><h5 class="modal-title" id="collisionModalTitel">Arbeitsgang bereits in Arbeit</h5></div>
+    <div class="modal-body"><p id="collisionText" class="fs-5 mb-0"></p></div>
+    <div class="modal-footer"><button type="button" class="btn btn-primary btn-lg" data-bs-dismiss="modal">OK</button></div>
+  </div></div>
+</div>
+
+<div class="modal fade bde-terminal" id="group-finish-modal" tabindex="-1" aria-labelledby="groupFinishTitel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="groupFinishTitel">Alle Produktionsauftr&auml;ge abschliessen</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schliessen"></button>
+            </div>
+            <div class="modal-body">
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>FA / AG</th>
+                                <th>Sollmenge</th>
+                                <th>Gut</th>
+                                <th>Ausschuss</th>
+                                <th>Abschl.</th>
+                            </tr>
+                        </thead>
+                        <tbody id="group-finish-rows"></tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary btn-lg" data-bs-dismiss="modal">Abbrechen</button>
+                <button type="button" class="btn btn-primary btn-lg" id="group-finish-confirm">Alle fertig melden</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade bde-terminal" id="close-others-modal" tabindex="-1" aria-labelledby="closeOthersTitel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="closeOthersTitel">Weitere aktive Buchungen</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schliessen"></button>
+            </div>
+            <div class="modal-body">
+                <p>Auf diesem Arbeitsgang arbeiten noch:</p>
+                <ul id="close-others-list"></ul>
+                <p>Sollen diese Buchungen auch beendet werden?</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary btn-lg" data-bs-dismiss="modal">Nein, nur meine</button>
+                <button type="button" class="btn btn-primary btn-lg" id="close-others-confirm">Ja, alle beenden</button>
+            </div>
+        </div>
+    </div>
+</div>

@@ -8,11 +8,21 @@
 }
 @* v1.99.76 (Spec 2026-11-25-bde-masken-vereinheitlichung, Etappe 4a, E4-1/E4-2/E4-3): Reiter FA – offene Arbeitsgaenge der Kuerzel-Familie
    (Quelle BdeFaAngebot, Reihenfolge wie das Terminal), Server-Spaltenfilter + Pagination, Anstempeln je Zeile als Formular-POST.
-   Status = Text + AG-Symbole (Farbe nie allein). Kopf-Buchungen, Dialoge und Scan folgen mit Etappe 4b. *@
+   Status = Text + AG-Symbole (Farbe nie allein).
+   v1.99.77 (Etappe 4b, E4-3..E4-6): Kopf-Buchungen (_KopfBuchungen), Scan-Zeile, Dialoge (_BdeDialoge, gemeinsam mit dem Terminal),
+   „Fertig melden“ je Zeile bei NurAg-Werkbank. bde-fa-sicht.js ruft die bestehenden JSON-Aktionen von BdeTerminal; ohne JS bleibt das
+   Anstempeln-Formular (PRG). *@
 <link rel="stylesheet" href="~/css/bde.css" asp-append-version="true" />
 
 <div class="container-fluid bde-terminal bde-tl-seite">
     <partial name="_Kopf" model="Model" />
+
+    @* E4-5: schmale Scan-Zeile, einziges Hardware-Scan-Ziel der Seite (Enter sendet). „FA“ oder „FA/AG“ bzw. „FA,AG“ wie am Terminal. *@
+    <form id="faScanForm" class="d-flex flex-wrap align-items-center gap-2 mb-2" role="search" autocomplete="off">
+        <label for="faScan" class="form-label mb-0 fw-semibold">FA scannen</label>
+        <input type="text" id="faScan" class="form-control bde-touch bde-fa-scan" placeholder="FA oder FA/AG" data-hw-scan-ziel />
+        <button type="submit" class="btn btn-primary bde-touch">Suchen</button>
+    </form>
 
     <div class="d-flex justify-content-end mb-1" data-table-toolbar></div>
     <div class="table-responsive">
@@ -53,7 +63,8 @@
                 {
                     var op = z.Op;
                     var status = BdeFaAngebot.StatusText(z);
-                    <tr class="@(z.Zeile.LaeuftBeiMir ? "bde-fa-eigen" : null)">
+                    var markiert = Model.Markiert == op.Id;
+                    <tr class="@(z.Zeile.LaeuftBeiMir ? "bde-fa-eigen" : null) @(markiert ? "bde-fa-markiert" : null)" data-wo-id="@op.Id" aria-current="@(markiert ? "true" : null)">
                         <td data-col-key="hauptfa" data-label="Haupt-FA">@sp["hauptfa"](z)</td>
                         <td data-col-key="subfa" data-label="Sub-FA">@sp["subfa"](z)</td>
                         <td data-col-key="arbeitsgang" data-label="Arbeitsgang"><span class="fw-semibold">@op.OperationNumber.Trim()</span> @op.Name</td>
@@ -80,10 +91,17 @@
                             <span class="fa-ag-symbol @css">@Html.Raw(svg)@status</span>
                         </td>
                         <td class="text-nowrap tl-zelle-aktion" data-col-key="aktion" data-label="Aktion">
-                            @if (!z.Zeile.LaeuftBeiMir && !Model.NurAgFertigmeldung)
+                            @{ var bez = $"{op.ProductionOrder.OrderNumber} / {op.OperationNumber.Trim()}"; }
+                            @if (!z.Zeile.LaeuftBeiMir && Model.NurAgFertigmeldung)
                             {
-                                var bez = $"{op.ProductionOrder.OrderNumber} / {op.OperationNumber.Trim()}";
-                                <form method="post" asp-action="Anstempeln" class="d-inline-flex flex-wrap gap-1">
+                                @* E4-3 (AK 24): Mengendialog, Vorgabe Sollmenge; bei Gut < Soll Bestaetigung im Modal. *@
+                                <button type="button" class="btn btn-success bde-touch" data-fa-fertig data-wo-id="@op.Id"
+                                        data-soll="@op.ProductionOrder.Quantity.ToString(System.Globalization.CultureInfo.InvariantCulture)" data-bez="@bez"
+                                        aria-label="Fertig melden @bez">Fertig melden</button>
+                            }
+                            else if (!z.Zeile.LaeuftBeiMir)
+                            {
+                                <form method="post" asp-action="Anstempeln" class="d-inline-flex flex-wrap gap-1" data-fa-anstempeln data-wo-id="@op.Id">
                                     <input type="hidden" name="workplaceId" value="@Model.Werkbank.Id" />
                                     <input type="hidden" name="operatorId" value="@Model.Werker!.Id" />
                                     <input type="hidden" name="workOperationId" value="@op.Id" />
@@ -101,6 +119,26 @@
 
     <partial name="_Pagination" model="Model.Pagination" />
 </div>
+
+<partial name="_BdeDialoge" />
+
+@* E4-5/E4-6: Auswahl fuer mehrdeutigen Scan und fuer die ungeplante Taetigkeit (ein Dialog, Liste je Aufruf). *@
+<div class="modal fade bde-terminal" id="faAuswahlModal" tabindex="-1" aria-labelledby="faAuswahlTitel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-scrollable"><div class="modal-content">
+        <div class="modal-header">
+            <h5 class="modal-title" id="faAuswahlTitel"></h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schliessen"></button>
+        </div>
+        <div class="modal-body">
+            <p id="faAuswahlText" class="mb-2"></p>
+            <div id="faAuswahlListe" class="d-grid gap-2"></div>
+        </div>
+        <div class="modal-footer"><button type="button" class="btn btn-secondary btn-lg" data-bs-dismiss="modal">Abbrechen</button></div>
+    </div></div>
+</div>
+
+<div id="bdeFaSicht" hidden data-operator-id="@Model.Werker!.Id" data-workplace-id="@Model.Werkbank.Id" data-terminal-id="@Model.TerminalId"
+     data-markiert="@Model.Markiert"></div>
 
 <script type="application/json" id="view-config">
 { "viewKey": "BdeTeilelisteFa", "supportsReorder": true, "supportsSortDefault": false }
@@ -137,4 +175,6 @@
     <script src="~/js/column-preferences.js" asp-append-version="true"></script>
     <script src="~/js/table-filter.js" asp-append-version="true"></script>
     <script src="~/js/bde-teileliste.js" asp-append-version="true"></script>
+    @Html.AntiForgeryToken()
+    <script src="~/js/bde-fa-sicht.js" asp-append-version="true"></script>
 }

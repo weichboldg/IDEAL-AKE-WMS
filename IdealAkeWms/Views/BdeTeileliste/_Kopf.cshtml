@@ -36,6 +36,10 @@
     <span class="ms-2 small">Personalnr. @Model.Werker.PersonnelNumber</span>
     <a class="btn btn-outline-secondary ms-auto bde-touch" asp-action="Index" asp-route-workplaceId="@Model.Werkbank.Id">Werker wechseln</a>
 </div>
+@if (Model.IstFa)
+{
+    <partial name="_KopfBuchungen" model="Model" />
+}
 
 <ul class="nav nav-pills mb-1" aria-label="Ansicht">
     @if (Model.Hierarchisch)

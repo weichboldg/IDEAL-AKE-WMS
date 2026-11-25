@@ -40,6 +40,10 @@ public class BdeFaAngebot
         _holidays = holidays; _businessDays = businessDays; _operationConfigs = operationConfigs;
     }
 
+    /// <summary>v1.99.77 (E4-4): Kopf-Buchungen des Werkers ueber dieselbe Abfrage wie BdeTerminal ActiveBookings/PausedBookings.</summary>
+    public async Task<(List<BdeKopfBuchung> Laufend, List<BdeKopfBuchung> Pausiert)> KopfBuchungenAsync(int operatorId) =>
+        (await BdeKopfBuchungen.LaufendeAsync(_ctx, operatorId), await BdeKopfBuchungen.PausierteAsync(_ctx, operatorId));
+
     /// <summary>Terminal (<paramref name="eigeneLaufendeAusblenden"/> = true): wie vor v1.99.76 ohne die eigenen laufenden.
     /// FA-Sicht (false): eigene laufende bleiben mit <see cref="BdeFaZeile.LaeuftBeiMir"/> sichtbar. Von anderen gebuchte bleiben
     /// sichtbar als „laeuft“ (Antwort 6 = A, v1.57.0); die Startpruefung bleibt im BdeBookingService.</summary>

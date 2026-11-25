@@ -110,28 +110,6 @@
         </div>
     </div>
 
-    <!-- Mengen-Modal -->
-    <div class="modal fade" id="quantityModal" tabindex="-1">
-      <div class="modal-dialog"><div class="modal-content">
-        <div class="modal-header"><h5 class="modal-title">Mengen melden</h5></div>
-        <div class="modal-body">
-          <div id="qty-sollmenge-hint" class="alert alert-info py-2 mb-3 d-none"></div>
-          <div class="mb-3"><label>Gutmenge</label><input type="number" id="inputGood" class="form-control form-control-lg" step="1" min="0" /></div>
-          <div class="mb-3"><label>Ausschuss</label><input type="number" id="inputScrap" class="form-control form-control-lg" step="1" min="0" value="0" /></div>
-        </div>
-        <div class="modal-footer"><button id="btnQtyCancel" class="btn btn-secondary">Abbrechen</button><button id="btnQtyOk" class="btn btn-primary">Bestätigen</button></div>
-      </div></div>
-    </div>
-
-    <!-- Kollisions-Modal -->
-    <div class="modal fade" id="collisionModal" tabindex="-1">
-      <div class="modal-dialog"><div class="modal-content">
-        <div class="modal-header bg-warning"><h5 class="modal-title">Arbeitsgang bereits in Arbeit</h5></div>
-        <div class="modal-body"><p id="collisionText"></p></div>
-        <div class="modal-footer"><button class="btn btn-primary" data-bs-dismiss="modal">OK</button></div>
-      </div></div>
-    </div>
-
     <!-- Aktivitäts-Modal -->
     <div class="modal fade" id="activityModal" tabindex="-1">
       <div class="modal-dialog"><div class="modal-content">
@@ -145,58 +123,8 @@
     </div>
 </div>
 
-<!-- Group-Finish-Modal -->
-<div class="modal fade bde-terminal" id="group-finish-modal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Alle Produktionsauftr&auml;ge abschliessen</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schliessen"></button>
-            </div>
-            <div class="modal-body">
-                <div class="table-responsive">
-                    <table class="table table-sm">
-                        <thead>
-                            <tr>
-                                <th>FA / AG</th>
-                                <th>Sollmenge</th>
-                                <th>Gut</th>
-                                <th>Ausschuss</th>
-                                <th>Abschl.</th>
-                            </tr>
-                        </thead>
-                        <tbody id="group-finish-rows"></tbody>
-                    </table>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
-                <button type="button" class="btn btn-primary" id="group-finish-confirm">Alle fertig melden</button>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Close-Others-Modal -->
-<div class="modal fade bde-terminal" id="close-others-modal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Weitere aktive Buchungen</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schliessen"></button>
-            </div>
-            <div class="modal-body">
-                <p>Auf diesem Arbeitsgang arbeiten noch:</p>
-                <ul id="close-others-list"></ul>
-                <p>Sollen diese Buchungen auch beendet werden?</p>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Nein, nur meine</button>
-                <button type="button" class="btn btn-primary" id="close-others-confirm">Ja, alle beenden</button>
-            </div>
-        </div>
-    </div>
-</div>
+@* v1.99.77 (E4-6): Mengen-, Kollisions-, Gruppen- und Close-Others-Dialog gemeinsam mit der FA-Sicht. *@
+<partial name="_BdeDialoge" />
 
 @section Scripts {
     <input type="hidden" id="terminalId" value="@ViewBag.TerminalId" />

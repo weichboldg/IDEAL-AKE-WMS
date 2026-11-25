@@ -1,6 +1,6 @@
 # 11 – BDE-Terminal
 
-Stand: Version 1.99.76 (Abschnitt 7 FA-Sicht und Unterschiede, Text; Foto 11-05 folgt), 1.99.73 (Abschnitt 6, Text) bzw. 1.99.43 · Standorte AKE und IDEAL · Bilder aus dem IDEAL-Testsystem
+Stand: Version 1.99.77 (Abschnitt 7 und 8 Buchen auf der FA-Sicht, Text; Foto 11-06 folgt), 1.99.76 (Abschnitt 7 FA-Sicht und Unterschiede, Text; Foto 11-05 folgt), 1.99.73 (Abschnitt 6, Text) bzw. 1.99.43 · Standorte AKE und IDEAL · Bilder aus dem IDEAL-Testsystem
 
 ## Zweck
 
@@ -134,9 +134,36 @@ wie die Terminal-Liste. Sie öffnet sich
    werden **geblättert**.
 3. **Status:** *offen*, *überfällig*, *läuft* (ein anderer Werker arbeitet daran) oder **läuft bei Ihnen** (eigener laufender Arbeitsgang).
 4. **Anstempeln:** in der Zeile **Rüsten** oder **Produktion** antippen. Danach grüne Meldung „Produktion gestartet.“ bzw. „Rüsten gestartet.“.
-   Läuft der Arbeitsgang schon bei einem anderen Werker, kommt „AG ist bereits in Arbeit durch <Name> an <Werkbank> seit hh:mm – nichts gebucht.“
-5. Pausieren, Teil- und Fertigmeldung des laufenden Arbeitsgangs gehen in dieser Version noch über **BDE → Terminal** (Abschnitt 4).
-   An Werkbänken „nur AG-Fertigmeldung“ zeigt die FA-Sicht noch keinen Knopf.
+   Läuft der Arbeitsgang schon bei einem anderen Werker, öffnet sich (seit 1.99.77) das Fenster **„Arbeitsgang bereits in Arbeit“** mit
+   „AG ist bereits in Arbeit durch <Name> an <Werkbank> seit hh:mm.“ – **OK** schliesst, gebucht wird nichts.
+5. **Werkbank „nur AG-Fertigmeldung“** (seit 1.99.77): je Zeile der Knopf **Fertig melden**. Das Fenster „Mengen melden“ ist mit der
+   **Sollmenge** vorbelegt; Ausschuss 0. Liegt die Gutmenge unter der Sollmenge, fragt ein Fenster nach („Wirklich als fertig melden?“).
+
+### 8. FA-Sicht: Meine Buchungen, Scan und Tätigkeit (seit Version 1.99.77)
+
+![FA-Sicht: oben „Meine Buchungen“ mit einer laufenden Produktion (Pause, Teilfertig, Fertig) und einer pausierten (Fortsetzen), darunter das Feld „FA scannen“ (Foto 1.99.77 folgt)](bilder/11-06-kopf-buchungen.jpg)
+
+1. **Meine Buchungen** (unter dem Werker-Namen): alle **laufenden** und **pausierten** Buchungen des Werkers – laufende mit
+   durchgezogenem Balken und „… läuft“, pausierte mit gestricheltem Balken und „… pausiert“. Die Knöpfe je Zeile:
+   - Rüsten läuft: **Pause**, **Rüsten fertig**, **Produktion** (Wechsel vom Rüsten in die Produktion),
+   - Produktion läuft: **Pause**, **Teilfertig**, **Fertig** (jeweils mit dem Fenster „Mengen melden“; bei Fertig unter Sollmenge kommt eine Rückfrage),
+   - Tätigkeit läuft: **Beenden**,
+   - pausiert: **Fortsetzen** (setzt als Produktion fort, wie am Terminal).
+   Nach jeder Buchung lädt die Seite neu und zeigt oben eine grüne Meldung.
+2. **Zeiten und Details** (Schalter rechts): blendet je Buchung Startzeit, Laufzeit, Werkbank, Terminal und Personalnummer ein. Die Wahl
+   merkt sich der Browser **je Werker**; sie ändert nur die Anzeige.
+3. **Fertig mit weiteren Werkern:** Arbeiten andere noch auf demselben Arbeitsgang (Einstellung Mehrfachbuchung je Arbeitsgang), fragt das
+   Fenster **„Weitere aktive Buchungen“**: **Ja, alle beenden** beendet sie („<n> weitere Buchungen beendet.“), **Nein, nur meine** lässt sie laufen.
+4. **Mehrere Produktionen gleichzeitig** (Einstellung gleichzeitiger Abschluss): **Fertig** öffnet **„Alle Produktionsaufträge abschliessen“**
+   mit FA/AG, Sollmenge, Gut, Ausschuss und Haken *Abschl.*; **Alle fertig melden** bucht alle („<n> Buchungen fertig gemeldet.“),
+   **Abbrechen** bucht nichts.
+5. **FA scannen** (Feld über der Tabelle, auch mit dem Handscanner ohne Antippen): `FA` oder `FA/AG` (bzw. `FA,AG`). Eindeutig: die Zeile wird
+   **markiert** (Rahmen und Balken), die Seite blättert zu ihr und der Knopf **Rüsten** bzw. **Fertig melden** ist gewählt. Mehrere offene
+   Arbeitsgänge: Fenster **„Arbeitsgang wählen“**. Unbekannt oder an dieser Werkbank nicht offen: gelbe Meldung. Ist die Zeile durch einen
+   Spaltenfilter ausgeblendet, sagt das eine Meldung – Spaltenfilter zurücksetzen.
+6. **Tätigkeit starten** (Knopf rechts oben): Auswahl der ungeplanten Tätigkeiten (z. B. Reinigung); die Tätigkeit erscheint dann unter
+   „Meine Buchungen“ mit **Beenden**.
+7. Jeder Knopf bucht **einmal** – ein zweites Tippen während der Buchung wird ignoriert.
 
 ## Unterschiede AKE und IDEAL
 
@@ -147,7 +174,7 @@ wie die Terminal-Liste. Sie öffnet sich
 | Fertigungstermin | Termin des Auftrags | FE-Termin der Struktur |
 | Werkbänke mit Kürzel (z. B. EG) | keine | mehrere Werkbänke mit demselben Kürzel sehen und buchen dieselben Arbeitsgänge |
 | BDE-Teileliste (vereinfachte Fertigmeldung) | – | je Werkbank einschaltbar, siehe [Kapitel 17](17-bde-teileliste-werkbank.md) |
-| FA-Sicht (seit 1.99.76) | nur Reiter **FA**, keine Teile-Reiter; Spalten Sub-FA, Abteilung, Material leer | Reiter **FA** neben **Teile Einzeln** / **Teile Summiert**; Startreiter je Werkbank (BDE-Standardsicht) |
+| FA-Sicht (seit 1.99.76; Buchungen, Scan, Tätigkeit seit 1.99.77 an beiden Standorten gleich) | nur Reiter **FA**, keine Teile-Reiter; Spalten Sub-FA, Abteilung, Material leer | Reiter **FA** neben **Teile Einzeln** / **Teile Summiert**; Startreiter je Werkbank (BDE-Standardsicht) |
 
 ## Hinweise und Stolperfallen
 
