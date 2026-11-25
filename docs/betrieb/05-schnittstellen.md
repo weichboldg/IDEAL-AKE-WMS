@@ -19,6 +19,7 @@ SData-Schnittstelle (Lagerbuchungen, Wareneingangsbelege), nie per SQL. (Quelle:
 | Sage – SQL-Views/Tabellen | lesen | Dienst (Web nur Stückliste AKE) | SQL, Windows-Anmeldung | `Sync:*Enabled` je Abgleich |
 | Sage – SData | lesen | Dienst (Abgleiche), Web (Register Sage-Test) | HTTPS, Basic-Auth | `Sync:Quelle:*`, SData-Abgleiche `Sync:*Enabled` |
 | Sage – SData | **schreiben** | nur Dienst | HTTPS POST | `SageLagerbuchungAktiv`, `SageWareneingangBelegAktiv`, `SageFaArbeitsgaengeAnlegenAktiv` (IDEAL, seit v1.99.38) |
+| Sage – SQL (Mandanten-DB) | **schreiben** (nur Lager/Lagerplätze anlegen) | nur Dienst | SQL über `SageConnection`, Windows-Anmeldung, Objekt-GRANTs | `SageLagerplatzAnlageAktiv`, `SageLagerAnlageLagertechniken` (seit v1.99.71, § 4b) |
 | OSEON / TRUMPF (AKE) | lesen | Dienst (Abgleich), Web (Stücklisten-Fallback) | SQL + gespeicherte Prozedur | `Sync:OseonTrackingEnabled`, `Sync:OseonArticleCategoryEnabled` |
 | enaio – Datenbank | lesen | Dienst | SQL-View | `Sync:EnaioDmsEnabled` |
 | enaio / Vault – Links | (nur Verweis) | Browser des Anwenders | HTTP-Link | `EnaioLinksAktiv`, `VaultLinksAktiv` |
@@ -114,6 +115,58 @@ Dritter Schreibweg an Sage, eigener Schalter. Bis zum Schreibtest TS-159.x (Feld
 | Erfolg | Eine 2xx-Antwort allein genügt nicht (seit v1.99.39): der Dienst liest den FA nach; „Angelegt“ erst, wenn die Sage-Arbeitsgangnummer an einer AG-Position (`RessourceNummer`) steht. Kein Treffer bzw. Lesefehler beim Nachlesen = „Antwort unklar“ | `SageFaArbeitsgangService.cs:196`, [[2026-11-17-v1-99-39-nachbesserung-abend]] |
 | Bei Ausfall | Fehler: automatische Wiederholung bis `Sync:SageFaArbeitsgaengeMaxWiederholungen` (3) im Abstand `…WiederholAbstandMinuten` (15). „Antwort unklar“ wird **nie** automatisch wiederholt (seit v1.99.42): in Sage prüfen, dann „In Sage vorhanden – bestätigen“ (nur Admin, schreibt nichts an Sage, geht auch bei ausgeschaltetem Schalter) oder erneut einreihen. Protokoll „Sage-FA-Arbeitsgänge“, Fehlermail | `IdealAkeWms/Services/SageFaArbeitsgaenge.cs:16-45`, [[2026-11-18-v1-99-42-nachbesserungen]], [[fallstricke]] §49 |
 | Update-Skript | `Pruefung/sage-fa-ag-sdata-zugang` (IDEAL): Schalter an, aber Bearbeiter oder `SData:BaseUrl` leer | `scripts/deploy/nachlauf.psd1:203-206` |
+
+### 4b. Sage – Lager und Lagerplätze per Direkt-SQL anlegen (seit v1.99.71)
+
+Einziger Weg, auf dem das WMS **direkt** in die Sage-Mandanten-DB schreibt (Entscheid ADR 0036: Sage-Standard-SData bietet keine
+Lagerplatz-Anlage). Beide Einstellungen werden **aus** ausgeliefert.
+
+| Punkt | Inhalt | Quelle |
+|---|---|---|
+| Zweck | Im WMS erfasste Lagerplätze (Code `Lager;D1;D2;D3`) und fehlende Lager in Sage anlegen; danach sind es normale Sage-Plätze (Quelle „Sage“) | Spec `2026-11-24-lagerplatz-anlage-wms-nach-sage` |
+| Ablauf | Web: *Stammdaten → Lagerplätze → Lagerplätze in Sage anlegen* legt Plätze (und ggf. das Lager) im WMS an und reiht je Datensatz einen Eintrag in `SageStammdatenOutbox` ein (Typ `StorageArea` bzw. `StorageLocation`). Dienst (`SageBookingWorker`, Schritt „Lagerplätze → Sage“): erst Lager, dann deren Plätze; Status vor dem Aufruf `Gesendet` | `IdealAkeWms/Controllers/StorageLocationsController.cs` (`CreateInSage`), `IDEALAKEWMSService/Services/SageLagerplatzAnlageService.cs` |
+| SQL | je Platz bzw. Lager **eine** Transaktion mit `XACT_ABORT`, `DEADLOCK_PRIORITY LOW`, Prüfen und Anlegen unter `UPDLOCK, HOLDLOCK`; Nummern über `spSysTan`; Ergebnis erst nach dem `COMMIT`. Idempotent: ein schon vorhandener Platz bzw. ein vorhandenes Lager wird nur übernommen | `IDEALAKEWMSService/Services/SqlSageLagerplatzAnlage.cs` |
+| Konto | Dienstkonto der bestehenden `SageConnection` (kein neuer Connection String, `appsettings.json` unverändert) mit Objekt-GRANTs (unten) | [09 § 2.1](09-sicherheit-konten-rechte.md) |
+| Fehler | fachlich (Konflikt, Lager fehlt, Koordinaten passen nicht …) = Eintrag `Fehler`, Grund in der Spalte „Übergabe-Fehler“, keine Mail, Knopf „Erneut senden“. Technisch (Timeout, Deadlock, fehlendes Recht, Netz) = Eintrag bleibt `Offen` mit „Letzter Versuch fehlgeschlagen: …“, der nächste Takt versucht es erneut; Fehlermail **nur bei neuem Fehlertext**. Hängend `Gesendet` länger als `Sync:SageLagerbuchungStuckMinutes` = wird erneut gesendet (der Befehl ist idempotent) | `SqlSageLagerplatzAnlage.cs` (`IstTechnisch`), `SageBookingWorker.cs` (`MeldenBeimWechsel`) |
+| Protokoll | Dienst „Lagerplätze → Sage“ (`SageLagerplatzAnlage`); je Lauf die Info `Sage-Datenbank: <Server>/<DB>`; Zähler `angelegt`, `vorhanden`, `fehler`, `uebersprungen`, `lager_angelegt`, `lager_vorhanden`, `lager_fehler` | `IdealAkeWms/Services/SyncLogger/SyncLogServices.cs` |
+| Update-Skript | Info `v1.99.71-SageLagerplatzRechte` (Vorher), Einstellungen `v1.99.71-SageLagerplatzAnlageAktiv`, `v1.99.71-SageLagerAnlageLagertechniken`, Prüfung `Pruefung/LagerorteFuerSageAnlage` (Schalter an, aber Quelle Lagerplätze nicht SData oder keine aktiven Lagerorte) | `scripts/deploy/nachlauf.psd1` |
+
+**Rechte (DBA, je Standort und je Sage-DB: erst Test, dann Produktiv).** Konto: AKE `AKENB\svc_idealakewms`; IDEAL: Konto des IDEAL-Dienstes
+(Dienst-Eigenschaften); Testsystem `idealakeweb01:88`: dessen Dienstkonto; DEV AKE: `sc qc AKE_WMS_DEV_Service` → `SERVICE_START_NAME`, GRANT nur
+auf `ake_TEST2026`.
+
+```sql
+USE [<SageMandantenDB>];   -- AKE: ake_TEST2026 (DEV AKE), dann ake; IDEAL: IDEAL_TEST_2026_05_03, dann Produktiv-DB
+-- Datenbank-Benutzer muss existieren (heute liest der Dienst schon; sonst: CREATE USER [<Konto>] FOR LOGIN [<Konto>];)
+GRANT INSERT ON dbo.KHKLagerplaetze TO [<Konto>];
+GRANT INSERT, UPDATE ON dbo.KHKLagerorte TO [<Konto>];
+GRANT EXECUTE ON dbo.spSysTan TO [<Konto>];   -- KHKTan ueber Ownership-Chaining (beide dbo, AKE P-4)
+-- nur falls P-4 SELECT = 0 zeigt (kein db_datareader):
+GRANT SELECT ON dbo.KHKLagerorte TO [<Konto>];  GRANT SELECT ON dbo.KHKLagerplaetze TO [<Konto>];
+GRANT SELECT ON dbo.KHKLagertechnikenArten TO [<Konto>];  GRANT SELECT ON dbo.KHKGruppen TO [<Konto>];
+GRANT SELECT ON dbo.KHKArtikelVariantenLagerplatz TO [<Konto>];
+```
+
+Nachprüfung P-4 **aus dem Dienstkontext**. Die Prüfabfragen P-1 bis P-10 stehen in der Spec (Abschnitt „Migrations-/SQL-Auswirkungen“) und in
+`secondbrain/backlog/anhaenge/2026-11-24-pruefabfragen-lagerplatzanlage-sage.sql`; sie sind reine `SELECT`.
+
+**Einschalt-Checkliste je Standort** (erst Test-/DEV-System, dann Produktiv):
+
+- [ ] Deploy mit beiden Einstellungen **aus** (Nachlauf-Liste bestätigt).
+- [ ] Ziel-DB belegen: mit der Verbindung des Dienstes `SELECT @@SERVERNAME AS Server, DB_NAME() AS Db` – Test/DEV muss `ake_TEST2026` bzw.
+      `IDEAL_TEST_*` zeigen, nie `ake` bzw. die IDEAL-Produktiv-DB.
+- [ ] Prüfabfragen: **IDEAL** P-1 bis P-9 vor dem Einschalten (Pflicht, insbesondere `USER_`-Pflichtfelder in `KHKLagerplaetze`/`KHKLagerorte`);
+      **AKE** P-1 bis P-7 sind am 24.11.2026 belegt, nach dem GRANT P-4, P-10 zur Information.
+- [ ] GRANT wie oben, danach P-4 aus dem Dienstkontext.
+- [ ] `Sync:Quelle:Lagerplaetze` = `SData` und Lagerplatz-Abgleich gelaufen (sonst bietet das Formular keinen Lagerort an; Prüfung
+      `Pruefung/LagerorteFuerSageAnlage`).
+- [ ] Produktiv zusätzlich: Sage-DB-Backup, Abnahmetest am Testmandanten desselben Standorts bestanden.
+- [ ] `SageLagerplatzAnlageAktiv` an; nach dem ersten Takt zeigt
+      `SELECT TOP 1 Message FROM SyncLogs WHERE Message LIKE N'Sage-Datenbank:%' ORDER BY Id DESC` die erwartete Sage-DB.
+- [ ] `SageLagerAnlageLagertechniken` nur auf die Stufe stellen, deren Abnahmevergleich am Testmandanten 0 Abweichungen zeigte.
+- [ ] Nach jedem Sage-Update: P-1 bis P-3 (P-9) erneut prüfen, Schalter bis dahin aus.
+
+Diagnose: [08 A-8.7](08-diagnose-abfragen.md).
 
 ---
 

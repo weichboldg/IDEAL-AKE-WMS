@@ -714,6 +714,7 @@ public static class ColumnDefinitions
             new ColumnDef("capacity",     "Kapazität",     Locked: false),
             new ColumnDef("type",         "Typ",           Locked: false),
             new ColumnDef("source",       "Quelle",        Locked: false),
+            new ColumnDef("sage-uebergabe-fehler", "Übergabe-Fehler", Locked: false), // v1.99.71
             new ColumnDef("bookable",     "Buchbar",       Locked: false),
             new ColumnDef("sage-buchung", "Sage-Buchung",  Locked: false),
             new ColumnDef("is-active",    "Aktiv",         Locked: false),

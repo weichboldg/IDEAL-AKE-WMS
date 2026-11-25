@@ -133,6 +133,8 @@ powershell -ExecutionPolicy Bypass -File C:\<FIRMA>\deploy\v1.98.0\deploy\Update
   - `WareneingangCsvAktiv` (Dateien auf dem enaio-Netzlaufwerk) – erst nach Recht „Ändern“ für das Dienstkonto (P-C1/P-C2);
   - `SageFaArbeitsgaengeAnlegenAktiv` (Arbeitsgänge in Sage-FAs anlegen, v1.99.38) – nur IDEAL, erst nach dem Schreibtest an EINEM FA am
     IDEAL-Test (TS-159.x, Freigabe Gerald) und gesetztem `Sync:SageFaArbeitsgaengeBearbeiter`;
+  - `SageLagerplatzAnlageAktiv` / `SageLagerAnlageLagertechniken` (Lager/Lagerplätze per Direkt-SQL in Sage anlegen, v1.99.71) – je
+    Standort erst nach Abnahmetest am Testmandanten (TS-192), GRANT und Prüfabfragen (`docs/betrieb/05-schnittstellen.md` § 4b);
   - `Lieferverzug:KreditorAktiv` bleibt aus bzw. `Lieferverzug:Testbetrieb` bleibt **an** (sonst externe Mails an Lieferanten) – Testbetrieb
     erst nach P-L1, Relay P-M4 und Freigabe Einkauf abschalten; für die erste Welle `Lieferverzug:KreditorMaxJeLauf` einmalig 100, danach zurück auf 30;
   - auf Testsystemen vorher `Sync:SageSystemKuerzel` setzen (`DEV`, `AT`, `ATI`, `IT`), in Produktion leer lassen;

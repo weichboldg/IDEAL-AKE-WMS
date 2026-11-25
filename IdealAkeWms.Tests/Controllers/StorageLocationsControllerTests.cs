@@ -36,7 +36,7 @@ public class StorageLocationsControllerTests
         var userSvc = new Mock<ICurrentUserService>();
         userSvc.Setup(x => x.GetDisplayName()).Returns("admin");
         userSvc.Setup(x => x.GetWindowsUserName()).Returns("admin");
-        var ctrl = new StorageLocationsController(repo, userSvc.Object);
+        var ctrl = new StorageLocationsController(repo, userSvc.Object, new Mock<IServiceSettingRepository>().Object);
 
         var posted = new StorageLocation
         {
@@ -83,7 +83,7 @@ public class StorageLocationsControllerTests
         var userSvc = new Mock<ICurrentUserService>();
         userSvc.Setup(x => x.GetDisplayName()).Returns("admin");
         userSvc.Setup(x => x.GetWindowsUserName()).Returns("admin");
-        var ctrl = new StorageLocationsController(repo, userSvc.Object);
+        var ctrl = new StorageLocationsController(repo, userSvc.Object, new Mock<IServiceSettingRepository>().Object);
 
         var posted = new StorageLocation
         {
@@ -124,7 +124,7 @@ public class StorageLocationsControllerTests
         var userSvc = new Mock<ICurrentUserService>();
         userSvc.Setup(x => x.GetDisplayName()).Returns("admin");
         userSvc.Setup(x => x.GetWindowsUserName()).Returns("admin");
-        var ctrl = new StorageLocationsController(repo, userSvc.Object);
+        var ctrl = new StorageLocationsController(repo, userSvc.Object, new Mock<IServiceSettingRepository>().Object);
 
         var posted = new StorageLocation
         {
@@ -160,7 +160,7 @@ public class StorageLocationsControllerTests
         var userSvc = new Mock<ICurrentUserService>();
         userSvc.Setup(x => x.GetDisplayName()).Returns("admin");
         userSvc.Setup(x => x.GetWindowsUserName()).Returns("admin");
-        var ctrl = new StorageLocationsController(repo, userSvc.Object);
+        var ctrl = new StorageLocationsController(repo, userSvc.Object, new Mock<IServiceSettingRepository>().Object);
 
         var posted = new StorageLocation
         {
@@ -193,7 +193,7 @@ public class StorageLocationsControllerTests
         var repo = new StorageLocationRepository(ctx);
         var userSvc = new Mock<ICurrentUserService>();
         userSvc.Setup(x => x.GetDefaultPageSizeAsync()).ReturnsAsync((int?)null);
-        var ctrl = new StorageLocationsController(repo, userSvc.Object);
+        var ctrl = new StorageLocationsController(repo, userSvc.Object, new Mock<IServiceSettingRepository>().Object);
 
         var httpCtx = new Microsoft.AspNetCore.Http.DefaultHttpContext();
         httpCtx.Request.QueryString = new Microsoft.AspNetCore.Http.QueryString("?colf_code=A1");
@@ -227,7 +227,7 @@ public class StorageLocationsControllerTests
 
         var userSvc = new Mock<ICurrentUserService>();
         userSvc.Setup(x => x.GetDefaultPageSizeAsync()).ReturnsAsync((int?)null);
-        var ctrl = new StorageLocationsController(new StorageLocationRepository(ctx), userSvc.Object);
+        var ctrl = new StorageLocationsController(new StorageLocationRepository(ctx), userSvc.Object, new Mock<IServiceSettingRepository>().Object);
         var httpCtx = new Microsoft.AspNetCore.Http.DefaultHttpContext();
         httpCtx.Request.QueryString = new Microsoft.AspNetCore.Http.QueryString(query);
         ctrl.ControllerContext = new ControllerContext { HttpContext = httpCtx };

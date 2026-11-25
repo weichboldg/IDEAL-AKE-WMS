@@ -51,11 +51,15 @@ Alle Verbindungen nutzen **Windows-Anmeldung** (`Trusted_Connection`); in den Da
 | Dienst | WMS | `db_datareader`, `db_datawriter`, `EXECUTE` | `Install-IdealAkeWms.ps1:482-483` |
 | Dienst | Sage-Mandant | Lesen auf Views `vw_IDEAL_AKE_WMS_*` bzw. AKE-Views und KHK-Tabellen; IDEAL zusätzlich Lesen in `PPSImport` | `Install-IdealAkeWms.ps1:485-486`, [[integrationen]] „Sage“ |
 | Dienst (AKE) | OSEON, enaio | Lesen auf die genutzten Tabellen/Views | [[integrationen]] „OSEON“, „enaio“ |
+| Dienst | Sage-Mandant (seit v1.99.71, erst vor dem Einschalten der Lagerplatz-Anlage) | `INSERT` auf `KHKLagerplaetze`, `INSERT, UPDATE` auf `KHKLagerorte`, `EXECUTE` auf `spSysTan` (SELECT nur falls kein `db_datareader`) | [05 § 4b](05-schnittstellen.md), ADR 0036 |
 
 Läuft ein Konto als `ApplicationPoolIdentity` oder `LocalSystem`, braucht der SQL Server einen Login für das **Computerkonto**
 `DOMÄNE\SERVER$`. (Quelle: `Install-IdealAkeWms.ps1:316,404`)
 
 **Nie** schreibend auf Sage-Datenbanken berechtigen: das WMS schreibt an Sage nur über SData. (Quelle: [[integrationen]] Korrektur 2026-11-02)
+
+**Ausnahme seit v1.99.71:** nur die drei Objekt-Rechte der Lager-/Lagerplatz-Anlage oben (keine Rolle `db_datawriter`, kein `db_owner`);
+alle anderen Schreibwege an Sage bleiben SData. (Quelle: ADR 0036, Spec `2026-11-24-lagerplatz-anlage-wms-nach-sage`)
 
 ### 2.2 Update und Installation
 

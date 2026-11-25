@@ -214,6 +214,10 @@ WHERE NOT EXISTS (SELECT 1 FROM dbo.Roles r WHERE r.[Key] = v.k);'
    Pruefung='SELECT CASE WHEN EXISTS (SELECT 1 FROM dbo.ServiceSettings WHERE [Key] = N''SageFaArbeitsgaengeAnlegenAktiv'' AND LOWER(LTRIM(RTRIM([Value]))) = N''true'') AND (NOT EXISTS (SELECT 1 FROM dbo.ServiceSettings WHERE [Key] = N''Sync:SageFaArbeitsgaengeBearbeiter'' AND LEN(LTRIM(RTRIM([Value]))) > 0) OR NOT EXISTS (SELECT 1 FROM dbo.ServiceSettings WHERE [Key] = N''SData:BaseUrl'' AND LEN(LTRIM(RTRIM([Value]))) > 0)) THEN 1 ELSE 0 END'
    Text='Arbeitsgaenge in Sage anlegen ist an, aber Sync:SageFaArbeitsgaengeBearbeiter oder SData:BaseUrl leer: der Dienst sendet nichts und setzt eingereihte Arbeitsgaenge auf Fehler (/ServiceSettings > Sage-FA-Arbeitsgaenge (IDEAL) bzw. SData).'
    Quelle='2026-11-17-v1-99-38-arbeitsgaenge-in-sage-fa-anlegen' }
+@{ Id='Pruefung/LagerorteFuerSageAnlage'; Version='1.99.71'; Typ='Pruefung'; Firma='beide'; Phase='Nachher'; Ausfuehrung='anzeigen'; Braucht=@('SQL/98')
+   Pruefung='SELECT CASE WHEN EXISTS (SELECT 1 FROM dbo.ServiceSettings WHERE [Key] = N''SageLagerplatzAnlageAktiv'' AND LOWER(LTRIM(RTRIM([Value]))) = N''true'') AND (NOT EXISTS (SELECT 1 FROM dbo.ServiceSettings WHERE [Key] = N''Sync:Quelle:Lagerplaetze'' AND [Value] COLLATE Latin1_General_BIN = N''SData'') OR NOT EXISTS (SELECT 1 FROM dbo.StorageAreas WHERE IsActive = 1 AND SageMissingSince IS NULL)) THEN 1 ELSE 0 END'
+   Text='Lagerplatz-Anlage in Sage ist an, aber Sync:Quelle:Lagerplaetze steht nicht auf SData oder es gibt keine aktiven Lagerorte: das Formular Lagerplaetze in Sage anlegen bietet keinen Lagerort an (/ServiceSettings > Quelle Lagerplaetze = SData, Lagerplatz-Abgleich laufen lassen).'
+   Quelle='2026-11-25-v1-99-71-lagerplatz-anlage-wms-nach-sage' }
 @{ Id='Pruefung/ArtikelQuelleSData'; Version='1.99.39'; Typ='Pruefung'; Firma='AKE'; Phase='Nachher'; Ausfuehrung='anzeigen'
    Pruefung='SELECT CASE WHEN EXISTS (SELECT 1 FROM dbo.ServiceSettings WHERE [Key] = N''Sync:Quelle:Artikel'' AND [Value] COLLATE Latin1_General_BIN = N''SData'') THEN 0 ELSE 1 END'
    Text='Sync:Quelle:Artikel steht nicht auf SData (Default View): dann bleiben ArticleSageDetails leer (Sage-Spalten in den Bestellvorschlaegen, Masse der Beschichtung AKE). Hand-Schritt, keine automatische Umschaltung: /ServiceSettings > Sage-Abgleich (SData) > Quelle Artikel-Abgleich = SData (exakte Schreibweise), danach im Aktivitaets-Protokoll den Lauf Artikel pruefen.'
@@ -622,5 +626,14 @@ WHERE NOT EXISTS (SELECT 1 FROM dbo.Roles r WHERE r.[Key] = v.k);'
 @{ Id='v1.99.70-KommNachtrag-Knopf'; Version='1.99.70'; Typ='Info'; Firma='beide'; Phase='Nachher'; Ausfuehrung='anzeigen'
    Text='Leitstand: Knoepfe "Fehlende Kommissionierauftraege ... erzeugen" nur noch fuer Admins; Nachtraege legt der Dienst nachts an; "Altbestand geprueft" legt die Auftraege sofort an; neues Badge "Stueckliste kleiner" (offene Zeilen werden nicht gekuerzt). Leitstand-Benutzer informieren.'
    Quelle='2026-11-25-v1-99-70-kommissionierauftraege-nachtrag-nachts' }
+@{ Id='v1.99.71-SageLagerplatzRechte'; Version='1.99.71'; Typ='Info'; Firma='beide'; Phase='Vorher'; Ausfuehrung='anzeigen'
+   Text='Lager-/Lagerplatz-Anlage in Sage: DBA vergibt dem Dienstkonto der SageConnection auf der Sage-Mandanten-DB GRANT INSERT KHKLagerplaetze, INSERT+UPDATE KHKLagerorte, EXECUTE spSysTan (SELECT nur falls noetig); Nachpruefung P-4 aus dem Dienstkontext; Pruefabfragen der Spec 2026-11-24-lagerplatz-anlage-wms-nach-sage-spec (IDEAL: P-1 bis P-9 Pflicht vor dem Einschalten).'
+   Quelle='2026-11-25-v1-99-71-lagerplatz-anlage-wms-nach-sage' }
+@{ Id='v1.99.71-SageLagerplatzAnlageAktiv'; Version='1.99.71'; Typ='Einstellung'; Firma='beide'; Phase='Nachher'; Ausfuehrung='anzeigen'
+   Text='SageLagerplatzAnlageAktiv bleibt aus. Einschalten je Standort erst nach Abnahmetest am Testmandanten, Rechte-GRANT, Pruefabfragen gegen die Produktiv-Sage-DB und Sage-DB-Backup.'
+   Quelle='2026-11-25-v1-99-71-lagerplatz-anlage-wms-nach-sage' }
+@{ Id='v1.99.71-SageLagerAnlageLagertechniken'; Version='1.99.71'; Typ='Einstellung'; Firma='beide'; Phase='Nachher'; Ausfuehrung='anzeigen'
+   Text='SageLagerAnlageLagertechniken bleibt Aus. Mitschnitt bzw. Alle erst nach Abnahmevergleich der Lager-Anlage am Testmandanten dieses Standorts; Aus lassen bei USER_-Pflichtfeld ohne Default in KHKLagerorte.'
+   Quelle='2026-11-25-v1-99-71-lagerplatz-anlage-wms-nach-sage' }
 )
 }

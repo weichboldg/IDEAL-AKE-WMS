@@ -149,6 +149,22 @@ public class SageBookingWorker : BackgroundService
                 await NotifyErrorAsync("SageBookingWorker (Sage-FA-Arbeitsgänge)", ex, stoppingToken);
             }
 
+            // v1.99.71 (Spec 2026-11-24-lagerplatz-anlage-wms-nach-sage F3, ADR 0036): Lager/Lagerplaetze per Direkt-SQL in Sage anlegen, NUR bei
+            // SageLagerplatzAnlageAktiv (Default aus). Eigenes try: haelt die anderen Schritte nicht auf und umgekehrt.
+            try
+            {
+                await ProcessSageLagerplatzAnlageAsync(stoppingToken);
+            }
+            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+            {
+                break;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Unerwarteter Fehler im Schritt Lagerplätze → Sage.");
+                await NotifyErrorAsync("SageBookingWorker (Lagerplätze → Sage)", ex, stoppingToken);
+            }
+
             await Task.Delay(TimeSpan.FromSeconds(intervalSeconds), stoppingToken);
         }
 
@@ -290,6 +306,26 @@ public class SageBookingWorker : BackgroundService
     }
 
     private string? _agZugangGemeldet;
+
+    /// <summary>v1.99.71 F3/S7: Schalter und Stufe NICHT Safe lesen (Lesefehler -> catch des Takts statt still „aus“). Mail nur beim Wechsel
+    /// des technischen Fehlertexts; ein Takt ohne technischen Fehler setzt den Merker zurueck.</summary>
+    private async Task ProcessSageLagerplatzAnlageAsync(CancellationToken ct)
+    {
+        if (!await ServiceSettings.GetBoolAsync(_configuration, SageLagerplatzAnlage.ToggleKey, false, ct)) return;
+        var stufe = await ServiceSettings.GetValueAsync(_configuration, SageLagerplatzAnlage.LagertechnikenKey, ct);
+        var stuckMinutes = await ServiceSettings.GetIntSafeAsync(_configuration, "Sync:SageLagerbuchungStuckMinutes", 10, ct);
+        using var scope = _scopeFactory.CreateScope();
+        var technisch = await scope.ServiceProvider.GetRequiredService<SageLagerplatzAnlageService>()
+            .RunOnceAsync(stuckMinutes, stufe, _lpTechnischGemeldet, ct);
+        if (MeldenBeimWechsel(technisch, _lpTechnischGemeldet))
+            await NotifyErrorAsync("Lagerplätze → Sage", new InvalidOperationException(technisch), ct);
+        _lpTechnischGemeldet = technisch;
+    }
+
+    /// <summary>S7: Mail nur, wenn ein technischer Fehler vorliegt und sein Text sich vom zuletzt gemeldeten unterscheidet.</summary>
+    internal static bool MeldenBeimWechsel(string? technisch, string? zuletzt) => technisch is not null && technisch != zuletzt;
+
+    private string? _lpTechnischGemeldet;
 
     private async Task SageWareneingangAusAsync(CancellationToken ct)
     {

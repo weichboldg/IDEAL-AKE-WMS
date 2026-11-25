@@ -1,0 +1,148 @@
+@model IdealAkeWms.Models.ViewModels.StorageLocationSageAnlageViewModel
+@{
+    ViewData["Title"] = "Lagerplätze in Sage anlegen";
+    var neu = Model.Lagerort == IdealAkeWms.Models.ViewModels.StorageLocationSageAnlageViewModel.NeuesLagerWert;
+}
+
+<h2 class="page-header">Lagerplätze in Sage anlegen</h2>
+
+<div class="row">
+    <div class="col-lg-8">
+        @if (Model.Lagerorte.Count == 0)
+        {
+            <div class="alert alert-warning" role="alert">@IdealAkeWms.Controllers.StorageLocationsController.KeineLagerorteText</div>
+            <a asp-action="Index" class="btn btn-outline-secondary">Zurück zur Lagerplatzliste</a>
+        }
+        else
+        {
+            <div class="card">
+                <div class="card-body">
+                    <form asp-action="CreateInSage" method="post">
+                        <div asp-validation-summary="All" class="text-danger mb-3"></div>
+
+                        <div class="mb-3">
+                            <label asp-for="Lagerort" class="form-label"></label>
+                            <select asp-for="Lagerort" class="form-select" id="Lagerort" autofocus>
+                                <option value="">– bitte wählen –</option>
+                                @foreach (var o in Model.Lagerorte)
+                                {
+                                    <option value="@o.Id" disabled="@(!o.Waehlbar)" selected="@(Model.Lagerort == o.Id.ToString())">@o.Text</option>
+                                }
+                                @if (Model.LagerAnlageFreigegeben)
+                                {
+                                    <option value="@IdealAkeWms.Models.ViewModels.StorageLocationSageAnlageViewModel.NeuesLagerWert" selected="@neu">Neues Lager erfassen …</option>
+                                }
+                            </select>
+                            @if (!Model.LagerAnlageFreigegeben)
+                            {
+                                <div class="form-text">@IdealAkeWms.Controllers.StorageLocationsController.LagerAnlageNichtFreigegebenText</div>
+                            }
+                        </div>
+
+                        @if (Model.LagerAnlageFreigegeben)
+                        {
+                            <fieldset id="neuesLager" class="border rounded p-3 mb-3" @(neu ? "" : "hidden")>
+                                <legend class="fs-6 fw-semibold w-auto px-1 mb-2">Neues Lager</legend>
+                                <div class="row g-3">
+                                    <div class="col-sm-4">
+                                        <label asp-for="NeueKennung" class="form-label"></label>
+                                        <input asp-for="NeueKennung" class="form-control" maxlength="10" autocomplete="off" />
+                                        <div class="form-text">1–10 Zeichen: A–Z, Ziffern, „-“, „_“.</div>
+                                    </div>
+                                    <div class="col-sm-8">
+                                        <label asp-for="NeueBezeichnung" class="form-label"></label>
+                                        <input asp-for="NeueBezeichnung" class="form-control" maxlength="40" />
+                                    </div>
+                                    <div class="col-sm-6">
+                                        <label asp-for="NeueTechnik" class="form-label"></label>
+                                        <select asp-for="NeueTechnik" class="form-select" id="NeueTechnik">
+                                            <option value="">– bitte wählen –</option>
+                                            @foreach (var t in Model.Techniken)
+                                            {
+                                                <option value="@t.Kennung">@t.Kennung – @t.Bezeichnung@(string.IsNullOrEmpty(t.Dimensionen) ? " (keine Dimensionen)" : $" ({t.Dimensionen})")</option>
+                                            }
+                                        </select>
+                                    </div>
+                                    <div class="col-sm-6 d-flex align-items-end">
+                                        <div class="form-check form-switch mb-2">
+                                            <input asp-for="Platzverwaltet" class="form-check-input" type="checkbox" role="switch" id="Platzverwaltet" />
+                                            <label asp-for="Platzverwaltet" class="form-check-label"></label>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="form-text mt-2" id="ltd0stHinweis" hidden>Standardtechnik hat keine Dimensionen – keine Plätze.</div>
+                            </fieldset>
+                        }
+
+                        <fieldset id="bereich" class="mb-3">
+                            <legend class="fs-6 fw-semibold mb-2">Koordinaten-Bereich</legend>
+                            <div class="table-responsive">
+                                <table class="table table-sm align-middle mb-1">
+                                    <thead><tr><th scope="col">Dimension</th><th scope="col">von</th><th scope="col">bis</th></tr></thead>
+                                    <tbody>
+                                        <tr><th scope="row">1</th>
+                                            <td><input asp-for="D1Von" class="form-control" type="number" min="1" max="9999" aria-label="Dimension 1 von" /></td>
+                                            <td><input asp-for="D1Bis" class="form-control" type="number" min="1" max="9999" aria-label="Dimension 1 bis" /></td></tr>
+                                        <tr><th scope="row">2</th>
+                                            <td><input asp-for="D2Von" class="form-control" type="number" min="0" max="9999" aria-label="Dimension 2 von" /></td>
+                                            <td><input asp-for="D2Bis" class="form-control" type="number" min="0" max="9999" aria-label="Dimension 2 bis" /></td></tr>
+                                        <tr><th scope="row">3</th>
+                                            <td><input asp-for="D3Von" class="form-control" type="number" min="0" max="9999" aria-label="Dimension 3 von" /></td>
+                                            <td><input asp-for="D3Bis" class="form-control" type="number" min="0" max="9999" aria-label="Dimension 3 bis" /></td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div class="form-text">
+                                Nicht genutzte Dimensionen auf 0 lassen. Ob die Koordinaten zur Lagertechnik passen, prüft Sage beim Anlegen.
+                                Code je Platz: <code>&lt;Lagerkennung&gt;;D1;D2;D3</code>, höchstens @IdealAkeWms.Services.SageLagerplatzAnlage.MaxPlaetze Plätze je Absenden.
+                            </div>
+                        </fieldset>
+
+                        <div class="mb-3 d-flex flex-wrap gap-4">
+                            <div class="form-check form-switch">
+                                <input asp-for="IstBuchbar" class="form-check-input" type="checkbox" role="switch" />
+                                <label asp-for="IstBuchbar" class="form-check-label"></label>
+                            </div>
+                            <div class="form-check form-switch">
+                                <input asp-for="SageBuchungErlaubt" class="form-check-input" type="checkbox" role="switch" />
+                                <label asp-for="SageBuchungErlaubt" class="form-check-label"></label>
+                            </div>
+                        </div>
+
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary">Erfassen und an Sage übergeben</button>
+                            <a asp-action="Index" class="btn btn-outline-secondary">Abbrechen</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        // Anzeige-Hilfe nur; der Server prueft alles (F1/F1a).
+        (function () {
+            var lager = document.getElementById('Lagerort');
+            var box = document.getElementById('neuesLager');
+            var technik = document.getElementById('NeueTechnik');
+            var pv = document.getElementById('Platzverwaltet');
+            var hinweis = document.getElementById('ltd0stHinweis');
+            var bereich = document.getElementById('bereich');
+            if (!lager) return;
+            function update() {
+                var neu = lager.value === 'neu';
+                if (box) box.hidden = !neu;
+                var standard = neu && technik && technik.value === 'LTD0ST';
+                if (pv) { if (standard) pv.checked = false; pv.disabled = standard; }
+                if (hinweis) hinweis.hidden = !standard;
+                bereich.hidden = neu && !(pv && pv.checked);
+            }
+            lager.addEventListener('change', update);
+            if (technik) technik.addEventListener('change', update);
+            if (pv) pv.addEventListener('change', update);
+            update();
+        })();
+    </script>
+}

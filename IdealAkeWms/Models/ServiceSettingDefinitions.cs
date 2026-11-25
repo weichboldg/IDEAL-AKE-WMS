@@ -76,6 +76,14 @@ public static class ServiceSettingDefinitions
             "Web: Stammdaten → Arbeitsgänge → Sage (Knopf „In Sage anlegen“, Einreihen); Dienst: Sage-Buchungs-Worker, Lauf „Sage-FA-Arbeitsgänge“",
             "IDEAL (AKE aus lassen, dort ohne Wirkung)",
             "Schreibt Arbeitsgang-Positionen in Sage-Fertigungsaufträge. Einlastung und Kosten in Sage können sich ändern, und angelegte Positionen löscht das WMS nicht. Nur nach erfolgreichem Schreibtest an einem FA am IDEAL-Test einschalten."),
+        [SageLagerplatzAnlage.ToggleKey] = ("Lagerplätze in Sage anlegen (Direkt-SQL)",
+            "Web: Stammdaten → Lagerplätze (Knopf „Lagerplätze in Sage anlegen“, „Erneut senden“); Dienst: Sage-Buchungs-Worker, Lauf „Lagerplätze → Sage“",
+            "beide (AKE und IDEAL), an jedem Standort einzeln einschalten",
+            "Schreibt direkt per SQL in die Sage-Tabellen KHKLagerplaetze, KHKLagerorte und KHKTan (ohne Sage-Oberfläche, ohne SData). Angelegte Plätze und Lager löscht das WMS nicht. Nur nach bestandenem Abnahmetest am Testmandanten dieses Standorts, nach dem Rechte-GRANT und nach jedem Sage-Update erst nach den Prüfabfragen der Spec einschalten."),
+        [SageLagerplatzAnlage.LagertechnikenKey] = ("Lager-Anlage in Sage: freigegebene Lagertechniken",
+            "Web: Formular „Lagerplätze in Sage anlegen“ (Eintrag „Neues Lager erfassen“); Dienst: Lauf „Lagerplätze → Sage“",
+            "beide, je Standort-DB",
+            "Legt neue Lager direkt in Sage an (KHKLagerorte + Basisplatz). „Mitschnitt“ erst nach bestandenem Abnahmevergleich der Lager-Anlage am Testmandanten dieses Standorts; „Alle“ erst, wenn der Abnahmevergleich auch für LTD1UF/LTD2SF/LTD3HR 0 Abweichungen zeigt. „Aus“ lassen, wenn KHKLagerorte ein USER_-Pflichtfeld ohne Default hat (P-1/P-9)."),
         [SageFaArbeitsgaenge.BearbeiterKey] = ("Sage-Bearbeiter für AG-Anlage",
             "Dienst: Lauf „Sage-FA-Arbeitsgänge“ (Feld Bearbeiter je AG-Position)", "IDEAL",
             "Steht als Bearbeiter an jeder angelegten Arbeitsgang-Position in Sage. Leer = es wird nichts gesendet (Fehler in der Liste)."),
@@ -307,6 +315,10 @@ public static class ServiceSettingDefinitions
         new(SageFaArbeitsgaenge.ToggleKey, SettingType.Bool, "false", SageFaAgKategorie, "An: Auf der Seite 'Arbeitsgaenge -> Sage' erscheint je FA mit anlegbaren Zeilen der Knopf 'In Sage anlegen' (reiht ein), und der Dienst legt die eingereihten Arbeitsgaenge als AG-Positionen im Sage-FA an (ServiceOption 4, Menge = Fertigungsmenge, ohne Einlasten). Vorher liest er den FA in Sage: beendet/begonnen/AG schon da = nicht senden. Aus: kein Knopf, Einreihen abgewiesen, der Dienst sendet nichts (v1.99.38)."),
         new(SageFaArbeitsgaenge.BearbeiterKey, SettingType.String, "", SageFaAgKategorie, "Bearbeiter-Kuerzel, das an jeder angelegten AG-Position in Sage steht. Leer = der Dienst sendet nichts und setzt die Eintraege auf Fehler 'Sage-Bearbeiter fehlt' (v1.99.38).",
             AbhaengigVon: SageFaArbeitsgaenge.ToggleKey),
+        // v1.99.71 (Spec 2026-11-24-lagerplatz-anlage-wms-nach-sage, ADR 0036): Lager/Plaetze per Direkt-SQL in Sage anlegen, Default aus.
+        new(SageLagerplatzAnlage.ToggleKey, SettingType.Bool, "false", LpAnlageKategorie, "An: In Stammdaten -> Lagerplaetze erscheint 'Lagerplaetze in Sage anlegen' (und 'Erneut senden'); der Dienst legt die dort erfassten Plaetze (und Lager) per Direkt-SQL in Sage an (KHKLagerplaetze, KHKLagerorte, KHKTan ueber spSysTan). Aus: kein Knopf, der Dienst sendet nichts, offene Eintraege bleiben stehen (v1.99.71)."),
+        new(SageLagerplatzAnlage.LagertechnikenKey, SettingType.Choice, SageLagerplatzAnlage.StufeAus, LpAnlageKategorie, "Ob und fuer welche Lagertechniken 'Neues Lager erfassen' angeboten wird und welche Lager der Dienst NEU in Sage anlegt: Aus = keine Lager-Anlage; Mitschnitt = LTD0ST, LTD1BL; Alle = LTD0ST, LTD1BL, LTD1UF, LTD2SF, LTD3HR. Wirkt nur bei SageLagerplatzAnlageAktiv = an (v1.99.71).",
+            Werte: SageLagerplatzAnlage.StufenWerte, AbhaengigVon: SageLagerplatzAnlage.ToggleKey),
         new(SageFaArbeitsgaenge.MaxWiederholungenKey, SettingType.Int, "3", SageFaAgKategorie, "So oft wiederholt der Dienst eine AG-Anlage mit Status 'Fehler' automatisch (0 = nie, nur von Hand ueber 'In Sage anlegen'). Vor JEDEM Versuch liest er den FA in Sage; die AG schon da = 'in Sage vorhanden' ohne Senden. Eine unklare Antwort (Zeitueberschreitung, 'Gesendet' haengt) wird nie automatisch wiederholt (v1.99.38)."),
         new(SageFaArbeitsgaenge.WiederholAbstandKey, SettingType.Int, "15", SageFaAgKategorie, "Mindestabstand in Minuten zwischen einem Fehler und der automatischen Wiederholung (5 bis 1440, v1.99.38)."),
         new("Sync:SageWareneingangMaxWiederholungen", SettingType.Int, "3", "Sage-Lagerbuchung", "Sage-Wareneingang (v1.99.7): so oft wiederholt der Dienst einen Wareneingang mit Status 'Fehler' automatisch (0 = nie, nur 'Erneut senden'). Vor JEDEM Versuch sucht er den Beleg in Sage ueber die Memo-Kennung WE#<Id>#: gefunden = an Sage uebergeben ohne Senden; moeglicher Beleg ohne Kennung (Bestellung + Datum + Lieferschein) = 'Klaeren', kein Senden. Danach bleibt 'Fehler'."),
@@ -432,6 +444,7 @@ public static class ServiceSettingDefinitions
     private const string WeCsvKategorie = "Wareneingang-CSV";
     private const string BfKategorie = "Blechfertigung WiCAM";
     private const string SageFaAgKategorie = "Sage-FA-Arbeitsgänge (IDEAL)";
+    private const string LpAnlageKategorie = "Lagerplatz-Anlage in Sage";
 
     /// <summary>Findet eine Definition per Key (case-sensitiv, wie DB-Key).</summary>
     public static bool TryGet(string key, [NotNullWhen(true)] out SettingDefinition? def)

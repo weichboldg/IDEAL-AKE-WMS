@@ -362,7 +362,14 @@ public class LagerplatzSyncService : ILagerplatzSyncService
         }
 
         var imFeed = orte.Select(o => o.Lagerkennung.Trim()).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        foreach (var area in areas.Where(a => a.SageMissingSince is null && !imFeed.Contains(a.Lagerkennung)))
+        // v1.99.71 (Spec 2026-11-24-lagerplatz-anlage-wms-nach-sage F4): ein im WMS erfasstes Lager, dessen Anlage in Sage noch aussteht
+        // (Lager-Outbox != Bestaetigt), ist nicht „fehlend“ - sonst verschwaende es aus der Auswahl und der Dienst sendete es nicht (inaktiv).
+        var wartend = (await _ctx.SageStammdatenOutbox.AsNoTracking()
+                .Where(x => x.EntityType == SageStammdatenOutbox.TypLagerort && x.Status != SageBookingQueueStatus.Bestaetigt)
+                .Select(x => x.EntityKey).ToListAsync(ct))
+            .ToHashSet();
+        foreach (var area in areas.Where(a => a.SageMissingSince is null && !imFeed.Contains(a.Lagerkennung)
+                                              && !wartend.Contains(a.Id.ToString(System.Globalization.CultureInfo.InvariantCulture))))
         {
             area.SageMissingSince = now;
             area.IsActive = false;

@@ -2,6 +2,9 @@
 @{
     ViewData["Title"] = "Lagerplatz bearbeiten";
     var isSage = Model.Source == IdealAkeWms.Models.StorageLocationSource.Sage;
+    // v1.99.71 (F7): Sage-Anlage-Platz vor der Uebergabe - Code/Bezeichnung/Zone gesperrt, Aktiv/Buchbar aenderbar
+    var isSageAnlage = IdealAkeWms.Controllers.StorageLocationsController.IstSageAnlage(Model);
+    var gesperrt = isSage || isSageAnlage;
 }
 
 <h2 class="page-header">Lagerplatz bearbeiten</h2>
@@ -14,6 +17,14 @@
                 Dieser Lagerplatz wird aus Sage synchronisiert. <strong>Code</strong>, <strong>Bereich/Zone</strong>, <strong>Bezeichnung</strong> und <strong>Aktiv</strong> sind gesperrt &mdash; sie werden beim n&auml;chsten Abgleich aus Sage uebernommen.
             </div>
         }
+        @if (isSageAnlage)
+        {
+            <div class="alert alert-info">
+                Dieser Lagerplatz wurde über „Lagerplätze in Sage anlegen“ erfasst. <strong>Code</strong>, <strong>Bezeichnung</strong> und
+                <strong>Bereich/Zone</strong> sind gesperrt (der Code ist der Schlüssel zu Sage). Falsch erfasst? Deaktivieren und neu erfassen –
+                ein inaktiver Platz wird nicht an Sage gesendet.
+            </div>
+        }
         <div class="card">
             <div class="card-body">
                 <form asp-action="Edit" method="post">
@@ -22,11 +33,12 @@
                     <input type="hidden" asp-for="CreatedBy" />
                     <input type="hidden" asp-for="CreatedByWindows" />
                     <input type="hidden" asp-for="Source" />
+                    <input type="hidden" asp-for="StorageAreaId" />
                     <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
 
                     <div class="mb-3">
                         <label asp-for="Code" class="form-label"></label>
-                        @if (isSage)
+                        @if (gesperrt)
                         {
                             <input asp-for="Code" class="form-control bg-light" maxlength="50" readonly />
                             <div class="form-text">Sage-Code (maximal 50 Zeichen).</div>
@@ -41,7 +53,7 @@
 
                     <div class="mb-3">
                         <label asp-for="Description" class="form-label"></label>
-                        @if (isSage)
+                        @if (gesperrt)
                         {
                             <input asp-for="Description" class="form-control bg-light" readonly />
                         }
@@ -54,7 +66,7 @@
 
                     <div class="mb-3">
                         <label asp-for="Zone" class="form-label"></label>
-                        @if (isSage)
+                        @if (gesperrt)
                         {
                             <input asp-for="Zone" class="form-control bg-light" readonly />
                         }

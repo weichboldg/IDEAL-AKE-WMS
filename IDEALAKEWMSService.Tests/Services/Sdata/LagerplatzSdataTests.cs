@@ -239,6 +239,32 @@ public class LagerplatzSdataTests
     }
 
     [Fact]
+    public async Task Abgleich_SData_WmsLagerMitOffenerUebergabe_NichtAlsFehlendMarkiert_NachBestaetigungSchon()
+    {
+        // v1.99.71 (Spec 2026-11-24-lagerplatz-anlage-wms-nach-sage F4): im WMS erfasstes Lager wartet auf die Anlage in Sage
+        var (svc, _, _, sdata, ctx, _, _) = Abgleich("SData");
+        var neu = new StorageArea { Lagerkennung = "NEU", Bezeichnung = "Neu", Lagertechnik = "LTD1BL", IstDispoLager = true, CreatedBy = "t", CreatedByWindows = "t" };
+        ctx.StorageAreas.Add(neu);
+        await ctx.SaveChangesAsync();
+        IdealAkeWms.Data.SageStammdatenOutbox.Vormerken(ctx, IdealAkeWms.Data.SageStammdatenOutbox.TypLagerort, neu, new { neu.Id });
+        await ctx.SaveChangesAsync();
+        sdata.Records = new() { new("HR", "P1", "Platz 1", 1, new("HR", "Hochregal", null, false)) };
+
+        await svc.RunAsync();
+        (neu.SageMissingSince, neu.IsActive).Should().Be(((DateTime?)null, true), "offene Lager-Übergabe: nicht als fehlend markieren");
+
+        ctx.SageStammdatenOutbox.Single().Status = SageBookingQueueStatus.Fehler;
+        await ctx.SaveChangesAsync();
+        await svc.RunAsync();
+        neu.SageMissingSince.Should().BeNull("auch eine fehlgeschlagene Übergabe ist noch nicht bestätigt");
+
+        ctx.SageStammdatenOutbox.Single().Status = SageBookingQueueStatus.Bestaetigt;
+        await ctx.SaveChangesAsync();
+        await svc.RunAsync();
+        (neu.SageMissingSince is not null, neu.IsActive).Should().Be((true, false), "bestätigt und nicht in Sage = fehlend wie bisher");
+    }
+
+    [Fact]
     public async Task Abgleich_ManuellerPlatzGleicherCode_BleibtKonflikt_OhneLagerort()
     {
         var (svc, _, _, sdata, ctx, _, _) = Abgleich("SData");

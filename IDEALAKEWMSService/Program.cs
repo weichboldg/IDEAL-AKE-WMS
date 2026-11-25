@@ -168,6 +168,9 @@ try
     .ConfigurePrimaryHttpMessageHandler(SageSchreibHandler);
     builder.Services.AddScoped<ISageFaStandLookup, SdataFaStandLookup>();
     builder.Services.AddScoped<SageFaArbeitsgangService>();
+    // v1.99.71 (Spec 2026-11-24-lagerplatz-anlage-wms-nach-sage, ADR 0036): Lager/Lagerplaetze per Direkt-SQL in Sage anlegen (Schritt im SageBookingWorker).
+    builder.Services.AddScoped<ISageLagerplatzAnlage, SqlSageLagerplatzAnlage>();
+    builder.Services.AddScoped<SageLagerplatzAnlageService>();
 
     // Sage-SData-Lese-Client (Stammdaten-Abgleich, v1.73.0): Paging ueber CommonWawiServicesResources, TLS-Schalter je Anfrage.
     IDEALAKEWMSService.Services.Sdata.SdataRegistrierung.AddSageSdataReadClient(builder.Services);

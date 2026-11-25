@@ -13,6 +13,8 @@ public static class SageStammdatenOutbox
 {
     public const string TypLagerplatz = "StorageLocation";
     public const string TypBdeMitarbeiter = "BdeOperator";
+    /// <summary>v1.99.71: im WMS erfasstes Lager (StorageArea), das der Dienst in Sage anlegt (Spec 2026-11-24-lagerplatz-anlage-wms-nach-sage F1a).</summary>
+    public const string TypLagerort = "StorageArea";
 
     /// <summary>Neuen offenen Eintrag anlegen; Audit-Werte vom angelegten Datensatz (gleicher Benutzer, gleicher Zeitpunkt).</summary>
     public static void Vormerken(ApplicationDbContext ctx, string typ, AuditableEntity quelle, object payload) =>
@@ -26,14 +28,16 @@ public static class SageStammdatenOutbox
             CreatedByWindows = quelle.CreatedByWindows,
         });
 
-    /// <summary>Datensatz ist in Sage gefunden/verknuepft: offene bzw. fehlerhafte Eintraege auf Bestaetigt setzen (nichts mehr zu senden).</summary>
+    /// <summary>Datensatz ist in Sage gefunden/verknuepft: offene, gesendete bzw. fehlerhafte Eintraege auf Bestaetigt setzen (nichts mehr zu
+    /// senden). v1.99.71: auch <c>Gesendet</c> (Sende-Lauf der Lagerplatz-Anlage setzt vor dem Sage-Aufruf Gesendet, AK 38).</summary>
     public static async Task ErledigenAsync(ApplicationDbContext ctx, string typ, int id, string modifiedBy, string modifiedByWindows,
         CancellationToken ct = default)
     {
         var key = id.ToString(CultureInfo.InvariantCulture);
         var offen = await ctx.SageStammdatenOutbox
             .Where(o => o.EntityType == typ && o.EntityKey == key
-                     && (o.Status == SageBookingQueueStatus.Offen || o.Status == SageBookingQueueStatus.Fehler))
+                     && (o.Status == SageBookingQueueStatus.Offen || o.Status == SageBookingQueueStatus.Gesendet
+                         || o.Status == SageBookingQueueStatus.Fehler))
             .ToListAsync(ct);
         foreach (var o in offen)
         {

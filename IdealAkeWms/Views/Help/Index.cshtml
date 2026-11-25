@@ -2558,7 +2558,25 @@
                         Sage-Buchung bleiben; ab dem folgenden Lauf gleicht der Lagerbestand-Abgleich seinen Bestand mit Sage ab). Der Hinweis über der
                         Liste nennt die Anzahl offener Übergaben, &bdquo;Offene Übergaben anzeigen&ldquo; filtert darauf. Plätze aus der Zeit vor
                         v1.73.0 zeigen &bdquo;nicht nötig&ldquo; (gedämpfter Text, seit v1.79.0; vorher leer) &ndash; ein solcher manueller Platz mit gleichem Code wie in Sage bleibt wie bisher
-                        ein Konflikt im Aktivitäts-Protokoll.</dd>
+                        ein Konflikt im Aktivitäts-Protokoll.
+                        <br /><strong>Seit v1.99.71 &ndash; Lagerplätze in Sage anlegen</strong> (Rolle Stammdaten, nur wenn die Service-Einstellung
+                        <code>SageLagerplatzAnlageAktiv</code> an ist; ausgeliefert aus): Knopf &bdquo;Lagerplätze in Sage anlegen&ldquo; über der Liste.
+                        Lagerort wählen (nur Lager aus dem Lagerplatz-Abgleich, Quelle SData) und den Bereich der drei Koordinaten eingeben; das WMS
+                        legt bis zu 200 Plätze mit dem Code <code>Lager;D1;D2;D3</code> an (genutzte Dimensionen ab 1, nicht genutzte 0). Schon
+                        vorhandene Codes werden übersprungen und in der Rückmeldung genannt. Der Dienst legt die Plätze danach in Sage an und
+                        übernimmt sie als Sage-Plätze (Quelle &bdquo;Sage&ldquo;, Status <em>Übergeben</em>). Code, Bezeichnung und Zone dieser Plätze sind
+                        im WMS gesperrt; Buchbar, Sage-Buchung, Kapazität und Aktiv bleiben änderbar.
+                        <br />Fehlt das Lager in Sage, kann es im Formular unter &bdquo;Neues Lager erfassen …&ldquo; mit Kennung, Bezeichnung und
+                        Lagertechnik erfasst werden &ndash; nur Lagertechniken, die die Einstellung <code>SageLagerAnlageLagertechniken</code> am
+                        Standort freigibt. Der Dienst legt zuerst das Lager, dann seine Plätze an. Ein Lager im Status Fehler ist für neue Plätze
+                        gesperrt, bis es mit &bdquo;Erneut senden&ldquo; (Hinweis über der Liste) übergeben ist.
+                        <br />Schlägt die Übergabe eines Platzes fachlich fehl, steht der Grund in der Spalte &bdquo;Übergabe-Fehler&ldquo; und der Knopf
+                        &bdquo;Erneut senden&ldquo; reiht ihn wieder ein. Ist Sage nicht erreichbar, bleibt der Platz <em>Offen</em> mit dem Text
+                        &bdquo;Letzter Versuch fehlgeschlagen: …&ldquo; und der Dienst versucht es im nächsten Takt erneut (Mail an die Admins nur, wenn
+                        sich der Fehlertext ändert).
+                        <br /><em>Bekannte Folgen:</em> Wird ein Platz deaktiviert, während seine Übergabe noch läuft, und legt Sage ihn trotzdem an,
+                        übernimmt ihn der nächste Lagerplatz-Abgleich und aktiviert ihn wieder &ndash; dann erneut deaktivieren. Ein neu erfasstes Lager
+                        erscheint schon vor seiner Übergabe in der Lagerort-Auswahl der Kommissionierbereichs-Regeln.</dd>
 
                     <dt>Benutzer</dt>
                     <dd>Name, Personalnummer und Passwort. Jedem Benutzer koennen eine oder mehrere Rollen zugewiesen werden.

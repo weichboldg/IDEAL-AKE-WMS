@@ -50,7 +50,7 @@ public class SageUebergabeTests
     public async Task Lagerplatz_Neuanlage_StehtAufOffen_MitOutboxEintrag_NichtsGesendet()
     {
         using var ctx = TestDbContextFactory.Create();
-        var ctrl = new StorageLocationsController(new StorageLocationRepository(ctx), User().Object);
+        var ctrl = new StorageLocationsController(new StorageLocationRepository(ctx), User().Object, new Mock<IServiceSettingRepository>().Object);
 
         await ctrl.Create(new StorageLocation { Code = "W-01", Description = "Neu im WMS", Zone = "Z1" });
 
@@ -81,7 +81,7 @@ public class SageUebergabeTests
         ctx.StorageLocations.AddRange(Platz("A"), Platz("B", SageUebergabeStatus.Offen), Platz("C", SageUebergabeStatus.Fehler),
             Platz("E", SageUebergabeStatus.Uebergeben), inaktiv);
         await ctx.SaveChangesAsync();
-        var ctrl = new StorageLocationsController(new StorageLocationRepository(ctx), User().Object);
+        var ctrl = new StorageLocationsController(new StorageLocationRepository(ctx), User().Object, new Mock<IServiceSettingRepository>().Object);
 
         var alle = (ViewResult)await ctrl.Index();
         ((List<StorageLocation>)alle.Model!).Should().HaveCount(4);

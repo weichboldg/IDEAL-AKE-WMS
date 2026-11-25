@@ -679,6 +679,30 @@ ORDER BY [Category], [Key];
   `v1.99.40-Userfeld-EKMindestbestellwert-IDEAL`). Fehlt eine Zeile, gilt der Standard.
 - **Quelle:** `IdealAkeWms/Services/SageSdata/SageUserfelder.cs:19,41-69`; [04 § 5.6](04-konfiguration.md).
 
+### A-8.7 Lager-/Lagerplatz-Anlage in Sage: Warteschlange und Plätze (ab v1.99.71)
+
+```sql
+-- Stand der Warteschlange (Status 0 Offen, 1 Gesendet, 2 Bestaetigt, 3 Fehler)
+SELECT EntityType, Status, COUNT(*) AS Anzahl, MAX(ModifiedAt) AS Zuletzt
+FROM dbo.SageStammdatenOutbox
+WHERE EntityType IN (N'StorageArea', N'StorageLocation')
+GROUP BY EntityType, Status ORDER BY EntityType, Status;
+
+-- Nicht bestaetigte Plaetze mit Grund (SageUebergabeStatus 1 Offen, 3 Fehler)
+SELECT l.Id, l.Code, l.SageUebergabeStatus, l.SageUebergabeFehler, o.Status AS OutboxStatus, o.AttemptCount, o.LastError
+FROM dbo.StorageLocations l
+JOIN dbo.SageStammdatenOutbox o ON o.EntityType = N'StorageLocation' AND o.EntityKey = CAST(l.Id AS nvarchar(100))
+WHERE o.Status <> 2 ORDER BY o.Id;
+
+-- Welche Sage-DB hat der Dienst zuletzt beschrieben?
+SELECT TOP 1 Message FROM dbo.SyncLogs WHERE Message LIKE N'Sage-Datenbank:%' ORDER BY Id DESC;
+```
+
+- **Erwartet:** Solange `SageLagerplatzAnlageAktiv` aus ist, nur `Offen`. „Letzter Versuch fehlgeschlagen: …“ = technischer Fehler, der Dienst
+  versucht es selbst erneut; `Fehler` = fachlich: Grund lesen, in Sage bzw. im WMS korrigieren, dann „Erneut senden“.
+- Prüfabfragen gegen Sage (P-1 bis P-10, nur `SELECT`): Spec `2026-11-24-lagerplatz-anlage-wms-nach-sage`, Abschnitt
+  „Migrations-/SQL-Auswirkungen“, und [05 § 4b](05-schnittstellen.md).
+
 ## Verwandte Kapitel
 
 [00-index.md](00-index.md) · [01-architektur-technologie.md](01-architektur-technologie.md) · [02-systeme-umgebungen.md](02-systeme-umgebungen.md) ·

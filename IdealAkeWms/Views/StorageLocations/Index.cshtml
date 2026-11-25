@@ -9,8 +9,11 @@
     var onlyUebergabeOffen = (bool?)ViewBag.OnlyUebergabeOffen == true;
     var uebergabeOffenCount = (int?)ViewBag.UebergabeOffenCount ?? 0;
     var canEdit = await _user.HasMasterDataAccessAsync();
-    // Spalten: code, description, zone, storage-area, sage-locked, capacity, type, source, sage-uebergabe, bookable, sage-buchung, [is-active], created-at, actions
-    var colCount = showInactive ? 14 : 13;
+    var sageAnlageAktiv = (bool?)ViewBag.SageAnlageAktiv == true;
+    var lagerUebergaben = ViewBag.LagerUebergaben as List<(IdealAkeWms.Models.StorageArea Area, IdealAkeWms.Models.SageStammdatenOutboxItem Eintrag)>
+                          ?? new List<(IdealAkeWms.Models.StorageArea Area, IdealAkeWms.Models.SageStammdatenOutboxItem Eintrag)>();
+    // Spalten: code, description, zone, storage-area, sage-locked, capacity, type, source, sage-uebergabe, sage-uebergabe-fehler, bookable, sage-buchung, [is-active], created-at, actions
+    var colCount = showInactive ? 15 : 14;
 }
 
 <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
@@ -20,6 +23,10 @@
         @if (canEdit)
         {
             <a asp-action="Create" class="btn btn-primary">Neuen Lagerplatz anlegen</a>
+            @if (sageAnlageAktiv)
+            {
+                <a asp-action="CreateInSage" class="btn btn-outline-primary">Lagerplätze in Sage anlegen</a>
+            }
         }
     </div>
 </div>
@@ -35,8 +42,16 @@
     <div class="alert alert-info d-flex justify-content-between align-items-start flex-wrap gap-2" role="status">
         <div>
             <strong>Offene Übergaben an Sage</strong><br />
-            Diese Lagerplätze wurden im WMS angelegt und sind in Sage noch nicht vorhanden. Bitte in Sage mit demselben Code anlegen –
-            der nächste Lagerplatz-Abgleich übernimmt sie dann automatisch (Quelle wird „Sage“). Das WMS sendet nichts an Sage.
+            @if (sageAnlageAktiv)
+            {
+                @:Über „Lagerplätze in Sage anlegen“ erfasste Plätze legt der Dienst in Sage an (Status „Offen“ = wartet, „Fehler“ = siehe Spalte
+                @:Übergabe-Fehler). Andere offene Plätze bitte in Sage mit demselben Code anlegen.
+            }
+            else
+            {
+                @:Diese Lagerplätze wurden im WMS angelegt und sind in Sage noch nicht vorhanden. Bitte in Sage mit demselben Code anlegen –
+                @:der nächste Lagerplatz-Abgleich übernimmt sie dann automatisch (Quelle wird „Sage“). Das WMS sendet nichts an Sage.
+            }
         </div>
         <a asp-action="Index" class="btn btn-sm btn-outline-secondary">Alle Lagerplätze zeigen</a>
     </div>
@@ -47,6 +62,35 @@ else if (uebergabeOffenCount > 0)
         <span><strong>@uebergabeOffenCount @(uebergabeOffenCount == 1 ? "Lagerplatz wartet" : "Lagerplätze warten")</strong> auf die Übergabe an Sage
             (im WMS angelegt, in Sage noch nicht vorhanden).</span>
         <a asp-action="Index" asp-route-onlyUebergabeOffen="true" class="btn btn-sm btn-outline-dark">Offene Übergaben anzeigen</a>
+    </div>
+}
+
+@* v1.99.71 (F6): im WMS erfasste Lager, deren Anlage in Sage noch aussteht oder fehlschlug (Status lebt nur in der Outbox). *@
+@foreach (var (area, eintrag) in lagerUebergaben)
+{
+    var fehler = eintrag.Status == IdealAkeWms.Models.SageBookingQueueStatus.Fehler;
+    <div class="alert @(fehler ? "alert-danger" : "alert-info") d-flex justify-content-between align-items-start flex-wrap gap-2" role="status">
+        <div>
+            @if (fehler)
+            {
+                <strong>Lager @area.Lagerkennung konnte nicht in Sage angelegt werden:</strong> @eintrag.LastError
+                <br /><span class="small">Neue Plätze in diesem Lager sind gesperrt, bis es erneut gesendet und angelegt ist.</span>
+            }
+            else
+            {
+                <strong>Lager @area.Lagerkennung wartet auf Anlage in Sage.</strong>
+            }
+            @if (sageAnlageAktiv)
+            {
+                <br /><span class="small">Neue Lager legt der Dienst vor ihren Plätzen an; Plätze eines wartenden Lagers bleiben „Offen“.</span>
+            }
+        </div>
+        @if (fehler && canEdit && sageAnlageAktiv)
+        {
+            <form asp-action="LagerErneutSenden" asp-route-id="@area.Id" method="post" class="m-0">
+                <button type="submit" class="btn btn-sm btn-outline-dark">Erneut senden</button>
+            </form>
+        }
     </div>
 }
 
@@ -101,6 +145,7 @@ else if (uebergabeOffenCount > 0)
                 <th data-filterable data-col-key="type">Typ</th>
                 <th data-filterable data-col-key="source">Quelle</th>
                 <th data-filterable data-col-key="sage-uebergabe" title="Übergabe eines im WMS angelegten Platzes an Sage">Übergabe an Sage</th>
+                <th data-filterable data-col-key="sage-uebergabe-fehler" title="Grund, warum der Dienst den Platz nicht in Sage anlegen konnte">Übergabe-Fehler</th>
                 <th data-filterable data-col-key="bookable">Buchbar</th>
                 <th data-filterable data-col-key="sage-buchung">Sage-Buchung</th>
                 @if (showInactive)
@@ -142,6 +187,7 @@ else if (uebergabeOffenCount > 0)
                         }
                     </td>
                     <td data-col-key="sage-uebergabe"><partial name="_SageUebergabeBadge" model="location.SageUebergabeStatus" /></td>
+                    <td data-col-key="sage-uebergabe-fehler" class="small">@location.SageUebergabeFehler</td>
                     <td data-col-key="bookable">
                         @if (location.IstBuchbar)
                         {
@@ -177,6 +223,12 @@ else if (uebergabeOffenCount > 0)
                         @if (canEdit)
                         {
                             <a asp-action="Edit" asp-route-id="@location.Id" class="btn btn-sm btn-secondary">Bearbeiten</a>
+                            @if (sageAnlageAktiv && location.SageUebergabeStatus == IdealAkeWms.Models.SageUebergabeStatus.Fehler)
+                            {
+                                <form asp-action="ErneutSenden" asp-route-id="@location.Id" method="post" class="d-inline m-0">
+                                    <button type="submit" class="btn btn-sm btn-outline-primary">Erneut senden</button>
+                                </form>
+                            }
                         }
                     </td>
                 </tr>
@@ -210,6 +262,7 @@ else if (uebergabeOffenCount > 0)
     { "key": "type", "label": "Typ", "locked": false, "defaultWidth": null },
     { "key": "source", "label": "Quelle", "locked": false, "defaultWidth": null },
     { "key": "sage-uebergabe", "label": "Übergabe an Sage", "locked": false, "defaultWidth": null },
+    { "key": "sage-uebergabe-fehler", "label": "Übergabe-Fehler", "locked": false, "defaultWidth": null },
     { "key": "bookable", "label": "Buchbar", "locked": false, "defaultWidth": null },
     { "key": "sage-buchung", "label": "Sage-Buchung", "locked": false, "defaultWidth": null },
     { "key": "is-active", "label": "Aktiv", "locked": false, "defaultWidth": null },
