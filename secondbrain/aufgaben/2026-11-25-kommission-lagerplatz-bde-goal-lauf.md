@@ -43,7 +43,7 @@ Alle Befunde der Specs werden gesammelt und nach der letzten Epic-Etappe in EINE
 | F-3 | v1.99.70 Q2 | Merker „Run gestartet“ auch bei Gesamtfehler → Wiederholung erst am Folgetag | laut Spec F2 gewollt – nur prüfen, ggf. belassen |
 | F-4 | v1.99.70 Q4 | DEV-Absicherung (`Sync:%Enabled`) schaltet `Sync:KommissionierNachtragEnabled` ab → Nachtlauf auf DEV nie beobachtbar | Entscheid Gerald: DEV-Ausnahme bzw. QA-Erlaubnis für diesen Schalter (kein Code) |
 | F-5 | v1.99.71 N1 | Dienst-Stopp während Sage-Befehl → Eintrag „Fehler“ statt „Offen“ | Einzeiler `when (!ct.IsCancellationRequested && !IstTechnisch(ex))` in beiden catch |
-| F-6 | v1.99.71 N2 | Konfliktmeldung 50014 ohne belegende Sage-PlatzID (AK 13) | PlatzID in Meldung; Live-Test gegen ake_TEST2026 nötig |
+| F-6 | v1.99.71 N2 | Konfliktmeldung 50014 ohne belegende Sage-PlatzID (AK 13) | PlatzID in Meldung; Gerald 2026-11-25: Live-Test erst morgen möglich → im Schlusslauf den Konflikt-SELECT read-only gegen ake_TEST2026 selbst belegen (bekannter Fall `HAUPT;0;0;0` = `Hauptlager;0;0;0`), Live-Schreibtest bleibt Mensch |
 | F-7 | v1.99.71 QA | Lagercode-Feld kürzt 11 Zeichen still auf 10 | maxlength entfernen/Hinweis, Server-Meldung zeigen |
 | F-8 | v1.99.71 Umsetzer | `SageLagerplatzReader.cs:26` verbindet ohne Mandant | Mandant wie Schreibweg |
 | F-9 | v1.99.71 H1/H2 | kurzzeitig „fehlend“ beim parallelen Abgleich; Fehlermail je Takt bei unerwarteter Ausnahme | Hinweise, prüfen |
