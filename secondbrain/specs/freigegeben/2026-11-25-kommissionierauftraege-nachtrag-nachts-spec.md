@@ -2,7 +2,7 @@
 type: spec
 title: Kommissionieraufträge – Nachtrag nachts im Dienst, Knopf „Fehlende … erzeugen“ nur für Admins
 slug: 2026-11-25-kommissionierauftraege-nachtrag-nachts-spec
-status: Entwurf
+status: Freigegeben
 created: 2026-11-25
 updated: 2026-11-25
 source_backlog: "[[2026-11-25-kommissionierauftraege-nachtrag-automatisch-knopf-nur-admin]]"
@@ -40,9 +40,9 @@ deploy:
   web: true
   service: true
   migration: true
-freigabe_entscheidung: ""
-freigabe_von: ""
-freigabe_am: ""
+freigabe_entscheidung: "1 Rolle admin; 2 (b) + Warnung in Stückliste/Leitstand; 3 sofort anlegen (Gerald 2026-11-25); Umsetzung in einem späteren goal-run"
+freigabe_von: Gerald
+freigabe_am: 2026-11-25
 ---
 
 # Kommissionieraufträge – Nachtrag nachts im Dienst, Knopf nur für Admins
