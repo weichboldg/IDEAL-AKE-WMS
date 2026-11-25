@@ -1,6 +1,6 @@
 ---
 type: aufgabe
-status: in-arbeit
+status: erledigt
 created: 2026-11-25
 worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"
 branch: "feature/2026-08-07-ideal-teile-1-5"
@@ -245,3 +245,15 @@ Zusätzlich für die Mail gebraucht: Seite „WMS – Fehler melden und Wünsche
 1. TS-201.3.3 mit einem Benutzer ohne Terminal-Zuordnung: Startseite mit gelber Meldung „kein Terminal konfiguriert“.
 2. TS-201.3.2 an IDEAL nach Werker-Anmeldung: direkt Tageshistorie.
 3. Hilfeseite und Änderungsseite am Testsystem einmal durchsehen (Text gegen Kenntnis der Werker).
+## Paket 20 (Definition of Done, 2026-11-26)
+- `publish\paket20-v1.99.80.zip` (Commit 3c5a97df, enthält v1.99.70–v1.99.80): **237 621 089 Bytes**, SHA-256 `7A3FD1B48A48224C0DA00ED60AE3A7A6FFAABB33792FE7698824EC3D1D666B48`.
+- `\\AKENET01.ake.at\Installsourcen`: 237 621 089, SHA-256 gleich – OK.
+- `\\IDEALWEB01.ideal.ideal-ake.at\InstallSourcen`: 237 621 089, SHA-256 gleich – OK.
+- Deploy: Web + Dienst + SQL/164, 165, 168, 169 über das Update-Skript (`nachlauf.psd1`), Dienst erst nach dem Schema.
+- Confluence (ausdrücklich beauftragt, 12fd3e44): 15 Seiten aktualisiert, Kapitel 19 neu (701005871). Mail-Entwurf [[2026-11-26-mail-wms-neuerungen-v1-99-70-80]] mit echten Links, **nicht gesendet** – erst nach dem Prod-Deploy versenden.
+
+## Offen für Gerald (Schranke 2)
+- Entscheide: F-3, F-4, F-11, F-14, F-20, F-21, F-22, F-29, F-30; QA-Hinweise H-A (Terminal-Guard auch an Pause/Fertig/Teilmenge/Gruppe), H-B (ex.Message im Altbestand-Warntext), H-C (`SELECT @@VERSION` am IDEAL-Sage-Server, STRING_AGG ab 2017).
+- F-16 IDEAL: Dienstkonto `AKENB\svc_idealakewms` braucht Lesezugriff auf `IDEAL_TEST_2026_05_03`, dann Artikel-Abgleich IDEAL erneut prüfen.
+- Live nicht prüfbar: F-2 (kein FA mit „Altbestand prüfen“), F-7 (Sage-Schreibschalter), F-6 Schreibtest, TS-198.6/.7, TS-201.3.3 (Benutzer ohne Terminal), TS-201.3.2 an IDEAL.
+- Manual-UAT der vier Specs, dann EIN Merge. Kein Merge, kein Push erfolgt.
