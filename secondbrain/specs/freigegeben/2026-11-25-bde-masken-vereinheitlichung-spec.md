@@ -2,7 +2,7 @@
 type: spec
 title: BDE-Masken vereinheitlichen - Teile- und FA-Sicht, AG-Status-Ampel, Teilfertigmeldung, BDE mobil kompakt
 slug: 2026-11-25-bde-masken-vereinheitlichung-spec
-status: InUmsetzung
+status: Testbereit
 created: 2026-11-25
 updated: 2026-11-25
 source_backlog: "[[2026-11-25-bde-masken-vereinheitlichung]]"
@@ -989,7 +989,14 @@ weg sind; `AppSettingDefinitionsTests` Zählungen 40→39 / 70→69.
 
 ## Deploy
 
-> [!warning] Vorlaeufig – der qa-agent bestaetigt gegen den echten Diff.
+> [!success] QA-final 2026-11-25 (qa-agent) gegen den echten Diff `4e8a344c..fbe29238`
+> **deploy.web = ja** (IdealAkeWms/), **deploy.service = ja** (IDEALAKEWMSService/AppVersion.cs + geteiltes EF-Modell), **deploy.migration = ja**
+> (`IdealAkeWms/Migrations/20261125191311_AddBdeTeilMeldungIstAbschliessendUndStandardsicht`, SQL/169).
+> **Paket:** `C:\Git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-07-ideal-teile-1-5\publish` v1.99.78 (Web + Dienst, `SQL\`, `deploy\`, `publish-info.txt`).
+> **Reihenfolge:** DB-Backup → Dienst stoppen → SQL/169 (Update-Skript, Schema-Phase) → Web → Dienst starten (neue Dienst-Binaries erst nach SQL/169).
+> Alle zehn Manifest-Eintraege der Tabelle stehen in `scripts/deploy/nachlauf.psd1` (je 1 Treffer, geprueft). Keine Einmal-Skripte.
+> Nach dem Merge nur dann neu aus `main` publishen, wenn der Merge getestete Dateien mit parallelen main-Aenderungen zusammengefuehrt hat.
+> Ablauf Mensch: Publish aus dem Worktree → Testsystem → Test → Merge.
 
 - **Web-App:** ja (alle Etappen).
 - **Service:** kein Dienst-Code (Antwort 3a: Erkennung bleibt an `BdeTeileliste`); Versionsnummer in `AppVersion.cs` (beide). Weil der Dienst das
@@ -1138,3 +1145,136 @@ Antworten 1–14 sind vollstaendig (jede mit Text, keine Entweder-oder-Frage nur
 - H-5 AKE-DEV nur mit Worktree-Stand deployen (Memory/Projektregel), TS-194 nennt das bereits.
 
 **NACHBESSERUNG NOETIG: B-1 (Teile-Sicht nur mit `BdeTeileliste`?) entscheiden; S-1 und S-3 vor der Freigabe in den Rumpf ziehen.**
+
+## QA-Nachweis (qa-agent, 2026-11-25) – Epic gesamt, Etappen 1–5
+
+Worktree `C:\Git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-07-ideal-teile-1-5`, Branch `feature/2026-08-07-ideal-teile-1-5`.
+Review-Bereich `4e8a344c..fbe29238` (Etappe 1 bis 5; der im Auftrag genannte 557f1a9f ist ein Brain-Commit auf main).
+QA-Commits im Worktree (nur Doku/Fotos): `6d98dd6a`, `a3287fb0`.
+
+### 1. Build und Tests
+- `dotnet build IdealAkeWms.slnx`: 0 Fehler, 32 Warnungen (Bestand).
+- `dotnet test`: **IdealAkeWms.Tests 3689 bestanden / 1 übersprungen / 0 fehlgeschlagen**; **IDEALAKEWMSService.Tests 847 / 0 / 0**.
+
+### 2. Code-Review (selbst, synchron)
+Geprüft: Controller BdeTeileliste/BdeTerminal/ProductionWorkplaces, BdeTeilelisteService (Melden, Abschluss, Block, Rücknahme), BdeFaAngebot,
+BdeTageshistorie, WerkbankKuerzelFamilie, AppSettingDefinitions, NavigationKatalog, Migration + SQL/169 + FreshInstall, Views `_Kopf`, `_BdeTeilelisteField`,
+FA-Sicht-/Teileliste-Partials, `bde-fa-sicht.js`, `bde-teileliste.js`, `bde.css`, geänderte Tests, `nachlauf.psd1`.
+Gezielt auf die bekannten Defektklassen: keine `@Html.Raw` in `<script>` (Werte per `data-*`), kein `hidden` + `d-*`, keine stillen `?? 0` in neuen
+Meldepfaden (Mengen serverseitig geprüft, „Gut > 0“ bei Teilfertig), keine Parallel-Array-Bindung (Block-Melden über Schlüsselstrings, Server
+dedupliziert `BdeTeilelisteService.cs:567`), Standardsicht-Regel nur serverseitig in `WerkbankKuerzelFamilie` + Speicher-Validierung, gefilterte
+UNIQUE-Indizes in Migration, SQL/169 und FreshInstall identisch.
+
+Bekannte Befunde (nicht neu gezählt): F-20 nicht nachgemessen; F-21 **entschärft** – der Block meldet „mit ihrer Restmenge“ (Dialogtext; DB Gut 22 = Summe
+Rest); F-22 **bestätigt** (Browser + DB); F-25 bestätigt aus Code (`BdeFaAngebot.cs:99` alle AG des Auftrags), keine Fehlwirkung beobachtet; F-26 bestätigt
+(kein Timer in `bde-fa-sicht.js`); F-27 bestätigt (Scan 9999999); F-28 bestätigt, gilt auch für `operatorId` der Tageshistorie (Query); F-29 bestätigt
+(ActiveBookings/PausedBookings/StartProductionForOrder und die API-Routen ohne Aufrufer in `wwwroot/js` und `Views`); F-31 bestätigt (Login-Formular
+GET `/BdeTeileliste` → Liste statt Historie).
+
+Neue Befunde:
+
+| Nr | Schwere | Befund | Behandlung |
+|---|---|---|---|
+| N1 | niedrig | Kontrast 4,13:1 (< 4,5) für inaktive Reiter-Pills („Teile Summiert“) und den Outline-Knopf „Tätigkeit starten“ auf grauem Seitenhintergrund (16 px) | offen, Folgearbeit (CSS) |
+| N2 | niedrig | Tageshistorie, Ziel-Text `BdeTageshistorie.cs:73`: Blechteile zeigen „FA … / Sub-FA 0“; Lagerbestell-Meldungen ergeben „Lagerbestellung · FA 0 / Sub-FA 0“ (aus Code, nicht im Browser gesehen) | offen |
+| N3 | niedrig/Doku | Spaltenfilter Typ `Fertig` trifft auch „Teilfertig“ (enthält-Semantik); exakt mit `=Fertig` | TS-199.2.6 angepasst (QA-Commit) |
+| N4 | niedrig | „Meine Buchungen“ zeigt nur Haupt-FA/AG ohne Sub-FA; zwei Buchungen derselben Haupt-FA nicht unterscheidbar (Parität altes Terminal) | offen |
+| N5 | Doku | „Seitengröße 10“ in TS-194/197/198/199 nicht wählbar (kleinste 25); TS-197.2.3/197.5.2 und xUnit-Liste noch mit alter Terminal-Seite | korrigiert (`6d98dd6a`) |
+| N6 | niedrig | Summen-Haken wird nach erneutem Anhaken aller Einzel-Haken nicht wieder gesetzt (Zähler stimmt) | offen |
+| N7 | niedrig | Kollisionsdialog: Fokus auf dem Dialog statt auf „OK“ | offen |
+| N8 | Doku | Bildverweis `17-08-teileliste-handy.jpg` zeigte auf fehlende Datei (17-08 = Isolierfräse, vgl. F-32) | auf neues Foto `17-13-teileliste-handy.jpg` umgestellt |
+| N9 | Hinweis | Lokale DB `IDEAL_AKE_WMS` auf Instanz `.` (nicht DEV): beim ersten FreshInstall-Testlauf versehentlich 3 Tabellen angelegt (BfAuftraege, BfAuftragPositionen, SageFaArbeitsgangAnlagen); nicht gelöscht | Mensch entscheidet |
+| N10 | Hinweis | `SQL/00_FreshInstall.sql` fehlt die History-Zeile `20260910081155_AddProductionOrderMatchcode` (Bestand, nicht aus diesem Epic) | offen |
+
+### 3. Nachweisart je AK
+
+| AK | Nachweis |
+|---|---|
+| 1, 3, 5, 6 | xUnit + DEV-Browser IDEAL (aria-labels, Kinderzeilen „nur Anzeige“) |
+| 2 | xUnit (`BdeTeilelisteServiceTests`) + DEV-Browser (KA „läuft“ nach Teilfertig) |
+| 4 | xUnit; im Browser nicht separat nachgestellt → Manual-UAT |
+| 7, 8 | Manual-UAT, auf DEV gemessen: 360 px ohne Querscrollen (scrollWidth 360), Karten, Filterkarte eingeklappt mit Kurzfassung; Kontrast s. N1; unter 44 px: CSV 36 px, Zahnrad 36 px, Haken 19 px (Summiert) |
+| 9 | überholt durch AK 35 (Terminal-Seite entfernt) |
+| 10 | xUnit (Partial); FA-Struktur visuell → Manual-UAT |
+| 11–14 | xUnit + DEV-Browser IDEAL (11 Aufträge, Summen-Haken, Block 11 Zeilen/Summe 22, Ampel „überfällig“) |
+| 15, 15a, 17, 18, 20 | xUnit + DEV-Browser (Teilfertig 1; 0 abgewiesen; 2 → „Sollmenge erreicht“; Fertig 0; Rücknahme) |
+| 16 parallel, 18a | **Manual-UAT gegen SQL Server**: DEV-DB `IstAbschliessend` 0/0/1 nachgewiesen; paralleles Doppel-Fertig nicht nachgestellt |
+| 19 | DEV-Browser + DB: Buchung 25 `IsFinal=0`, 26 `IsFinal=1`; Rücknahme storniert 26 |
+| 21 | DEV-Browser (`colf_art=Teil` → 3 Zeilen) |
+| 22 | **Manual-UAT SQL**: SQL/169 je DEV-DB zweimal, 2. Lauf ohne Änderung; Vorbelegung IDEAL nur Kanten (67), AKE keine; FreshInstall auf Wegwerf-DB identisch |
+| 23–25, 27 | xUnit (`BdeFaAngebotTests`, `BdeBookingServiceStufe1Tests`) + DEV-Browser IDEAL |
+| 24 (4b NurAg) | DEV-Browser: EG mit `BdeNurAgFertigmeldung` → je Zeile nur „Fertig melden“, Vorgabe Soll 2, Abbrechen bucht nichts, Bestätigen → Zeile weg |
+| 26 | Kollision DEV-Browser OK; Gruppenpflicht/Close-Others → Manual-UAT |
+| 28 | xUnit (`BdeTeilelisteOptionTests` inkl. AKE-POST) + DEV-Browser IDEAL (Abweisungen, Modified*); AKE-Maske ohne Auswahl, manipulierter POST → Standardsicht bleibt 0 (DB) |
+| 29, 30, 32d | xUnit + DEV-Browser (gemerkte Sicht nach Reload, Fallback FA, ausgegraute Reiter, „nicht BDE-aktiv“ ohne Redirect-Kreis) |
+| 31, 32a | xUnit; 32a Dienst-Lauf → Manual-UAT |
+| 32b | DEV AKE: nur Reiter FA, Kopf-Buchungen, Tätigkeit Start/Beenden, Tageshistorie; Fortsetzen der Alt-Pausen abgewiesen („FA … bereits abgeholt“, Alt-Daten); auf DEV AKE keine anbuchbaren AG (alle offenen AG haben IsFinal-Mengen) → Anstempeln an AKE Manual-UAT |
+| 32c | DEV-Browser IDEAL mit `BdeNurFaMeldung=true`: FA-Sicht/Teile-Reiter unverändert (danach zurück auf false) |
+| 33, 34 | DEV-Browser (Menü, Startseiten-Kachel mit Symbol, Knopf im Kopf, Spaltenfilter serverseitig, Pagination) |
+| 35, 35a | xUnit (Redirect) + DEV-Browser beide Standorte; `/Settings` zeigt `BdeTerminalMaxHauptFa` unter „Nicht im Katalog“ |
+| 35b | Manual-UAT (Android-Handy, Konten noch nicht angelegt) |
+| 36 | Build + Tests grün (s. 1) |
+| 37 | Fotos per Headless-Browser von DEV IDEAL, Kapitel 11/17 + Index nachgezogen (QA-Commits) |
+
+### 4. Geänderte bestehende Tests
+
+| Test | Einordnung |
+|---|---|
+| `AppSettingDefinitionsTests` (40→39, 70→69) | Verhalten bewusst geändert, AK 35a |
+| `BdeBookingServiceStufe1Tests` (Gate ignoriert NurFA) | bewusst, G5 / AK 32c |
+| `BdeTeilelisteLagerTests` (Meldung→Meldungen/Abschluss, + neuer Test) | Typ-/Modelländerung E3 |
+| `BdeTeilelisteMeldenTests` (InlineData false,true) | bewusst, G5 |
+| `BdeTeilelisteServiceTests` (Fixtures `IstAbschliessend=true`, Terminal-Umleitungstest entfernt) | Modell E3 + bewusst E5 / AK 35 |
+| `HardwareScannerTests` (Terminal-Test entfernt, View gelöscht) | bewusst E5 |
+| `BdeApiControllerTests`, `BdeTeilelisteOptionTests`, `BdeTerminalControllerTests`, `NachlaufManifestDriftTests` (+1) | additiv bzw. bewusst |
+
+Keine Kategorie „sonstige“.
+
+### 5. CLAUDE.md-Checkliste / ADR 0020
+Migration + `SQL/169` idempotent (zweifach gelaufen) ✓ · FreshInstall Schema + MigrationId ✓ · AgentJobs nicht betroffen ✓ · Audit `Modified*` bei Maske
+und Rücknahme (DB) ✓ · Version 1.99.78 in beiden `AppVersion.cs` ✓ · `Changelog.cshtml` 1.99.73–78 ✓ · Brain-Changelog je Version ✓ · TESTSZENARIEN
+TS-194–199 ✓, im Index (Zeilen 168–173) ✓ · Manifest (10 Einträge) ✓.
+ADR 0020: `BdeStandardsichtTeile` als Auswahl Teile/FA, Server-Validierung (abgewiesen ohne Teile-Sicht, AKE-POST), Hilfetext mit Wirkung/Default/Standort/
+„nur Oberfläche“ ✓; `BdeTerminalMaxHauptFa` entfernt (verwaist sichtbar) ✓; `BdeNurFaMeldung` Text „Altlast“ ✓.
+
+### 6. DEV-Deploy und Testlauf
+`standort: beide`. `dev-deploy.ps1 -Standort AKE|IDEAL -Quelle <worktree>` erhöht, je **EXIT 0**, Fußzeile **v1.99.78** an 8081 und 8082.
+Werkzeug: claude-in-chrome-Screenshots liefen in Timeouts („renderer may be frozen“) → Browser-Schritte per Headless-Chrome (CDP, Windows-Auth
+localhost); claude-in-chrome-Tab geschlossen.
+
+| Szenario | Ergebnis |
+|---|---|
+| TS-194 Einzeln (AG-Status, Baugruppe 25 Kinder, 360 px) | OK (AK 4 „Treffer“ nicht separat) |
+| TS-195 Summiert | OK (N6) |
+| TS-196 Teilfertig/Fertig/Rücknahme/Baugruppe/Admin-Art | OK; F-22 bestätigt |
+| TS-197.1 Werkbank-Maske IDEAL | OK |
+| TS-197.2/3 Reiter, Fallback, gesperrte Reiter | OK; Werker B startet bei Standard FA mit FA, Reload behält gewählten Reiter |
+| TS-197.5 AKE | OK (nur FA; Maske ohne Auswahl; manipulierter POST → 0 bleibt); Anstempeln NICHT MOEGLICH (keine anbuchbaren AG auf DEV AKE) |
+| TS-197.6 / 198.3.4 NurFa | OK (kurz true, zurück false) |
+| TS-198.1–198.5, 198.8 (Scan, Details, Tätigkeit, Kollision) | OK (N7); Mengen-Hinweis bei Rüsten während Produktion = Parität |
+| TS-198.3 nur AG-Fertigmeldung | OK (EG kurz an, zurück aus) |
+| TS-198.6/198.7 Gruppenpflicht/Close-Others | NICHT MOEGLICH (Mehrfachbuchungs-Einstellungen nicht umgestellt) |
+| TS-199.1 Weiterleitungen beide Standorte, Hilfe-Hinweis | OK |
+| TS-199.2 Tageshistorie (Inhalt, Filter, Pagination, 360 px Karten, Menü, Kachel, AKE leer/Tätigkeit) | OK (N2, N3) |
+| Ohne Terminal → Startseiten-Hinweis | NICHT MOEGLICH (kein zweiter Web-Benutzer) |
+
+Umgeschaltet und zurückgesetzt (DEV IDEAL): `FaHierarchyNodes` 1963692 Arbeitsschritte `PU`→`PU KA`→`PU` (+ App-Pool-Recycle); Werkbank 67 Kanten
+Standardsicht Teile→FA→Teile (Maske); Werkbank 65 `BdeNurAgFertigmeldung` 0→1→0; AppSetting `BdeNurFaMeldung` false→true→false.
+DEV AKE: `BdeNurFaMeldung` war bereits true (unverändert). Angelegte Testdaten (bleiben): BdeOperators 3 „QA Werker B“ (9901), BdeActivities 1 `QA-REIN`,
+Teilmeldungen 16–21 + 11 Block-Meldungen (Kanten), Buchungen ab 25 an EG/Kanten (keine offene Buchung mehr), AKE eine beendete Tätigkeit „Rüsten“ (A1).
+Keine Sage-, Sync- oder Mail-Schalter berührt.
+
+### 7. Publish
+`C:\Git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-07-ideal-teile-1-5\publish\` – `IDEALAKEWMSWeb` + `IDEALAKEWMSWebService` (Ordner vorher geleert, je EXIT 0),
+`SQL\` (inkl. 169), `deploy\` (Update-IdealAkeWms.ps1), `publish-info.txt` Version 1.99.78, Commit `a3287fb0` (Binaries aus `6d98dd6a`; danach nur Doku).
+
+### Manuelle Test-Checkliste (Mensch)
+1. Testsystem: Update-Skript mit dem Paket (Backup, SQL/169, Web, Dienst); Prüfungen `BdeNurFaMeldungAn` / `BdeStandardsichtOhneTeileSicht` ansehen.
+2. TS-198.6 Gruppenpflicht und TS-198.7 Close-Others mit den Mehrfachbuchungs-Einstellungen.
+3. AK 16 parallel: zwei Geräte gleichzeitig „Fertig“ auf denselben Schlüssel → eine Meldung, zweite „bereits gemeldet“.
+4. AKE: Anstempeln Rüsten/Produktion und Fertig an einer Werkbank mit offenen AG (AK 32b).
+5. Benutzer ohne Terminal: Startseiten-Hinweis.
+6. AK 4 (Filter trifft nur ein Kind → aufgeklappt, „Treffer“) und AK 10 (FA-Struktur-Symbole unverändert).
+7. AK 35b Android-Handy mit lokalem Konto (docs/betrieb/09).
+8. AK 32a: Dienst-Lauf Struktur-Erkennung nach Standardsicht-Wechsel unverändert.
+9. Entscheiden: N1–N4, N6, N7, F-20…F-31; Fotos 11-02/11-03 (F-30, unreferenziert, nicht gelöscht); lokale DB `IDEAL_AKE_WMS` (N9).
