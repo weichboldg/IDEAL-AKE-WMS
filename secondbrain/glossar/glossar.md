@@ -200,7 +200,8 @@ Kommissionierwagen, Sage-Wareneingangsbeleg (ELL), Rahmenabruf (EBZ), Kreditor/D
 | Begriff | Bedeutung |
 |---|---|
 | Teileliste (BDE) | Terminal-Ansicht der Blechfertigung (IDEAL): Teile und Baugruppen einer Werkbank aus der FA-Struktur, je Kürzel; Melden statt AG-Fertigmeldung. Option `ProductionWorkplaces.BdeTeileliste`. v1.99.32 |
-| Teilmeldung | Gemeldete Menge je fachlichem Schlüssel (HauptFA, VaterFA, SubFA, Position, Artnr, Kürzel) in `BdeTeilMeldungen`; geht nicht an Sage. |
+| Teilmeldung | Gemeldete Menge je fachlichem Schlüssel (HauptFA, VaterFA, SubFA, Position, Artnr, Kürzel) in `BdeTeilMeldungen`; geht nicht an Sage. Seit v1.99.72 auch je Lagerbestell-Position + Kürzel (`WarehouseRequisitionItemId`, FA-Felder 0/leer), ADR [[0038-teilmeldung-auch-fuer-lagerbestell-positionen]]. |
+| Fräsen-Pfad | UNC-Ordner des Fräsprogramms je Artikel (`Articles.CamPath`, reines WMS-Feld, nur UNC); als Link + „Pfad kopieren“ angezeigt, gepflegt von admin/masterdata/`fraesenpfad_pflegen`, Gate `FraesenPfadAktiv`. v1.99.72 |
 | Waise (Teilmeldung) | Teilmeldung, deren Schlüssel nach einem Struktur-Sync nicht mehr in der Struktur vorkommt – Hinweis mit Link, keine Löschung. |
 | Rücknahmefrist | Bis wann ein Werker die eigene Teilmeldung zurücknehmen darf: Schichtende, ohne Schichtkalender Ende des Meldetags. |
 

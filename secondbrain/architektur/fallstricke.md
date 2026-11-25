@@ -2305,3 +2305,12 @@ Code: `hardware-scanner.js` Block „Scannen ohne Feld“, CSS `.hw-scan-bereit`
   nicht als fehlend markieren (sonst inaktiv, aus der Auswahl verschwunden).
 - **Warum:** Direkt-SQL hat keine Sage-Geschäftslogik als Puffer; jeder Fehler landet roh beim WMS. Nur eine harte Trennung hält die Warteschlange
   lauffähig und die Admin-Mailbox lesbar.
+
+## 67. `BdeTeilMeldungen` trägt zwei Arten Meldung: jeder Leseweg muss `WarehouseRequisitionItemId` filtern (v1.99.72, [[2026-11-20-bde-liste-isolierungsfraese-pfad-material-spec]])
+
+- **Problem:** Lagerbestell-Meldungen stehen mit `HauptFA = 0`, `SubFA = 0`, `Position = NULL` in derselben Tabelle wie FA-Teilmeldungen. Ein
+  FA-Leseweg ohne Filter zählt sie als Waisen oder als „bereits gemeldet“ für einen FA 0.
+- **Regel:** FA-Wege filtern `WarehouseRequisitionItemId IS NULL`, Lagerbestell-Wege `IS NOT NULL`; der gefilterte UNIQUE-Index des FA-Schlüssels
+  trägt denselben Filter (SQL/165). Neuer Leseweg = Art ausdrücklich wählen.
+- **Regel:** Der Formular-Schlüssel `LB|<Id>` wird vor `TeilSchluessel.Parse` abgetrennt; ein ungültiger Schlüssel weist die ganze Anfrage ab.
+- **Warum:** Ein Platzhalter-Wert (0) ist kein Filter – „HauptFA 0 kommt nie vor“ war schon bei `SubFA = 0` falsch (ADR [[0038-teilmeldung-auch-fuer-lagerbestell-positionen]]).

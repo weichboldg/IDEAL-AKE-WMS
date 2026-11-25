@@ -269,3 +269,15 @@ Ergänzt die QA-Einträge vom 2026-11-25 (Filter `[RequireStockReadOrEinkaufAcce
   (Übergeben mit 0 Positionen wird vor dem Speichern abgelehnt).
 - `SageBookingQueueController.Index` (v1.99.69, [[2026-11-23-sage-buchungen-gesamtsicht-spec]] B3): `zeigtWe = weModul && (stockRead || Einkauf)` –
   Modul „Wareneingang zu Bestellung“ aus = keine WE-Zeilen, auch für den Einkauf. Der Zugang selbst (`[RequireStockReadOrEinkaufAccess]`) ist unverändert.
+
+## Fräsen-Pfad und Lagerbestell-Zeilen (v1.99.72, IDEAL, [[2026-11-20-bde-liste-isolierungsfraese-pfad-material-spec]])
+
+- **Neue Rolle `fraesenpfad_pflegen`** „Fräsen-Pfad pflegen“ an den drei Pflichtstellen: `RoleKeys.FraesenpfadPflegen` +
+  `RequireFraesenPfadPflegenAccessAttribute` + `ICurrentUserService.CanPflegeFraesenPfadAsync` (admin, masterdata, `fraesenpfad_pflegen`), diese
+  Datei, `Views/Users/RoleOverview.cshtml`. Braucht zusätzlich `masterdata_read` (Klassenfilter `ArticlesController`); kein Seed, Manifest-Reparatur
+  `Pruefung/RolleFraesenpfadPflegen`, Prüfung `Pruefung/FraesenpfadOhneStammdatenLesen`.
+- `ArticlesController.FraesenPfad` (POST, Antiforgery): `[RequireFraesenPfadAktiv]` (Gate `FraesenPfadAktiv`) + `[RequireFraesenPfadPflegenAccess]`,
+  kumulativ zum Klassenfilter. Index/Info/Edit-GET setzen nur Anzeige-Flags; Edit-POST fasst `CamPath` nie an.
+- `BdeTeilelisteController`: Formular-Schlüssel `LB|<WarehouseRequisitionItemId>` → `BdeTeilelisteService.MeldeLagerZeileAsync`; `Index`-GET
+  speichert Filter nur bei `Sec-Fetch-Mode: navigate` (CSV-Fix). `BdeBookingsController.Teilmeldungen`: Spalte `lagerbestellung`.
+- `ProductionWorkplacesController`: Option „Lagerbestellungen in der Teileliste“ nur mit „BDE-Teileliste“ (ModelState-Fehler).

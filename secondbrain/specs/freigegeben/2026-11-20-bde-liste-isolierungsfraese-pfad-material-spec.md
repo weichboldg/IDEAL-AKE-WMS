@@ -864,3 +864,29 @@ Freigabe-Antwort:
 Freigabe-Antwort:
 
 26. Detailseiten Artikelinfo/Artikel bearbeiten: Pfad immer sichtbar (Rumpf) oder eingeklappt? → **(Gerald 2026-11-25) Freigabe mit Rumpf-Vorschlag; Antwort Fachbereich bzw. Bestätigung ausstehend, nicht blockierend – Abweichung = Nachbesserung.**
+
+## Umsetzung (2026-11-25)
+
+- Worktree-Commit `d49a3f39` (v1.99.72), Bündel `feature/2026-08-07-ideal-teile-1-5`. **SQL/164** (Migration `20261125173002_AddArticleCamPath`),
+  **SQL/165** (Migration `20261125173021_AddBdeTeilelisteLagerbestellungen`), `SQL/00_FreshInstall.sql` an beiden Stellen, Einmal-Skript
+  `SQL/Einmalig/2026-11-25_v1.99.72_FraesenPfad_Erstimport.sql`, Manifest `scripts/deploy/nachlauf.psd1`. TS-Nummer **TS-193** (statt TS-171, vergeben).
+  ADR [[0038-teilmeldung-auch-fuer-lagerbestell-positionen]]. Fallstrick §67.
+- **Index-Filter:** `UX_BdeTeilMeldungen_Schluessel` neu gebaut mit `[IsCancelled] = 0 AND [WarehouseRequisitionItemId] IS NULL`; zweiter gefilterter
+  UNIQUE `UX_BdeTeilMeldungen_Lagerbestellung` (`WarehouseRequisitionItemId`, `Kuerzel`) `WHERE [IsCancelled] = 0 AND [WarehouseRequisitionItemId] IS NOT NULL`.
+- Build 0 Fehler, 32 Warnungen (Baseline 32). Tests Web 3631 grün / 1 übersprungen / 0 rot (vorher 3586), Dienst 847 / 0 / 0 (unverändert).
+  Zwei bestehende Zähl-Tests nachgezogen (`AppSettingDefinitionsTests` 68 → 70, `ArtikelNachbesserungV185Tests` DefaultHidden + `fraesen-pfad`).
+- Rolle `fraesenpfad_pflegen` (drei Stellen: `RoleKeys`/Filter, [[controller]], `RoleOverview`), AppSettings `FraesenPfadAktiv` (aus) und
+  `BdeTeilelisteLagerbestellungArbeitstage` (10, ohne Seed). Kein SQL gegen AKESQL20/Sage ausgeführt, keine Einstellung umgeschaltet.
+- Abweichungen/Funde:
+  - Kein eigener Index nur auf `WarehouseRequisitionItemId` (der gefilterte UNIQUE deckt FK-Suche und Doppelschutz ab).
+  - Druck der Lager-Detailseite zeigt den Fräsen-Pfad nicht (bewusst, Druck-Layout fest).
+  - Lagerbestell-Zeilen filtern nicht nach `Type` (auch Glasbestellungen mit IF-Artikel würden erscheinen) – Rückfrage, nicht gebaut.
+  - Bestandsübersicht: Spalte `current-stock` in der neuen Spaltenauswahl nicht `Locked`.
+  - Werkbank-Validierung („Lagerbestellungen“ braucht „BDE-Teileliste“) nur per TS-193.6 belegt, kein Unit-Test.
+  - AK 9 Blechdicke: Ist das Feld nicht konfiguriert, lässt die Nachlese bestehende Werte stehen (Hinweis „nicht konfiguriert – Merkmal
+    unverändert“, `IDEALAKEWMSService/…/SdataArtikelReader.cs:360`) statt „–“ zu zeigen; TS-193.5 Schritt 2 entsprechend prüfen.
+  - Manifest-Spur für `ModifiedBy` per `LIKE N'Einmal-Skript Fr_sen-Pfad'`, Rollen-Umlaute über `NCHAR(228)` (Manifest reines ASCII).
+  - Einmal-Skript: Rückfrage 15 als Annahme (Pfad wie in Spalte E, `Y:\` → `\\idealfs1\Daten$\Produktion\CAM\`); Block Belegestation
+    (G-BL, 51 Zeilen) enthalten, markiert, vor SCHARF Rückfrage 16 klären.
+  - Fußzeile „Stand“ in `docs/TESTSZENARIEN.md` veraltet, nicht angefasst.
+  - Fotos für `docs/anwender/` 03, 10, 17 und Artikelinfo stehen aus (qa-agent/DEV).

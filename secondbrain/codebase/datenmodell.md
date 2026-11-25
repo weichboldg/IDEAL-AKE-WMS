@@ -320,3 +320,12 @@ oben ist durch SQL/149 ueberholt (jetzt 45).
   EntityKey = `StorageArea.Id`. Der Sende-Lauf der Lagerplatz-Anlage schreibt Status (Offen/Gesendet/Bestaetigt/Fehler), `AttemptCount`,
   `LastError` und Audit (`system:sage-lagerplatz-anlage`). Ein über „Lagerplätze in Sage anlegen“ erfasster Platz hat `Source = Manual` +
   `StorageAreaId` bis zur Übernahme (`Source = Sage`, `SageLagerplatzId`, Sperr-/Maßwerte aus der Sage-Zeile). [[2026-11-24-lagerplatz-anlage-wms-nach-sage-spec]]
+
+## Fräsen-Pfad und Lagerbestell-Teilmeldung (v1.99.72, SQL/164–165, [[2026-11-20-bde-liste-isolierungsfraese-pfad-material-spec]])
+
+- `Articles.CamPath` NVARCHAR(500) NULL – Fräsen-Pfad (nur UNC, `Helpers/FraesenPfad.cs`), reines WMS-Feld, kein Sage-Sync; Schreiber nur
+  `ArticlesController.FraesenPfad` (+ Einmal-Skript Erstimport, `ModifiedBy` „Einmal-Skript Fräsen-Pfad“).
+- `ProductionWorkplaces.BdeTeilelisteLagerbestellungen` bit NOT NULL Default 0 – Werkbank-Option, nur zusammen mit BDE-Teileliste.
+- `BdeTeilMeldungen.WarehouseRequisitionItemId` int NULL, FK `WarehouseRequisitionItems` Restrict. UNIQUE `UX_BdeTeilMeldungen_Schluessel` jetzt
+  `WHERE [IsCancelled] = 0 AND [WarehouseRequisitionItemId] IS NULL`; neu `UX_BdeTeilMeldungen_Lagerbestellung` (`WarehouseRequisitionItemId`,
+  `Kuerzel`) `WHERE [IsCancelled] = 0 AND [WarehouseRequisitionItemId] IS NOT NULL`. ADR [[0038-teilmeldung-auch-fuer-lagerbestell-positionen]].
