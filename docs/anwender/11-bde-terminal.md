@@ -1,7 +1,7 @@
 # 11 – BDE: Arbeitsgänge buchen
 
-Stand: Version 1.99.78 (Terminal-Seite abgelöst, Kapitel umgeschrieben, Tageshistorie neu; Fotos 11-01, 11-04 und 11-07 folgen), 1.99.77
-(Meine Buchungen, Scan, Tätigkeit; Foto 11-06 folgt), 1.99.76 (FA-Sicht; Foto 11-05 folgt) · Standorte AKE und IDEAL · Bilder aus dem IDEAL-Testsystem
+Stand: Version 1.99.78 (Terminal-Seite abgelöst, Kapitel umgeschrieben, Tageshistorie neu; alle Fotos 1.99.78), 1.99.77
+(Meine Buchungen, Scan, Tätigkeit), 1.99.76 (FA-Sicht) · Standorte AKE und IDEAL · Bilder aus dem IDEAL-Testsystem
 
 ## Zweck
 
@@ -37,7 +37,7 @@ Kachel auf der Startseite und alte Lesezeichen öffnen an beiden Standorten die 
 
 Menü **BDE → Terminal**.
 
-![BDE-Seite: Anmelden mit Personalnummer (Foto 1.99.78 folgt)](bilder/11-01-terminal-operator-angemeldet.jpg)
+![BDE-Seite: Anmelden mit Personalnummer](bilder/11-01-terminal-operator-angemeldet.jpg)
 
 1. Die Seite öffnet die **Werkbank des Terminals**. Oben rechts lässt sich eine andere BDE-aktive Werkbank wählen.
 2. **Personalnummer** scannen (Ausweis, auch mit dem Handscanner ohne Antippen) oder eintippen und **Anmelden** drücken.
@@ -48,7 +48,7 @@ Menü **BDE → Terminal**.
 
 ### 2. Reiter FA: Arbeitsgänge als Tabelle (seit Version 1.99.76)
 
-![FA-Sicht: Tabelle mit Haupt-FA, Sub-FA, Arbeitsgang, AG-Status, Status und den Knöpfen Rüsten und Produktion (Foto folgt)](bilder/11-05-fa-sicht.jpg)
+![FA-Sicht: Tabelle mit Haupt-FA, Sub-FA, Arbeitsgang, AG-Status, Status und den Knöpfen Rüsten und Produktion](bilder/11-05-fa-sicht.jpg)
 
 1. **Spalten:** Haupt-FA, Sub-FA, Arbeitsgang, **AG-Status** (alle Arbeitsgänge des Auftrags als Zeichen wie in der FA-Struktur, der Arbeitsgang
    der Zeile ist **umrahmt**), Bezeichnung, Artikelnummer, Matchcode, Sollmenge, FE-Termin, Soll-Termin AG, Prio, Kunde, Abteilung, Status.
@@ -65,13 +65,13 @@ Menü **BDE → Terminal**.
 
 Mengen gibt man im Fenster **Mengen melden** ein:
 
-![Fenster „Mengen melden“ mit Gutmenge, Ausschuss, Abbrechen und Bestätigen (Foto 1.99.78 folgt)](bilder/11-04-mengen-melden.jpg)
+![Fenster „Mengen melden“ mit Gutmenge, Ausschuss, Abbrechen und Bestätigen](bilder/11-04-mengen-melden.jpg)
 
 **Bestätigen** einmal antippen und warten, bis das Fenster zu ist und oben die grüne Bestätigung erscheint.
 
 ### 3. Meine Buchungen, Scan und Tätigkeit (seit Version 1.99.77)
 
-![Oben „Meine Buchungen“ mit einer laufenden Produktion (Pause, Teilfertig, Fertig) und einer pausierten (Fortsetzen), darunter das Feld „FA scannen“ (Foto folgt)](bilder/11-06-kopf-buchungen.jpg)
+![Oben „Meine Buchungen“ mit einer laufenden Produktion (Pause, Teilfertig, Fertig) und einer pausierten (Fortsetzen), darunter das Feld „FA scannen“](bilder/11-06-kopf-buchungen.jpg)
 
 1. **Meine Buchungen** (unter dem Werker-Namen): alle **laufenden** und **pausierten** Buchungen des Werkers – laufende mit
    durchgezogenem Balken und „… läuft“, pausierte mit gestricheltem Balken und „… pausiert“. Die Knöpfe je Zeile:
@@ -99,7 +99,7 @@ Mengen gibt man im Fenster **Mengen melden** ein:
 
 Knopf **Tageshistorie** im Werker-Balken oder Menü **BDE → Tageshistorie**.
 
-![Tageshistorie: Tabelle mit Zeit, Art, Typ, Auftrag / Tätigkeit, Werkbank, Dauer, Gut, Ausschuss und Status (Foto folgt)](bilder/11-07-tageshistorie.jpg)
+![Tageshistorie: Tabelle mit Zeit, Art, Typ, Auftrag / Tätigkeit, Werkbank, Dauer, Gut, Ausschuss und Status](bilder/11-07-tageshistorie.jpg)
 
 1. Die Seite zeigt **Ihre Buchungen und Teilmeldungen von heute**, neueste zuerst, an allen Werkbänken.
 2. **Art** *Buchung*: Typ Rüsten, Produktion oder Tätigkeit, Zeit von–bis, Dauer in Minuten, Gut und Ausschuss, Status *läuft*, *pausiert*,

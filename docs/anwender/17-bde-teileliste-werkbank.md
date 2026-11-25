@@ -1,6 +1,6 @@
 # 17 BDE-Teileliste an der Werkbank (vereinfachte Fertigmeldung)
 
-Stand: Version 1.99.78 (Abschnitt 1 Verweise auf Kapitel 11, Tageshistorie, Text), 1.99.77 (Abschnitt 1 Reiter FA mit Buchungen, Text), 1.99.76 (Wer darf, Reiter, Abschnitt 1, Text; Foto 17-01 folgt neu), 1.99.73 (Abschnitt 2 und Handy, Text; Fotos folgen), 1.99.72 (Abschnitte 8 und 9, Text; Fotos folgen) bzw. 1.99.43 · nur Standort IDEAL · Bilder aus dem IDEAL-Testsystem
+Stand: Version 1.99.78 (Abschnitt 1 Verweise auf Kapitel 11, Tageshistorie, Text), 1.99.77 (Abschnitt 1 Reiter FA mit Buchungen, Text), 1.99.76 (Wer darf, Reiter, Abschnitt 1, Text), 1.99.73 (Abschnitt 2 und Handy, Text; Fotos 1.99.78), 1.99.72 (Abschnitte 8 und 9, Text; Fotos folgen) bzw. 1.99.43 · nur Standort IDEAL · Bilder aus dem IDEAL-Testsystem
 
 ## Zweck
 
@@ -31,7 +31,7 @@ Rüsten, Produktion und Pause (Reiter **FA**) sowie die **Tageshistorie** beschr
   wirkte. Die Werkbank-Liste zeigt dann das Kennzeichen **Standard Teile**. Nur Oberfläche, keine Wirkung auf die Arbeitsgang-Erkennung.
 - Der Terminal-Benutzer hat ein Terminal (wie in Kapitel 11), jeder Werker eine **Personalnummer**.
 
-![Werkbank bearbeiten: Schalter „BDE-Teileliste (vereinfacht)“ mit Warnhinweis und darunter die Auswahl „BDE-Standardsicht“ (Foto 1.99.76 folgt)](bilder/17-01-werkbank-option.jpg)
+![Werkbank bearbeiten: Schalter „BDE-Teileliste (vereinfacht)“ mit Warnhinweis und darunter die Auswahl „BDE-Standardsicht“](bilder/17-01-werkbank-option.jpg)
 
 > **Achtung beim Einschalten:** Der gelbe Hinweis an der Werkbank sagt: Für das Kürzel dieser Werkbank entstehen keine Arbeitsgänge mehr an
 > der Baugruppe aus Blechteilen. Ausschalten legt sie beim nächsten Lauf wieder an. Nur nach Absprache mit der Arbeitsvorbereitung umstellen.
@@ -109,7 +109,7 @@ und das Zeichen **◆ Treffer**.
 
 **Am Handy (schmaler als 992 px, seit 1.99.73):**
 
-![BDE-Teileliste am Handy](bilder/17-08-teileliste-handy.jpg)
+![BDE-Teileliste am Handy: Zeilen als Karten, aufgeklappte Baugruppe](bilder/17-13-teileliste-handy.jpg)
 
 - Die Filterkarte ist eingeklappt; der Knopf **Filter (…)** zeigt die Kurzfassung (Kalenderwochen, gemeldete sichtbar/ausgeblendet, Anzahl
   Spaltenfilter) und klappt sie auf.

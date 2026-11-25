@@ -14199,7 +14199,7 @@ Mobil-Spec ab. Standort **DEV IDEAL**; Regression FA-Struktur und BDE-Terminal z
    links einen dunklen Balken und das Abzeichen „◆ Treffer“.
 2. Filter auf den Matchcode der Baugruppe → Baugruppe zugeklappt, kein Teil als Treffer markiert.
 3. Filter Haupt-FA → Baugruppen der FA erscheinen zugeklappt (kein Treffer-Rauschen).
-4. Pagination: Seitengröße 10 → gezählt werden nur Baugruppen/Blechteile, Teile hängen an ihrer Baugruppe.
+4. Pagination: Seitengröße 25 (kleinste Stufe) → gezählt werden nur Baugruppen/Blechteile, Teile hängen an ihrer Baugruppe.
 5. Negativ: Filter ohne Treffer → Leerzustand „keine Zeilen“ wie bisher.
 
 **TS-194.4 Handy-Ansicht (AK 7, 8)** – 360 px Breite
@@ -14369,7 +14369,7 @@ Keine Migration (SQL/169 aus v1.99.75 muss gelaufen sein).
 1. Terminal „Kanten“: *BDE → Terminal* → leitet auf die BDE-Teileliste, Reiter **Teile Einzeln** aktiv; Reiter **Teile Summiert** und **FA** sichtbar.
 2. Reiter **FA** → Überschrift „BDE – Arbeitsgänge“, keine KW-Felder, kein „gemeldete zeigen“. Seite neu laden (F5, ohne Parameter) → FA bleibt (gemerkt
    je Werker und Werkbank). Werker B anmelden → startet mit Teile Einzeln (eigene Merkung).
-3. Terminal „Laser“: *BDE → Terminal* → bleibt auf der bisherigen Terminal-Seite (kein Redirect, Standardsicht FA). `/BdeTeileliste` aufrufen →
+3. Terminal „Laser“: *BDE → Terminal* → seit v1.99.78 Weiterleitung auf `/BdeTeileliste` dieser Werkbank (siehe TS-199.1) →
    Reiter **FA** aktiv; Teile-Reiter **ausgegraut** mit Hinweis „Teile-Reiter nur an Werkbänken mit „BDE-Teileliste (vereinfacht)“ und Kürzel –
    diese Werkbank zeigt die FA-Sicht.“; per Tastatur nicht anwählbar.
 4. Negativ: `/BdeTeileliste?workplaceId=<Laser>&sicht=einzeln` → FA-Sicht (keine Teile-Liste).
@@ -14382,7 +14382,7 @@ Keine Migration (SQL/169 aus v1.99.75 muss gelaufen sein).
    Sub-FAs/Arbeitsgänge).
 2. AG-Status: je Zeile alle Arbeitsgänge des Auftrags als Zeichen, der Arbeitsgang der Zeile mit dunklem Doppelrahmen; Tooltip/Screenreader „… – dieser Arbeitsgang“.
 3. Spaltenfilter: Matchcode-Text, Sollmenge `>5`, FE-Termin `<31.12.2026`, Prio `1` – je gefiltert über alle Seiten; Zahnrad blendet Material/Sage-Status ein.
-4. Mehr als eine Seite (Seitengröße 10 einstellen) → Blättern behält den Filter.
+4. Mehr als eine Seite (Seitengröße 25 einstellen) → Blättern behält den Filter.
 5. Status-Spalte zeigt Text („offen“, „überfällig“, „läuft“, „läuft bei Ihnen“), nicht nur Farbe.
 
 **TS-197.4 Anstempeln (AK 24, 26-Kollision)**
@@ -14396,7 +14396,7 @@ Keine Migration (SQL/169 aus v1.99.75 muss gelaufen sein).
 
 **TS-197.5 AKE (AK 30)**
 1. AKE-DEV, `/BdeTeileliste?workplaceId=<Werkbank>` → Werker anmelden → nur Reiter **FA**, keine Teile-Reiter; Tabelle wie TS-197.3, Sub-FA/Abteilung leer.
-2. **Produktion** an einer Zeile → Buchung im Cockpit. *BDE → Terminal* verhält sich unverändert (alte Liste).
+2. **Produktion** an einer Zeile → Buchung im Cockpit. *BDE → Terminal* leitet seit v1.99.78 auf diese Seite weiter (TS-199.1).
 3. Werkbank-Maske AKE: keine Auswahl BDE-Standardsicht. Negativ: manipulierter POST mit `BdeStandardsichtTeile=true` → Fehler, nichts gespeichert.
 
 **TS-197.6 BdeNurFaMeldung (AK 32c, Antwort 22)**
@@ -14406,7 +14406,7 @@ Keine Migration (SQL/169 aus v1.99.75 muss gelaufen sein).
 
 Automatisch belegt (xUnit): `BdeTeilelisteOptionTests` (Wirksamkeit an einem Ort, Seite nur BdeAktiv, Teile-Sicht nur hierarchisch + Teileliste,
 TeileStandard, Standardsicht Teile speichern/abweisen inkl. Ausschalten und AKE-POST, SichtAufloesen, AnstempelnText Kollision), `BdeTeilelisteServiceTests`
-(Terminal-Umleitung nur bei Standardsicht Teile), `BdeTeilelisteMeldenTests` (Melden ohne Teileliste abgewiesen), `BdeFaAngebotTests` (eigene laufende: Terminal
+(Terminal-Umleitung; Test seit v1.99.78 entfallen, siehe TS-199), `BdeTeilelisteMeldenTests` (Melden ohne Teileliste abgewiesen), `BdeFaAngebotTests` (eigene laufende: Terminal
 ohne, FA-Sicht mit „läuft bei Ihnen“, AG-Status aller AG mit Markierung, fremder Werker „läuft“), `BdeBookingServiceStufe1Tests` (NurFA ohne Wirkung auf
 das Gate), `ColumnFilterTypesDriftTests`, `ViewKeyDriftGuardTests`, `NachlaufManifestDriftTests`, `BdeApiControllerTests` (API unverändert).
 **Manual-UAT:** Reiter-Darstellung, Reihenfolge gegen das Terminal, Kollision mit zwei Geräten, AKE-DEV, SQL-Prüfungen.
@@ -14468,7 +14468,7 @@ für TS-198.7 Mehrfachbuchung je Werker und gleichzeitiger Abschluss an (nur DEV
 **TS-198.8 Scan (AK 27, E4-5)**
 1. Ohne Antippen mit dem Handscanner eine FA mit genau einem offenen Arbeitsgang scannen → Feld „FA scannen“ nimmt den Scan, die Zeile ist **markiert**
    (Rahmen, gelber Grund) und **Rüsten** bzw. **Fertig melden** hat den Fokus.
-2. Zeile auf Seite 2 (Seitengröße 10) → Scan → Seite 2 mit markierter Zeile.
+2. Zeile auf Seite 2 (Seitengröße 25) → Scan → Seite 2 mit markierter Zeile.
 3. Haupt-FA mit mehreren offenen Arbeitsgängen → Fenster „Arbeitsgang wählen“ → Wahl markiert die Zeile.
 4. `FA/AG` eintippen → markiert.
 5. Negativ: unbekannte Nummer → gelbe Meldung „… nicht gefunden …“, nichts gebucht. Bereits laufender Arbeitsgang wird ebenso nicht gefunden.
@@ -14519,8 +14519,8 @@ von gestern. Zweiter Web-Benutzer **ohne** Terminal.
 4. Baugruppen-Fertigmeldung erscheint **einmal** (als Teilmeldung, nicht zusätzlich als Produktionsbuchung). Lagerbestell-Meldung beginnt mit
    „Lagerbestellung · “.
 5. Nicht enthalten: stornierte Buchung, stornierte Meldung, Buchung von gestern, Buchungen anderer Werker.
-6. Spaltenfilter Typ = `Fertig` → nur Fertig-Meldungen; Gut `>2` → nur Zeilen mit Gut über 2; Knopf „Spaltenfilter zurücksetzen (n)“ hebt auf.
-   Seitengröße 10 bei mehr als 10 Einträgen → Seite 2 erreichbar.
+6. Spaltenfilter Typ = `=Fertig` → nur Fertig-Meldungen (ohne `=` trifft „enthält“ auch Teilfertig); Gut `>2` → nur Zeilen mit Gut über 2; Knopf „Spaltenfilter zurücksetzen (n)“ hebt auf.
+   Seitengröße 25 bei mehr als 25 Einträgen → Seite 2 erreichbar.
 7. Menü *BDE → Tageshistorie* ohne angemeldeten Werker → Anmelden (Personalnummer) – danach Teileliste; Knopf Tageshistorie öffnet die Historie.
 8. AKE-DEV: nur Buchungen (keine Teilmeldungen); Leerzustand „Noch keine Buchungen oder Meldungen heute.“ für einen Werker ohne Buchung.
 9. Handy-Breite 360 px: Karten statt Tabelle, Knöpfe bedienbar, keine Querscrollleiste der Seite.
