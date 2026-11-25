@@ -7,7 +7,7 @@
 }
 <link rel="stylesheet" href="~/css/bde.css" asp-append-version="true" />
 
-<div class="container-fluid bde-terminal">
+<div class="container-fluid bde-terminal bde-tl-seite">
     <partial name="_Kopf" model="Model" />
 
     <form id="blockForm" method="post" asp-action="Melden" class="d-flex flex-wrap align-items-center gap-2 mb-2">
@@ -19,7 +19,7 @@
             <label class="form-check-label" for="alleAuswaehlen">alle auf dieser Seite</label>
         </div>
         <button type="submit" class="btn btn-primary btn-lg" id="blockMelden" disabled>Auswahl fertigmelden</button>
-        <span class="small text-muted">je Matchcode alle offenen Positionen mit voller Sollmenge</span>
+        <span class="small text-muted d-none d-lg-inline">je Matchcode alle offenen Positionen mit voller Sollmenge</span>
     </form>
 
     <div class="d-flex justify-content-end mb-1" data-table-toolbar></div>
@@ -53,27 +53,27 @@
                 @foreach (var a in Model.Aggregate)
                 {
                     <tr>
-                        <td>
+                        <td class="tl-zelle-auswahl" data-label="Auswahl">
                             @if (a.OffeneSchluessel.Count > 0)
                             {
-                                <input class="form-check-input tl-auswahl" type="checkbox" form="blockForm" name="schluessel"
+                                <label class="tl-check"><input class="form-check-input tl-auswahl" type="checkbox" form="blockForm" name="schluessel"
                                        value="@string.Join("\n", a.OffeneSchluessel)" data-anzahl="@a.OffeneSchluessel.Count"
-                                       data-soll="@a.SummeSollmengeOffen.ToString(System.Globalization.CultureInfo.InvariantCulture)" aria-label="@a.Matchcode auswählen" />
+                                       data-soll="@a.SummeSollmengeOffen.ToString(System.Globalization.CultureInfo.InvariantCulture)" aria-label="@a.Matchcode auswählen" /></label>
                             }
                         </td>
-                        <td>@a.Matchcode</td>
-                        <td class="text-end">@VormontageService.FormatMenge(a.SummeSollmenge)</td>
-                        <td class="text-end">@a.Anzahl</td>
-                        <td>@a.HauptFas</td>
-                        <td>@a.Abteilungen</td>
-                        <td>@a.FeTermine</td>
-                        <td>@a.Materialien</td>
-                        <td>@(a.Blechdicken ?? "–")</td>
-                        <td>@a.BemerkungenPn</td>
-                        <td>@a.FertigungsinfosPn</td>
+                        <td data-label="Matchcode">@a.Matchcode</td>
+                        <td class="text-end" data-label="Summe Menge">@VormontageService.FormatMenge(a.SummeSollmenge)</td>
+                        <td class="text-end" data-label="Positionen">@a.Anzahl</td>
+                        <td data-label="Hauptaufträge">@a.HauptFas</td>
+                        <td data-label="Abteilung">@a.Abteilungen</td>
+                        <td data-label="FE-Termine">@a.FeTermine</td>
+                        <td data-label="Material">@a.Materialien</td>
+                        <td data-label="Blechdicke">@(a.Blechdicken ?? "–")</td>
+                        <td data-label="Bemerkung PN">@a.BemerkungenPn</td>
+                        <td data-label="Fertigungsinfo PN">@a.FertigungsinfosPn</td>
                         @if (Model.FraesenPfadAktiv)
                         {
-                            <td>
+                            <td data-label="Fräsen-Pfad">
                                 @if (a.Pfade.Count == 0)
                                 {
                                     <span class="text-muted">–</span>
@@ -84,7 +84,7 @@
                                 }
                             </td>
                         }
-                        <td>@a.OffeneSchluessel.Count offen</td>
+                        <td data-label="Offen">@a.OffeneSchluessel.Count offen</td>
                     </tr>
                 }
             </tbody>

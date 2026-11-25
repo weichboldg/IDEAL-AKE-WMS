@@ -94,25 +94,8 @@
     <td data-col-key="matchcode" class="fa-cell-matchcode text-muted small">@n.Matchcode</td>
     <td data-col-key="description">@vDescription</td>
     <td data-col-key="workarea">@n.Arbeitsbereich</td>
-    @* Arbeitsgaenge als Symbole (v1.52.0): Sage-Kuerzel dieser Zeile in Feld-Reihenfolge. Name + Status (Teil 2, v1.55.0)
-       in aria-label/title, fokussierbar fuer Tastatur/Screenreader. Status = Farbe + Zeichen + Text (nie Farbe allein);
-       ohne Status (BDE aus / Werkbank inaktiv) und "kein BDE-Arbeitsgang" neutral wie Teil 1, ohne Zeichen. *@
-    <td data-col-key="operations">
-        @if (Model.Arbeitsgaenge.Count == 0)
-        {
-            <span class="text-muted" aria-hidden="true">—</span><span class="visually-hidden">keine Arbeitsschritte</span>
-        }
-        else
-        {
-            <span class="fa-ag-symbols">
-                @foreach (var ag in Model.Arbeitsgaenge)
-                {
-                    var (agClass, agSvg) = IdealAkeWms.Models.ViewModels.FaAgStatusDarstellung.Fuer(ag.Status);
-                    <span class="fa-ag-symbol @agClass" tabindex="0" role="img" aria-label="@ag.AriaLabel" title="@ag.AriaLabel">@Html.Raw(agSvg)@ag.Kuerzel</span>
-                }
-            </span>
-        }
-    </td>
+    @* Arbeitsgaenge als Symbole (v1.52.0, Status Teil 2 v1.55.0) – seit v1.99.73 im gemeinsamen Partial _FaAgSymbole. *@
+    <td data-col-key="operations"><partial name="_FaAgSymbole" model="Model.Arbeitsgaenge" /></td>
     <td data-col-key="picking-target">
         @if (!string.IsNullOrEmpty(n.Kommissionieren))
         {

@@ -1,6 +1,6 @@
 # 17 BDE-Teileliste an der Werkbank (vereinfachte Fertigmeldung)
 
-Stand: Version 1.99.72 (Abschnitte 8 und 9, Text; Fotos folgen) bzw. 1.99.43 · nur Standort IDEAL · Bilder aus dem IDEAL-Testsystem
+Stand: Version 1.99.73 (Abschnitt 2 und Handy, Text; Fotos folgen), 1.99.72 (Abschnitte 8 und 9, Text; Fotos folgen) bzw. 1.99.43 · nur Standort IDEAL · Bilder aus dem IDEAL-Testsystem
 
 ## Zweck
 
@@ -51,7 +51,7 @@ z. B. **Kanten · Kürzel KA**.
 ![BDE-Teileliste, Ansicht Einzeln](bilder/17-03-teileliste-einzeln.jpg)
 
 Jede Zeile ist ein Teil oder eine Baugruppe (Kennzeichen **Baugruppe**) aus der FA-Struktur, deren Arbeitsschritte das Kürzel der Werkbank
-enthalten. Spalten: **Matchcode, Menge, Hauptauftrag, Abteilung, FE-Termin, Material, Beschichtet, Status**. Über das Zahnrad lassen sich
+enthalten. Spalten: **Matchcode, Menge, Hauptauftrag, Abteilung, FE-Termin, AG-Status, Material, Blechdicke, Beschichtet, Status**. Über das Zahnrad lassen sich
 weitere Spalten einblenden (z. B. Artikelnummer, Sub-FA, Position, Arbeitsschritte, Kunde, Bemerkung PN, Fertigungsinfo PN).
 
 **Filter:**
@@ -71,7 +71,34 @@ weitere Spalten einblenden (z. B. Artikelnummer, Sub-FA, Position, Arbeitsschrit
 | kein WMS-Auftrag | zu diesem Hauptauftrag gibt es im WMS keinen offenen Auftrag |
 | nicht meldbar | die Zeile ist in Sage nicht mehr vorhanden, beendet oder inaktiv |
 
-Bei einer Baugruppe zeigt **Teile (n)** die Teile darunter – nur zum Ansehen.
+**AG-Status (seit 1.99.73):** je Arbeitsschritt der Zeile ein Zeichen mit Kürzel, wie in der FA-Struktur:
+
+| Zeichen | Bedeutung |
+|---|---|
+| Haken | erledigt – Arbeitsgang fertig gemeldet **oder** Teil an dieser Werkbank-Art gemeldet |
+| Sanduhr | läuft gerade |
+| Kreis | offen |
+| Dreieck | überfällig (Soll-Termin aus FE-Termin und Vorlauf überschritten) |
+| ohne Zeichen | kein BDE-Arbeitsgang für dieses Kürzel |
+
+Den Namen und den Status zeigt der Mauszeiger bzw. liest der Screenreader vor. Der Spaltenfilter „AG-Status“ sucht im Text,
+z. B. `erledigt`, `überfällig` oder ein Kürzel. Lagerbestell-Zeilen zeigen die Zeichen ohne Status.
+
+**Baugruppen (seit 1.99.73):** Neben dem Matchcode steht **Teile (n) ▸**. Antippen klappt die Teile als eigene, eingerückte und grau
+hinterlegte Zeilen (mit „↳“) auf – mit allen Spalten inkl. AG-Status, aber **nur zum Ansehen** (kein Haken, kein Melden). Beim Sortieren
+bleiben die Teile unter ihrer Baugruppe; das Zahnrad blendet Spalten auch in den Teilen aus.
+Trifft ein Spaltenfilter (z. B. Matchcode) nur ein Teil, erscheint die Baugruppe **aufgeklappt** und das Teil hat links einen dunklen Balken
+und das Zeichen **◆ Treffer**.
+
+**Am Handy (schmaler als 992 px, seit 1.99.73):**
+
+![BDE-Teileliste am Handy](bilder/17-08-teileliste-handy.jpg)
+
+- Die Filterkarte ist eingeklappt; der Knopf **Filter (…)** zeigt die Kurzfassung (Kalenderwochen, gemeldete sichtbar/ausgeblendet, Anzahl
+  Spaltenfilter) und klappt sie auf.
+- Die Liste erscheint als **Karten**: je Zeile Beschriftung links, Wert rechts; Haken oben, **Fertig melden** unten.
+- Spaltenfilter lassen sich dort nicht bedienen, wirken aber weiter – **Filter zurücksetzen** hebt sie auf.
+- Die **Hinweise zur Liste** sind aufklappbar. Alle Knöpfe und Haken sind mindestens 44 px groß.
 
 ### 3. Einzeln fertig melden
 

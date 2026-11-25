@@ -2,14 +2,21 @@
 @* v1.99.32 BDE-Teileliste: Kopf (Werkbank, Werker), Sicht-Reiter, Filterkarte, Hinweise. Gemeinsam fuer Einzeln und Summiert. *@
 @{
     var sicht = Model.Summiert ? "summiert" : "einzeln";
+    // v1.99.73 (E1-4 F2): Kurzfassung der Filter fuer den Aufklapp-Knopf unter 992 px.
+    static string Kw(string? v) => v is { Length: 8 } && v[4] == '-' ? $"KW {v[6..]}/{v[..4]}" : v ?? "";
+    var wochen = string.IsNullOrEmpty(Model.KwVon) && string.IsNullOrEmpty(Model.KwBis) ? "alle Wochen"
+        : $"{(string.IsNullOrEmpty(Model.KwVon) ? "…" : Kw(Model.KwVon))} bis {(string.IsNullOrEmpty(Model.KwBis) ? "…" : Kw(Model.KwBis))}";
+    var spaltenfilter = IdealAkeWms.Services.ColumnFilterHelper.ReadFromQuery(Context.Request).Count;
+    var kurz = wochen + ", gemeldete " + (Model.GemeldeteZeigen ? "sichtbar" : "ausgeblendet")
+        + (spaltenfilter > 0 ? $", {spaltenfilter} Spaltenfilter" : "");
 }
-<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
     <h2 class="mb-0">
         BDE-Teileliste <span class="badge bg-secondary align-middle">Kürzel @Model.Kuerzel</span>
     </h2>
     <div class="d-flex align-items-center gap-2">
         <label for="teilelisteWerkbank" class="form-label mb-0">Werkbank</label>
-        <select id="teilelisteWerkbank" class="form-select form-select-lg w-auto" data-ziel="@Url.Action("Index", "BdeTerminal")">
+        <select id="teilelisteWerkbank" class="form-select bde-touch w-auto" data-ziel="@Url.Action("Index", "BdeTerminal")">
             @foreach (var wp in Model.Werkbaenke)
             {
                 <option value="@wp.Id" selected="@(wp.Id == Model.Werkbank.Id)">@wp.Name</option>
@@ -18,13 +25,13 @@
     </div>
 </div>
 
-<div class="bde-operator-badge mb-3">
+<div class="bde-operator-badge mb-2">
     <span class="fw-bold">@Model.Werker!.DisplayName</span>
     <span class="ms-2 small">Personalnr. @Model.Werker.PersonnelNumber</span>
     <a class="btn btn-outline-secondary ms-auto bde-touch" asp-action="Index" asp-route-workplaceId="@Model.Werkbank.Id">Werker wechseln</a>
 </div>
 
-<ul class="nav nav-pills mb-3">
+<ul class="nav nav-pills mb-2">
     <li class="nav-item">
         <a class="nav-link bde-touch @(Model.Summiert ? "" : "active")" asp-action="Index" asp-route-workplaceId="@Model.Werkbank.Id"
            asp-route-operatorId="@Model.Werker.Id" asp-route-sicht="einzeln" asp-route-kwVon="@Model.KwVon" asp-route-kwBis="@Model.KwBis"
@@ -37,7 +44,11 @@
     </li>
 </ul>
 
-<div class="card filter-card mb-3">
+<button type="button" class="btn btn-outline-secondary bde-touch w-100 d-lg-none text-start mb-2 bde-tl-filter-knopf" data-bs-toggle="collapse"
+        data-bs-target="#tlFilter" aria-expanded="false" aria-controls="tlFilter">
+    <span class="fw-semibold">Filter</span>&nbsp;<span class="small">(@kurz)</span><span class="bde-tl-teile-zeichen" aria-hidden="true"></span>
+</button>
+<div class="card filter-card mb-2 collapse d-lg-block" id="tlFilter">
     <div class="card-body py-2">
         <form method="get" asp-action="Index" class="row g-2 align-items-end">
             <input type="hidden" name="workplaceId" value="@Model.Werkbank.Id" />
@@ -45,11 +56,11 @@
             <input type="hidden" name="sicht" value="@sicht" />
             <div class="col-sm-4 col-md-3">
                 <label for="kwVon" class="form-label mb-0">Kalenderwoche von</label>
-                <input type="week" id="kwVon" name="kwVon" value="@Model.KwVon" class="form-control form-control-lg" />
+                <input type="week" id="kwVon" name="kwVon" value="@Model.KwVon" class="form-control bde-touch" />
             </div>
             <div class="col-sm-4 col-md-3">
                 <label for="kwBis" class="form-label mb-0">Kalenderwoche bis</label>
-                <input type="week" id="kwBis" name="kwBis" value="@Model.KwBis" class="form-control form-control-lg" />
+                <input type="week" id="kwBis" name="kwBis" value="@Model.KwBis" class="form-control bde-touch" />
             </div>
             <div class="col-auto">
                 <div class="form-check form-switch bde-touch d-flex align-items-center gap-2">
@@ -58,21 +69,25 @@
                 </div>
             </div>
             <div class="col-auto">
-                <button type="submit" class="btn btn-secondary btn-lg">Filtern</button>
+                <button type="submit" class="btn btn-secondary bde-touch">Filtern</button>
             </div>
             <div class="col-auto">
-                <button type="submit" form="filterReset" class="btn btn-outline-secondary btn-lg">Filter zurücksetzen</button>
+                <button type="submit" form="filterReset" class="btn btn-outline-secondary bde-touch">Filter zurücksetzen</button>
             </div>
         </form>
         <form id="filterReset" method="post" asp-action="FilterZuruecksetzen" class="d-none">
             <input type="hidden" name="workplaceId" value="@Model.Werkbank.Id" />
             <input type="hidden" name="operatorId" value="@Model.Werker.Id" />
         </form>
-        <p class="mb-0 mt-2 small text-muted">
+        <details class="mt-2 small text-muted bde-tl-hinweise">
+            <summary class="bde-touch">Hinweise zur Liste</summary>
             Zeilen = Teile und Baugruppen der FA-Struktur, deren Arbeitsschritte <strong>@Model.Kuerzel</strong> enthalten. Die Kalenderwoche filtert auf
             den Fertigstellungstermin (FE-Termin) des Hauptauftrags. Erledigte oder stornierte Aufträge sind ausgeblendet.
             Filter werden je Werker und Werkbank gespeichert; die Spaltenauswahl (Zahnrad) gilt für den Terminal-Benutzer.
-        </p>
+            Baugruppen: „Teile (n)“ neben dem Matchcode klappt die Teile als eigene Zeilen auf (nur Anzeige); trifft ein Spaltenfilter nur ein Teil,
+            ist die Baugruppe aufgeklappt und das Teil mit „Treffer“ markiert. Schmaler als 992 px (Handy) erscheint die Liste als Karten; die
+            Spaltenfilter sind dort nicht bedienbar – „Filter zurücksetzen“ hebt sie auf.
+        </details>
     </div>
 </div>
 

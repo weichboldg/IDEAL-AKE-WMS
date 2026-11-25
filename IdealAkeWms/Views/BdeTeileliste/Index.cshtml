@@ -3,12 +3,11 @@
 @{
     ViewData["Title"] = "BDE-Teileliste";
     ViewData["FraesenPfadTouch"] = true; // v1.99.72: Knopf „Pfad kopieren“ ≥ 44 px am Terminal
-    var colCount = 21 + (Model.FraesenPfadAktiv ? 1 : 0);
-    var sp = Model.Spalten;
+    var colCount = 22 + (Model.FraesenPfadAktiv ? 1 : 0);
 }
 <link rel="stylesheet" href="~/css/bde.css" asp-append-version="true" />
 
-<div class="container-fluid bde-terminal">
+<div class="container-fluid bde-terminal bde-tl-seite">
     <partial name="_Kopf" model="Model" />
 
     <form id="blockForm" method="post" asp-action="Melden" class="d-flex flex-wrap align-items-center gap-2 mb-2">
@@ -20,7 +19,7 @@
             <label class="form-check-label" for="alleAuswaehlen">alle auf dieser Seite</label>
         </div>
         <button type="submit" class="btn btn-primary btn-lg" id="blockMelden" disabled>Auswahl fertigmelden</button>
-        <span class="small text-muted">volle Sollmenge je Zeile, Ausschuss 0</span>
+        <span class="small text-muted d-none d-lg-inline">volle Sollmenge je Zeile, Ausschuss 0</span>
     </form>
 
     <div class="d-flex justify-content-end mb-1" data-table-toolbar></div>
@@ -34,6 +33,7 @@
                     <th data-filterable data-col-key="hauptfa">Hauptauftrag</th>
                     <th data-filterable data-col-key="montage-abteilung">Abteilung</th>
                     <th class="text-nowrap" data-filterable data-col-key="fe-termin" data-date-filter>FE-Termin</th>
+                    <th data-filterable data-col-key="ag-status" title="Arbeitsgang-Status je Arbeitsschritt (Zeichen + Kürzel; filterbar nach Kürzel oder Status, z. B. erledigt)">AG-Status</th>
                     <th data-filterable data-col-key="material">Material</th>
                     <th class="text-end" data-filterable data-filter-type="number" data-col-key="blechdicke">Blechdicke</th>
                     @if (Model.FraesenPfadAktiv)
@@ -63,45 +63,112 @@
                 @for (var i = 0; i < Model.Zeilen.Count; i++)
                 {
                     var z = Model.Zeilen[i];
-                    var n = z.Node;
-                    <tr>
-                        <td>
-                            @if (z.Meldbar)
-                            {
-                                <input class="form-check-input tl-auswahl" type="checkbox" form="blockForm" name="schluessel" value="@z.FormSchluessel"
-                                       data-soll="@n.Sollmenge.ToString(System.Globalization.CultureInfo.InvariantCulture)" aria-label="@n.Matchcode auswählen" />
-                            }
-                        </td>
-                        <td>
-                            @n.Matchcode
-                            @if (z.IstBaugruppe)
-                            {
-                                <span class="badge text-bg-dark ms-1">Baugruppe</span>
-                            }
-                        </td>
-                        <td class="text-end">@VormontageService.FormatMenge(n.Sollmenge)</td>
-                        <td>@sp["hauptfa"](z)</td>
-                        <td>@sp["montage-abteilung"](z)</td>
-                        <td>@sp["fe-termin"](z)</td>
-                        <td>@n.Material</td>
-                        <td class="text-end">@(sp["blechdicke"](z) ?? "–")</td>
-                        @if (Model.FraesenPfadAktiv)
-                        {
-                            var pfad = sp["fraesen-pfad"](z);
-                            <td><partial name="_FraesenPfad" model="pfad" /></td>
-                        }
-                        <td>@(z.Lager != null ? "–" : Model.Beschichtet?.Invoke(n) ?? "–")</td>
-                        <td>@n.Artnr</td>
-                        <td>@(n.SubFA == 0 ? null : n.SubFA)</td>
-                        <td>@n.VaterFA</td>
-                        <td>@n.Position</td>
-                        <td>@n.Arbeitsschritte</td>
-                        <td>@n.Arbeitsbereich</td>
-                        <td>@sp["kunde"](z)</td>
-                        <td>@n.BemerkungPN</td>
-                        <td>@n.FertigungsInfoPN</td>
-                        <td>@n.Bezeichnung1</td>
-                        <td>
+                    <tr data-tl-eltern-id="@i">
+                        @{ await Zellen(z, i); }
+                    </tr>
+                    @for (var j = 0; j < z.Kinder.Count; j++)
+                    {
+                        var k = z.Kinder[j];
+                        @* E1-2/E1-3: Kinderzeile im selben <tbody> (eine filterbare Tabelle), nur Anzeige; Kind-Treffer = Rahmen + Zeichen + Text *@
+                        <tr class="bde-tl-kind collapse @(z.Aufgeklappt ? "show" : null) @(k.Treffer ? "bde-tl-treffer" : null)" id="kind-@i-@j" data-eltern="@i">
+                            @{ await Zellen(k, null); }
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+
+    <partial name="_Pagination" model="Model.Pagination" />
+</div>
+
+@{
+    // v1.99.73 (E1-2): EIN Zellensatz fuer Eltern- (i gesetzt) und Kinderzeilen (i null) – gleiche Spalten, gleiche Getter = Filter;
+    // data-col-key fuer das Zahnrad, data-label fuer die Kartenansicht unter 992 px (Scope .bde-tl-seite in bde.css).
+    async Task Zellen(TeilelisteZeile z, int? i)
+    {
+        var n = z.Node;
+        var kind = i == null;
+        <td data-col-key="auswahl" data-label="Auswahl" class="tl-zelle-auswahl">
+            @if (!kind && z.Meldbar)
+            {
+                <label class="tl-check">
+                    <input class="form-check-input tl-auswahl" type="checkbox" form="blockForm" name="schluessel" value="@z.FormSchluessel"
+                           data-soll="@n.Sollmenge.ToString(System.Globalization.CultureInfo.InvariantCulture)" aria-label="@n.Matchcode auswählen" />
+                </label>
+            }
+        </td>
+        <td data-col-key="matchcode" data-label="Matchcode">
+            @if (kind)
+            {
+                <span class="bde-tl-kind-pfeil" aria-hidden="true">&#8627;</span><span class="visually-hidden">Teil der Baugruppe: </span>
+            }
+            @n.Matchcode
+            @if (z.Treffer)
+            {
+                <span class="badge bde-tl-treffer-badge ms-1"><span aria-hidden="true">&#9670;</span> Treffer</span>
+            }
+            @if (z.IstBaugruppe)
+            {
+                <span class="badge text-bg-dark ms-1">Baugruppe</span>
+                if (!kind && z.Kinder.Count > 0)
+                {
+                    <button type="button" class="btn btn-outline-secondary bde-touch ms-1 bde-tl-teile" data-bs-toggle="collapse" data-bs-target="[data-eltern='@i']"
+                            aria-expanded="@(z.Aufgeklappt ? "true" : "false")" aria-controls="@string.Join(" ", z.Kinder.Select((_, j) => $"kind-{i}-{j}"))">Teile (@z.Kinder.Count)<span class="bde-tl-teile-zeichen" aria-hidden="true"></span></button>
+                }
+                else if (!kind)
+                {
+                    <span class="small text-muted ms-1">keine Teile in der Struktur</span>
+                }
+            }
+        </td>
+        <td class="text-end" data-col-key="sollmenge" data-label="Menge">@VormontageService.FormatMenge(n.Sollmenge)</td>
+        <td data-col-key="hauptfa" data-label="Hauptauftrag">@Model.Spalten["hauptfa"](z)</td>
+        <td data-col-key="montage-abteilung" data-label="Abteilung">@Model.Spalten["montage-abteilung"](z)</td>
+        <td data-col-key="fe-termin" data-label="FE-Termin">@Model.Spalten["fe-termin"](z)</td>
+        <td data-col-key="ag-status" data-label="AG-Status"><partial name="_FaAgSymbole" model="z.Arbeitsgaenge" /></td>
+        <td data-col-key="material" data-label="Material">@n.Material</td>
+        <td class="text-end" data-col-key="blechdicke" data-label="Blechdicke">@(Model.Spalten["blechdicke"](z) ?? "–")</td>
+        @if (Model.FraesenPfadAktiv)
+        {
+            var pfad = Model.Spalten["fraesen-pfad"](z);
+            <td data-col-key="fraesen-pfad" data-label="Fräsen-Pfad"><partial name="_FraesenPfad" model="pfad" /></td>
+        }
+        <td data-col-key="beschichtet" data-label="Beschichtet">@(z.Lager != null ? "–" : Model.Beschichtet?.Invoke(n) ?? "–")</td>
+        <td data-col-key="artnr" data-label="Artikelnummer">@n.Artnr</td>
+        <td data-col-key="subfa" data-label="Sub-FA">@(n.SubFA == 0 ? null : n.SubFA)</td>
+        <td data-col-key="vaterfa" data-label="Vater-Sub-FA">@n.VaterFA</td>
+        <td data-col-key="position" data-label="Position">@n.Position</td>
+        <td data-col-key="arbeitsschritte" data-label="Arbeitsschritte">@n.Arbeitsschritte</td>
+        <td data-col-key="arbeitsbereich" data-label="Arbeitsbereich">@n.Arbeitsbereich</td>
+        <td data-col-key="kunde" data-label="Kunde">@Model.Spalten["kunde"](z)</td>
+        <td data-col-key="bemerkungpn" data-label="Bemerkung PN">@n.BemerkungPN</td>
+        <td data-col-key="fertigungsinfopn" data-label="Fertigungsinfo PN">@n.FertigungsInfoPN</td>
+        <td data-col-key="bezeichnung" data-label="Bezeichnung">@n.Bezeichnung1</td>
+        <td data-col-key="status" data-label="Status">
+            @if (kind)
+            {
+                <span class="small text-muted">nur Anzeige</span>
+            }
+            else
+            {
+                await StatusZelle(z);
+            }
+        </td>
+        <td class="text-nowrap tl-zelle-aktion" data-col-key="aktion" data-label="Aktion">
+            @if (!kind && z.Meldbar)
+            {
+                <button type="button" class="btn btn-success bde-touch" data-bs-toggle="modal" data-bs-target="#meldenModal"
+                        data-schluessel="@z.FormSchluessel" data-matchcode="@n.Matchcode"
+                        data-soll="@n.Sollmenge.ToString(System.Globalization.CultureInfo.InvariantCulture)">Fertig melden</button>
+            }
+        </td>
+    }
+
+    async Task StatusZelle(TeilelisteZeile z)
+    {
+        var n = z.Node;
+        <div class="tl-status">
                             @if (z.Lager is { } lb)
                             {
                                 @* v1.99.72 (F7): Lagerbestell-Zeile sicher von Auftragsteilen unterscheidbar *@
@@ -145,49 +212,9 @@
                             {
                                 <div class="small text-muted">kein WMS-Auftrag</div>
                             }
-                        </td>
-                        <td class="text-nowrap">
-                            @if (z.Meldbar)
-                            {
-                                <button type="button" class="btn btn-success bde-touch me-1" data-bs-toggle="modal" data-bs-target="#meldenModal"
-                                        data-schluessel="@z.FormSchluessel" data-matchcode="@n.Matchcode"
-                                        data-soll="@n.Sollmenge.ToString(System.Globalization.CultureInfo.InvariantCulture)">Fertig melden</button>
-                            }
-                            @if (z.IstBaugruppe)
-                            {
-                                <button type="button" class="btn btn-outline-secondary bde-touch" data-bs-toggle="collapse" data-bs-target="#kinder-@i"
-                                        aria-expanded="false" aria-controls="kinder-@i">Teile (@z.Kinder.Count)</button>
-                            }
-                        </td>
-                    </tr>
-                    @if (z.IstBaugruppe)
-                    {
-                        <tr class="collapse" id="kinder-@i">
-                            <td colspan="@colCount" class="bg-body-tertiary">
-                                <div class="small fw-semibold mb-1">Teile der Baugruppe @n.Matchcode (Sub-FA @n.SubFA) – nur Anzeige</div>
-                                @if (!z.Kinder.Any())
-                                {
-                                    <div class="small text-muted">keine Teile in der Struktur</div>
-                                }
-                                else
-                                {
-                                    <ul class="list-unstyled mb-0 small">
-                                        @foreach (var kind in z.Kinder)
-                                        {
-                                            <li>Pos. @kind.Position · <strong>@kind.Matchcode</strong> · Menge @VormontageService.FormatMenge(kind.Sollmenge) · Arbeitsschritte @(kind.Arbeitsschritte ?? "–")</li>
-                                        }
-                                    </ul>
-                                }
-                            </td>
-                        </tr>
-                    }
-                }
-            </tbody>
-        </table>
-    </div>
-
-    <partial name="_Pagination" model="Model.Pagination" />
-</div>
+        </div>
+    }
+}
 
 <div class="modal fade bde-terminal" id="meldenModal" tabindex="-1" aria-labelledby="meldenModalTitel" aria-hidden="true">
     <div class="modal-dialog">
@@ -230,6 +257,7 @@
     { "key": "hauptfa", "label": "Hauptauftrag", "locked": false, "defaultWidth": null },
     { "key": "montage-abteilung", "label": "Abteilung", "locked": false, "defaultWidth": null },
     { "key": "fe-termin", "label": "FE-Termin", "locked": false, "defaultWidth": null },
+    { "key": "ag-status", "label": "AG-Status", "locked": false, "defaultWidth": null },
     { "key": "material", "label": "Material", "locked": false, "defaultWidth": null },
     { "key": "blechdicke", "label": "Blechdicke", "locked": false, "defaultWidth": null },
     @if (Model.FraesenPfadAktiv)

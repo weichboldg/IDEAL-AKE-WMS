@@ -94,3 +94,48 @@
 .bde-terminal .btn-secondary:focus,
 .bde-terminal .btn-secondary:active,
 .bde-terminal .btn-secondary:disabled { color: #212529; }
+
+/* v1.99.73 (Spec 2026-11-25-bde-masken-vereinheitlichung, Etappe 1): nur die Teileliste (Scope .bde-tl-seite am Wrapper, Mobil-Spec B1) –
+   BDE-Terminal und Cockpit laden bde.css auch und bleiben unveraendert. */
+/* E1-2: Kinderzeilen einer Baugruppe – eingerueckt, eigener Grund #eef1f4 (Text #212529 13,9:1), Pfeil als Zeichen. */
+.bde-tl-seite .bde-teileliste > tbody > tr.bde-tl-kind > td { --bs-table-bg-type: #eef1f4; }
+.bde-tl-seite .bde-teileliste > tbody > tr.bde-tl-kind > td[data-col-key="matchcode"] { padding-left: 1.5rem; }
+.bde-tl-kind-pfeil { font-weight: 700; margin-right: 0.35rem; }
+/* E1-3: Kind-Treffer = Balken links (#212529, 15,4:1 auf Weiss) + Zeichen + Text im Abzeichen, nie Farbe allein. */
+.bde-tl-seite .bde-teileliste > tbody > tr.bde-tl-treffer > td:first-child { box-shadow: inset 6px 0 0 #212529; }
+.bde-tl-treffer-badge { background: #fff; color: #212529; border: 2px solid #212529; }
+/* „Teile (n) ▸“ bzw. Filter-Knopf: Zeichen folgt aria-expanded (Bootstrap-Collapse setzt es), nicht nur Farbe. */
+.bde-tl-teile-zeichen::after { content: "\00a0\25B8"; }
+[aria-expanded="true"] > .bde-tl-teile-zeichen::after { content: "\00a0\25BE"; }
+/* F5: Trefferflaechen >= 44 px auf allen Groessen (Haken, Seitennavigation; _Pagination.cshtml bleibt unveraendert). */
+.bde-tl-seite .tl-check { display: inline-flex; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; margin: 0; cursor: pointer; }
+.bde-tl-seite .pagination .page-link { min-height: 44px; min-width: 44px; display: flex; align-items: center; justify-content: center; }
+.bde-tl-seite .pagination-page-size { min-height: 44px; }
+.bde-tl-seite .bde-tl-hinweise > summary { cursor: pointer; color: #212529; }
+
+/* E1-4 (F1, F4): unter 992 px (Antwort 8) kompakter Kopf und Kartenansicht. B3: site.css erzwingt max-content/nowrap mit !important →
+   hier mit hoeherer Spezifitaet und !important aufheben. B6: KEIN !important auf display der Zellen (Zahnrad blendet per Inline-Stil aus).
+   B7: nur tr:not(.collapse) und tr.collapse.show werden Karten – eine allgemeine tr-Regel wuerde zugeklappte Kinder sichtbar machen. */
+@media (max-width: 991.98px) {
+    .bde-tl-seite h2 { font-size: 1.35rem; }
+    .bde-tl-seite .bde-operator-badge { padding: 0.4rem 0.75rem; font-size: 1.1rem; flex-wrap: wrap; }
+    .bde-tl-seite .table-responsive > table.bde-teileliste { display: block; width: 100% !important; min-width: 0; }
+    .bde-tl-seite .bde-teileliste > thead { display: none; }
+    .bde-tl-seite .bde-teileliste > tbody { display: block; }
+    .bde-tl-seite .bde-teileliste > tbody > tr:not(.collapse),
+    .bde-tl-seite .bde-teileliste > tbody > tr.collapse.show {
+        display: flex; flex-direction: column; border: 1px solid #6c757d; border-radius: 0.375rem; margin-bottom: 0.5rem; padding: 0.25rem 0.5rem;
+    }
+    .bde-tl-seite .bde-teileliste > tbody > tr.bde-tl-kind { margin-left: 1rem; }
+    .bde-tl-seite .bde-teileliste > tbody > tr > td {
+        display: flex; justify-content: space-between; align-items: center; gap: 0.75rem; border: 0; padding: 0.2rem 0;
+        white-space: normal !important; text-align: right; --bs-table-bg-type: transparent; box-shadow: none;
+    }
+    .bde-tl-seite .bde-teileliste > tbody > tr > td[data-label]::before { content: attr(data-label); font-weight: 600; color: #212529; text-align: left; }
+    .bde-tl-seite .bde-teileliste > tbody > tr.bde-tl-kind { background: #eef1f4; }
+    .bde-tl-seite .bde-teileliste > tbody > tr.bde-tl-treffer { border-left: 6px solid #212529; }
+    .bde-tl-seite .bde-teileliste > tbody > tr > td.tl-zelle-auswahl { order: -1; }
+    .bde-tl-seite .bde-teileliste > tbody > tr > td.tl-zelle-aktion { order: 99; }
+    .bde-tl-seite .bde-teileliste > tbody > tr > td.tl-zelle-aktion > .btn { flex: 1 1 auto; justify-content: center; }
+    .bde-tl-seite .bde-teileliste > tbody > tr > td[colspan] { display: block; text-align: center; }
+}

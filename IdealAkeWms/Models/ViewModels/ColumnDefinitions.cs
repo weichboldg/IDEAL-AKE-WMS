@@ -466,6 +466,7 @@ public static class ColumnDefinitions
             new ColumnDef("hauptfa", "Hauptauftrag", Locked: false),
             new ColumnDef("montage-abteilung", "Abteilung", Locked: false),
             new ColumnDef("fe-termin", "FE-Termin", Locked: false),
+            new ColumnDef("ag-status", "AG-Status", Locked: false),                         // v1.99.73 (E1-1), Text
             new ColumnDef("material", "Material", Locked: false),
             new ColumnDef("blechdicke", "Blechdicke", Locked: false),                       // v1.99.72
             new ColumnDef("fraesen-pfad", "Fräsen-Pfad", Locked: false, DefaultHidden: true), // v1.99.72, nur bei FraesenPfadAktiv in der View

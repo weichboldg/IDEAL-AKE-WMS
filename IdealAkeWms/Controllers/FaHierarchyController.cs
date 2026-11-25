@@ -32,10 +32,7 @@ public class FaHierarchyController : Controller
     private readonly ICurrentUserService _currentUserService;
     private readonly IUserRepository _userRepository;
     private readonly IWorkOperationRepository _workOperationRepository;
-    private readonly IProductionWorkplaceRepository _workplaceRepository;
-    private readonly IHolidayRepository _holidayRepository;
-    private readonly IBusinessDayService _businessDays;
-    private readonly IOperationConfigRepository _operationConfigRepository;
+    private readonly FaAgStatusService _agStatus;
     private readonly ILogger<FaHierarchyController> _logger;
 
     public FaHierarchyController(
@@ -46,10 +43,7 @@ public class FaHierarchyController : Controller
         ICurrentUserService currentUserService,
         IUserRepository userRepository,
         IWorkOperationRepository workOperationRepository,
-        IProductionWorkplaceRepository workplaceRepository,
-        IHolidayRepository holidayRepository,
-        IBusinessDayService businessDays,
-        IOperationConfigRepository operationConfigRepository,
+        FaAgStatusService agStatus,
         ILogger<FaHierarchyController> logger)
     {
         _nodeRepository = nodeRepository;
@@ -59,10 +53,7 @@ public class FaHierarchyController : Controller
         _currentUserService = currentUserService;
         _userRepository = userRepository;
         _workOperationRepository = workOperationRepository;
-        _workplaceRepository = workplaceRepository;
-        _holidayRepository = holidayRepository;
-        _businessDays = businessDays;
-        _operationConfigRepository = operationConfigRepository;
+        _agStatus = agStatus;
         _logger = logger;
     }
 
@@ -111,33 +102,13 @@ public class FaHierarchyController : Controller
         foreach (var s in pageStructures)
             s.HasWorkOperations = withOperations.Contains(s.HauptFA.ToString());
 
-        // Arbeitsgaenge-Symbole (v1.52.0): Kuerzel aus dem schon geladenen Knotenfeld, Namen aus EINER Katalog-Abfrage.
-        var workplaces = await _workplaceRepository.GetAllOrderedAsync();
-        FaArbeitsschrittSymbole.Zuordnen(pageStructures, FaArbeitsschrittSymbole.NamenLookup(workplaces));
-
-        // Status je Symbol (Teil 2, v1.55.0): nur bei BDE global an — sonst keine weitere Abfrage, Symbole wie Teil 1.
-        var nichtKonfiguriert = new List<string>();
-        var bdeAktiv = (await _settingRepository.GetValueAsync(AppSettingKeys.BdeAktiv))
-            ?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
-        if (bdeAktiv && pageStructures.Count > 0)
-        {
-            var ops = await _workOperationRepository.GetForFaStatusAsync(
-                pageStructures.Select(s => s.HauptFA.ToString()).Distinct().ToList());
-            // v1.63.0 (FA-a7): BDE-aktive plus Werkbaenke, deren Kuerzel an einer BDE-aktiven, aktuellen Werkbank steht.
-            var aktiveWerkbaenke = WerkbankKuerzelFamilie.BdeRelevanteIds(workplaces);
-            var bde = await _workOperationRepository.GetBdeStatusAsync(ops
-                .Where(o => o.ProductionWorkplaceId is int w && aktiveWerkbaenke.Contains(w)).Select(o => o.Id).ToList());
-            var holidays = await _holidayRepository.GetHolidayDatesAsync();
-            var offsets = await _operationConfigRepository.GetDueDateOffsetsAsync();
-
-            var ergebnis = FaArbeitsgangStatus.Zuordnen(pageStructures, ops, aktiveWerkbaenke, bde, offsets,
-                (d, o) => OseonDueDateCalculator.Calculate(d, o, _businessDays, holidays), DateTime.Today);
-            nichtKonfiguriert = ergebnis.NichtKonfiguriert.ToList();
-            // W-4: genau EINE Warnung je Seitenaufbau, kein Abbruch (Ursache: case-sensitive Re-Add-Sperre der Erkennung).
-            if (ergebnis.Mehrfach.Count > 0)
-                _logger.LogWarning("FA-Struktur: mehrere Arbeitsgaenge gleichen Kuerzels am selben Auftrag, Status zusammengefasst: {Paare}",
-                    string.Join("; ", ergebnis.Mehrfach));
-        }
+        // Arbeitsgaenge-Symbole (v1.52.0) + Status (Teil 2, v1.55.0): seit v1.99.73 an EINEM Ort (FaAgStatusService, auch Teileliste).
+        var lauf = await _agStatus.ZuordnenAsync(pageStructures);
+        var nichtKonfiguriert = lauf?.Ergebnis.NichtKonfiguriert.ToList() ?? new List<string>();
+        // W-4: genau EINE Warnung je Seitenaufbau, kein Abbruch (Ursache: case-sensitive Re-Add-Sperre der Erkennung).
+        if (lauf?.Ergebnis.Mehrfach.Count > 0)
+            _logger.LogWarning("FA-Struktur: mehrere Arbeitsgaenge gleichen Kuerzels am selben Auftrag, Status zusammengefasst: {Paare}",
+                string.Join("; ", lauf.Ergebnis.Mehrfach));
 
         // Sichtbares UI-Signal (zusaetzlich zur ILogger-Warnung im Builder) — keine Mail, kein SyncLog.
         if (pageStructures.Any(s => s.HasError))

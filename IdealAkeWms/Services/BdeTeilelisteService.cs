@@ -52,7 +52,14 @@ public sealed class TeilelisteZeile
     /// <summary>Antwort 8: zum besitzenden Auftrag gibt es keinen WMS-Auftrag (meldbar, gekennzeichnet).</summary>
     public bool KeinWmsAuftrag { get; init; }
     public BdeTeilMeldung? Meldung { get; init; }
-    public IReadOnlyList<FaHierarchyNode> Kinder { get; init; } = Array.Empty<FaHierarchyNode>();
+    /// <summary>v1.99.73 (E1-2): direkte Kinder einer Baugruppe als eigene Zeilen (nur Anzeige, dieselben Getter wie die Eltern).</summary>
+    public IReadOnlyList<TeilelisteZeile> Kinder { get; init; } = Array.Empty<TeilelisteZeile>();
+    /// <summary>v1.99.73 (E1-1): AG-Status je Arbeitsschritt-Token (WorkOperation oder Teilmeldung); ohne Lauf neutral.</summary>
+    public IReadOnlyList<FaArbeitsschrittSymbol> Arbeitsgaenge { get; init; } = Array.Empty<FaArbeitsschrittSymbol>();
+    /// <summary>v1.99.73 (E1-3): Kinderzeile traf den Spaltenfilter (die Eltern selbst nicht oder ebenfalls).</summary>
+    public bool Treffer { get; set; }
+    /// <summary>v1.99.73 (E1-3): mindestens ein Kind ist Treffer → Baugruppe aufgeklappt.</summary>
+    public bool Aufgeklappt => Kinder.Any(k => k.Treffer);
     /// <summary>v1.99.37 (ADR 0032, Rueckfrage 3): in Sage verschwundene Zeile → angezeigt mit Badge, nicht meldbar.</summary>
     public bool Verschwunden => Node.VerschwundenSeit != null;
     public bool Meldbar => Meldung == null && Eindeutig && !Verschwunden;
@@ -103,11 +110,13 @@ public class BdeTeilelisteService
     private readonly IArticleRepository _articles;
     private readonly IBusinessDayService _days;
     private readonly IHolidayRepository _holidays;
+    private readonly FaAgStatusService? _agStatus;
 
     public BdeTeilelisteService(IFaHierarchyNodeRepository nodes, IFaHierarchyOrderInfoRepository orderInfos, ApplicationDbContext ctx,
         IBdeBookingService booking, ICurrentUserService userSvc, IAppSettingRepository settings, IBdeShiftCalendarService schichten,
-        IArticleRepository articles, IBusinessDayService days, IHolidayRepository holidays)
+        IArticleRepository articles, IBusinessDayService days, IHolidayRepository holidays, FaAgStatusService? agStatus = null)
     {
+        _agStatus = agStatus; // v1.99.73; null (nur Tests ohne Status-Lauf) = Symbole neutral
         _nodes = nodes; _orderInfos = orderInfos; _ctx = ctx; _booking = booking; _userSvc = userSvc; _settings = settings; _schichten = schichten;
         _articles = articles; _days = days; _holidays = holidays;
     }
@@ -130,6 +139,46 @@ public class BdeTeilelisteService
 
     /// <summary>Besitzender Auftrag (Antwort 8): Baugruppe = eigene Sub-FA, Blechteil = Vater-Sub-FA.</summary>
     public static string? Besitzer(FaHierarchyNode n) => n.SubFA != 0 ? n.SubFA.ToString(Inv) : n.VaterFA?.ToString(Inv);
+
+    /// <summary>
+    /// v1.99.73 (E1-1, Antwort 21): zweite Statusquelle nur der Teileliste – nach <see cref="FaArbeitsgangStatus.Zuordnen"/> aufgerufen.
+    /// Token mit nicht stornierter Teilmeldung (Schluessel, Kuerzel gross) = erledigt (ODER zur WorkOperation). Token ohne WorkOperation-Status,
+    /// dessen Kuerzel eine Teileliste-Werkbank traegt (Teilmeldung moeglich), = offen/ueberfaellig ueber <see cref="ArbeitsgangStatusRegel"/>.
+    /// Sonst bleibt der Status aus dem WorkOperation-Lauf („kein BDE-Arbeitsgang“ bzw. neutral).
+    /// </summary>
+    public static void TeilmeldungenAnwenden(IEnumerable<FaHierarchyStructure> structures, IReadOnlySet<(TeilSchluessel, string)> gemeldet,
+        IReadOnlySet<string> teilelisteKuerzel, IReadOnlyDictionary<string, int> offsets, Func<DateTime, int, DateTime> rechner, DateTime heute)
+    {
+        foreach (var s in structures)
+        {
+            var bezug = s.OrderInfos.Select(o => o.FE_Termin).Min();
+            var offen = new Stack<FaHierarchyTreeNode>(s.Roots);
+            while (offen.Count > 0)
+            {
+                var t = offen.Pop();
+                foreach (var c in t.Children) offen.Push(c);
+                var schluessel = TeilSchluessel.Von(t.Node);
+                for (var i = 0; i < t.Arbeitsgaenge.Count; i++)
+                {
+                    var sym = t.Arbeitsgaenge[i];
+                    var k = sym.Kuerzel.Trim().ToUpperInvariant();
+                    var erledigt = gemeldet.Contains((schluessel, k));
+                    var moeglich = (sym.Status is null or FaAgStatus.KeinBdeArbeitsgang) && teilelisteKuerzel.Contains(k);
+                    if (!erledigt && !moeglich) continue;
+                    var soll = sym.Soll ?? ArbeitsgangStatusRegel.Soll(bezug, k, offsets, rechner, out _);
+                    t.Arbeitsgaenge[i] = sym with
+                    {
+                        Soll = soll,
+                        Status = erledigt ? FaAgStatus.Erledigt : ArbeitsgangStatusRegel.Ableiten(false, false, soll, heute),
+                    };
+                }
+            }
+        }
+    }
+
+    /// <summary>v1.99.73: Symbole ohne Status (neutral wie die FA-Struktur bei BDE aus) – Lagerbestell-Zeilen und Aufrufe ohne Status-Lauf.</summary>
+    public static IReadOnlyList<FaArbeitsschrittSymbol> NeutraleSymbole(string? arbeitsschritte) =>
+        FaArbeitsschrittSymbole.Tokenize(arbeitsschritte).Select(k => new FaArbeitsschrittSymbol(k, null)).ToList();
 
     /// <summary>Spalten der Sicht „Einzeln“ (Col-Key → Zelltext, Getter = Zelle, fallstricke §26).</summary>
     public static IReadOnlyDictionary<string, Func<FaHierarchyNode, string?>> SpaltenEinzeln(
@@ -169,6 +218,8 @@ public class BdeTeilelisteService
         Lager("fe-termin", l => VormontageService.FormatDaten(new[] { l.Termin }));
         map["blechdicke"] = z => Zusatz(zusatz, z.Node.Artnr)?.Blechdicke;
         map["fraesen-pfad"] = z => Zusatz(zusatz, z.Node.Artnr)?.Pfad;
+        // v1.99.73 (E1-1): Zelle zeigt Zeichen + Kuerzel, der Filter sieht den Screenreader-Text („KA – Kanten – erledigt“).
+        map["ag-status"] = z => z.Arbeitsgaenge.Count == 0 ? null : string.Join(", ", z.Arbeitsgaenge.Select(a => a.AriaLabel));
         return map;
     }
 
@@ -200,7 +251,40 @@ public class BdeTeilelisteService
         var besitzer = nodes.Where(n => Traegt(n, kuerzel)).Select(Besitzer).OfType<string>().Distinct().ToList();
         var zusatz = await ZusatzAsync(mitPfad);
         var lager = mitLagerbestellungen ? await LagerZeilenAsync(kuerzel, zusatz) : null;
-        return Bauen(nodes, infos, kuerzel, meldungen, await AuftragOffenAsync(besitzer), kw, gemeldeteZeigen, colf, beschichtet, zusatz, lager);
+        var agStatus = await AgStatusAsync(nodes, infos, kuerzel, hauptFas);
+        return Bauen(nodes, infos, kuerzel, meldungen, await AuftragOffenAsync(besitzer), kw, gemeldeteZeigen, colf, beschichtet, zusatz, lager, agStatus);
+    }
+
+    /// <summary>
+    /// v1.99.73 (E1-1): AG-Status je Knoten der Haupt-FAs mit Zeilen dieses Kuerzels. Je Haupt-FA eine flache Struktur aller Knoten (die
+    /// VaterFA-Zuordnung von <see cref="FaArbeitsgangStatus.Zuordnen"/> braucht alle Sub-FAs), derselbe Lauf wie die FA-Struktur
+    /// (<see cref="FaAgStatusService"/>), danach die Teilmeldungen ALLER Kuerzel (<see cref="TeilmeldungenAnwenden"/>). Vor dem Filter geladen,
+    /// damit die Spalte AG-Status serverseitig filterbar ist.
+    /// </summary>
+    private async Task<Dictionary<FaHierarchyNode, IReadOnlyList<FaArbeitsschrittSymbol>>?> AgStatusAsync(IReadOnlyCollection<FaHierarchyNode> nodes,
+        IEnumerable<FaHierarchyOrderInfo> infos, string kuerzel, List<int> hauptFas)
+    {
+        if (_agStatus == null) return null;
+        var relevant = nodes.Where(n => Traegt(n, kuerzel)).Select(n => n.HauptFA).ToHashSet();
+        var infoJeFa = infos.ToLookup(o => o.HauptFA);
+        var structures = nodes.Where(n => relevant.Contains(n.HauptFA)).GroupBy(n => n.HauptFA)
+            .Select(g => new FaHierarchyStructure
+            {
+                HauptFA = g.Key, OrderInfos = infoJeFa[g.Key].ToList(),
+                Roots = g.Select(n => new FaHierarchyTreeNode { Node = n }).ToList(),
+            }).ToList();
+        var lauf = await _agStatus.ZuordnenAsync(structures);
+        if (lauf != null)
+        {
+            var gemeldet = (await _ctx.BdeTeilMeldungen.AsNoTracking()
+                    .Where(m => !m.IsCancelled && m.WarehouseRequisitionItemId == null && hauptFas.Contains(m.HauptFA)).ToListAsync())
+                .Select(m => (TeilSchluessel.Von(m), m.Kuerzel.Trim().ToUpperInvariant())).ToHashSet();
+            var teileliste = lauf.Werkbaenke.Where(w => WerkbankKuerzelFamilie.TeilelisteWirksam(w, false))
+                .Select(w => WerkbankKuerzelFamilie.Kuerzel(w)!.ToUpperInvariant()).ToHashSet();
+            TeilmeldungenAnwenden(structures, gemeldet, teileliste, lauf.Offsets, lauf.Rechner, DateTime.Today);
+        }
+        return structures.SelectMany(s => s.Roots)
+            .ToDictionary(t => t.Node, t => (IReadOnlyList<FaArbeitsschrittSymbol>)t.Arbeitsgaenge, ReferenceEqualityComparer.Instance as IEqualityComparer<FaHierarchyNode>);
     }
 
     /// <summary>v1.99.72 (Loesung 1): eine Abfrage je Quelle, ohne Artikelnummer-Liste (keine 2100-Parameter-Grenze). Schluessel getrimmt,
@@ -263,6 +347,7 @@ public class BdeTeilelisteService
                 Lager = new LagerPosition(i.Id, i.WarehouseRequisitionId, i.Position, i.Comment, i.Werkbank,
                     i.SubmittedAt is DateTime s ? _days.AddBusinessDays(s.Date, tage, feiertage) : null),
                 Meldung = meldungen.FirstOrDefault(m => m.WarehouseRequisitionItemId == i.Id),
+                Arbeitsgaenge = NeutraleSymbole(node.Arbeitsschritte),
             };
         }).ToList();
     }
@@ -284,8 +369,10 @@ public class BdeTeilelisteService
         IReadOnlyCollection<BdeTeilMeldung> meldungen, IReadOnlyDictionary<string, bool> auftragOffen,
         (DateTime StartInclusive, DateTime EndExclusive)? kw, bool gemeldeteZeigen, IReadOnlyDictionary<string, string>? colf,
         Func<FaHierarchyNode, string?>? beschichtet = null, IReadOnlyDictionary<string, ArtikelZusatz>? zusatz = null,
-        IReadOnlyList<TeilelisteZeile>? lager = null)
+        IReadOnlyList<TeilelisteZeile>? lager = null,
+        IReadOnlyDictionary<FaHierarchyNode, IReadOnlyList<FaArbeitsschrittSymbol>>? agStatus = null)
     {
+        IReadOnlyList<FaArbeitsschrittSymbol> Symbole(FaHierarchyNode n) => agStatus?.GetValueOrDefault(n) ?? NeutraleSymbole(n.Arbeitsschritte);
         var infoListe = infos.ToList();
         var kopf = VormontageService.BuildKopfLookup(infoListe);
         var doppelt = nodes.GroupBy(TeilSchluessel.Von).Where(g => g.Count() > 1).Select(g => g.Key).ToHashSet();
@@ -308,7 +395,11 @@ public class BdeTeilelisteService
                     Node = n, Schluessel = s, Eindeutig = !doppelt.Contains(s),
                     KeinWmsAuftrag = Besitzer(n) is not string b || !auftragOffen.ContainsKey(b),
                     Meldung = meldungJeSchluessel.GetValueOrDefault(s),
-                    Kinder = n.SubFA != 0 ? kinder[n.SubFA].OrderBy(k => k.Position).ToList() : Array.Empty<FaHierarchyNode>(),
+                    Arbeitsgaenge = Symbole(n),
+                    Kinder = n.SubFA != 0
+                        ? kinder[n.SubFA].OrderBy(k => k.Position)
+                            .Select(k => new TeilelisteZeile { Node = k, Schluessel = TeilSchluessel.Von(k), Arbeitsgaenge = Symbole(k) }).ToList()
+                        : Array.Empty<TeilelisteZeile>(),
                 };
             })
             .Concat(lager ?? Array.Empty<TeilelisteZeile>());
@@ -322,7 +413,18 @@ public class BdeTeilelisteService
         }
         if (!gemeldeteZeigen) zeilen = zeilen.Where(z => z.Meldung == null);
 
-        zeilen = ColumnFilterHelper.Apply(zeilen, colf, SpaltenZeile(kopf, beschichtet, zusatz), ColumnFilterTypes.For("BdeTeileliste/Index"));
+        // E1-3: Eltern bleiben, wenn sie selbst ODER ein Kind passt. Kind-Treffer nur, wenn die Eltern selbst nicht passen (sonst
+        // waere z. B. ein Haupt-FA-Filter an jedem Kind ein „Treffer“); Pagination zaehlt weiter nur Elternzeilen.
+        var typen = ColumnFilterTypes.For("BdeTeileliste/Index");
+        if (ColumnFilterHelper.HasAny(colf, typen))
+        {
+            var liste = zeilen.ToList();
+            var passt = ColumnFilterHelper.Apply(liste.Concat(liste.SelectMany(z => z.Kinder)), colf, SpaltenZeile(kopf, beschichtet, zusatz), typen)
+                .ToHashSet(ReferenceEqualityComparer.Instance);
+            foreach (var z in liste.Where(z => !passt.Contains(z)))
+                foreach (var k in z.Kinder) k.Treffer = passt.Contains(k);
+            zeilen = liste.Where(z => passt.Contains(z) || z.Aufgeklappt);
+        }
 
         return new TeilelisteDaten(zeilen
             .OrderBy(z => z.Node.Matchcode, StringComparer.OrdinalIgnoreCase).ThenBy(z => z.Node.HauptFA)

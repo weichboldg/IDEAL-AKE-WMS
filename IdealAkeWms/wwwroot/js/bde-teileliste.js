@@ -10,6 +10,17 @@
         });
     }
 
+    // v1.99.73 (E1-2): table-filter.js sortiert alle Zeilen je <tbody>; danach jede Kinderzeile wieder direkt hinter ihre Baugruppe.
+    document.addEventListener('table-sorted', function () {
+        document.querySelectorAll('table.bde-teileliste > tbody > tr[data-tl-eltern-id]').forEach(function (eltern) {
+            var nach = eltern;
+            eltern.parentNode.querySelectorAll(':scope > tr[data-eltern="' + eltern.dataset.tlElternId + '"]').forEach(function (kind) {
+                nach.after(kind);
+                nach = kind;
+            });
+        });
+    });
+
     var fmt = function (n) { return n.toLocaleString('de-DE', { maximumFractionDigits: 4 }); };
 
     var modal = document.getElementById('meldenModal');

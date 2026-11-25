@@ -673,5 +673,8 @@ WHERE NOT EXISTS (SELECT 1 FROM dbo.Roles r WHERE r.[Key] = v.k);'
 @{ Id='v1.99.72-FraesePfadInfo'; Version='1.99.72'; Typ='Info'; Firma='IDEAL'; Phase='Nachher'; Ausfuehrung='anzeigen'
    Text='Clemens/Walter informieren: Teileliste der Isolierungsfraese zeigt bestellte Isolierungen (Badge Lagerbestellung, Termin = Abschicken + 10 Arbeitstage), Spalte Fraesen-Pfad ueber das Zahnrad einblenden, Link oeffnet den Ordner (sonst Pfad kopieren -> Explorer Strg+L). Pfad pflegen: der zustaendige Pfleger mit eigenem Konto (Rollen Fraesen-Pfad pflegen + Stammdaten lesen) ueber Stammdaten > Artikelinfo, Stammdaten-Benutzer auch unter Artikel bearbeiten; in der Teileliste nur Anzeige; nur UNC-Pfade. Meldeliste des Erstimports nachpflegen. Browser-Cache am Terminal ggf. leeren.'
    Quelle='2026-11-25-v1-99-72-bde-liste-isolierungsfraese-pfad-material' }
+@{ Id='v1.99.73-BdeTeilelisteAgStatusMobilInfo'; Version='1.99.73'; Typ='Info'; Firma='IDEAL'; Phase='Nachher'; Ausfuehrung='anzeigen'
+   Text='BDE-Teileliste: neue Spalte AG-Status, Baugruppen-Teile als Zeilen (Knopf neben dem Matchcode), kompakte Ansicht am Handy. Werker kurz informieren; Browser-Cache am Terminal ggf. leeren.'
+   Quelle='2026-11-25-v1-99-73-bde-masken-etappe-1-teile-einzeln' }
 )
 }

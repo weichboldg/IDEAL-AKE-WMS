@@ -1,6 +1,6 @@
 # 11 – BDE-Terminal
 
-Stand: Version 1.99.43 · Standorte AKE und IDEAL · Bilder aus dem IDEAL-Testsystem
+Stand: Version 1.99.73 (Abschnitt 6, Text) bzw. 1.99.43 · Standorte AKE und IDEAL · Bilder aus dem IDEAL-Testsystem
 
 ## Zweck
 
@@ -112,7 +112,8 @@ Werkbank wird nur fertig gemeldet.“). Ein zweites Melden lehnt das WMS ab: „
 ### 6. Werkbank mit BDE-Teileliste (IDEAL, seit Version 1.99.32)
 
 Ist an der Werkbank der Schalter **BDE-Teileliste (vereinfacht)** an (z. B. *Kanten*), öffnet **BDE → Terminal** statt der Auftragsliste
-die **BDE-Teileliste**: Teile und Baugruppen nach Matchcode, nur „fertig“ melden, einzeln oder als Block. Anleitung:
+die **BDE-Teileliste**: Teile und Baugruppen nach Matchcode, nur „fertig“ melden, einzeln oder als Block. Seit Version 1.99.73 zeigt sie je
+Zeile den **AG-Status** (Zeichen wie in der FA-Struktur), Baugruppen-Teile als eigene Zeilen und am Handy eine Kartenansicht. Anleitung:
 [Kapitel 17](17-bde-teileliste-werkbank.md).
 
 ## Unterschiede AKE und IDEAL
