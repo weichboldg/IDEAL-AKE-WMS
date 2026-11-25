@@ -737,7 +737,7 @@ Jede Etappe: `frontend-design` explizit aufrufen, Kontrast messen, Ampel nie nur
 | # | Etappe | Status | Commit |
 |---|--------|--------|--------|
 | 1 | Teile Einzeln: AG-Status (Status-Ladung und Symbol-Partial aus FA-Struktur herausgezogen), Kinder als Zeilen, Filter auf Kinder, Teile-Knopf vorn, BDE mobil kompakt (992 px, 44 px, Spaltenfilter in Karten nicht bedienbar – Antworten 8–10). Doku: Kapitel 17 Abschnitt 2 + Fotos `17-03`, Handy-Foto. v1.99.73, TS-194, keine Migration. | erledigt (2026-11-25, Umsetzung siehe unten) | `219a69c3` |
-| 2 | Teile Summiert: Einzelauftraege aufklappbar, Summen-Haken, aggregierte Ampel ueber `Ableiten` (Antwort 11). Doku: Kapitel 17 Abschnitt 5 + Foto `17-06`. v1.99.74, TS-195, keine Migration. | offen | |
+| 2 | Teile Summiert: Einzelauftraege aufklappbar, Summen-Haken, aggregierte Ampel ueber `Ableiten` (Antwort 11). Doku: Kapitel 17 Abschnitt 5 + Foto `17-06`. v1.99.74, TS-195, keine Migration. | erledigt (2026-11-25, Umsetzung siehe unten) | `eecc47ac` |
 | 3 | Teilfertigmeldung: Migration + SQL/169 + FreshInstall, Service/Controller/Dialog, Ruecknahme, Waisen, Baugruppe `istFinal`, Admin-Spalte Art, ADR 0037. **Dieselbe Migration legt `ProductionWorkplaces.BdeStandardsichtTeile` an und belegt sie vor** (Antwort 3a; Model-Property ohne Leser bis Etappe 4a – Reihenfolge geprueft, siehe Etappe-3-Entwurf). Defaults beider Spalten nur in Migration/SQL/FreshInstall, kein `HasDefaultValue`, `IstAbschliessend` immer explizit gesetzt (Antwort 16, AK 18a). Index nach Antwort 12: wer zweitens baut, vereinigt den Filter mit SQL/164 – der Dev-Lauf prueft beim Start, ob SQL/164 schon im Branch liegt. Uebermeldung bei Teilfertig erlaubt mit Hinweis (Antwort 18, AK 15a). Doku: Kapitel 17 Abschnitte 3/4/6/7 + Fotos `17-05`, `17-07`. v1.99.75, TS-196. | offen | |
 | 4 | ~~FA-Sicht an beiden Standorten: Wirksamkeits-Helfer … `TeilelisteWirksam` entfernt, `BdeBookingService` mit Master-Lesung, … Banner, …~~ *(ueberholt, Antwort 15)* FA-Sicht an beiden Standorten: Wirksamkeits-Helfer ohne NurFA (`SeiteVerfuegbar`, `TeilelisteWirksam(w)` ohne `nurFa`, `TeileSichtVerfuegbar` = Master && `TeilelisteWirksam`, `TeileStandard` ueber `BdeStandardsichtTeile`), Gate `BdeBookingService.cs:288` inhaltlich wie heute (ohne `nurFa`, ohne Master, kein neuer Ctor-Parameter), Zeilenquelle als gemeinsame Service-Methode, View `Fa`, AG-Status aller AG der Sub-FA (Antwort 4), Kopf-Buchungen, Modal-Partials, Scan, Standardsicht-Auswahl neben `BdeTeileliste` („Teile“ nur mit `BdeTeileliste`), Teile-Reiter nur mit `BdeTeileliste` (sonst deaktiviert mit Hinweis, kein Banner), gemerkte Sicht, Pagination statt MaxHauptFa (Antwort 14). Doku: Kapitel 17 (Maske, Reiter, Foto `17-01`) + Kapitel 11 FA-Sicht (neue Fotos). v1.99.76, TS-197, keine weitere Migration. *(ueberholt, Antwort 19: aufgeteilt in 4a und 4b)* | – | |
 | 4a | FA-Sicht Grundgeruest an beiden Standorten (Antwort 19): Wirksamkeits-Helfer ohne NurFA (`SeiteVerfuegbar`, `TeilelisteWirksam(w)` ohne `nurFa`, `TeileSichtVerfuegbar` = Master && `TeilelisteWirksam`, `TeileStandard` ueber `BdeStandardsichtTeile`) samt Aufrufer-Umstellung, Gate `BdeBookingService.cs:288` inhaltlich wie heute (ohne `nurFa`, ohne Master, kein neuer Ctor-Parameter), Zeilenquelle als gemeinsame Service-Methode, View `Fa` mit Spalten/Filter/Pagination statt MaxHauptFa (Antwort 14), AG-Status aller AG der Sub-FA (Antwort 4), Anstempeln Ruesten/Produktion je Zeile (Kollision als sichtbare Meldung), Werkbank-Maske mit Standardsicht-Auswahl neben `BdeTeileliste` („Teile“ nur mit `BdeTeileliste`), Liste `ProductionWorkplaces`, Teile-Reiter nur mit `BdeTeileliste` (sonst deaktiviert mit Hinweis), gemerkte Sicht. AK 23, 24 (4a-Teil), 28–32d. Doku: Kapitel 17 (Maske, Reiter, Foto `17-01`) + Kapitel 11 FA-Sicht (Foto `11-05`). v1.99.76, TS-197, keine weitere Migration. | offen | |
@@ -783,6 +783,38 @@ als `v1.99.73-BdeTeilelisteAgStatusMobilInfo` in `scripts/deploy/nachlauf.psd1` 
 - Kontrast (gerechnet): Kinder-Grund #eef1f4 mit Text #212529 ≈ 14:1; Treffer-Balken/Abzeichen #212529 auf Weiß 15,4:1; Filter-Knopf
   `btn-outline-secondary` 4,7:1 (Bootstrap). Messung im Browser steht für die QA aus.
 - Fotos nicht aufgenommen: `docs/anwender/bilder/17-03-teileliste-einzeln.jpg` ersetzen, `17-08-teileliste-handy.jpg` (360 px) neu.
+
+## Umsetzung Etappe 2 (2026-11-25)
+
+Commit `eecc47ac` im Worktree `feature/2026-08-07-ideal-teile-1-5` (auf v1.99.73 `219a69c3`). **v1.99.74, TS-195, keine Migration.** Build 0 Fehler /
+32 Warnungen (Basis), Tests Web 3641/1/0 (+5 `BdeTeilelisteSummiertTests`, vor dem Code geschrieben), Dienst 847/0/0. qa-agent steht aus.
+Changelog [[2026-11-25-v1-99-74-bde-masken-etappe-2-teile-summiert]]. Manifest-Info `v1.99.74-BdeTeilelisteSummiertInfo` (IDEAL, Nachher).
+
+**Bauweise:**
+- `TeilelisteAggregat` bekommt `Einzelzeilen` (FE-Termin aufsteigend, ohne Termin zuletzt; Termin = Lagerbestell-Termin bzw. frühester FE-Termin der
+  Haupt-FA) und `Arbeitsgaenge` aus `BdeTeilelisteService.AgAggregieren`: je Kürzel (Trim, ohne Groß/Klein) zählen nur Stände ungleich
+  `null`/`KeinBdeArbeitsgang`; erledigt nur, wenn alle erledigt; läuft, wenn einer läuft; Soll = frühester Soll der nicht erledigten; Ergebnis über
+  `ArbeitsgangStatusRegel.Ableiten` (Status-Regel bleibt an EINEM Ort; läuft + überfällig ergibt `LaeuftUeberfaellig`). Nur neutrale Stände → neutral.
+- `Summieren` bekommt optional `heute` (Tests); der Controller setzt im Summiert-Zweig zusätzlich `vm.Spalten` (Haupt-FA/Abteilung/FE-Termin je Unterzeile).
+- Statuszelle als Partial `Views/BdeTeileliste/_TeilStatus.cshtml` (vorher lokale Funktion in `Index.cshtml`) – Einzeln und Summiert-Unterzeilen.
+- `Summiert.cshtml`: Knopf „Aufträge (n)“ in der Matchcode-Zelle (Bootstrap-collapse, Muster Etappe 1 `tr[data-tl-eltern-id]`/`tr.bde-tl-kind`), neue
+  Spalte `ag-status` (auch in `ColumnDefinitions.BdeTeilelisteSummiert`), Unterzeile mit eigenem Haken nur bei meldbaren Aufträgen.
+  Sortieren, Kartenansicht und CSS aus Etappe 1 greifen unverändert (kein CSS geändert).
+- `bde-teileliste.js`: Summen-Haken `[data-gruppe]` setzt alle `[data-in-gruppe]`; Abwählen eines Auftrags nimmt den Summen-Haken zurück; der Zähler
+  zählt Auftrags-Haken unter gesetztem Summen-Haken nicht (gesendet werden beide, der Server entdoppelt per `DistinctBy` in `MeldenAsync`).
+
+**Abweichungen von der Spec:**
+- Kein eigener „Fertig melden“-Dialog je Unterzeile: Teilmengen gehen über Auftrags-Haken (volle Sollmenge je Auftrag); den Mengen-Dialog bringt Etappe 3.
+- Baugruppen-Teile werden in den Summiert-Unterzeilen nicht nochmals aufgeklappt (nur in Einzeln).
+- Der Spaltenfilter `ag-status` wirkt wie die übrigen Positions-Spalten als Vorfilter je Auftrag (filtert Aufträge, nicht Gruppen nach dem Aggregat).
+
+**Befunde:**
+- CSV-Export Summiert enthält die Unterzeilen (wie Etappe 1, `csv-export.js` unverändert) – in TS-195.5 als erwartet beschrieben.
+- Haken-Kopplung und Zähler sind reines JS, nicht xUnit-testbar → Manual-UAT TS-195.2.
+- Hinweis für Etappe 3: `UX_BdeTeilMeldungen_Schluessel` hat im Bündel durch **SQL/165** den Filter `[IsCancelled] = 0 AND
+  [WarehouseRequisitionItemId] IS NULL` – SQL/169 vereinigt ihn mit `IstAbschliessend`. Der Summen-Haken meldet heute immer volle Sollmenge;
+  „teilgemeldet = läuft“ (Etappe 3) erbt `AgAggregieren` automatisch über die Einzelzeilen (Quelle bleibt `TeilmeldungenAnwenden`).
+- Foto nicht aufgenommen: `docs/anwender/bilder/17-06-teileliste-summiert.jpg` ersetzen (aufgeklappte Gruppe mit Ampel).
 
 ## Deploy
 

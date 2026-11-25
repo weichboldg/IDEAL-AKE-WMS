@@ -464,6 +464,9 @@ Quellen-Weiche je Abgleich: [[0019-quellen-weiche-view-sdata-je-abgleich]]. Ordn
   Arbeitsgang-Symbole an EINEM Ort (Namen immer, Status nur bei `BdeAktiv`) – genutzt von `FaHierarchyController` und `BdeTeilelisteService`
   (dort je Haupt-FA flache Struktur, danach `TeilmeldungenAnwenden`: Teilmeldung = erledigt). Markup `Views/Shared/_FaAgSymbole.cshtml`.
   `TeilelisteZeile.Kinder` sind Zeilen (Symbole, `Treffer`, `Aufgeklappt`).
+- v1.99.74 (Summiert, Etappe 2): `TeilelisteAggregat.Einzelzeilen` (FE-Termin aufsteigend) und `.Arbeitsgaenge` aus
+  `BdeTeilelisteService.AgAggregieren` (je Kürzel schlechtester Stand über `ArbeitsgangStatusRegel.Ableiten`, neutrale zählen nicht).
+  Statuszelle als Partial `Views/BdeTeileliste/_TeilStatus.cshtml` (Einzeln + Summiert-Unterzeilen); Summen-Haken-Kopplung in `bde-teileliste.js`.
 
 ## OperationConfigSync: Sage-Arbeitsgangnummer (v1.99.27)
 
