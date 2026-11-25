@@ -2,7 +2,7 @@
 type: spec
 title: Sage-Buchungen – eine Seite für Lagerbuchungen und Sage-Wareneingänge
 slug: 2026-11-23-sage-buchungen-gesamtsicht-spec
-status: Freigegeben
+status: InUmsetzung
 created: 2026-11-23
 updated: 2026-11-24
 source_backlog: "[[2026-11-23-sage-buchungen-gesamtsicht]]"
