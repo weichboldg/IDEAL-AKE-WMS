@@ -84,34 +84,12 @@ builder.Services.AddScoped<IFaWorkStepRepository, FaWorkStepRepository>();
 builder.Services.AddScoped<IFaAttributeRepository, FaAttributeRepository>();
 builder.Services.AddScoped<AppSettingRepository>();
 builder.Services.AddScoped<IAppSettingRepository, CachedSettingRepository>();
-// ServiceSettings: Durchsetzungs-Decorator (FA-Hierarchie-Einwegtor, Teil 7) um das echte Repo.
-// Einziger Choke-Point fuer Schreibversuche auf die geschuetzten Keys (Master + Auto-Erledigt).
-builder.Services.AddScoped<ServiceSettingRepository>();
-builder.Services.AddScoped<IServiceSettingRepository>(sp =>
-    new IdealAkeWms.Data.Repositories.GuardedServiceSettingRepository(
-        sp.GetRequiredService<ServiceSettingRepository>(),
-        sp.GetRequiredService<IProductionOrderRepository>()));
+// v1.99.70: ServiceSettings-Repository (Guarded), BOM-Weiche, FA-Hierarchie-Knoten, Kommissionierauftraege + Workflow – EINE Methode fuer
+// Web und Dienst (Lauf „Kommissionier-Nachtrag“), damit der zyklische BOM-Graph nicht doppelt gepflegt wird.
+builder.Services.AddKommissionierauftraege();
 builder.Services.AddSingleton<IdealAkeWms.Services.HierarchischeStruktur.HierarchischeStrukturStatus>();
 builder.Services.AddScoped<HolidayRepository>();
 builder.Services.AddScoped<IHolidayRepository, CachedHolidayRepository>();
-builder.Services.AddScoped<BomCacheRepository>();
-builder.Services.AddScoped<BomRepository>();
-builder.Services.AddScoped<CachedBomRepository>();
-builder.Services.AddScoped<FaHierarchyBomRepository>();
-// BOM-Bridge (Spec 2026-09-08): EINE Weiche fuer beide Interfaces, entscheidet pro Aufruf am Master.
-// Lazy-Delegates, weil BomRepository selbst IBomCacheRepository (= die Weiche) injiziert — eager waere ein Zyklus.
-builder.Services.AddScoped<BomRepositoryMasterSwitch>(sp => new BomRepositoryMasterSwitch(
-    sp.GetRequiredService<IServiceSettingRepository>(),
-    hierarchicalBom: () => sp.GetRequiredService<FaHierarchyBomRepository>(),
-    hierarchicalCache: () => sp.GetRequiredService<FaHierarchyBomRepository>(),
-    flatBom: () => sp.GetRequiredService<CachedBomRepository>(),
-    flatCache: () => sp.GetRequiredService<BomCacheRepository>()));
-builder.Services.AddScoped<IBomRepository>(sp => sp.GetRequiredService<BomRepositoryMasterSwitch>());
-builder.Services.AddScoped<IBomCacheRepository>(sp => sp.GetRequiredService<BomRepositoryMasterSwitch>());
-
-// FA-Hierarchie (IDEAL): Repo + Cache-Decorator (ADR 0001, 5-min IMemoryCache analog BOM-Cache)
-builder.Services.AddScoped<FaHierarchyNodeRepository>();
-builder.Services.AddScoped<IFaHierarchyNodeRepository, CachedFaHierarchyNodeRepository>();
 builder.Services.AddScoped<IFaHierarchyOrderInfoRepository, FaHierarchyOrderInfoRepository>();
 builder.Services.AddScoped<ICreditorRepository, CreditorRepository>();
 builder.Services.AddScoped<ISagePurchaseOrderLineRepository, SagePurchaseOrderLineRepository>(); // v1.84.0 Wareneingang aus Sage-Bestellungen
@@ -127,9 +105,6 @@ builder.Services.AddScoped<BeschichtungsauftragService>();
 builder.Services.AddScoped<BriefkopfVorlageService>();
 // Beschichtungsauftrag als gespeichertes Objekt (Teil 3, v1.50.0): Repository + Workflow; Zeit ueber TimeProvider (Nummernkreis je Jahr).
 builder.Services.AddScoped<IBeschichtungsauftragRepository, BeschichtungsauftragRepository>();
-builder.Services.AddScoped<IPickingAreaRepository, PickingAreaRepository>(); // v1.88.0 Kommissionierbereiche (ungecacht)
-builder.Services.AddScoped<IPickingOrderRepository, PickingOrderRepository>(); // v1.88.0 Kommissionierauftraege (ungecacht)
-builder.Services.AddScoped<PickingOrderWorkflow>();
 builder.Services.AddScoped<BeschichtungsauftragWorkflow>();
 // v1.99.35 BF-Auftraege (Blechfertigung, Spec 2026-11-13-blechfertigung-bf-auftraege-wicam-csv)
 builder.Services.AddScoped<IBfAuftragRepository, BfAuftragRepository>();
@@ -192,7 +167,6 @@ builder.Services.AddSingleton<IEdgeProcessRunner, EdgeProcessRunner>();
 builder.Services.AddSingleton<IPdfRenderService, PdfRenderService>();
 builder.Services.AddScoped<IRazorViewRenderer, RazorViewRenderer>();
 builder.Services.AddScoped<ReadOnlyBomBuilder>();
-builder.Services.AddScoped<FaHierarchyTreeBuilder>();
 builder.Services.AddScoped<IPickingTransferService, PickingTransferService>();
 builder.Services.AddScoped<IOseonTrafficLightService, OseonTrafficLightService>();
 builder.Services.AddScoped<IBdeBookingService, BdeBookingService>();

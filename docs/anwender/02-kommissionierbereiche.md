@@ -1,6 +1,6 @@
 # 02 – Kommissionierbereiche
 
-Stand: Version 1.99.29 · Standorte AKE und IDEAL · Bilder aus dem AKE-Testsystem
+Stand: Version 1.99.70 (Text) bzw. 1.99.29 · Standorte AKE und IDEAL · Bilder aus dem AKE-Testsystem
 
 ## Zweck
 
@@ -97,7 +97,7 @@ Artikel-Regel schlägt also eine Artikelgruppen-Regel. Passt keine Regel: Standa
 
 Regel entfernen: in der Liste **Löschen**.
 
-Regeln wirken auf **neu angelegte** Kommissionieraufträge (Freigabe, „Fehlende Kommissionieraufträge erzeugen“). Bestehende Aufträge
+Regeln wirken auf **neu angelegte** Kommissionieraufträge (Freigabe, nächtlicher Nachtrag, „Fehlende Kommissionieraufträge erzeugen“). Bestehende Aufträge
 werden nicht umsortiert; ein Folgeauftrag („Teilweise“) bleibt im Bereich seines Ursprungsauftrags.
 
 ## Unterschiede AKE und IDEAL
@@ -115,8 +115,8 @@ werden nicht umsortiert; ein Folgeauftrag („Teilweise“) bleibt im Bereich se
 - **Zeit ohne Standardbereich.** Zwischen „Standard abwählen“ und „neuen Standard setzen“ gibt es keinen Standardbereich. Gibt der
   Leitstand genau in dieser Zeit einen FA frei, wird der FA zwar freigegeben, bekommt aber **keinen** Kommissionierauftrag (nur der
   Freigebende sieht die Meldung „Kein aktiver Standardbereich …“). Deshalb: Standard nur in einer ruhigen Zeit wechseln, vorher dem
-  Leitstand Bescheid geben, beide Schritte direkt nacheinander. Danach im Leitstand **„Fehlende Kommissionieraufträge für alle
-  freigegebenen FAs erzeugen“** klicken.
+  Leitstand Bescheid geben, beide Schritte direkt nacheinander. Den fehlenden Auftrag legt der nächtliche Lauf an; sofort nur ein
+  Administrator im Leitstand mit **„Fehlende Kommissionieraufträge für alle freigegebenen FAs erzeugen“**.
 - **Löschen fragt nicht nach.** Ein Klick auf **Löschen** entfernt die Regel sofort und endgültig. Vorher genau prüfen.
 - **Deaktivieren warnt nicht.** Ein Bereich mit offenen Aufträgen lässt sich ohne Hinweis deaktivieren. Die offenen Aufträge bleiben
   bestehen; neue Zeilen gehen in den Standardbereich.

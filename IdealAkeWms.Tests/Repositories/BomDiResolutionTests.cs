@@ -33,7 +33,7 @@ public class BomDiResolutionTests
 {
     private const string ArticleNumber = "X";
 
-    /// <summary>Baut den BOM-Teilgraph exakt wie <c>IdealAkeWms/Program.cs:91-104</c>.</summary>
+    /// <summary>Baut den BOM-Teilgraph ueber <see cref="PickingOrderRegistrierung.AddKommissionierauftraege"/> (seit v1.99.70 die eine Registrierung fuer Web und Dienst).</summary>
     private static ServiceProvider BuildProvider(ApplicationDbContext db)
     {
         var services = new ServiceCollection();
@@ -49,27 +49,16 @@ public class BomDiResolutionTests
             .Build());
         services.AddMemoryCache();
         services.AddLogging();
-        services.AddScoped(_ => new Mock<IFaHierarchyNodeRepository>().Object);
-        services.AddScoped<FaHierarchyTreeBuilder>();
 
+        // --- v1.99.70: dieselbe Registrierung wie Program.cs (Web) und der Dienst (Lauf „Kommissionier-Nachtrag“) ---
+        services.AddKommissionierauftraege();
+
+        // Overrides NACH der Registrierung (letzte gewinnt): Knoten-Repo und ServiceSettings gemockt.
+        services.AddScoped(_ => new Mock<IFaHierarchyNodeRepository>().Object);
         // Master nicht gesetzt => Flachmodus (AKE-Pfad).
         var settings = new Mock<IServiceSettingRepository>();
         settings.Setup(s => s.GetValueAsync(It.IsAny<string>())).ReturnsAsync((string?)null);
         services.AddScoped(_ => settings.Object);
-
-        // --- Spiegel von Program.cs:91-104 ---
-        services.AddScoped<BomCacheRepository>();
-        services.AddScoped<BomRepository>();
-        services.AddScoped<CachedBomRepository>();
-        services.AddScoped<FaHierarchyBomRepository>();
-        services.AddScoped<BomRepositoryMasterSwitch>(sp => new BomRepositoryMasterSwitch(
-            sp.GetRequiredService<IServiceSettingRepository>(),
-            hierarchicalBom: () => sp.GetRequiredService<FaHierarchyBomRepository>(),
-            hierarchicalCache: () => sp.GetRequiredService<FaHierarchyBomRepository>(),
-            flatBom: () => sp.GetRequiredService<CachedBomRepository>(),
-            flatCache: () => sp.GetRequiredService<BomCacheRepository>()));
-        services.AddScoped<IBomRepository>(sp => sp.GetRequiredService<BomRepositoryMasterSwitch>());
-        services.AddScoped<IBomCacheRepository>(sp => sp.GetRequiredService<BomRepositoryMasterSwitch>());
 
         return services.BuildServiceProvider(new ServiceProviderOptions
         {

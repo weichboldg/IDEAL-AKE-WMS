@@ -15,6 +15,8 @@ public class PickingLeitstandViewModel
     public bool BeschichtungAktiv { get; set; }
     public bool CanPick { get; set; }
     public bool CanManagePickingRelease { get; set; }
+    /// <summary>v1.99.70: Knoepfe „Fehlende Kommissionieraufträge …“ nur fuer Admins (Action [RequireAdminAccess]).</summary>
+    public bool IsAdmin { get; set; }
     public bool LeitstandAktiv { get; set; }
     public bool PickerAssignmentEnabled { get; set; }
 
@@ -61,6 +63,8 @@ public class PickingLeitstandItem
 {
     /// <summary>v1.88.0 (E4): Kommissionierauftraege des FA (Nummer, Bereich, Status) als Links in der Status-Zelle.</summary>
     public List<PickingOrder> Kommissionierauftraege { get; set; } = new();
+    /// <summary>v1.99.70 (F8): gespeicherter Marker „Stückliste kleiner als offene Kommissionierzeilen“ (Tooltip-Text), null = keiner.</summary>
+    public string? StuecklisteKleiner { get; set; }
 
     // Sage-Master (identisch zu ProductionOrderListItem)
     public int Id { get; set; }

@@ -155,6 +155,7 @@ public class PickingLeitstandController : Controller
                 ReleasedBy = ps?.ReleasedBy,
                 AssignedPickerId = ps?.AssignedPickerId,
                 AssignedPickerName = ps?.AssignedPickerName,
+                StuecklisteKleiner = ps?.StuecklisteKleiner,
                 WorkSteps = grp,
                 SubOrderNumber = o.SubOrderNumber,
                 ParentSubOrderNumber = o.ParentSubOrderNumber,
@@ -195,6 +196,7 @@ public class PickingLeitstandController : Controller
             ?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
         var canPick = await _currentUserService.CanPickAsync();
         var canManagePickingRelease = await _currentUserService.CanManagePickingReleaseAsync();
+        var isAdmin = await _currentUserService.IsAdminAsync(); // v1.99.70: Knoepfe „Fehlende Kommissionieraufträge …“ nur fuer Admins
 
         PickingLeitstandViewModel vm;
 
@@ -269,6 +271,7 @@ public class PickingLeitstandController : Controller
                 BeschichtungAktiv = BeschichtungResolver.Aktiv(beschichtung),
                 CanPick = canPick,
                 CanManagePickingRelease = canManagePickingRelease,
+                IsAdmin = isAdmin,
                 LeitstandAktiv = leitstandAktiv,
                 PickerAssignmentEnabled = pickerAssignmentEnabled,
                 EnaioDmsLinks = groupDmsLinks,
@@ -339,6 +342,7 @@ public class PickingLeitstandController : Controller
             BeschichtungAktiv = BeschichtungResolver.Aktiv(beschichtung),
             CanPick = canPick,
             CanManagePickingRelease = canManagePickingRelease,
+            IsAdmin = isAdmin,
             LeitstandAktiv = leitstandAktiv,
             PickerAssignmentEnabled = pickerAssignmentEnabled,
             EnaioDmsLinks = dmsLinks,
@@ -528,10 +532,11 @@ public class PickingLeitstandController : Controller
     }
 
     /// <summary>v1.88.0 E2: „Fehlende Kommissionieraufträge erzeugen“ – fuer die markierten FAs, ohne Auswahl fuer alle freigegebenen,
-    /// offenen HauptFAs. Dieselbe Funktion wie bei der Freigabe (idempotent).</summary>
+    /// offenen HauptFAs. Dieselbe Funktion wie bei der Freigabe (idempotent). Seit v1.99.70 nur Admin-Notfall: den Nachtrag legt der Dienst
+    /// nachts an (Lauf „Kommissionier-Nachtrag“, Spec 2026-11-25-kommissionierauftraege-nachtrag-nachts F6).</summary>
     [HttpPost]
     [ValidateAntiForgeryToken]
-    [RequireLeitstandAccess]
+    [RequireAdminAccess]
     public async Task<IActionResult> AuftraegeNachziehen(List<int>? ids, string? returnUrl)
     {
         // QA Q4: nur freigegebene, nicht erledigte, nicht stornierte HauptFAs – auch bei Auswahl prueft der Server.
@@ -547,8 +552,8 @@ public class PickingLeitstandController : Controller
         return RedirectToAction(nameof(Index));
     }
 
-    /// <summary>v1.89.0 (Entscheidung Q11): Altbestand eines FA geprueft – Kennzeichen loeschen; Auftraege zieht danach „Fehlende
-    /// Kommissionieraufträge erzeugen“ bzw. die Freigabe nach.</summary>
+    /// <summary>v1.89.0 (Entscheidung Q11): Altbestand eines FA geprueft – Kennzeichen loeschen. v1.99.70 (F7): danach fuer einen
+    /// freigegebenen, offenen FA sofort die fehlenden Auftraege anlegen (wie die Einzelfreigabe); sonst nur das Kennzeichen.</summary>
     [HttpPost]
     [ValidateAntiForgeryToken]
     [RequireLeitstandAccess]
@@ -557,11 +562,25 @@ public class PickingLeitstandController : Controller
         var order = await _productionOrderRepository.GetByIdAsync(id);
         if (order == null) return NotFound();
         var nummern = await _pickingOrderWorkflow.AltbestandGeprueftAsync(id);
-        if (nummern.Count > 0)
-            TempData["SuccessMessage"] = $"FA {order.OrderNumber}: Altbestand geprüft ({string.Join(", ", nummern)}). Fehlende Aufträge jetzt mit " +
-                                         "„Fehlende Kommissionieraufträge erzeugen“ anlegen.";
-        else
+        if (nummern.Count == 0)
+        {
             TempData["WarningMessage"] = $"FA {order.OrderNumber}: kein Auftrag mit „Altbestand prüfen“ – nichts geändert.";
+        }
+        else
+        {
+            var geprueft = $"FA {order.OrderNumber}: Altbestand geprüft ({string.Join(", ", nummern)}).";
+            var ps = await _pickingStatusRepository.GetByProductionOrderIdAsync(id);
+            // Dieselbe Bedingung wie GetReleasedForPickingAsync (Knopf, Nachtlauf).
+            if (ps is { IsReleasedForPicking: true, IsDonePicking: false } && !order.IsDone && !order.IsCancelled)
+            {
+                await AuftraegeMeldenAsync(new[] { (order.OrderNumber, await _pickingOrderWorkflow.ErzeugeOffeneAsync(id)) });
+                TempData["SuccessMessage"] = $"{geprueft} {TempData["SuccessMessage"]}".TrimEnd();
+            }
+            else
+            {
+                TempData["SuccessMessage"] = geprueft + " Der FA ist nicht (mehr) zur Kommissionierung freigegeben – keine Aufträge angelegt.";
+            }
+        }
         if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl)) return Redirect(returnUrl);
         return RedirectToAction(nameof(Index));
     }

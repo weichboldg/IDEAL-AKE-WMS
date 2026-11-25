@@ -41,6 +41,7 @@ public static class SyncLogServices
     public const string LieferverzugMail = "LieferverzugMail"; // Erinnerungs-Mails bei Lieferverzug aus dem Bestell-Cache (v1.99.10)
     public const string BfAuftragCsv = "BfAuftragCsv"; // WiCAM-CSV je freigegebenem BF-Auftrag in den Auftragspool (v1.99.35)
     public const string BfAuftragEmail = "BfAuftragEmail"; // Bestell-Mail je abgeschicktem BF-Auftrag an die Empfaengergruppe (v1.99.35)
+    public const string KommissionierNachtrag = "KommissionierNachtrag"; // Kommissionierauftraege fuer Stuecklisten-Nachtraege nachts (v1.99.70)
     public const string SageFaArbeitsgaenge = "SageFaArbeitsgaenge"; // AG-Positionen in Sage-FAs anlegen (SData FertigungsauftragService, v1.99.38)
 
     // Non-Sync-Aktivitaeten (seit v1.15.1)
@@ -63,7 +64,7 @@ public static class SyncLogServices
         SageLagerbuchung, FaHierarchy, HierarchieUmstellung, FaMaterialization,
         WorkOperationStructureDetection, ProductionWorkplaceSync, OperationConfigSync, SageQuellenvergleich,
         PpsMitarbeiter, Stillstandsgruende, Kreditoren, Debitoren, ArtikelLieferant, LetzteBestellung, EinkaufBestellungen, SageWareneingang,
-        WareneingangCsv, LieferverzugMail, BfAuftragCsv, BfAuftragEmail, SageFaArbeitsgaenge, PartRequisitionEmail, WarehouseRequisitionEmail, BdeAutoPause,
+        WareneingangCsv, LieferverzugMail, BfAuftragCsv, BfAuftragEmail, SageFaArbeitsgaenge, KommissionierNachtrag, PartRequisitionEmail, WarehouseRequisitionEmail, BdeAutoPause,
         CleanupActivityLog, Einstellungspruefung,
     };
 
@@ -106,6 +107,7 @@ public static class SyncLogServices
         [BfAuftragCsv] = "Blechfertigung: WiCAM-CSV",
         [BfAuftragEmail] = "Blechfertigung: Mail",
         [SageFaArbeitsgaenge] = "Sage-FA-Arbeitsgänge",
+        [KommissionierNachtrag] = "Kommissionier-Nachtrag",
         [PartRequisitionEmail] = "Bedarfsmeldungs-E-Mail-Versand",
         [WarehouseRequisitionEmail] = "Lagerbestellungs-E-Mail-Versand",
         [BdeAutoPause] = "BDE-AutoPause",

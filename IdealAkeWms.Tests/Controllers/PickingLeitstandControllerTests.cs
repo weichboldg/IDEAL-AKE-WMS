@@ -520,6 +520,50 @@ public class PickingLeitstandControllerTests
             It.IsAny<string>(), It.IsAny<string>()), Times.Once);
     }
 
+    // ---------- v1.99.70 (Spec 2026-11-25-kommissionierauftraege-nachtrag-nachts F6/F7) ----------
+
+    [Fact]
+    public void AuftraegeNachziehen_NurAdmin()
+    {
+        var m = typeof(PickingLeitstandController).GetMethod(nameof(PickingLeitstandController.AuftraegeNachziehen))!;
+        m.GetCustomAttributes(typeof(IdealAkeWms.Filters.RequireAdminAccessAttribute), false).Should().ContainSingle();
+        m.GetCustomAttributes(typeof(IdealAkeWms.Filters.RequireLeitstandAccessAttribute), false).Should().BeEmpty();
+    }
+
+    private PickingOrder AltbestandAuftrag() => new() { Nummer = "KO-2026-00001", ProductionOrderId = 1, AltbestandPruefen = true,
+        Status = PickingOrderStatus.Abgeschlossen, CreatedBy = "t", CreatedByWindows = "t" };
+
+    [Fact]
+    public async Task AltbestandGeprueft_Freigegeben_LegtFehlendeAuftraegeSofortAn()
+    {
+        _orderRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(MakeOrder(1, "FA-100"));
+        _pickingStatusRepo.Setup(r => r.GetByProductionOrderIdAsync(1)).ReturnsAsync(MakePs(1, released: true));
+        var alt = AltbestandAuftrag();
+        _pickingOrderRepo.Setup(r => r.GetByProductionOrderAsync(1)).ReturnsAsync(new List<PickingOrder> { alt });
+
+        await _controller.AltbestandGeprueft(1, null);
+
+        alt.AltbestandPruefen.Should().BeFalse();
+        _controller.TempData["SuccessMessage"].Should().BeOfType<string>().Which.Should().StartWith("FA FA-100: Altbestand geprüft (KO-2026-00001). ")
+            .And.Contain("angelegt"); // Sammelmeldung des Erzeugens angehaengt
+        // Erzeugen lief (leere Stueckliste im Test → Sammelmeldung „ohne Stückliste“)
+        _controller.TempData["WarningMessage"].Should().BeOfType<string>().Which.Should().Contain("ohne Stückliste");
+        _bomRepo.Verify(b => b.GetBomItemsAsync(It.IsAny<BomKey>(), It.IsAny<BomScope>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task AltbestandGeprueft_NichtFreigegeben_NurKennzeichen()
+    {
+        _orderRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(MakeOrder(1, "FA-100"));
+        _pickingStatusRepo.Setup(r => r.GetByProductionOrderIdAsync(1)).ReturnsAsync(MakePs(1, released: false));
+        _pickingOrderRepo.Setup(r => r.GetByProductionOrderAsync(1)).ReturnsAsync(new List<PickingOrder> { AltbestandAuftrag() });
+
+        await _controller.AltbestandGeprueft(1, null);
+
+        _controller.TempData["SuccessMessage"].Should().BeOfType<string>().Which.Should().Contain("nicht (mehr) zur Kommissionierung freigegeben");
+        _bomRepo.Verify(b => b.GetBomItemsAsync(It.IsAny<BomKey>(), It.IsAny<BomScope>()), Times.Never);
+    }
+
     [Fact]
     public async Task ToggleRelease_ReleaseWithoutPicker_WhenFeatureEnabled_ReturnsWarning()
     {

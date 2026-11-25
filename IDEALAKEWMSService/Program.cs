@@ -91,6 +91,8 @@ try
     builder.Services.AddScoped<LieferverzugMailService>();
     builder.Services.AddScoped<IStockMovementRepository, StockMovementRepository>();
     builder.Services.AddScoped<IProductionOrderPickingStatusRepository, ProductionOrderPickingStatusRepository>();
+    // v1.99.70: Lauf „Kommissionier-Nachtrag“ – Web-PickingOrderWorkflow ueber die gemeinsame Registrierung, DienstBenutzer als ICurrentUserService.
+    KommissionierNachtragService.Registrieren(builder.Services);
     builder.Services.AddScoped<ISageBookingQueueRepository, SageBookingQueueRepository>();
     // Lagerbuchungs-Lookup (Memo): Quellen-Weiche (Sync:Quelle:LagerbuchungLookup, Default View = SQL-Reader unveraendert), v1.73.0 E7.
     IDEALAKEWMSService.Services.Sdata.SdataRegistrierung.AddBuchungLookupQuelle(builder.Services);

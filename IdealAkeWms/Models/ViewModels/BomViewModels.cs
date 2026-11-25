@@ -155,6 +155,8 @@ public class BomViewModel
     public PickingOrder? Auftrag { get; set; }
     /// <summary>v1.88.0: Kommissionierauftraege des FA (nur FA-Stueckliste, als Links).</summary>
     public List<PickingOrder> FaAuftraege { get; set; } = new();
+    /// <summary>v1.99.70 (F8): live berechnete Ueberdeckung (Stueckliste kleiner als offene Kommissionierzeilen); leer = kein Hinweis.</summary>
+    public List<IdealAkeWms.Services.PickingOrderRestmengen.Ueberdeckung> StuecklisteKleiner { get; set; } = new();
 }
 
 public class PrintPickingViewModel

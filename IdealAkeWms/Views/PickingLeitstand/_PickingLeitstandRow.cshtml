@@ -195,6 +195,13 @@
                 </form>
             </div>
         }
+        @* v1.99.70 (F8): Stueckliste kleiner als offene Kommissionierzeilen – gespeicherter Marker, offene Zeilen werden nicht gekuerzt *@
+        @if (!string.IsNullOrEmpty(item.StuecklisteKleiner))
+        {
+            <div class="mt-1">
+                <span class="badge text-bg-warning" title="Stückliste kleiner als offene Kommissionierzeilen: @item.StuecklisteKleiner">⚠ Stückliste kleiner</span>
+            </div>
+        }
     </td>
     @* IDEAL Hierarchie: Elternzeiger-Spalte (defaultHidden, im Flachmodus leer). *@
     <td>@item.ParentSubOrderNumber</td>

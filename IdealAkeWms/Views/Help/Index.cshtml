@@ -1770,7 +1770,12 @@
                     <dt>Kommissionierauftrag</dt>
                     <dd>Beleg mit Nummer <code>KO-JJJJ-NNNNN</code> für einen FA und einen Kommissionierbereich. Der Leitstand legt ihn bei der Freigabe an
                         (ohne Leitstand: beim Öffnen des FA aus der Auswahlliste). Soll = Stücklistenmenge wie in der Stückliste angezeigt.
-                        Stücklistenpositionen, die nach der Freigabe dazukommen, legt der Leitstand-Knopf „Fehlende Kommissionieraufträge erzeugen“ an.</dd>
+                        Stücklistenpositionen und Mengen, die nach der Freigabe dazukommen, legt der Dienst einmal pro Nacht an (Lauf „Kommissionier-Nachtrag“,
+                        Service-Einstellungen <code>Sync:KommissionierNachtragEnabled</code> und <code>Sync:KommissionierNachtragUhrzeit</code>, Default 2 Uhr;
+                        ein verpasster Termin wird nach dem Dienststart nachgeholt). Der Leitstand-Knopf „Fehlende Kommissionieraufträge erzeugen“ ist nur
+                        noch ein Notfall-Werkzeug für Admins. „Altbestand geprüft“ legt die fehlenden Aufträge des FA sofort an. Ist die Stückliste
+                        kleiner geworden als die offenen Kommissionierzeilen, zeigen Leitstand (Badge „⚠ Stückliste kleiner“) und Stückliste einen
+                        Hinweis; offene Zeilen werden nicht gekürzt.</dd>
                     <dt>Abarbeiten</dt>
                     <dd><em>Kommissionierung</em> listet die Aufträge (Filter Bereich, Status, „Nur meine“ bei Anwenderzuweisung). Auf der Auftragsseite
                         Zeilen anhaken, Quell-Lagerplatz und Ist-Menge in der Spalte &bdquo;Menge IST&ldquo; (seit v1.99.58; größer 0, höchstens Soll) prüfen, auf den Wagen oder die Werkbank umbuchen. Danach

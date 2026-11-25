@@ -83,20 +83,28 @@
                 Markierte zurücknehmen
             </button>
         </form>
-        @* v1.88.0: Kommissionierauftraege fuer markierte, freigegebene FAs nachziehen (idempotent) *@
-        <form asp-controller="PickingLeitstand" asp-action="AuftraegeNachziehen" method="post" id="bulkNachziehenForm" class="d-inline ms-2">
+        @* v1.88.0: Kommissionierauftraege fuer markierte, freigegebene FAs nachziehen (idempotent).
+           v1.99.70: nur Admin-Notfall – den Nachtrag legt der Dienst nachts an (Lauf „Kommissionier-Nachtrag“). *@
+        @if (Model.IsAdmin)
+        {
+            <form asp-controller="PickingLeitstand" asp-action="AuftraegeNachziehen" method="post" id="bulkNachziehenForm" class="d-inline ms-2">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="returnUrl" value="@Context.Request.Path@Context.Request.QueryString" />
+                <button type="submit" id="btnBulkNachziehen" class="btn btn-sm btn-outline-primary" disabled>
+                    Fehlende Kommissionieraufträge erzeugen
+                </button>
+            </form>
+        }
+    </div>
+    @if (Model.IsAdmin)
+    {
+        <form asp-controller="PickingLeitstand" asp-action="AuftraegeNachziehen" method="post" class="mb-2">
             @Html.AntiForgeryToken()
             <input type="hidden" name="returnUrl" value="@Context.Request.Path@Context.Request.QueryString" />
-            <button type="submit" id="btnBulkNachziehen" class="btn btn-sm btn-outline-primary" disabled>
-                Fehlende Kommissionieraufträge erzeugen
-            </button>
+            <button type="submit" class="btn btn-sm btn-outline-primary"
+                    title="Notfall: Der Dienst legt fehlende Aufträge jede Nacht selbst an (Lauf „Kommissionier-Nachtrag“).">Fehlende Kommissionieraufträge für alle freigegebenen FAs erzeugen</button>
         </form>
-    </div>
-    <form asp-controller="PickingLeitstand" asp-action="AuftraegeNachziehen" method="post" class="mb-2">
-        @Html.AntiForgeryToken()
-        <input type="hidden" name="returnUrl" value="@Context.Request.Path@Context.Request.QueryString" />
-        <button type="submit" class="btn btn-sm btn-outline-primary">Fehlende Kommissionieraufträge für alle freigegebenen FAs erzeugen</button>
-    </form>
+    }
 }
 
 @* Toolbar-Host (data-table-toolbar, site.js tableToolbarHost): Zahnrad und CSV. Hinweise duerfen davor oder dahinter stehen (v1.65.0). *@

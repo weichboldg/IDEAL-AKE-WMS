@@ -1,6 +1,6 @@
 # 01 – Kommissionierung
 
-Stand: Version 1.99.58 · Standorte AKE und IDEAL · Bilder aus dem AKE-Testsystem (IDEAL-Bild extra gekennzeichnet)
+Stand: Version 1.99.70 (Abschnitt „Weitere Knöpfe“, Hinweise) bzw. 1.99.58 · Standorte AKE und IDEAL · Bilder aus dem AKE-Testsystem (IDEAL-Bild extra gekennzeichnet)
 
 ## Zweck
 
@@ -90,10 +90,18 @@ Jeder FA bekommt eine eigene Priorität (fortlaufend). Die Meldung nennt alle ne
 Weitere Knöpfe in der Leiste:
 
 - **Markierte zurücknehmen** – nimmt die Freigabe der markierten FAs zurück (wie Schritt 9).
-- **Fehlende Kommissionieraufträge erzeugen** – legt für markierte, bereits freigegebene FAs Aufträge für Stücklistenpositionen an,
-  die noch keinen Auftrag haben (z. B. weil die Stückliste nach der Freigabe ergänzt wurde). Doppelte entstehen dabei nicht.
-- Der Knopf **„Fehlende Kommissionieraufträge für alle freigegebenen FAs erzeugen“** über der Tabelle macht dasselbe für alle
-  freigegebenen FAs.
+- **Stücklisten-Nachträge legt der Dienst nachts an** (seit Version 1.99.70): Kommen nach der Freigabe Stücklistenpositionen dazu oder
+  steigt eine Menge, entstehen die fehlenden Kommissionieraufträge einmal pro Nacht automatisch (Standard: ab 2 Uhr). Doppelte entstehen
+  dabei nicht.
+- **Fehlende Kommissionieraufträge erzeugen** und **„Fehlende Kommissionieraufträge für alle freigegebenen FAs erzeugen“** sehen seit
+  Version 1.99.70 **nur noch Administratoren**. Sie machen sofort, was der nächtliche Lauf macht – nur für Notfälle.
+- **Altbestand geprüft** (Knopf in der FA-Zeile bei „Altbestand prüfen“) legt die fehlenden Aufträge des FA sofort an, wenn der FA
+  freigegeben ist.
+- **⚠ Stückliste kleiner** (gelbes Badge in der FA-Zeile): Die Stückliste ist nach der Freigabe kleiner geworden als die offenen
+  Kommissionierzeilen (Position entfallen oder Menge gesenkt). Der Tooltip nennt Artikel, Position, Stücklisten- und beauftragte Menge.
+  Offene Zeilen werden **nicht** automatisch gekürzt – der Leitstand entscheidet (z. B. Auftrag zurücknehmen oder beim Abschluss
+  „Vollständig“). Dieselbe Liste steht oben in der Stückliste des FA. Das Badge verschwindet nach dem nächsten Nachtlauf, wenn nichts
+  mehr übersteht.
 
 ### 3. Kommissionierer: Auftragsliste
 
@@ -258,8 +266,9 @@ Im Leitstand beim FA auf den **grünen Haken** klicken (oder mehrere markieren u
 - Kommissionierwagen erscheinen nicht in der Bestandsspalte der Stückliste und nicht als Quell-Lagerplatz.
 - Ein Wagen, der wieder leer sein soll, wird über **Lager → Lagerplatz umbuchen** (z. B. Wagen → Lager) oder **Lager → Lagerplatz
   ausbuchen** geleert (beides nur für Lager-Keyuser und Administratoren).
-- Wird nach der Freigabe die Stückliste in Sage ergänzt, entstehen die zusätzlichen Zeilen **nicht** automatisch – der Leitstand muss
-  „Fehlende Kommissionieraufträge erzeugen“ klicken.
+- Wird nach der Freigabe die Stückliste in Sage ergänzt, entstehen die zusätzlichen Zeilen seit Version 1.99.70 **in der folgenden
+  Nacht** (Dienst-Lauf „Kommissionier-Nachtrag“) – nicht sofort. Eilt es, kann ein Administrator im Leitstand „Fehlende
+  Kommissionieraufträge erzeugen“ klicken.
 - Ein FA mit dem Häkchen **Glas** im Leitstand bekommt nur dann einen Glas-Auftrag, wenn für die Glasteile eine Zuordnungsregel gepflegt
   ist (siehe Anleitung 02).
 - Zeigt das Bedarfsmeldungs-Fenster „**Keine Empfänger konfiguriert**“, wird die Meldung zwar gespeichert, aber für diese Artikelgruppe ist

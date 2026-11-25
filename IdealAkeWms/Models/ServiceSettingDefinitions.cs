@@ -157,6 +157,10 @@ public static class ServiceSettingDefinitions
         ["Sync:EinkaufBestellungenNachWeMinuten"] = ("Offene Bestellungen nach Sage-Wareneingang neu lesen: Mindestabstand",
             "Dienst: Sage-Buchungs-Worker, Lauf „Sage-Wareneingang“ → Lauf „Offene Bestellungen (Sage)“", "AKE (IDEAL ohne Wirkung, solange Sage-Wareneingang dort aus ist)",
             "Jeder Lauf liest alle offenen Bestellungen aus Sage; in der Zeit wartet die nächste Sage-Lagerbuchung. Schreibt nie nach Sage."),
+        // v1.99.70 (Spec 2026-11-25-kommissionierauftraege-nachtrag-nachts)
+        ["Sync:KommissionierNachtragEnabled"] = ("Kommissionier-Nachtrag nachts", "Dienst: Lauf „Kommissionier-Nachtrag“; Leitstand, Kommissionierung", null,
+            "Legt Kommissionieraufträge an, die danach in der Kommissionierung erscheinen. Nach dem Einschalten bzw. dem ersten Dienststart läuft der Nachtrag einmal sofort."),
+        ["Sync:KommissionierNachtragUhrzeit"] = ("Kommissionier-Nachtrag – Uhrzeit", "Dienst: Lauf „Kommissionier-Nachtrag“", null, null),
         ["Sync:BomCacheEnabled"] = ("Stücklisten-Cache", "Dienst: Lauf „BOM-Cache“; Stückliste", "AKE", null),
         ["Sync:BomCacheWeeks"] = ("Stücklisten-Cache: Wochen voraus", "Dienst: Lauf „BOM-Cache“", "AKE", null),
         ["Sync:BomCacheMaxOrders"] = ("Stücklisten-Cache: max. Aufträge", "Dienst: Lauf „BOM-Cache“", "AKE", null),
@@ -230,6 +234,7 @@ public static class ServiceSettingDefinitions
         ["Lieferverzug:MaxAlterTage"] = (0, 3650, "Tage"),
         ["Lieferverzug:Uhrzeit"] = (0, 23, "Uhr"),
         ["Sync:LetzteBestellungUhrzeitNacht"] = (0, 23, "Uhr"),
+        ["Sync:KommissionierNachtragUhrzeit"] = (0, 23, "Uhr"),
         ["Sync:LetzteBestellungUhrzeitMittag"] = (0, 23, "Uhr"),
         ["Lieferverzug:KreditorWiederholTage"] = (1, 60, "Tage"),
         ["Lieferverzug:KreditorMaxJeLauf"] = (1, 500, ""),
@@ -276,6 +281,8 @@ public static class ServiceSettingDefinitions
         new("Sync:ReconcileMaxCancelPerRun",         SettingType.Int,  "100",   "Sync", "Sicherheits-Cap: mehr Storno-Kandidaten je Lauf -> kein Storno + Fehlermail"),
         new("Sync:FaZusatzinfoEnabled",              SettingType.Bool, "false", "Sync", "FA-Zusatzinfos (Sage): Kaeltemittel/Ventil/Ausfuehrung/Maschine/Status je FA synchronisieren. ACHTUNG: setzt FAs mit Sage-Status verpackt/abgeholt automatisch auf Komm-Erledigt (vorher DryRun pruefen)"),
         new("Sync:FaZusatzinfoAutoDoneMaxPerRun",    SettingType.Int,  "100",   "Sync", "Sicherheits-Cap: mehr Auto-Erledigt-Kandidaten (Sage-Status verpackt/abgeholt) je Lauf -> kein Erledigt-Setzen + Warnung + Fehlermail (Schutz vor View-Defekten)"),
+        new("Sync:KommissionierNachtragEnabled",     SettingType.Bool, "true",  "Sync", "An: Der Dienst legt einmal taeglich fehlende Kommissionierauftraege fuer Stuecklisten-Nachtraege freigegebener, offener HauptFAs an (Lauf 'Kommissionier-Nachtrag', dieselbe Logik wie die Freigabe; offene Zeilen werden nie gekuerzt, eine kleiner gewordene Stueckliste wird nur gemeldet). Aus: kein Nachtrag; nur Admins koennen ihn im Leitstand ausloesen. Im DryRun laeuft er nicht."),
+        new("Sync:KommissionierNachtragUhrzeit",     SettingType.Int,  "2",     "Sync", "Ab dieser Stunde (0-23) laeuft der Kommissionier-Nachtrag einmal pro Tag. Ein verpasster Termin wird nach dem Dienststart einmal nachgeholt."),
         new("Sync:FaZusatzinfoAutoErledigtEnabled",  SettingType.Bool, "true",  "Sync", "Auto-Erledigt (Fold 2): FAs mit Sage-Status verpackt/abgeholt automatisch auf Komm-Erledigt setzen. Default an (AKE-Verhalten). Im hierarchischen IDEAL-Modus NICHT aktivierbar (HauptFA + Sub-FAs teilen die FA-Nummer); der Master-Flip 'ProduktionsauftragHierarchisch' schaltet ihn automatisch ab. Zusaetzlich greift eine datengetriebene Sperre: bei WA-Mehrfachtreffer wird Fold 2 uebersprungen."),
 
         // ----- FA-Hierarchie (IDEAL: mehrstufiger Struktur-/Stuecklisten-Import aus Sage-Views) -----

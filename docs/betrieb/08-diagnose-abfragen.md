@@ -1,6 +1,6 @@
 # 08 – Diagnose-Abfragen (nur lesend)
 
-**Stand:** v1.99.66, 2026-11-25 · **Zielgruppe:** IT-Administratoren (ohne Entwicklerwissen)
+**Stand:** v1.99.70, 2026-11-25 · **Zielgruppe:** IT-Administratoren (ohne Entwicklerwissen)
 
 Sammlung **lesender** SQL-Abfragen für die WMS-Datenbank, gruppiert nach Thema. Jede Abfrage hat Zweck, erwartetes Ergebnis und Quelle.
 Die Abfragen stammen aus dem Update-Manifest (`scripts/deploy/nachlauf.psd1`), aus `docs/TESTSZENARIEN.md` und aus den Testberichten;
@@ -410,7 +410,8 @@ ORDER BY ps.ReleasedAt;
 ```
 
 - **Zweck:** FAs, die durch den Deadlock-Fehler vor v1.99.23 (N-2) oder einen Stücklisten-Lesefehler (N-3) ohne Auftrag freigegeben sind.
-- **Erwartet:** leer. Treffer: im Leitstand „Fehlende Kommissionieraufträge … erzeugen“.
+- **Erwartet:** leer. Treffer: seit v1.99.70 holt der nächtliche Dienst-Lauf „Kommissionier-Nachtrag“ sie nach (A-6.5); sofort nur ein
+  Admin im Leitstand mit „Fehlende Kommissionieraufträge … erzeugen“.
 - **Quelle:** abgeleitet aus `docs/TESTSZENARIEN.md` TS-138.3 („kein freigegebener Test-FA ohne Kommissionierauftrag“); HauptFA-Bedingung aus
   `scripts/deploy/nachlauf.psd1:243-246`; Status `IdealAkeWms/Models/PickingOrder.cs:10-17`; [[01-kommissionierung]] N-2/N-3.
   **zu prüfen:** ob ein freigegebener FA ohne kommissionierbare Positionen legitim keinen Auftrag hat.
@@ -447,6 +448,29 @@ ORDER BY o.PickingPriority;
 - **Erwartet:** nur Altbestand von vor v1.99.17 oder bewusst gleiche Prio (erlaubt). Korrektur im Leitstand.
 - **Quelle:** Prüfabfragen 1 und 3 aus [[2026-11-13-doppelte-kommissionier-prio-nach-ruecknahme-spec]]; Manifest `scripts/deploy/nachlauf.psd1:243-246`;
   Spalten `SQL/00_FreshInstall.sql:428-435`.
+
+### A-6.5 Kommissionier-Nachtrag (nachts) und Marker „Stückliste kleiner“ (seit v1.99.70)
+
+```sql
+-- 1) Letzte Laeufe "Kommissionier-Nachtrag" mit Warnungen (je FA eine Zeile, Referenz = FA-Nummer)
+SELECT TOP 50 [Timestamp], Level, Message, Reference
+FROM dbo.SyncLogs
+WHERE Service = N'KommissionierNachtrag'
+ORDER BY Id DESC;
+
+-- 2) FAs mit Marker "Stueckliste kleiner als offene Kommissionierzeilen" (Leitstand-Badge)
+SELECT po.OrderNumber, ps.StuecklisteKleiner, ps.ModifiedAt, ps.ModifiedBy
+FROM dbo.ProductionOrderPickingStatus ps
+JOIN dbo.ProductionOrders po ON po.Id = ps.ProductionOrderId
+WHERE ps.StuecklisteKleiner IS NOT NULL
+ORDER BY po.OrderNumber;
+```
+
+- **Zweck:** Lief der Nachtrag (Startzeile „Run gestartet“, Endzeile mit Zählern `fa_geprueft`, `auftraege_angelegt`, `fehler`,
+  `altbestand_pruefen`, `stueckliste_kleiner`)? Welche FAs tragen den Marker?
+- **Erwartet:** je Tag ein Lauf ab `Sync:KommissionierNachtragUhrzeit` (Default 2); `fehler` = 0. Den Marker schreibt nur der Lauf bzw.
+  jedes Erzeugen (Freigabe, Admin-Knopf, „Altbestand geprüft“); `ModifiedBy` = `KommissionierNachtrag` beim Nachtlauf.
+- **Quelle:** `IDEALAKEWMSService/Services/KommissionierNachtragService.cs`; Spalte SQL/168; TS-191.
 
 ---
 

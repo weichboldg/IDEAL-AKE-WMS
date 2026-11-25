@@ -8,6 +8,28 @@
     <div class="col-lg-8">
         <div class="card mb-3">
             <div class="card-header text-white" style="background-color: var(--ake-primary);">
+                <strong>v1.99.70</strong> <span class="text-white-50 ms-2">25.11.2026</span>
+            </div>
+            <div class="card-body">
+                <h6>Neue Funktionen</h6>
+                <ul>
+                    <li>Kommissionierung: Stücklisten-Nachträge nach der Freigabe (neue Positionen, höhere Mengen) legt der Dienst jetzt einmal pro
+                        Nacht als Kommissionieraufträge an (Lauf &bdquo;Kommissionier-Nachtrag&ldquo;, Service-Einstellungen
+                        <code>Sync:KommissionierNachtragEnabled</code> und <code>Sync:KommissionierNachtragUhrzeit</code>, Default 2&nbsp;Uhr).</li>
+                    <li>Leitstand: &bdquo;Altbestand geprüft&ldquo; legt die fehlenden Aufträge des FA sofort an.</li>
+                    <li>Ist die Stückliste kleiner geworden als die offenen Kommissionierzeilen, zeigt der Leitstand das Badge
+                        &bdquo;&#9888; Stückliste kleiner&ldquo; und die Stückliste einen Hinweis mit Artikel, Position, Stückliste und beauftragter
+                        Menge. Offene Zeilen werden nicht gekürzt.</li>
+                </ul>
+                <h6>Änderungen</h6>
+                <ul>
+                    <li>Leitstand: Die Knöpfe &bdquo;Fehlende Kommissionieraufträge erzeugen&ldquo; sehen nur noch Admins (Notfall-Werkzeug).</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header text-white" style="background-color: var(--ake-primary);">
                 <strong>v1.99.69</strong> <span class="text-white-50 ms-2">25.11.2026</span>
             </div>
             <div class="card-body">

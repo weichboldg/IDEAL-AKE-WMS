@@ -45,4 +45,10 @@ public class ProductionOrderPickingStatus : AuditableEntity
 
     /// <summary>Neu in v1.11.0 — Picking-spezifischer Done-Marker, ergaenzt FA-Master-IsDone.</summary>
     public bool IsDonePicking { get; set; }
+
+    /// <summary>v1.99.70 (Spec 2026-11-25-kommissionierauftraege-nachtrag-nachts F8): Marker „Stückliste kleiner als offene
+    /// Kommissionierzeilen“ (Text der Schluessel, <see cref="Services.PickingOrderRestmengen.Text"/>), null = keine Ueberdeckung. Einziger
+    /// Schreiber: <see cref="Services.PickingOrderWorkflow.ErzeugeOffeneAsync"/>; Leser: Leitstand-Badge.</summary>
+    [MaxLength(1000)]
+    public string? StuecklisteKleiner { get; set; }
 }

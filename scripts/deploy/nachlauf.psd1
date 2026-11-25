@@ -124,6 +124,8 @@ Eintraege = @(
    Datei='166_AddStockMovementWarehouseRequisitionItem.sql'; MigrationId='20261123124036_AddStockMovementWarehouseRequisitionItem'; Voraussetzung='additiv: StockMovements.WarehouseRequisitionItemId (NULL, FK NO ACTION, Index), kein Backfill'; Quelle='2026-11-23-v1-99-53-lagerbestellung-verbrauchsbuchung' }
 @{ Id='SQL/167'; Version='1.99.68'; Typ='Schema'; Firma='beide'; Phase='Schema'; Ausfuehrung='automatisch'
    Datei='167_AddStockMovementAbteilung.sql'; MigrationId='20261125134408_AddStockMovementAbteilung'; Voraussetzung='additiv: StockMovements.Abteilung NVARCHAR(200) NULL (Lagerbewegungen: Spalte Abteilung bei Ausbuchung, geht als Referenz an Sage), kein Backfill'; Quelle='2026-11-25-v1-99-68-sage-buchung-referenz-benutzer-abteilung' }
+@{ Id='SQL/168'; Version='1.99.70'; Typ='Schema'; Firma='beide'; Phase='Schema'; Ausfuehrung='automatisch'
+   Datei='168_AddPickingStatusStuecklisteKleiner.sql'; MigrationId='20261125161741_AddPickingStatusStuecklisteKleiner'; Voraussetzung='additiv: ProductionOrderPickingStatus.StuecklisteKleiner NVARCHAR(1000) NULL (Marker Stueckliste kleiner als offene Kommissionierzeilen, Leitstand-Badge), kein Backfill'; Quelle='2026-11-25-v1-99-70-kommissionierauftraege-nachtrag-nachts' }
 
 # ---------------------------------------------------------------- Pruefungen (jeder Lauf; Reparatur nur nach Bestaetigung) -------
 # v1.99.28 (ADR 0027): admin zaehlt nicht - der Web-Start stellt admin ohne Kennwort auf das Standard-Erstkennwort mit Pflichtwechsel um.
@@ -614,5 +616,11 @@ WHERE NOT EXISTS (SELECT 1 FROM dbo.Roles r WHERE r.[Key] = v.k);'
 @{ Id='v1.99.68-SageReferenzInfo'; Version='1.99.68'; Typ='Info'; Firma='beide'; Phase='Nachher'; Ausfuehrung='anzeigen'
    Text='Sage-Lagerbuchungen tragen ab jetzt im Feld Referenz Kennung, Abteilung und WMS-Benutzer (auf 31 Zeichen gekuerzt) und im Zeilen-Memo den vollen Text WMS: Kennung Benutzer [Abteilung:...]; Sage-Wareneingaenge tragen den vollen Text im Kopf-Memo. Bei Ausbuchung und Lagerplatz ausbuchen kann eine Abteilung (Werkbank) gewaehlt werden. Lager informieren.'
    Quelle='2026-11-25-v1-99-68-sage-buchung-referenz-benutzer-abteilung' }
+@{ Id='v1.99.70-KommNachtrag-Lauf'; Version='1.99.70'; Typ='Einstellung'; Firma='beide'; Phase='Nachher'; Ausfuehrung='anzeigen'
+   Text='Neuer Dienst-Lauf "Kommissionier-Nachtrag": Sync:KommissionierNachtragEnabled (Default true), Sync:KommissionierNachtragUhrzeit (Default 2). Der erste Dienststart holt den Lauf einmal sofort nach - danach Aktivitaetsprotokoll "Kommissionier-Nachtrag" pruefen (Zaehler fehler/altbestand_pruefen).'
+   Quelle='2026-11-25-v1-99-70-kommissionierauftraege-nachtrag-nachts' }
+@{ Id='v1.99.70-KommNachtrag-Knopf'; Version='1.99.70'; Typ='Info'; Firma='beide'; Phase='Nachher'; Ausfuehrung='anzeigen'
+   Text='Leitstand: Knoepfe "Fehlende Kommissionierauftraege ... erzeugen" nur noch fuer Admins; Nachtraege legt der Dienst nachts an; "Altbestand geprueft" legt die Auftraege sofort an; neues Badge "Stueckliste kleiner" (offene Zeilen werden nicht gekuerzt). Leitstand-Benutzer informieren.'
+   Quelle='2026-11-25-v1-99-70-kommissionierauftraege-nachtrag-nachts' }
 )
 }

@@ -16,6 +16,10 @@ public sealed class PickingOrderErzeugung
     public string? Fehler { get; set; }
     /// <summary>v1.89.0 (Q11): FA uebersprungen, weil ein Altbestand-Auftrag noch „Altbestand pruefen“ traegt.</summary>
     public bool AltbestandPruefen { get; set; }
+    /// <summary>v1.99.70: Zahl der angelegten Zeilen (Zaehler „zeilen_angelegt“ des Nachtlaufs).</summary>
+    public int ZeilenAngelegt { get; set; }
+    /// <summary>v1.99.70 (F8): Schluessel, deren offene Kommissionierzeilen ueber dem aktuellen Stuecklisten-Soll liegen.</summary>
+    public List<PickingOrderRestmengen.Ueberdeckung> Ueberdeckt { get; set; } = new();
 }
 
 /// <summary>
@@ -64,7 +68,7 @@ public class PickingOrderWorkflow
         if ((await _repo.GetByProductionOrderAsync(productionOrderId)).Any(o => o.AltbestandPruefen))
         {
             r.AltbestandPruefen = true;
-            r.Meldungen.Add($"FA {order.OrderNumber}: Altbestand prüfen – im Leitstand „Altbestand geprüft“ bestätigen, dann Aufträge nachziehen.");
+            r.Meldungen.Add($"FA {order.OrderNumber}: Altbestand prüfen – im Leitstand „Altbestand geprüft“ bestätigen; danach werden die fehlenden Aufträge sofort angelegt.");
             return r;
         }
 
@@ -76,15 +80,7 @@ public class PickingOrderWorkflow
             return r;
         }
 
-        var hierarchisch = bom.DataSource == BomDataSources.FaHierarchie;
-        var baugruppen = bom.Items.Where(b => !string.IsNullOrEmpty(b.Baugruppe)).Select(b => b.Baugruppe!).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        var soll = bom.Items
-            .Where(b => !string.IsNullOrWhiteSpace(b.Ressourcenummer))
-            .Where(b => !hierarchisch || KommissionierRelevanzFilter.IsRelevant((b as FaHierarchyBomItem)?.Kommissionieren))
-            .Select(b => new PickingOrderRestmengen.Soll(b.Ressourcenummer!.Trim(), b.Position, BomQuantityResolver.Resolve(bom, b, order),
-                b is FaHierarchyBomItem fh ? fh.IsBaugruppe : baugruppen.Contains(b.Ressourcenummer!),
-                (b as FaHierarchyBomItem)?.Kommissionieren))
-            .ToList();
+        var soll = SollListe(bom, order);
 
         var bereiche = await _areas.GetAllAsync();
         var standard = bereiche.FirstOrDefault(a => a.IsDefault && a.IsActive);
@@ -100,7 +96,9 @@ public class PickingOrderWorkflow
         var (ok, ergebnis) = await Nummernkreis.MitVersuchenAsync(MaxNummerVersuche, () => _repo.InSerializableTransactionAsync(async () =>
         {
             var lauf = new PickingOrderErzeugung();
-            var reste = PickingOrderRestmengen.Berechne(soll, await _repo.GetAktiveZeilenAsync(productionOrderId));
+            var aktive = await _repo.GetAktiveZeilenAsync(productionOrderId);
+            lauf.Ueberdeckt = PickingOrderRestmengen.Ueberdeckt(soll, aktive); // F8: vor dem fruehen Return, sonst fehlte die Warnung
+            var reste = PickingOrderRestmengen.Berechne(soll, aktive);
             if (reste.Count == 0) { lauf.OhneRest = true; return lauf; }
 
             var jeBereich = new Dictionary<PickingArea, List<PickingOrderRestmengen.Rest>>();
@@ -133,6 +131,7 @@ public class PickingOrderWorkflow
                 };
                 _repo.Add(po);
                 lauf.Nummern.Add(po.Nummer);
+                lauf.ZeilenAngelegt += po.Zeilen.Count;
             }
             await _repo.SaveChangesAsync();
             return lauf;
@@ -141,13 +140,37 @@ public class PickingOrderWorkflow
         if (!ok)
         {
             r.Fehler = $"FA {order.OrderNumber}: Konnte nach {MaxNummerVersuche} Versuchen keine freie Auftragsnummer vergeben (gleichzeitige " +
-                       "Freigabe oder Datenbankfehler, Details im Log) – bitte „Fehlende Kommissionieraufträge erzeugen“ erneut ausführen.";
+                       "Freigabe oder Datenbankfehler, Details im Log) – der nächtliche Lauf versucht es erneut; sofort: Admin im Leitstand " +
+                       "„Fehlende Kommissionieraufträge erzeugen“.";
             return r;
         }
         r.Nummern.AddRange(ergebnis!.Nummern);
         r.Meldungen.AddRange(ergebnis.Meldungen);
         r.OhneRest = ergebnis.OhneRest;
+        r.ZeilenAngelegt = ergebnis.ZeilenAngelegt;
+        r.Ueberdeckt = ergebnis.Ueberdeckt;
+        var ueberdecktText = PickingOrderRestmengen.Text(r.Ueberdeckt);
+        if (ueberdecktText != null)
+            r.Meldungen.Add($"FA {order.OrderNumber}: Stückliste kleiner als offene Kommissionierzeilen – {ueberdecktText}");
+        // F8: Leitstand-Marker nur bei Aenderung schreiben (Audit-Felder wechseln sonst jede Nacht); fruehe Returns oben lassen ihn stehen.
+        if (ps != null && ps.StuecklisteKleiner != ueberdecktText)
+            await _status.SetStuecklisteKleinerAsync(productionOrderId, ueberdecktText, _user.GetDisplayName(), _user.GetWindowsUserName());
         return r;
+    }
+
+    /// <summary>v1.99.70: Soll je Stuecklistenposition (AKE alle, IDEAL nur <see cref="KommissionierRelevanzFilter.IsRelevant"/>) – eine Stelle
+    /// fuer Erzeugen (<see cref="ErzeugeOffeneAsync"/>) und den Stuecklisten-Hinweis „Stückliste kleiner“.</summary>
+    public static List<PickingOrderRestmengen.Soll> SollListe(BomQueryResult bom, ProductionOrder order)
+    {
+        var hierarchisch = bom.DataSource == BomDataSources.FaHierarchie;
+        var baugruppen = bom.Items.Where(b => !string.IsNullOrEmpty(b.Baugruppe)).Select(b => b.Baugruppe!).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        return bom.Items
+            .Where(b => !string.IsNullOrWhiteSpace(b.Ressourcenummer))
+            .Where(b => !hierarchisch || KommissionierRelevanzFilter.IsRelevant((b as FaHierarchyBomItem)?.Kommissionieren))
+            .Select(b => new PickingOrderRestmengen.Soll(b.Ressourcenummer!.Trim(), b.Position, BomQuantityResolver.Resolve(bom, b, order),
+                b is FaHierarchyBomItem fh ? fh.IsBaugruppe : baugruppen.Contains(b.Ressourcenummer!),
+                (b as FaHierarchyBomItem)?.Kommissionieren))
+            .ToList();
     }
 
     /// <summary>
@@ -280,7 +303,7 @@ public class PickingOrderWorkflow
         DurchschreibenAsync(productionOrderId, a => { a.AssignedPickerId = pickerId; a.AssignedPickerName = pickerName; });
 
     /// <summary>v1.89.0 (Q11): Leitstand bestaetigt „Altbestand geprueft“ – Kennzeichen an allen Auftraegen des FA loeschen; Rueckgabe =
-    /// Nummern. Danach erzeugt <see cref="ErzeugeOffeneAsync"/> fehlende Auftraege wie gewohnt.</summary>
+    /// Nummern. Danach ruft der Leitstand fuer freigegebene FAs sofort <see cref="ErzeugeOffeneAsync"/> (v1.99.70, F7).</summary>
     public async Task<List<string>> AltbestandGeprueftAsync(int productionOrderId)
     {
         var now = Jetzt();

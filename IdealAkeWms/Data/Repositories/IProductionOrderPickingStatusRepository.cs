@@ -20,6 +20,8 @@ public interface IProductionOrderPickingStatusRepository
     Task<bool> SetReleaseAsync(int productionOrderId, bool released, int? priority, string? releasedBy, string modifiedBy, string modifiedByWindows);
     Task SetAssignedPickerAsync(int productionOrderId, int? pickerId, string? pickerName, string modifiedBy, string modifiedByWindows);
     Task SetPickingStatusTextAsync(int productionOrderId, string? statusText, string modifiedBy, string modifiedByWindows);
+    /// <summary>v1.99.70 (F8): Marker „Stückliste kleiner“ setzen/loeschen (mit Audit-Feldern); nur aus PickingOrderWorkflow.</summary>
+    Task SetStuecklisteKleinerAsync(int productionOrderId, string? text, string modifiedBy, string modifiedByWindows);
     Task SetIsDonePickingAsync(int productionOrderId, bool value, string modifiedBy, string modifiedByWindows);
     Task SetPriorityAsync(int productionOrderId, int? priority, string modifiedBy, string modifiedByWindows);
     /// <summary>Setzt HasCoatingParts je Auftrag (nur bestehende Zeilen); bei Wechsel auf false auch IsCoatingDone zurueck.

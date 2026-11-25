@@ -543,6 +543,18 @@ public class SyncWorker : BackgroundService
                 }
 
                 // ---------------------------------------------------------------
+                // v1.99.70 (Spec 2026-11-25-kommissionierauftraege-nachtrag-nachts): Kommissionier-Nachtrag NACH FA-Import, BOM-Cache,
+                // FA-Hierarchie und Materialisierung (frischeste Stueckliste). Schalter, DryRun und Faelligkeit (einmal taeglich ab
+                // Sync:KommissionierNachtragUhrzeit, verpasster Termin einmal nachgeholt) prueft der Lauf selbst.
+                // ---------------------------------------------------------------
+                await RunResilientAsync("Kommissionier-Nachtrag", async () =>
+                {
+                    using var knScope = _scopeFactory.CreateScope();
+                    var knSvc = knScope.ServiceProvider.GetRequiredService<KommissionierNachtragService>();
+                    await knSvc.RunWennFaelligAsync(dryRun, DateTime.Now, stoppingToken);
+                }, stoppingToken);
+
+                // ---------------------------------------------------------------
                 // Lagerbestand-Sync (Sage Bestand-Korrektur)
                 // ---------------------------------------------------------------
                 if (await ShouldRunLagerbestandAsync(stoppingToken))

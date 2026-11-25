@@ -134,6 +134,20 @@ public class ProductionOrderPickingStatusRepository : IProductionOrderPickingSta
         await _context.SaveChangesAsync();
     }
 
+    public async Task SetStuecklisteKleinerAsync(int productionOrderId, string? text,
+        string modifiedBy, string modifiedByWindows)
+    {
+        var row = await _context.ProductionOrderPickingStatuses
+            .FirstOrDefaultAsync(s => s.ProductionOrderId == productionOrderId)
+            ?? throw new InvalidOperationException($"PickingStatus row missing for FA {productionOrderId}.");
+
+        row.StuecklisteKleiner = text;
+        row.ModifiedAt = DateTime.Now;
+        row.ModifiedBy = modifiedBy;
+        row.ModifiedByWindows = modifiedByWindows;
+        await _context.SaveChangesAsync();
+    }
+
     public async Task SetPriorityAsync(int productionOrderId, int? priority,
         string modifiedBy, string modifiedByWindows)
     {

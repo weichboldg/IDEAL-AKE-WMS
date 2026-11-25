@@ -63,7 +63,7 @@ else if (Model.BackController == "Picking")
         <div class="card-body py-2">
             @if (Model.FaAuftraege.Count == 0)
             {
-                <span class="text-body-secondary">Noch keine Kommissionieraufträge – der Leitstand legt sie bei der Freigabe an („Fehlende Kommissionieraufträge erzeugen“).</span>
+                <span class="text-body-secondary">Noch keine Kommissionieraufträge – der Leitstand legt sie bei der Freigabe an; Stücklisten-Nachträge legt der Dienst nachts an.</span>
             }
             else
             {
@@ -78,6 +78,21 @@ else if (Model.BackController == "Picking")
                 </ul>
             }
         </div>
+    </div>
+}
+
+@* v1.99.70 (F8): live aus Stueckliste und Kommissionierzeilen berechnet; nichts wird automatisch gekuerzt *@
+@if (Model.StuecklisteKleiner.Count > 0)
+{
+    <div class="alert alert-warning mb-3" role="alert">
+        <strong>⚠ Stückliste kleiner als offene Kommissionierzeilen</strong>
+        <ul class="mb-1 mt-1">
+            @foreach (var u in Model.StuecklisteKleiner)
+            {
+                <li>@u.ArticleNumber Pos @u.BomPosition: Stückliste @u.Soll.ToString("0.###"), beauftragt @u.Beauftragt.ToString("0.###")</li>
+            }
+        </ul>
+        <span class="small">Offene Zeilen werden nicht automatisch gekürzt – bitte im Leitstand entscheiden.</span>
     </div>
 }
 

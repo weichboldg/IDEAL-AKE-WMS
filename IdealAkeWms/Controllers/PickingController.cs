@@ -417,6 +417,9 @@ public class PickingController : Controller
             BackText = "Zurück zur Kommissionierung",
             Auftrag = auftrag,
             FaAuftraege = auftrag == null ? await _pickingOrderRepository.GetByProductionOrderAsync(id) : new List<PickingOrder>(),
+            // v1.99.70 (F8): gegen die UNGEFILTERTE Stueckliste (vor Auftrags-/Textfilter), dieselbe Regel wie der Nachtlauf
+            StuecklisteKleiner = PickingOrderRestmengen.Ueberdeckt(PickingOrderWorkflow.SollListe(bomResult, order),
+                await _pickingOrderRepository.GetAktiveZeilenAsync(id) ?? new List<PickingOrderLine>()),
         };
 
         // Bedarfsmeldungen: Feature-Toggle + offene Meldungen laden

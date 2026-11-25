@@ -445,6 +445,7 @@ BEGIN
         [HasCoatingParts]       BIT               NOT NULL CONSTRAINT DF_ProductionOrderPickingStatus_HasCoatingParts DEFAULT 0,
         [IsCoatingDone]         BIT               NOT NULL CONSTRAINT DF_ProductionOrderPickingStatus_IsCoatingDone DEFAULT 0,
         [IsDonePicking]         BIT               NOT NULL CONSTRAINT DF_ProductionOrderPickingStatus_IsDonePicking DEFAULT 0,
+        [StuecklisteKleiner]    NVARCHAR(1000)    NULL,  -- v1.99.70 SQL/168 Marker „Stueckliste kleiner“ (Leitstand-Badge)
         [CreatedAt]             DATETIME2         NOT NULL DEFAULT GETDATE(),
         [CreatedBy]             NVARCHAR(200)     NOT NULL,
         [CreatedByWindows]      NVARCHAR(200)     NOT NULL,
@@ -3552,6 +3553,9 @@ IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] =
 IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20261125134408_AddStockMovementAbteilung')
    AND COL_LENGTH(N'dbo.StockMovements', N'Abteilung') IS NOT NULL -- sonst steht SQL/167 noch aus
     INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20261125134408_AddStockMovementAbteilung', '10.0.2');
+IF NOT EXISTS (SELECT * FROM [dbo].[__EFMigrationsHistory] WHERE [MigrationId] = '20261125161741_AddPickingStatusStuecklisteKleiner')
+   AND COL_LENGTH(N'dbo.ProductionOrderPickingStatus', N'StuecklisteKleiner') IS NOT NULL -- sonst steht SQL/168 noch aus
+    INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ('20261125161741_AddPickingStatusStuecklisteKleiner', '10.0.2');
 GO
 
 PRINT 'EF Migrations History initialisiert.';

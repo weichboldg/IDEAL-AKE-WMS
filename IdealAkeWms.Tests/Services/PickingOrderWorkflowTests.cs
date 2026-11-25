@@ -175,6 +175,57 @@ public class PickingOrderWorkflowTests
         db.PickingOrderLines.Single(z => z.PickingOrder.Nummer == "KO-2026-00002").SollMenge.Should().Be(3m);
     }
 
+    // ---------- v1.99.70 F8: Marker „Stückliste kleiner“ ----------
+
+    [Fact]
+    public async Task StuecklisteKleiner_MarkerGesetzt_UnveraendertKeinUpdate_DanachGeloescht()
+    {
+        Pos("A1", "10", 3m);
+        var (w, db) = await SetupAsync(faMenge: 1m);
+        (await w.ErzeugeOffeneAsync(10)).Ueberdeckt.Should().BeEmpty();
+        db.ProductionOrderPickingStatuses.Single().StuecklisteKleiner.Should().BeNull();
+
+        _stueckliste.Clear();
+        Pos("A1", "10", 1m); // Stueckliste nach der Freigabe gesenkt
+        var r = await w.ErzeugeOffeneAsync(10);
+        r.Nummern.Should().BeEmpty();
+        r.Meldungen.Should().ContainSingle(m => m == "FA FA10: Stückliste kleiner als offene Kommissionierzeilen – A1 Pos 10: Stückliste 1, beauftragt 3");
+        var ps = db.ProductionOrderPickingStatuses.Single();
+        (ps.StuecklisteKleiner, ps.ModifiedBy).Should().Be(("A1 Pos 10: Stückliste 1, beauftragt 3", "Leitstand"));
+        db.PickingOrderLines.Single().SollMenge.Should().Be(3m); // nie gekuerzt (Antwort 2)
+
+        ps.ModifiedAt = new DateTime(2000, 1, 1);
+        await db.SaveChangesAsync();
+        await w.ErzeugeOffeneAsync(10); // gleicher Text → kein Update
+        db.ProductionOrderPickingStatuses.Single().ModifiedAt.Should().Be(new DateTime(2000, 1, 1));
+
+        Pos("A1", "10", 2m); // Soll wieder 3
+        (await w.ErzeugeOffeneAsync(10)).Ueberdeckt.Should().BeEmpty();
+        db.ProductionOrderPickingStatuses.Single().StuecklisteKleiner.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task StuecklisteKleiner_AltbestandOderOhneStueckliste_MarkerBleibtStehen()
+    {
+        Pos("A1", "10", 1m);
+        var (w, db) = await SetupAsync(faMenge: 1m);
+        db.ProductionOrderPickingStatuses.Single().StuecklisteKleiner = "alt";
+        await db.SaveChangesAsync();
+        _stueckliste.Clear();
+        (await w.ErzeugeOffeneAsync(10)).OhneStueckliste.Should().BeTrue();
+        db.ProductionOrderPickingStatuses.Single().StuecklisteKleiner.Should().Be("alt");
+    }
+
+    [Fact]
+    public async Task ZeilenAngelegt_Gezaehlt()
+    {
+        Pos("A1", "10", 1m);
+        Pos("A1", "20", 1m);
+        Pos("G1", "30", 1m);
+        var (w, _) = await SetupAsync(faMenge: 1m);
+        (await w.ErzeugeOffeneAsync(10)).ZeilenAngelegt.Should().Be(3);
+    }
+
     // ---------- E3: Abschluss (AK 13, 14) ----------
 
     private static void Umgebucht(PickingOrderLine z, decimal ist)
