@@ -475,6 +475,9 @@ Quellen-Weiche je Abgleich: [[0019-quellen-weiche-view-sdata-je-abgleich]]. Ordn
   `IdealAkeWms/Services/BdeFaAngebot.cs` (scoped, kein Interface): `LadenAsync` = Kern der Terminal-API `available-operations`,
   `FaSichtAsync` = FA-Tabelle (eigene laufende als `LaeuftBeiMir`, AG-Status aller AG mit `Markiert`), `Spalten` = ColumnMap,
   Typ-Register `ColumnFilterTypes.For("BdeTeileliste/Fa")`.
+- v1.99.78 (Etappe 5): `IdealAkeWms/Services/BdeTageshistorie.cs` (statisch) – Tageshistorie eines Werkers: Buchungen (nicht storniert, Start am Tag,
+  alle Werkbänke) + alle Teilmeldungen des Tages (Typ nach `IstAbschliessend`, FA und Lagerbestellung); an einer Meldung verknüpfte Buchung
+  (`BdeBookingId`) ausgeblendet. `Spalten` = Texte für View und Server-Spaltenfilter. Leser: `BdeTeilelisteController.Tageshistorie`.
 - v1.99.77 (FA-Sicht, Etappe 4b): `IdealAkeWms/Services/BdeKopfBuchungen.cs` (statisch) – laufende/pausierte Buchungen eines Werkers an EINEM
   Ort für Terminal-JSON (`ActiveBookings`/`PausedBookings`) und Kopf der FA-Sicht (`BdeFaAngebot.KopfBuchungenAsync`). Dialoge
   `Views/Shared/_BdeDialoge.cshtml`, Client `wwwroot/js/bde-fa-sicht.js` (bucht über `/BdeTerminal/*`). `BdeApiController.ResolveScan`

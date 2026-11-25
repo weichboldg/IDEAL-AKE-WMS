@@ -67,7 +67,8 @@ diese Asymmetrien sind meist bewusst.
 | Meine Fehlteile | Werkbank-Sicht (`/MissingParts`, Default nur eigene Werkbaenke). Gegenstueck: „Lager: Fehlteile" (`/MissingPartsLager`). |
 | Eingehende Listen | Lager-Worklist der eingegangenen Bestellungen (`/WarehousePicking`). |
 | BDE | Betriebsdatenerfassung — Zeit- und Mengenerfassung am Terminal. Gate `BdeAktiv`. |
-| BDE-Terminal | Scan-Oberflaeche fuer Operatoren (`/BdeTerminal`). |
+| BDE-Terminal | Scan-Oberflaeche fuer Operatoren (`/BdeTerminal`). Seit v1.99.78 nur noch Einstieg: leitet auf die BDE-Seite (`/BdeTeileliste`); Terminal = Zuordnung WMS-Benutzer → Default-Werkbank. |
+| Tageshistorie (BDE) | Seit v1.99.78 eigene Seite `/BdeTeileliste/Tageshistorie`: Buchungen des Werkers von heute plus alle Teilmeldungen des Tages (`BdeTageshistorie`). |
 | BDE-Cockpit | Schichtleiter-Uebersicht der laufenden Buchungen (`WHERE EndedAt IS NULL`). |
 | Operator | BDE-Mitarbeiter (`BdeOperator`) — nicht identisch mit dem App-Benutzer. |
 | Paused | BDE-Buchungszustand mit **gesetztem** `EndedAt`; die Fortsetzung ist eine neue Buchung mit `ParentBookingId`. |

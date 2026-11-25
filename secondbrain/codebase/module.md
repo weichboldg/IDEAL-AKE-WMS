@@ -36,7 +36,7 @@ Fallstrick „Service referenziert das Web-Projekt" in [[fallstricke]].
 | `Middleware/` | `WindowsAutoLoginMiddleware`, `IChallengeIssuer` → [[0002-dual-auth-session-login-plus-windows-sso]] |
 | `Migrations/` | EF-Migrationen (SQL-Nummernkreis aktuell bis 81) → [[0004-migrations-und-sql-disziplin]] |
 | `Views/` | 36 Feature-Ordner + `Shared/` (Partials `_Pagination` — Seite hinter der letzten leitet der globale `Filters/PaginationSeiteKlemmenFilter` um, v1.99.39 —, `_EnaioDmsBadges`, `_FaWorkStepStatusSelect`, `_ArtikelinfoTile`) |
-| `wwwroot/js/` | `table-filter.js`, `column-preferences.js`, `barcode-scanner.js`, `bde-terminal.js`, `bde-cockpit.js`, `fa-work-step-status.js`, `oseon-tracking-lazy.js`, `photo-upload.js`, `site.js` |
+| `wwwroot/js/` | `table-filter.js`, `column-preferences.js`, `barcode-scanner.js`, `bde-cockpit.js` (`bde-terminal.js` seit v1.99.78 gelöscht), `fa-work-step-status.js`, `oseon-tracking-lazy.js`, `photo-upload.js`, `site.js` |
 | `Program.cs` | DI, Middleware-Pipeline, Seeding (admin-User, `NAN`-Lagerplatz, ServiceSettings-Katalog) |
 | `Media/` | Foto-Uploads aus der Kommissionierung |
 

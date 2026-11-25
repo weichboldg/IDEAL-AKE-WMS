@@ -214,7 +214,7 @@ Beschichtungsauftrag-Muster); Zuweisung an den Einkauf ist Hand-Schritt unter `/
 
 | Controller / Aktion | Zugriff | Zweck |
 |---|---|---|
-| `BdeTeilelisteController` | BDE-Terminal (wie `BdeTerminalController`) | Teileliste lesen, Summiert, FA-Sicht (v1.99.76), Melden (POST/PRG), Anstempeln Rüsten/Produktion (POST/PRG, v1.99.76), Zurücknehmen, Filter speichern/zurücksetzen; v1.99.77 `Index` mit `markiert` (Scan-Markierung, blättert zur Zeile), Kopf-Buchungen; Buchen per JS über die `BdeTerminal`-JSON-Aktionen (keine neue Action) |
+| `BdeTeilelisteController` | BDE-Terminal (wie `BdeTerminalController`) | Teileliste lesen, Summiert, FA-Sicht (v1.99.76), Melden (POST/PRG), Anstempeln Rüsten/Produktion (POST/PRG, v1.99.76), Zurücknehmen, Filter speichern/zurücksetzen; v1.99.77 `Index` mit `markiert` (Scan-Markierung, blättert zur Zeile), Kopf-Buchungen; Buchen per JS über die `BdeTerminal`-JSON-Aktionen (keine neue Action); v1.99.78 `Tageshistorie` (Buchungen + Teilmeldungen des Werkers von heute, Server-Spaltenfilter, Pagination). Seit v1.99.78 leitet `BdeTerminalController.Index` immer hierher (`workplaceId ?? Terminal-Default`); `Views/BdeTerminal/` gibt es nicht mehr, `BdeTerminalController` hat nur noch JSON-Aktionen + `StartProductionForOrder` |
 | `BdeBookingsController.Teilmeldungen` / `TeilmeldungSpalten` | Lesen ab BDE-Schichtleiter | Admin-Liste der Teilmeldungen (Spaltenfilter, Pagination) |
 | `BdeBookingsController.StornoTeilmeldung` | `[RequireBdeAdminAccess]` | Storno mit Pflichtgrund |
 

@@ -742,7 +742,7 @@ Jede Etappe: `frontend-design` explizit aufrufen, Kontrast messen, Ampel nie nur
 | 4 | ~~FA-Sicht an beiden Standorten: Wirksamkeits-Helfer … `TeilelisteWirksam` entfernt, `BdeBookingService` mit Master-Lesung, … Banner, …~~ *(ueberholt, Antwort 15)* FA-Sicht an beiden Standorten: Wirksamkeits-Helfer ohne NurFA (`SeiteVerfuegbar`, `TeilelisteWirksam(w)` ohne `nurFa`, `TeileSichtVerfuegbar` = Master && `TeilelisteWirksam`, `TeileStandard` ueber `BdeStandardsichtTeile`), Gate `BdeBookingService.cs:288` inhaltlich wie heute (ohne `nurFa`, ohne Master, kein neuer Ctor-Parameter), Zeilenquelle als gemeinsame Service-Methode, View `Fa`, AG-Status aller AG der Sub-FA (Antwort 4), Kopf-Buchungen, Modal-Partials, Scan, Standardsicht-Auswahl neben `BdeTeileliste` („Teile“ nur mit `BdeTeileliste`), Teile-Reiter nur mit `BdeTeileliste` (sonst deaktiviert mit Hinweis, kein Banner), gemerkte Sicht, Pagination statt MaxHauptFa (Antwort 14). Doku: Kapitel 17 (Maske, Reiter, Foto `17-01`) + Kapitel 11 FA-Sicht (neue Fotos). v1.99.76, TS-197, keine weitere Migration. *(ueberholt, Antwort 19: aufgeteilt in 4a und 4b)* | – | |
 | 4a | FA-Sicht Grundgeruest an beiden Standorten (Antwort 19): Wirksamkeits-Helfer ohne NurFA (`SeiteVerfuegbar`, `TeilelisteWirksam(w)` ohne `nurFa`, `TeileSichtVerfuegbar` = Master && `TeilelisteWirksam`, `TeileStandard` ueber `BdeStandardsichtTeile`) samt Aufrufer-Umstellung, Gate `BdeBookingService.cs:288` inhaltlich wie heute (ohne `nurFa`, ohne Master, kein neuer Ctor-Parameter), Zeilenquelle als gemeinsame Service-Methode, View `Fa` mit Spalten/Filter/Pagination statt MaxHauptFa (Antwort 14), AG-Status aller AG der Sub-FA (Antwort 4), Anstempeln Ruesten/Produktion je Zeile (Kollision als sichtbare Meldung), Werkbank-Maske mit Standardsicht-Auswahl neben `BdeTeileliste` („Teile“ nur mit `BdeTeileliste`), Liste `ProductionWorkplaces`, Teile-Reiter nur mit `BdeTeileliste` (sonst deaktiviert mit Hinweis), gemerkte Sicht. AK 23, 24 (4a-Teil), 28–32d. Doku: Kapitel 17 (Maske, Reiter, Foto `17-01`) + Kapitel 11 FA-Sicht (Foto `11-05`). v1.99.76, TS-197, keine weitere Migration. | erledigt (2026-11-25, Umsetzung siehe unten) | `878aa76d` |
 | 4b | FA-Sicht Bedienung (Antwort 19): Kopf-Buchungen laufend/pausiert mit Teilfertig/Pause/Fertig/Fortsetzen und Detailangaben-Schalter, `bde-fa-sicht.js`, Modal-Partials aus `Views/BdeTerminal/Index.cshtml` (Mengen, Kollision, Gruppe, Close-Others; beide Seiten nutzen sie bis Etappe 5), Scanzeile, Taetigkeit, NurAg-„Fertig melden“ je Zeile. AK 24 (4b-Teil), 25, 26, 27. Doku: Kapitel 11 Kopf/Dialoge/Scan (Foto `11-06`). v1.99.77, TS-198, keine Migration. | erledigt (2026-11-25, Umsetzung siehe unten) | `d61ea22c` |
-| 5 | Tageshistorie inkl. Teilmeldungen (Seite, Knopf, NavZiel; Antwort 5), `BdeTerminal/Index` leitet an beiden Standorten immer um, alte View + `bde-terminal.js` geloescht, `BdeTerminalMaxHauptFa` entfernt, Katalogtext `BdeNurFaMeldung`, Betriebsdoku Handy-Konten (Antworten 1, 2, 6). Doku: Kapitel 11 umgeschrieben, Terminal-Fotos `11-01`–`11-04` ersetzt, Tageshistorie-Foto, Index-Titel 11/17 (Antwort 17). v1.99.78, TS-199, keine Migration (vor Antwort 19: v1.99.74, TS-195). | offen | |
+| 5 | Tageshistorie inkl. Teilmeldungen (Seite, Knopf, NavZiel; Antwort 5), `BdeTerminal/Index` leitet an beiden Standorten immer um, alte View + `bde-terminal.js` geloescht, `BdeTerminalMaxHauptFa` entfernt, Katalogtext `BdeNurFaMeldung`, Betriebsdoku Handy-Konten (Antworten 1, 2, 6). Doku: Kapitel 11 umgeschrieben, Terminal-Fotos `11-01`–`11-04` ersetzt, Tageshistorie-Foto, Index-Titel 11/17 (Antwort 17). v1.99.78, TS-199, keine Migration (vor Antwort 19: v1.99.74, TS-195). | erledigt (2026-11-25, Umsetzung siehe unten) | `fbe29238` |
 
 ## Umsetzung Etappe 1 (2026-11-25)
 
@@ -942,6 +942,50 @@ Changelog [[2026-11-25-v1-99-77-bde-masken-etappe-4b-fa-buchungen]].
 `wwwroot/js/bde-terminal.js`, `Views/BdeTerminal/Index.cshtml` (inkl. `activityModal`), Test `HardwareScannerTests.BdeTerminal_BeideScanfelderSindZiele_OhneEigeneLogik`,
 Redirects auf das Terminal. Die JSON-Aktionen von `BdeTerminalController` **bleiben** (die FA-Sicht bucht darüber), ebenso `_BdeDialoge`
 und `BdeKopfBuchungen`. Beim Löschen der Terminal-View `BdeFaSichtViewTests` anpassen (prüft die Terminal-Einbindung).
+
+## Umsetzung Etappe 5 (2026-11-25)
+
+Commit `fbe29238` im Worktree `feature/2026-08-07-ideal-teile-1-5` (auf v1.99.77 `d61ea22c`). **v1.99.78, TS-199, keine Migration.**
+Build 0 Fehler / 32 Warnungen (Basis), Tests Web 3690 gesamt (3689 bestanden, 1 übersprungen, 0 Fehler), Dienst 847/0/0.
+qa-agent steht aus (alle Etappen gemeinsam). Changelog [[2026-11-25-v1-99-78-bde-masken-etappe-5-terminal-abloesung]].
+
+**Bauweise:**
+- Tageshistorie an EINEM Ort `Services/BdeTageshistorie.cs` (statisch, Präzedenz `BdeKopfBuchungen`): `LadenAsync(ctx, operatorId, tag)` kombiniert
+  Buchungen des Werkers (nicht storniert, `StartedAt` am Tag, alle Werkbänke) und Teilmeldungen (`BdeTeilMeldungen`, nicht storniert, `GemeldetAm`
+  am Tag). Spalten-Texte in `BdeTageshistorie.Spalten` (eine Quelle für View und Server-Spaltenfilter).
+- **§69-Entscheidung:** ALLE Teilmeldungen des Tages, Typ nach `IstAbschliessend` („Fertig“/„Teilfertig“); FA- **und** Lagerbestell-Meldungen
+  (§67, Präfix „Lagerbestellung · “). Eine Buchung, die als `BdeBookingId` an einer Meldung hängt (Baugruppen-Fertigmeldung), wird ausgeblendet –
+  sonst stünde dieselbe Meldung doppelt da.
+- Seite `BdeTeilelisteController.Tageshistorie` + `Views/BdeTeileliste/Tageshistorie.cshtml`: Gate wie `Index` (Terminal → Werkbank verfügbar →
+  Werker), Server-Spaltenfilter (`ColumnFilterTypes.For("BdeTeileliste/Tageshistorie")`, dauer/gut/ausschuss numerisch), Pagination, ViewKey
+  `BdeTeilelisteTageshistorie`, Karten am Handy über `.bde-tl-seite`.
+- Knopf „Tageshistorie“ im Werker-Balken (`_Kopf.cshtml`, `btn-outline-secondary` – auf dem primären Balken weiss, 44 px); NavZiel
+  `BdeTageshistorie` (Regel wie `BdeTerminal`, Symbol `SymVerlauf`), Layout-Link im BDE-Dropdown (ADR 0034).
+- `BdeTerminalController.Index`: nur Login- und Terminal-Prüfung, dann immer `RedirectToAction("Index","BdeTeileliste", workplaceId ?? Default)`.
+  Konstruktor ohne Werkbank-Repo und ServiceSettings. JSON-Aktionen, `StartProductionForOrder`, `_BdeDialoge`, `BdeKopfBuchungen` bleiben.
+- Gelöscht (`git rm`): `Views/BdeTerminal/Index.cshtml`, `wwwroot/js/bde-terminal.js` (Verwendungen vorher per grep belegt).
+- `BdeTerminalMaxHauptFa`: Key + Katalogeintrag entfernt (DB-Zeile bleibt, `/Settings` zeigt sie als verwaist). `BdeNurFaMeldung`-Text: „Wird von
+  der BDE-Seite nicht beachtet, Altlast“.
+- Manifest: `v1.99.78-BdeTerminalAbloesungInfo`, `v1.99.78-BdeHandyKontenInfo` (beide Firmen, Info, Nachher).
+- Doku: Kapitel 11 umgeschrieben („BDE: Arbeitsgänge buchen“), Kapitel 17 Verweise, Index-Titel 11/17, Betrieb 09 § 4.1 „BDE am Handy“, 00-index.
+
+**Tests:** neu `BdeTageshistorieTests` (3). Ersetzt: `BdeTerminalControllerTests.Index_HierarchischUndMaxHauptFa` →
+`Index_LeitetImmerAufBdeSeiteWeiter` (2 Fälle) + `Index_OhneTerminal_Startseite_OhneAppUser_Login`. **Entfernt:**
+`BdeTeilelisteServiceTests.Terminal_LeitetNurBeiStandardsichtTeileUm` (6 Fälle; Bedingung gibt es nicht mehr, Redirect immer) und
+`HardwareScannerTests.BdeTerminal_BeideScanfelderSindZiele_OhneEigeneLogik` (View gelöscht). `BdeFaSichtViewTests` prüft jetzt, dass View und JS
+weg sind; `AppSettingDefinitionsTests` Zählungen 40→39 / 70→69.
+
+**Abweichungen von der Spec:**
+- Quelle der Tageshistorie ist eine eigene Projektion über den DbContext (Action holt ihn per `[FromServices]`), nicht `GetHistoryAsync` –
+  Buchungen und Teilmeldungen werden kombiniert, das kann `GetHistoryAsync` nicht.
+- Ohne angemeldeten Werker zeigt die Tageshistorie die Anmeldung; nach dem Anmelden landet der Werker auf der Liste, nicht zurück in der Historie.
+
+**Befunde:**
+- Kein Gate-Test für `Tageshistorie` (der Controller wird in den Tests nicht konstruiert) – Manual-UAT TS-199.2/199.1 Negativfälle.
+- Nach dem Löschen ohne Aufrufer (nicht entfernt, nur gemeldet): `BdeTerminal/ActiveBookings`, `PausedBookings`, `StartProductionForOrder`;
+  API `api/bde/operator/{nr}`, `operator/{id}/active-booking`, `operator/{id}/today-history`, `available-operations/{wp}`.
+- Fotos `11-02-liste-haupt-fa-gewaehlt.jpg` und `11-03-scan-und-knoepfe.jpg` sind nicht mehr referenziert (Dateien bleiben liegen).
+- Fotos nicht aufgenommen: `11-01` (Anmelden BDE-Seite), `11-04` (Mengen melden), neu `11-07-tageshistorie.jpg`.
 
 ## Deploy
 
