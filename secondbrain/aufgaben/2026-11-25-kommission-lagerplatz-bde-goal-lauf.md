@@ -16,7 +16,7 @@ Isolierfräse-Spec reserviert), höchstes TS 190, höchste ADR 0035, letztes Pak
 | [[2026-11-25-kommissionierauftraege-nachtrag-nachts-spec]] | Spec | 168 | 1.99.70 | 191 | **Testbereit** | fa1b754b, Fotos+Publish 6e426113 | Nachtlauf auf DEV nicht beobachtbar (Q4) |
 | [[2026-11-24-lagerplatz-anlage-wms-nach-sage-spec]] | Spec | – (ADR 0036) | 1.99.71 | 192 (statt 189, vergeben) | **Testbereit** | 5b6fa696, Fotos 47a23d32, QA f085a8da | Live-Sage-Teil: Testlager + GRANTs fehlen (Gerald) |
 | [[2026-11-20-bde-liste-isolierungsfraese-pfad-material-spec]] | Spec | 164, 165 (reserviert) | 1.99.72 | 193 | **Testbereit** | d49a3f39, Fotos 4e8a344c, QA 557f1a9f | P-1 USER_OSBlechdicke (IDEAL-Sage), Rückfragen 15/16 Einmal-Skript |
-| [[2026-11-25-bde-masken-vereinheitlichung-spec]] | Epic (1, 2, 3, 4a, 4b, 5) | 169 (statt 168) | 1.99.73–1.99.78 | 194–199 | E1–E5 erledigt, Epic-QA läuft | E1 219a69c3, E2 eecc47ac, E3 94be5444, E4a 878aa76d, E4b d61ea22c, E5 fbe29238 | |
+| [[2026-11-25-bde-masken-vereinheitlichung-spec]] | Epic (1, 2, 3, 4a, 4b, 5) | 169 (statt 168) | 1.99.73–1.99.78 | 194–199 | **Testbereit** (QA 6d98dd6a/a3287fb0, Brain 8797bc42) | E1 219a69c3, E2 eecc47ac, E3 94be5444, E4a 878aa76d, E4b d61ea22c, E5 fbe29238 | |
 
 ADR des Epics: 0037 (statt 0036, an die Lagerplatz-Spec vergeben).
 
@@ -79,3 +79,10 @@ Alle Befunde der Specs werden gesammelt und nach der letzten Epic-Etappe in EINE
 | F-30 | Epic E5 | Fotos 11-02/11-03 nicht mehr referenziert | löschen oder belassen |
 | F-31 | Epic E5 | Tageshistorie ohne Anmeldung → nach Login auf Liste statt Historie | returnUrl durchreichen |
 | F-32 | Epic E1/E5 | Foto-Name 17-08 doppelt belegt (Isolierfräse vs. Handy-Teileliste) | nächste freie 17-NN |
+| F-33 | Epic-QA N1 | Kontrast 4,13:1 inaktive Reiter + „Tätigkeit starten“ | auf ≥4,5:1 |
+| F-34 | Epic-QA N2 | Tageshistorie „Sub-FA 0“ bei Blechteilen, „FA 0 / Sub-FA 0“ bei Lagerbestellung (`BdeTageshistorie.cs:73`) | 0 nicht anzeigen |
+| F-35 | Epic-QA N4 | „Meine Buchungen“ ohne Sub-FA (wie altes Terminal) | Sub-FA ergänzen |
+| F-36 | Epic-QA N6 | Alle Einzel-Haken wieder gesetzt → Summen-Haken kommt nicht zurück | koppeln |
+| F-37 | Epic-QA N7 | Kollisionsdialog: Fokus auf Dialog statt „OK“ | Fokus auf OK |
+| F-38 | Epic-QA N9 | QA legte 3 Tabellen in lokaler DB `.`/IDEAL_AKE_WMS an (BfAuftraege, BfAuftragPositionen, SageFaArbeitsgangAnlagen) | Gerald entscheidet, nicht löschen |
+| F-39 | Epic-QA N10 | FreshInstall ohne History-Zeile `20260910081155_AddProductionOrderMatchcode` (Altbestand) | nachtragen |
