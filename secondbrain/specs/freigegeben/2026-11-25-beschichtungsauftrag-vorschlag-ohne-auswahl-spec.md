@@ -423,3 +423,13 @@ DEV-Testdaten angelegt/geändert: IDEAL BA-2026-00009 (Versendet), AKE BA-2026-0
 6. Entscheid B-1: Positionsbezeichnung um VaterFA ergänzen? (IDEAL zeigt doppelte Einträge.)
 7. Entscheid F1/B-3: „entfernen und übergeben“ bei lauter offenen Positionen erzeugt Übergeben mit 0 Positionen; so lassen?
 8. Testsystem-Lauf mit dem Paket `publish\` (v1.99.65) an AKE und IDEAL, danach Merge.
+
+## FREIGABE-NACHTRAG 2026-11-25 (Gerald, nach QA) – Umsetzung als v1.99.67
+
+Antworten Gerald 2026-11-25 auf die QA-Befunde:
+- **B-1 Positionsbezeichnung:** „ja, wäre schon nett“ → `PositionBezeichnung` nennt zusätzlich die VaterFA (wenn gesetzt), damit
+  Meldungen und Übergeben-Fenster an IDEAL eindeutig sind (z. B. `50002326 (Pos. 1, VaterFA 4711)`).
+- **F1 Übergeben mit 0 Positionen:** „macht keinen Sinn, dann wäre eher den Vorschlag löschen“ → Übergeben, das nach dem Entfernen
+  0 Positionen übrig ließe, lehnt der Server ab. Sind **alle** Positionen offen, bietet das Fenster statt „entfernen und übergeben“
+  den Weg „Entwurf stornieren“ an (vorhandener Übergang Entwurf → Storniert; ein Löschen von Aufträgen gibt es nicht).
+- B-2 (Knopf bleibt nach Browser-Validierung gesperrt) wird im selben Zug mitbehoben (Knopf erst nach bestandener Prüfung sperren).
