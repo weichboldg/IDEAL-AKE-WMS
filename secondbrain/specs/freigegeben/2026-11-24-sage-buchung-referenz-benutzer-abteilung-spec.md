@@ -2,7 +2,7 @@
 type: spec
 title: "Sage-Übergabe: Referenz mit Kennung, WMS-Benutzer und Abteilung (Ausbuchung)"
 slug: 2026-11-24-sage-buchung-referenz-benutzer-abteilung-spec
-status: Freigegeben
+status: InUmsetzung
 freigabe_von: Gerald
 freigabe_am: 2026-11-25
 created: 2026-11-24
