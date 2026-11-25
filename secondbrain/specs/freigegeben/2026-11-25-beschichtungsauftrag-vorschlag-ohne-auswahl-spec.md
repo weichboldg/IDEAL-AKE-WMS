@@ -2,7 +2,7 @@
 type: spec
 title: "Bugfix Beschichtungsauftrag: Vorschlag ohne Auswahl, Verpackt-Prüfung bei Übergeben, Entfernen nur im Entwurf, Verpackt oder Entfernen"
 slug: 2026-11-25-beschichtungsauftrag-vorschlag-ohne-auswahl-spec
-status: InUmsetzung
+status: Testbereit
 freigabe_von: Gerald
 freigabe_am: 2026-11-25
 created: 2026-11-25
@@ -314,3 +314,112 @@ entfällt (kein Epic).
    Positionen entfernt werden, verpackte nicht; Entwurf unverändert.**
 4. Verpackt oder Entfernen: UI-Sperre + Server-Ablehnung mit Positionsnennung → **entweder verpackt oder entfernen, nicht beides
    (Gerald 2026-11-25).**
+
+## Deploy (final, qa-agent 2026-11-25, aus dem Diff `8ffa4c4a^..8ffa4c4a`)
+
+- **Web-App:** ja (`IdealAkeWms/`: Workflow, Controller-Kommentar, Details/Vorschlag-View, `beschichtung-bemerkung.js`, Hilfe, Changelog)
+- **Service:** nein (nur `IDEALAKEWMSService/AppVersion.cs`, kein Verhalten). Paket enthält trotzdem beide Komponenten (eine Version).
+- **Migration:** nein (keine Datei unter `*/Migrations/`, kein `SQL/`-Skript)
+- **Manifest** `scripts/deploy/nachlauf.psd1`: kein Eintrag nötig (kein SQL, keine Einstellung, kein Ordner, keine Leitstand-Aktion). Altbestand: Entwürfe mit offenen Positionen fragen jetzt beim Übergeben; Aufträge in Übergeben: verpackte nicht mehr entfernbar (Anwender-Changelog v1.99.65).
+- **Publish (erledigt):** `C:\Git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-07-ideal-teile-1-5\publish\` mit `IDEALAKEWMSWeb`, `IDEALAKEWMSWebService`, `SQL\`, `deploy\`; `publish-info.txt`: Version 1.99.65, Commit `8ffa4c4ab51d7dce0681304eea64ac7a37c81997`, Branch `feature/2026-08-07-ideal-teile-1-5`.
+- **Reihenfolge Testsystem:** `publish\` kopieren, dann `deploy\Update-IdealAkeWms.ps1` (Web; Dienst nur Versionsstand). Kein DB-Backup-Sonderfall (keine Schemaänderung).
+- Nach dem Merge nur dann neu aus `main` publizieren, wenn der Merge getestete Dateien mit parallelen `main`-Änderungen zusammengeführt hat:
+  `dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWMSWeb`
+  `dotnet publish IDEALAKEWMSService/IDEALAKEWMSService.csproj -c Release -o .\publish\IDEALAKEWMSWebService`
+
+## QA-Nachweis (qa-agent, 2026-11-25)
+
+Worktree `C:\Git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-07-ideal-teile-1-5`, HEAD `8ffa4c4a`, geprüfter Bereich `8ffa4c4a^..8ffa4c4a`.
+Maßstab: Freigabe-Antworten (R-1: Rückfrage beim Übergeben statt harter Sperre; R-2: in Übergeben nur nicht verpackte entfernbar)
+vor dem Spec-Text. Daraus folgende Abweichungen vom Soll-Text (B2-Sperre bei Übergeben, B3 „Entfernen nur im Entwurf“,
+Versendet-Text „Bitte anhaken.“) sind gewollt und kein Befund.
+
+### 1. Build und Tests
+- `dotnet build IdealAkeWms.slnx`: 0 Fehler, 30 Warnungen (alt, nicht aus diesem Diff).
+- `dotnet test`: `IdealAkeWms.Tests` 3504 bestanden / 1 übersprungen / 0 Fehler (3505); `IDEALAKEWMSService.Tests` 790 / 0 / 0.
+
+### 2. Code-Review (selbst, synchron)
+Geprüft: `BeschichtungsauftragWorkflow` (AnlegenAsync, `Entfernbar`, BearbeitenAsync-Prüfungen vor `Anwenden`, StatusWechselnAsync),
+Controller `Create`/`Bearbeiten` (Speichern, dann Status), `Details.cshtml` (Spalte Entfernen, Modal, `data-*`), `beschichtung-bemerkung.js`
+(Sperre, Modal, `requestSubmit`, Zusammenspiel mit dem Capture-Handler `data-bemerkung-pruefen`), `_VorschlagAuftraege.cshtml`, Hilfe,
+Anwenderdoku, TS-162. Bekannte Fehlerklassen: keine Werte in `<script>` (Bezeichnung über `data-*` + `textContent`, Razor-kodiert);
+kein `hidden` + `d-*` (Modal über Bootstrap); kein stiller Fallback; keine neue Parallel-Array-Bindung (`freiArtikelId`/`freiMenge`
+unverändert); B4 und R-2 erzwingt der Server, das UI ist nur Komfort; eine Regel `Entfernbar` für Server und View.
+
+| # | Schwere | Befund | Behandlung |
+|---|---|---|---|
+| B-1 | niedrig | `PositionBezeichnung` (Artnr + Pos.) ist an IDEAL nicht eindeutig: gleiche Artnr/Pos. unter verschiedenen VaterFA. Auf DEV IDEAL zeigte das Übergeben-Fenster zweimal „50002326 (Pos. 1)“, die Versendet-Meldung „50000296 (Pos. 1), 50000296 (Pos. 1)“. Der Helper ist alt (v1.99.41), wird durch das neue Fenster aber häufiger gesehen. | offen, Entscheid Mensch: VaterFA in die Bezeichnung aufnehmen (eine Stelle, `PositionBezeichnung` in `BeschichtungsauftragWorkflow.cs`). Nicht mitgebaut (Umfang). |
+| B-2 | niedrig | `beschichtung-bemerkung.js`: Die gewählte Modal-Schaltfläche wird vor `requestSubmit` gesperrt. Blockiert die Browser-Validierung das Absenden (ungültiges Feld im `entwurf-form`), bleibt das Fenster mit gesperrter Schaltfläche offen; Ausweg Abbrechen bzw. neu laden. Auf DEV nicht aufgetreten. | offen, kosmetisch; kein Datenrisiko (nichts gesendet). |
+| B-3 | Hinweis | F1 bestätigt: „entfernen“ bei lauter offenen Positionen ergibt Übergeben mit 0 Positionen (StatusWechselnAsync prüft bei Übergeben keine Anzahl, Versendet sperrt mit „keine Positionen“). F2 auf DEV AKE bestätigt (kein Fenster, Server meldet Dienstleister, nichts entfernt). F3 aus dem Code bestätigt (ohne JS = beibehalten). | bekannt, von den Antworten gedeckt; F1 als Entscheid in der Checkliste. |
+| B-4 | Hinweis | Brain-Changelog v1.99.65 und `feature-map.md`-Eintrag fehlen noch. | Brain-Update am Ende des goal-Laufs. |
+
+### 3. Beweisart je Akzeptanzkriterium (nach Freigabe-Antworten)
+| AK | Beweis |
+|---|---|
+| 1 ohne Haken alle frei, offen | automatisiert (`Create_NichtsAngehakt_AlleFreienOffen`, `Anlegen_OhneAuswahl_AlleFreienOffen`) + DEV IDEAL/AKE OK |
+| 2 Teilvergabe, Hinweis | automatisiert (`Anlegen_LeereAuswahl_AlleFreienOffen_HinweisVergebene`) + DEV OK |
+| 3 mit Haken verpackt | automatisiert (bestehende Tests über `Alle`, neuer Test Teil 1) |
+| 4/5/6 Übergeben | laut R-1 Rückfrage statt Sperre: Fenster = Browser-JS, Manual-UAT (DEV OK); Server: `Uebergeben_MitOffenenPositionen_Erlaubt_SperreErstBeiVersendet` automatisiert |
+| 7 Versendet-Sperre | automatisiert + DEV OK |
+| 8 Entfernen in Übergeben (R-2) | automatisiert (`Bearbeiten_InUebergeben_VerpackteEntfernen_Abgelehnt_NichtsGeaendert`, `…OffeneEntfernen_SofortFrei`, Controller-Test); Spalte „nicht entfernbar“ DEV OK |
+| 9 Haken/Menge/Hinzufügen in Übergeben | automatisiert + DEV OK |
+| 10 UI-Sperre | Browser-JS, Manual-UAT, DEV IDEAL OK |
+| 11 Server lehnt Verpackt+Entfernen ab | automatisiert (Theory Entwurf/Übergeben); echte Formular-Bindung nicht InMemory-beweisbar |
+| 12 Reklamations-Entwurf | gleicher Code, kein eigener Test, Manual-UAT offen |
+| 13 AKE = IDEAL | DEV beide Standorte OK |
+| 14 Build/Tests | grün (oben) |
+
+### 4. Geänderte bestehende Tests
+- `BeschichtungsauftraegeControllerTests.Create_NichtsAngehakt_Warnung_KeinAuftrag` → `…_AlleFreienOffen`: Verhalten absichtlich geändert (B1, AK 1).
+- `BeschichtungsauftragWorkflowTests.Anlegen_PositionenAusVorschlag_SindVerpackt` → `Anlegen_OhneAuswahl_AlleFreienOffen`: absichtlich geändert (B1).
+- `BeschichtungsauftragWorkflowTests.Bearbeiten_InUebergeben_HakenMengeEntfernenKandidatUndFrei_…`: p1/p2 vor Übergeben angehakt, damit p3 offen und entfernbar bleibt: absichtlich geändert (R-2, AK 8/9).
+- `BeschichtungsauftragVergabeAnzeigeTests.Reklamation_ZaehltMit_…`: Haken vor Versendet gesetzt, weil die Anlage ohne Auswahl jetzt offen ist: Folge von B1 (Setup, keine Erwartung abgeschwächt).
+- Kein Fall „sonstiges“.
+
+### 5. Checkliste CLAUDE.md
+Migration/SQL/FreshInstall/AgentJobs: entfällt (keine Schemaänderung). Audit: keine neuen Schreibwege, Prüfungen vor `Anwenden`
+(DEV: `ModifiedBy`/`ModifiedAt` an geänderten Positionen gesetzt). Version 1.99.65 in beiden `AppVersion.cs`, Anwender-Changelog ja.
+`docs/TESTSZENARIEN.md` TS-162 (162.3/.7/.8 ersetzt, 162.21–162.25 neu) und `testszenarien-index.md` nachgezogen. Hilfe,
+`docs/anwender/15-…` und Index-Stand 1.99.65. ADR 0020: keine Einstellung. Brain-Changelog/feature-map: siehe B-4.
+
+### 6. DEV-Deploy und Testlauf
+- `standort: beide`. `dev-deploy.ps1` (erhöhte Shell) aus dem Worktree: **AKE** Exit 0, „HTTP 200, Fusszeile v1.99.65“, http://localhost:8081/;
+  **IDEAL** Exit 0, „HTTP 200, Fusszeile v1.99.65“, http://localhost:8082/. DEV-Absicherung durch das Skript neu gesetzt.
+- Browser-Screenshots liefen in ein Zeitlimit; geprüft wurde daher über den Barrierefreiheitsbaum (Zustand `disabled`, Fenster-Inhalt)
+  und `sqlcmd` gegen die DEV-DB.
+
+| Schritt | Ort / Daten | Ergebnis | Status |
+|---|---|---|---|
+| 162.3 Liste ohne Haken | IDEAL HauptFA 1060414, BA-2026-00009 | 12 Positionen, alle offen; Hinweis „4 Positionen bereits in BA-2026-00006, …“; keine Warnung „Keine Position angehakt“ | OK |
+| 162.3 Summiert ohne Haken | AKE HauptFA 2625004, BA-2026-00003 | 4 Positionen offen; Hinweis „1 Positionen bereits in BA-2026-00002 vergeben …“ | OK |
+| 162.24 Sperre | IDEAL BA-9 | Entfernen an: Verpackt `disabled`; Entfernen aus: frei; erneut an + Speichern: Position entfernt (DB), als Kandidat wieder frei | OK |
+| 162.22 Abbrechen | IDEAL BA-9 | Fenster „8 Positionen“; Abbrechen: Status 10, 11 Positionen unverändert (DB) | OK |
+| 162.23 Haken im selben Klick | IDEAL BA-9 | 1 Haken gesetzt, Übergeben: Fenster nennt 7 | OK |
+| 162.21 entfernen und übergeben | IDEAL BA-9 | Status 30, nur die 4 verpackten verbleiben, entfernte im Vorschlag frei | OK |
+| 162.7 Übergeben bearbeiten | IDEAL BA-9 | Haken gelöst, Menge 1→2, Kandidat 1067200 hinzugefügt: gespeichert, Audit gesetzt; verpackte Zeilen „nicht entfernbar“, offene mit Checkbox; offene Position entfernt | OK |
+| 162.7 Negativ-POST `entfernen` verpackt | – | Entwicklertools nicht verfügbar; Server-Regel automatisiert belegt | NICHT MOEGLICH (Browser) |
+| 162.8 Versendet mit offenen | IDEAL BA-9 | abgelehnt „Versendet nur, wenn alle Positionen verpackt sind — nicht verpackt (2): …“, Status bleibt 30; nach Haken + Entfernen Versendet gesetzt | OK |
+| 162.23 ohne Dienstleister | AKE BA-2026-00001 | kein Fenster, „Dienstleister fehlt …“, 5 Positionen unverändert | OK |
+| 162.22 beibehalten und übergeben | AKE BA-2026-00001 | Status 30 mit 5 offenen Positionen, Kreditor QA-LACK1 | OK |
+| 162.23 alle verpackt | AKE BA-2026-00003 | kein Fenster, sofort Status 30 | OK |
+| 162.25 Negativ-POST Verpackt+Entfernen | – | Entwicklertools nicht verfügbar; automatisiert (Theory) belegt | NICHT MOEGLICH (Browser) |
+| 162.25 Terminal/Tastatur, ohne Farbe | – | ohne Screenshot nicht sichtbar prüfbar; `disabled` im Baum belegt | NICHT MOEGLICH |
+
+DEV-Testdaten angelegt/geändert: IDEAL BA-2026-00009 (Versendet), AKE BA-2026-00001 (Übergeben, offen), AKE BA-2026-00003 (Übergeben).
+
+### 7. Publish
+`C:\Git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-07-ideal-teile-1-5\publish\` neu (Zielordner vorher geleert), beide `dotnet publish` Exit 0,
+`SQL\` und `deploy\` kopiert, `publish-info.txt` Version 1.99.65 / Commit `8ffa4c4ab51d7dce0681304eea64ac7a37c81997`.
+
+**Ergebnis: Testbereit** (kein FEHLER; Befunde B-1/B-2 niedrig und offen für den Menschen).
+
+## Manuelle Testcheckliste (Mensch, Schranke 2)
+
+1. 162.7 Negativ: per Entwicklertools in Übergeben `entfernen` mit der Id einer verpackten Position senden: Meldung „… ist verpackt …“, nichts geändert.
+2. 162.25: POST mit gleicher Id in `verpackt` und `entfernen` (Entwurf und Übergeben): abgelehnt mit Positionsnennung.
+3. 162.25: Terminal / nur Tastatur: gesperrte Verpackt-Checkbox wird übersprungen und ist ohne Farbe als gesperrt erkennbar.
+4. AK 12: Reklamations-Entwurf: Verpackt/Entfernen, Rückfrage beim Übergeben, Entfernen in Übergeben nur offen.
+5. Sichtprüfung Übergeben-Fenster (Kontrast, Tastatur: Esc, Tab-Reihenfolge) an beiden Standorten.
+6. Entscheid B-1: Positionsbezeichnung um VaterFA ergänzen? (IDEAL zeigt doppelte Einträge.)
+7. Entscheid F1/B-3: „entfernen und übergeben“ bei lauter offenen Positionen erzeugt Übergeben mit 0 Positionen; so lassen?
+8. Testsystem-Lauf mit dem Paket `publish\` (v1.99.65) an AKE und IDEAL, danach Merge.
