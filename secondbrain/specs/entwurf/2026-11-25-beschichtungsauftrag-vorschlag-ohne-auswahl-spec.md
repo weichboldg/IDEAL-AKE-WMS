@@ -298,7 +298,13 @@ entfällt (kein Epic).
   als seinen Auftrag. Antworte je Frage in **fett** hinter dem Pfeil.
 -->
 
-1. Ohne Haken = alle freien Positionen, offen; mit Haken A3 unverändert →
-2. Verpackt-Prüfung bei Übergeben und weiter bei Versendet →
-3. In Übergeben Haken, Menge, Hinzufügen erlaubt (nur Entfernen gesperrt) →
-4. Verpackt oder Entfernen: UI-Sperre + Server-Ablehnung mit Positionsnennung →
+1. Ohne Haken = alle freien Positionen, offen; mit Haken A3 unverändert → **Gerald 2026-11-25: „ohne Haken, User fragen:
+   ‚Positionen ohne Verpackt-Kennzeichen‘ aus BA entfernen oder nicht verpackt beibehalten.“** Offen (R-1): Wann wird gefragt –
+   (a) beim Erstellen aus der Vorschlagsliste (nicht angehakte Positionen weglassen oder als offen übernehmen), oder (b) beim
+   Wechsel Entwurf → Übergeben (offene Positionen jetzt entfernen oder Übergeben abbrechen)? →
+2. Verpackt-Prüfung bei Übergeben und weiter bei Versendet → **passt (Gerald 2026-11-25).**
+3. In Übergeben Haken, Menge, Hinzufügen erlaubt (nur Entfernen gesperrt) → **„so erlauben. dann wäre aber entfernen
+   wahrscheinlich auch noch …“ (Gerald 2026-11-25, Satz unvollständig).** Offen (R-2): Entfernen in Übergeben doch erlauben –
+   für alle Positionen oder nur für nicht verpackte? →
+4. Verpackt oder Entfernen: UI-Sperre + Server-Ablehnung mit Positionsnennung → **entweder verpackt oder entfernen, nicht beides
+   (Gerald 2026-11-25).**
