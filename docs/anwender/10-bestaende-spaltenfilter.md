@@ -130,6 +130,8 @@ Listen gibt es nur **CSV**. Ein Rechtsklick auf einen Spaltenkopf öffnet in Lis
 **Seit 1.99.72** hat auch **Lager → Bestände** ein Zahnrad. Bei IDEAL (wenn eingeschaltet) lässt sich dort die Spalte **Fräsen-Pfad**
 einblenden (Standard ausgeblendet; Spaltenfilter z. B. `gerhard\listen`).
 
+![Bestände: Zahnrad mit der Spalte Fräsen-Pfad (Standard aus)](bilder/10-08-bestaende-zahnrad-fraesenpfad.jpg)
+
 ### 4. Liste als CSV für Excel exportieren
 
 1. Liste öffnen und filtern (Filterkarte und/oder Spaltenfilter).

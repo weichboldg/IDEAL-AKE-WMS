@@ -123,6 +123,8 @@ An der Werkbank der Isolierungsfräse (Kürzel **IF**) zeigt die Teileliste auch
 Voraussetzung (richtet die WMS-Betreuung ein): *Stammdaten → Werkbänke → Bearbeiten*, Schalter **Lagerbestellungen in der Teileliste** an
 (geht nur zusammen mit **BDE-Teileliste**), Lagerbestellung eingeschaltet.
 
+![Werkbank bearbeiten: Schalter „Lagerbestellungen in der Teileliste“ unter „BDE-Teileliste“](bilder/17-10-werkbank-option-lagerbestellungen.jpg)
+
 - Es erscheint jede Position einer **abgeschickten** oder **teilgelieferten** Lagerbestellung, deren Artikel das Kürzel der Werkbank in den
   Arbeitsschritten trägt. Entwürfe, abgeschlossene und stornierte Bestellungen erscheinen nicht.
 - Kennzeichen in der Spalte Status: **Lagerbestellung <Nr>**, darunter klein der Kommentar der Bestellung.
@@ -133,6 +135,10 @@ Voraussetzung (richtet die WMS-Betreuung ein): *Stammdaten → Werkbänke → Be
 - Ist die Bestellung inzwischen abgeschlossen, oder trägt der Artikel das Kürzel nicht mehr, weist das WMS die Meldung mit Grund ab.
 - Unter **Teilmeldungen** steht bei solchen Meldungen die Spalte **Lagerbestellung** (Nr. / Pos.), Hauptauftrag „–“.
 
+![Teileliste der Isolierungsfräse: Lagerbestell-Zeilen mit Badge im Status, Material, Blechdicke und Fräsen-Pfad mit „Pfad kopieren“](bilder/17-08-teileliste-lagerbestellung-fraesenpfad.jpg)
+
+![Teilmeldungen: Spalte „Lagerbestellung“ (Nr. / Pos.), Haupt-FA „–“](bilder/17-12-teilmeldungen-lagerbestellung.jpg)
+
 ### 9. Neue Spalten: Blechdicke und Fräsen-Pfad (seit 1.99.72)
 
 - **Blechdicke** (aus Sage) ist sichtbar; der Spaltenfilter rechnet mit Zahlen (`3,00` trifft 3,00). *Summiert* zeigt jetzt auch
@@ -142,6 +148,10 @@ Voraussetzung (richtet die WMS-Betreuung ein): *Stammdaten → Werkbänke → Be
   In der Teileliste wird der Pfad nur angezeigt; gepflegt wird er in der *Artikelinfo* (Rolle **Fräsen-Pfad pflegen** mit eigenem Konto,
   zusätzlich **Stammdaten lesen**).
 - Der Knopf **CSV** exportiert die sichtbaren Spalten und ändert die gemerkten Filter nicht mehr.
+
+![Ansicht Summiert mit Material und Blechdicke, Hauptaufträge „LB <Nr>“](bilder/17-09-summiert-material-blechdicke.jpg)
+
+![Artikelinfo: Fräsen-Pfad mit Link, „Pfad kopieren“ und Pflegefeld (Rolle Fräsen-Pfad pflegen)](bilder/17-11-artikelinfo-fraesenpfad-pflegen.jpg)
 
 ## Hinweise und Stolperfallen
 

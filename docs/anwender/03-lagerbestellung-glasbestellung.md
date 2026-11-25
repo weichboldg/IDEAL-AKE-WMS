@@ -196,6 +196,8 @@ einblenden (Standard ausgeblendet). Die Bestellseite hat dafür seit 1.99.72 ein
 Isolierungsfräse erscheinen außerdem in der BDE-Teileliste der Fräse ([Kapitel 17](17-bde-teileliste-werkbank.md), Abschnitt 8) – das
 ändert an der Lagerbestellung nichts. Der Druck der Lager-Detailseite zeigt den Pfad nicht.
 
+![Bestellseite: Zahnrad „Spalten konfigurieren“ mit der Spalte Fräsen-Pfad (Standard aus)](bilder/03-09-besteller-zahnrad-fraesenpfad.jpg)
+
 ## Hinweise und Stolperfallen
 
 **Bekannte Fehler (Stand 14.11.2026, Behebung geplant):**
