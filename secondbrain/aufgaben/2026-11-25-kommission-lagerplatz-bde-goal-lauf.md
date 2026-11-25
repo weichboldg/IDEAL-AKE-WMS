@@ -16,7 +16,7 @@ Isolierfräse-Spec reserviert), höchstes TS 190, höchste ADR 0035, letztes Pak
 | [[2026-11-25-kommissionierauftraege-nachtrag-nachts-spec]] | Spec | 168 | 1.99.70 | 191 | **Testbereit** | fa1b754b, Fotos+Publish 6e426113 | Nachtlauf auf DEV nicht beobachtbar (Q4) |
 | [[2026-11-24-lagerplatz-anlage-wms-nach-sage-spec]] | Spec | – (ADR 0036) | 1.99.71 | 192 (statt 189, vergeben) | **Testbereit** | 5b6fa696, Fotos 47a23d32, QA f085a8da | Live-Sage-Teil: Testlager + GRANTs fehlen (Gerald) |
 | [[2026-11-20-bde-liste-isolierungsfraese-pfad-material-spec]] | Spec | 164, 165 (reserviert) | 1.99.72 | 193 | **Testbereit** | d49a3f39, Fotos 4e8a344c, QA 557f1a9f | P-1 USER_OSBlechdicke (IDEAL-Sage), Rückfragen 15/16 Einmal-Skript |
-| [[2026-11-25-bde-masken-vereinheitlichung-spec]] | Epic (1, 2, 3, 4a, 4b, 5) | 169 (statt 168) | 1.99.73–1.99.78 | 194–199 | E1–E2 erledigt, E3 läuft | E1 219a69c3, E2 eecc47ac | |
+| [[2026-11-25-bde-masken-vereinheitlichung-spec]] | Epic (1, 2, 3, 4a, 4b, 5) | 169 (statt 168) | 1.99.73–1.99.78 | 194–199 | E1–E3 erledigt, E4a läuft | E1 219a69c3, E2 eecc47ac, E3 94be5444 | |
 
 ADR des Epics: 0037 (statt 0036, an die Lagerplatz-Spec vergeben).
 
@@ -36,6 +36,7 @@ ADR des Epics: 0037 (statt 0036, an die Lagerplatz-Spec vergeben).
 - v1.99.72 QA bestanden (557f1a9f, Fotos 17-08..17-12, 03-09, 10-08 in 4e8a344c): DEV beide v1.99.72, Build 0/32, Web 3631/1/0, Dienst 847/0; Einmal-Skript Trockenlauf DEV IDEAL ok (6 Zeilen ohne gültigen Pfad, AK 20). Endstand Schalter/Werkbank 75/User 8 zurückgesetzt.
 - Epic E1 v1.99.73 (219a69c3, Brain 192e3253): FaAgStatusService + _FaAgSymbole, AG-Status vor Spaltenfilter, Baugruppen-Kinder als Zeilen, Mobil nur unter .bde-tl-seite; TS-194; Build 0/32, Web 3636/1/0, Dienst 847/0.
 - Epic E2 v1.99.74 (eecc47ac, Brain b6a75729): Summiert mit aufklappbaren Einzelaufträgen, Summen-Haken, aggregierte Ampel (AgAggregieren über ArbeitsgangStatusRegel); TS-195; Build 0/32, Web 3641/1/0, Dienst 847/0.
+- Epic E3 v1.99.75 (94be5444, Brain b21285e3): SQL/169 + Migration 20261125191311_AddBdeTeilMeldungIstAbschliessendUndStandardsicht, ADR 0037, Fallstrick §69, beide UX-Indizes mit `IstAbschliessend = 1`; TS-196; Build 0/32, Web 3655/1/0, Dienst 847/0.
 
 ## Sammel-Fixes für den Schlusslauf (Auftrag Gerald 2026-11-25)
 Alle Befunde der Specs werden gesammelt und nach der letzten Epic-Etappe in EINEM Fix-Lauf mit eigener Version + qa-agent behoben.
@@ -63,3 +64,6 @@ Alle Befunde der Specs werden gesammelt und nach der letzten Epic-Etappe in EINE
 | F-19 | v1.99.72 QA F-9 | vorbestehendes `innerHTML` in WarehouseRequisitions/Edit | auf textContent prüfen |
 | F-20 | Epic E1 | CSV-Export der Teileliste enthält Teile-Zeilen (gemeinsames csv-export.js) | entscheiden; ggf. Kinder-Zeilen im Export ausnehmen |
 | F-21 | Epic E2 | Summen-Haken meldet immer volle Sollmenge – mit Teilfertigmeldung (E3) passend? | in E3/Schlusslauf entscheiden |
+| F-22 | Epic E3 | Baugruppe: „Fertig“ mit 0/0 nach Übermeldung wird abgewiesen (`ReportCompletionCoreAsync`), Blechteile/Lagerbestellung erlauben 0/0 | Entscheid Gerald, ggf. angleichen |
+| F-23 | Epic E3 | Spec-Abschnitt Einstellungen nennt noch „SQL/168“ (gemeint 169) | Text korrigieren |
+| F-24 | Epic E3 | docs/betrieb/03 Tabelle 5.2a ohne Zeile SQL/168 | nachtragen |
