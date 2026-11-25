@@ -2,9 +2,9 @@
 type: spec
 title: Lager und Lagerplätze im WMS erfassen und per Direkt-SQL in Sage anlegen (über die Outbox, austauschbar gegen SData)
 slug: 2026-11-24-lagerplatz-anlage-wms-nach-sage-spec
-status: Entwurf
+status: Freigegeben
 created: 2026-11-24
-updated: 2026-11-24
+updated: 2026-11-25
 source_backlog: "[[2026-11-20-lagerplatz-anlage-wms-nach-sage]]"
 task: ""
 jira: ""
@@ -52,9 +52,9 @@ deploy:
   web: true
   service: true
   migration: false
-freigabe_entscheidung: ""
-freigabe_von: ""
-freigabe_am: ""
+freigabe_entscheidung: "Antworten 1-8 + SWF; Sage-Test-SQL freigegeben (Gerald 2026-11-25); Umsetzung im nächsten goal-run"
+freigabe_von: Gerald
+freigabe_am: 2026-11-25
 ---
 
 ## Ziel / Nutzen (das Warum)
