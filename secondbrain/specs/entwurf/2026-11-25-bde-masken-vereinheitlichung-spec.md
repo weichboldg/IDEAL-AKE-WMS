@@ -550,12 +550,12 @@ Jede Etappe: `frontend-design` explizit aufrufen, Kontrast messen, Ampel nie nur
   als seinen Auftrag. Antworte je Frage in **fett** hinter dem Pfeil.
 -->
 
-1. Alte Terminal-Seite nur an IDEAL ersetzen, AKE/NurFA behalten →
-2. FA-Sicht nur bei BdeNurFaMeldung aus →
-3. Erkennung V1 bleibt an Standardsicht Teile (Variante b) →
-4. AG-Status FA-Sicht: alle AG der Sub-FA, eigener markiert →
-5. Tageshistorie inkl. Teilmeldungen →
-6. Handy-Konto: Terminal-Benutzer je Geraet →
+1. Alte Terminal-Seite nur an IDEAL ersetzen, AKE/NurFA behalten → **Nein: neue Sicht wird Standard auch fuer AKE (AKE nutzt BDE derzeit nicht). Gerald 2026-11-25**
+2. FA-Sicht nur bei BdeNurFaMeldung aus → **BdeNurFaMeldung steht produktiv auf false (Gerald 2026-11-25), gilt als Altlast: neue Sicht beachtet die Einstellung nicht. Entfernen der Einstellung = eigene Aufgabe [[2026-11-25-bde-nur-fa-meldung-entfernen]], nicht im Epic.**
+3. Erkennung V1 bleibt an Standardsicht Teile (Variante b) → **Variante a (Gerald 2026-11-25): `BdeTeileliste` behaelt seine Bedeutung „Blechteile per Teilmeldung“ (steuert Dienst/Erkennung V1, unveraendert); NEUES Feld „BDE-Standardsicht: Teile / FA“ nur fuer die Oberflaeche, Spalte in der Migration von Etappe 3 (SQL/168) mit anlegen. Kein Dienst-Code.**
+4. AG-Status FA-Sicht: alle AG der Sub-FA, eigener markiert → **Ja (Gerald fuer Fachbereich, 2026-11-25)**
+5. Tageshistorie inkl. Teilmeldungen → **Ja (Gerald, 2026-11-25)**
+6. Handy-Konto: Terminal-Benutzer je Geraet → **Android-Handys, keine Windows-Konten; Konten noch nicht angelegt (Gerald 2026-11-25). Anmeldung ueber lokales WMS-Konto (Formular-Login `AccountController.Login`) + Terminal-Zuordnung – Betriebsaufgabe, kein Code.**
 7. FA-Struktur ohne Teilmeldungs-Status (eigene Notiz) →
 8. Schwelle 992 px →
 9. Filter 44 px ueberall →
