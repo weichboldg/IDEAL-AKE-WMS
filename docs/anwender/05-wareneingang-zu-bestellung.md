@@ -169,7 +169,8 @@ das Memo des Sage-Wareneingangsbelegs lautet „WMS: WE#…# Benutzer“ (Benutz
 
 **Einkauf → Sage-Wareneingänge (offen)** (seit Version 1.99.31): öffnet seit 1.99.66 „Sage-Buchungen“ mit *Herkunft = Wareneingang* und
 *nur offene* (wartet, gesendet, Fehler, klären). Der Einkauf ohne Lager-Recht sieht dort nur die Sage-Wareneingänge und keine Knöpfe; die
-Knöpfe sieht nur, wer zusätzlich Lager Keyuser ist. Nach jeder Übergabe an Sage liest der Dienst die offenen Bestellungen sofort neu.
+Knöpfe sieht nur, wer zusätzlich Lager Keyuser ist. Ist „Wareneingang zu Bestellung“ ausgeschaltet (`WareneingangBestellungAktiv`),
+zeigt die Liste seit 1.99.69 keine Wareneingänge – auch nicht dem Einkauf. Nach jeder Übergabe an Sage liest der Dienst die offenen Bestellungen sofort neu.
 
 **Was in der CSV-Datei steht (seit Version 1.99.29):** eine einzige Zeile ohne Überschriften, die enaio nach der Reihenfolge der Felder
 einliest – Barcode, Kreditornummer, Kreditorname, Bestellnummer, Lieferschein, Sage-Belegnummer, **Erfasser**, Datum, übergeben am.

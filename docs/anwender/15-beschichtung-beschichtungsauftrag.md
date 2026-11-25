@@ -169,6 +169,9 @@ unter **Positionen hinzufügen** anhaken und **Speichern**. Die neue Position is
 **Es geht doch nichts zum Lackierer. Kann ich den Entwurf leer übergeben?** Nein (seit 1.99.67). Den Entwurf **stornieren** – das
 Fenster beim Übergeben bietet es an, wenn keine Position verpackt ist. Die Positionen sind danach wieder frei.
 
+**Mein Entwurf hat keine Positionen mehr. Kann ich wieder welche hinzufügen?** Ja: Kandidaten unten anhaken und **Speichern**. Bis 1.99.68
+endete das mit „Eingabe nicht gespeichert: ungültiger Wert in .“; seit 1.99.69 geht es.
+
 **Warum lässt sich der Auftrag nicht auf „Versendet“ setzen?** Mindestens eine Position hat keinen Haken *Verpackt*. Die Meldung nennt sie.
 
 **Welche Anschrift steht auf dem Blatt?** Die des gewählten Kreditors, so wie sie beim Drucken in den Stammdaten steht.

@@ -178,12 +178,13 @@ public class BeschichtungsauftraegeController : Controller
     /// <summary>EIN Speichern am Auftrag (v1.99.41 A8): Kopf (nur Entwurf; <paramref name="nurPositionen"/> = Uebergeben, Kopf
     /// unveraendert), Mengen, Entfernen, Haken Verpackt (<paramref name="hakenGesendet"/>: ungehakte Checkboxen senden nichts),
     /// Kandidaten (<paramref name="schluessel"/>) und freie Positionen (<paramref name="freiArtikelId"/> + <paramref name="freiMenge"/>
-    /// paarweise). Mengen kommen als Text (Punkt oder Komma) und werden kulturunabhaengig gelesen.</summary>
+    /// paarweise). Mengen kommen als Text (Punkt oder Komma) und werden kulturunabhaengig gelesen. v1.99.69: <c>mengen</c> mit festem
+    /// Praefix, sonst liest der Binder bei 0 Positionen die uebrigen Formularschluessel als int-Schluessel (ModelState-Fehler "").</summary>
     [HttpPost]
     [ValidateAntiForgeryToken]
     [RequireBeschichtungsauftragWriteAccess]
     public async Task<IActionResult> Bearbeiten(int id, string? dienstleister, string? ral, DateTime? startBeschichtung,
-        DateTime? beschichtenRetour, Dictionary<int, string>? mengen, int[]? entfernen, string? rowVersion,
+        DateTime? beschichtenRetour, [Bind(Prefix = "mengen")] Dictionary<int, string>? mengen, int[]? entfernen, string? rowVersion,
         bool nurPositionen = false, bool hakenGesendet = false, int[]? verpackt = null, string[]? schluessel = null,
         string?[]? freiArtikelId = null, string?[]? freiMenge = null, int? creditorId = null, BeschichtungsauftragStatus? ziel = null)
     {

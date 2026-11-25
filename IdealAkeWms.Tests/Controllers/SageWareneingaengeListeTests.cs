@@ -123,11 +123,11 @@ public class SageWareneingaengeListeTests
         db.SageBookingQueueItems.Add(new SageBookingQueueItem { StockMovementId = db.StockMovements.First().Id, Status = SageBookingQueueStatus.Fehler,
             CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t" });
         await db.SaveChangesAsync();
-        var einkauf = Liste(db, stockRead: false, transfer: false, weModul: false, einkauf: true);
+        var einkauf = Liste(db, stockRead: false, transfer: false, einkauf: true);
         var vm = (SageBookingQueueViewModel)((ViewResult)await einkauf.Index(null, null, true, null, null, null)).Model!;
         vm.Zeilen.Should().HaveCount(3).And.OnlyContain(z => z.We != null && SageBuchungenGesamtsicht.IstOffen(z.Anzeige));
         (vm.ZeigtLagerbuchungen, vm.ZeigtWareneingaenge, vm.CanRequeue, vm.CanWeAktionen, vm.CanReceive).Should().Be((false, true, false, false, false));
-        (await WeAsync(Liste(db, stockRead: false, transfer: false, weModul: false, einkauf: true), SageBuchungAnzeige.Uebergeben, nurOffene: true))
+        (await WeAsync(Liste(db, stockRead: false, transfer: false, einkauf: true), SageBuchungAnzeige.Uebergeben, nurOffene: true))
             .Zeilen.Should().BeEmpty("status=Uebergeben mit nur offene zeigt nichts");
         // Lager: alle WE-Zeilen (ohne NichtNoetig) + die Lagerbuchung, Knoepfe
         var lager = (SageBookingQueueViewModel)((ViewResult)await Liste(db).Index(null, null, false, null, null, null)).Model!;
@@ -140,6 +140,10 @@ public class SageWareneingaengeListeTests
         var (_, db) = await BuildAsync();
         var vm = await WeAsync(Liste(db, weModul: false));
         (vm.Zeilen.Count, vm.ZeigtWareneingaenge, vm.CanWeAktionen).Should().Be((0, false, false));
+        // v1.99.69 B3: auch der Einkauf (ohne Lager-Recht) sieht bei Modul aus keine WE-Zeilen
+        var ek = (SageBookingQueueViewModel)((ViewResult)await Liste(db, stockRead: false, transfer: false, weModul: false, einkauf: true)
+            .Index(null, null, false, null, null, null)).Model!;
+        (ek.Zeilen.Count, ek.ZeigtWareneingaenge, ek.ZeigtLagerbuchungen).Should().Be((0, false, false));
     }
 
     [Fact]

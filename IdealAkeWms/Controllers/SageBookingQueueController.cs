@@ -54,10 +54,10 @@ public class SageBookingQueueController : Controller
         var effectivePageSize = PageSize.Resolve(pageSize, userDefaultPageSize);
         var ab = (von ?? DateTime.Today.AddDays(-SageBuchungenGesamtsicht.StandardTage)).Date;
 
-        // F7: Lagerbuchungen = stock_read-Kreis; WE-Zeilen = stock_read + Modul, oder Einkauf (ohne Modulbedingung, wie bisher)
+        // F7: Lagerbuchungen = stock_read-Kreis; WE-Zeilen = Modul an UND (stock_read oder Einkauf) — v1.99.69 B3: Modul aus = keine WE-Zeilen, auch fuer den Einkauf
         var stockRead = await _currentUserService.CanAccessStockReadAsync();
         var weModul = string.Equals(await _appSettings.GetValueAsync(AppSettingKeys.WareneingangBestellungAktiv), "true", StringComparison.OrdinalIgnoreCase);
-        var zeigtWe = (stockRead && weModul) || await RequireStockReadOrEinkaufAccessFilter.EinkaufAsync(_currentUserService, _appSettings);
+        var zeigtWe = weModul && (stockRead || await RequireStockReadOrEinkaufAccessFilter.EinkaufAsync(_currentUserService, _appSettings));
         var canTransfer = stockRead && await _currentUserService.CanTransferStockAsync();
         if (!zeigtWe)
         {
