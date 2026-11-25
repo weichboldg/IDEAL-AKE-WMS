@@ -738,7 +738,7 @@ Jede Etappe: `frontend-design` explizit aufrufen, Kontrast messen, Ampel nie nur
 |---|--------|--------|--------|
 | 1 | Teile Einzeln: AG-Status (Status-Ladung und Symbol-Partial aus FA-Struktur herausgezogen), Kinder als Zeilen, Filter auf Kinder, Teile-Knopf vorn, BDE mobil kompakt (992 px, 44 px, Spaltenfilter in Karten nicht bedienbar – Antworten 8–10). Doku: Kapitel 17 Abschnitt 2 + Fotos `17-03`, Handy-Foto. v1.99.73, TS-194, keine Migration. | erledigt (2026-11-25, Umsetzung siehe unten) | `219a69c3` |
 | 2 | Teile Summiert: Einzelauftraege aufklappbar, Summen-Haken, aggregierte Ampel ueber `Ableiten` (Antwort 11). Doku: Kapitel 17 Abschnitt 5 + Foto `17-06`. v1.99.74, TS-195, keine Migration. | erledigt (2026-11-25, Umsetzung siehe unten) | `eecc47ac` |
-| 3 | Teilfertigmeldung: Migration + SQL/169 + FreshInstall, Service/Controller/Dialog, Ruecknahme, Waisen, Baugruppe `istFinal`, Admin-Spalte Art, ADR 0037. **Dieselbe Migration legt `ProductionWorkplaces.BdeStandardsichtTeile` an und belegt sie vor** (Antwort 3a; Model-Property ohne Leser bis Etappe 4a – Reihenfolge geprueft, siehe Etappe-3-Entwurf). Defaults beider Spalten nur in Migration/SQL/FreshInstall, kein `HasDefaultValue`, `IstAbschliessend` immer explizit gesetzt (Antwort 16, AK 18a). Index nach Antwort 12: wer zweitens baut, vereinigt den Filter mit SQL/164 – der Dev-Lauf prueft beim Start, ob SQL/164 schon im Branch liegt. Uebermeldung bei Teilfertig erlaubt mit Hinweis (Antwort 18, AK 15a). Doku: Kapitel 17 Abschnitte 3/4/6/7 + Fotos `17-05`, `17-07`. v1.99.75, TS-196. | offen | |
+| 3 | Teilfertigmeldung: Migration + SQL/169 + FreshInstall, Service/Controller/Dialog, Ruecknahme, Waisen, Baugruppe `istFinal`, Admin-Spalte Art, ADR 0037. **Dieselbe Migration legt `ProductionWorkplaces.BdeStandardsichtTeile` an und belegt sie vor** (Antwort 3a; Model-Property ohne Leser bis Etappe 4a – Reihenfolge geprueft, siehe Etappe-3-Entwurf). Defaults beider Spalten nur in Migration/SQL/FreshInstall, kein `HasDefaultValue`, `IstAbschliessend` immer explizit gesetzt (Antwort 16, AK 18a). Index nach Antwort 12: wer zweitens baut, vereinigt den Filter mit SQL/164 – der Dev-Lauf prueft beim Start, ob SQL/164 schon im Branch liegt. Uebermeldung bei Teilfertig erlaubt mit Hinweis (Antwort 18, AK 15a). Doku: Kapitel 17 Abschnitte 3/4/6/7 + Fotos `17-05`, `17-07`. v1.99.75, TS-196. | erledigt (2026-11-25, Umsetzung siehe unten) | `94be5444` |
 | 4 | ~~FA-Sicht an beiden Standorten: Wirksamkeits-Helfer … `TeilelisteWirksam` entfernt, `BdeBookingService` mit Master-Lesung, … Banner, …~~ *(ueberholt, Antwort 15)* FA-Sicht an beiden Standorten: Wirksamkeits-Helfer ohne NurFA (`SeiteVerfuegbar`, `TeilelisteWirksam(w)` ohne `nurFa`, `TeileSichtVerfuegbar` = Master && `TeilelisteWirksam`, `TeileStandard` ueber `BdeStandardsichtTeile`), Gate `BdeBookingService.cs:288` inhaltlich wie heute (ohne `nurFa`, ohne Master, kein neuer Ctor-Parameter), Zeilenquelle als gemeinsame Service-Methode, View `Fa`, AG-Status aller AG der Sub-FA (Antwort 4), Kopf-Buchungen, Modal-Partials, Scan, Standardsicht-Auswahl neben `BdeTeileliste` („Teile“ nur mit `BdeTeileliste`), Teile-Reiter nur mit `BdeTeileliste` (sonst deaktiviert mit Hinweis, kein Banner), gemerkte Sicht, Pagination statt MaxHauptFa (Antwort 14). Doku: Kapitel 17 (Maske, Reiter, Foto `17-01`) + Kapitel 11 FA-Sicht (neue Fotos). v1.99.76, TS-197, keine weitere Migration. *(ueberholt, Antwort 19: aufgeteilt in 4a und 4b)* | – | |
 | 4a | FA-Sicht Grundgeruest an beiden Standorten (Antwort 19): Wirksamkeits-Helfer ohne NurFA (`SeiteVerfuegbar`, `TeilelisteWirksam(w)` ohne `nurFa`, `TeileSichtVerfuegbar` = Master && `TeilelisteWirksam`, `TeileStandard` ueber `BdeStandardsichtTeile`) samt Aufrufer-Umstellung, Gate `BdeBookingService.cs:288` inhaltlich wie heute (ohne `nurFa`, ohne Master, kein neuer Ctor-Parameter), Zeilenquelle als gemeinsame Service-Methode, View `Fa` mit Spalten/Filter/Pagination statt MaxHauptFa (Antwort 14), AG-Status aller AG der Sub-FA (Antwort 4), Anstempeln Ruesten/Produktion je Zeile (Kollision als sichtbare Meldung), Werkbank-Maske mit Standardsicht-Auswahl neben `BdeTeileliste` („Teile“ nur mit `BdeTeileliste`), Liste `ProductionWorkplaces`, Teile-Reiter nur mit `BdeTeileliste` (sonst deaktiviert mit Hinweis), gemerkte Sicht. AK 23, 24 (4a-Teil), 28–32d. Doku: Kapitel 17 (Maske, Reiter, Foto `17-01`) + Kapitel 11 FA-Sicht (Foto `11-05`). v1.99.76, TS-197, keine weitere Migration. | offen | |
 | 4b | FA-Sicht Bedienung (Antwort 19): Kopf-Buchungen laufend/pausiert mit Teilfertig/Pause/Fertig/Fortsetzen und Detailangaben-Schalter, `bde-fa-sicht.js`, Modal-Partials aus `Views/BdeTerminal/Index.cshtml` (Mengen, Kollision, Gruppe, Close-Others; beide Seiten nutzen sie bis Etappe 5), Scanzeile, Taetigkeit, NurAg-„Fertig melden“ je Zeile. AK 24 (4b-Teil), 25, 26, 27. Doku: Kapitel 11 Kopf/Dialoge/Scan (Foto `11-06`). v1.99.77, TS-198, keine Migration. | offen | |
@@ -815,6 +815,49 @@ Changelog [[2026-11-25-v1-99-74-bde-masken-etappe-2-teile-summiert]]. Manifest-I
   [WarehouseRequisitionItemId] IS NULL` – SQL/169 vereinigt ihn mit `IstAbschliessend`. Der Summen-Haken meldet heute immer volle Sollmenge;
   „teilgemeldet = läuft“ (Etappe 3) erbt `AgAggregieren` automatisch über die Einzelzeilen (Quelle bleibt `TeilmeldungenAnwenden`).
 - Foto nicht aufgenommen: `docs/anwender/bilder/17-06-teileliste-summiert.jpg` ersetzen (aufgeklappte Gruppe mit Ampel).
+
+## Umsetzung Etappe 3 (2026-11-25)
+
+Commit `94be5444` im Worktree `feature/2026-08-07-ideal-teile-1-5` (auf v1.99.74 `eecc47ac`). **v1.99.75, TS-196, Migration
+`20261125191311_AddBdeTeilMeldungIstAbschliessendUndStandardsicht`, SQL/169, ADR [[0037-teilfertigmeldung-nur-abschliessende-meldung-eindeutig]].**
+Build 0 Fehler / 32 Warnungen (Basis), Tests Web 3655/1/0 (+14: 13 `BdeTeilelisteTeilfertigTests`, 1 `BdeTeilelisteLagerTests`), Dienst 847/0/0.
+qa-agent steht aus. Changelog [[2026-11-25-v1-99-75-bde-masken-etappe-3-teilfertigmeldung]].
+
+**Bauweise:**
+- Modell: `BdeTeilMeldung.IstAbschliessend`, `ProductionWorkplace.BdeStandardsichtTeile` (ohne Leser). Kein `HasDefaultValue`; Defaults nur in
+  Migration (`defaultValue: true` bzw. false + `UPDATE`-Vorbelegung), SQL/169 und FreshInstall (Schema + MigrationId).
+- **Index-Entscheidung:** beide gefilterten UNIQUE (`_Schluessel` und `_Lagerbestellung`) mit `[IstAbschliessend] = 1`, den SQL/165-Filter
+  `WarehouseRequisitionItemId IS [NOT] NULL` vereinigt (Antwort 12). SQL/169 baut nur neu, wenn `filter_definition` `IstAbschliessend` noch nicht
+  enthält; Dubletten-Prüfung vorab mit WARNUNG + Prüfabfrage + NOEXEC; History nur, wenn beide Spalten und beide Filter passen.
+- Service: `TeilelisteZeile.Meldungen` (alle, nach Zeit), `Abschluss`, `Gemeldet` (Summe Gut), `Rest`; `Meldbar` nur ohne Abschluss. Mengenregel
+  `MengenFuerArtOk` an einem Ort für FA- und Lagerbestell-Zeilen. Doppelschutz: App-Prüfung auf abschließende Meldung + applock + Index.
+- `TeilmeldungenAnwenden(..., teilgemeldet)`: nur Teilmeldungen → `Ableiten(false, laeuft: true, …)`; `AgAggregieren` erbt das ohne Änderung.
+- Controller `Melden(..., art)`; Teilfertig mit mehr als einem Schlüssel → WarningMessage, nichts gemeldet. Block/Summiert: Restmenge, abschließend.
+- Baugruppe: `IBdeBookingService.ReportCompletionCoreAsync(..., bool istFinal = true)` → `quantity.IsFinal`; `ReportCompletionAsync` unverändert.
+- UI: Melden-Fenster mit zwei Knöpfen (btn-lg), Bestätigungsfenster als Bootstrap-Modal (Fokus auf Abbrechen) für Zurücknehmen und Block –
+  capture-Listener vor der site.js-Doppelsende-Sperre, danach `requestSubmit`. Admin-Spalte `art` in `TeilmeldungSpalten` + `ColumnDefinitions`.
+- Manifest `SQL/169` nach SQL/168 + Info `v1.99.75-BdeTeilfertigInfo`; Drift-Test `SchemaReihenfolge` ergänzt.
+
+**Abweichungen von der Spec:**
+- E3-1: Gut ist auch für „Teilfertig“ mit der Restmenge vorbelegt (ein Feld für beide Knöpfe) statt leer + Pflicht. Der Server erzwingt Gut > 0;
+  eine versehentliche Übermeldung meldet der Hinweis. Falls „leer“ gewünscht: Vorbelegung in `bde-teileliste.js` per Knopf umschalten.
+- Auch die Lagerbestell-Zeilen (ADR 0038) können Teilfertig (zweiter Index ebenfalls mit `IstAbschliessend = 1`) – sonst böte die Oberfläche
+  Teilfertig an und der Index wiese es ab.
+- Manifest-Info-Text etwas ausführlicher als die Deploy-Tabelle (Werker informieren, Browser-Cache).
+
+**Befunde:**
+- Baugruppe: „Fertig“ mit 0/0 nach Übermeldung weist `ReportCompletionCoreAsync` ab („Bitte eine Gut- oder Ausschussmenge angeben“); die
+  Teilmeldung wird dann nicht gespeichert. Bei Blechteilen/Lagerbestellungen ist 0/0 als Abschluss erlaubt. Nicht geändert (Buchungsdienst) –
+  in TS-196.7 Schritt 4 beschrieben; ggf. Entscheid Gerald.
+- Die Tests wurden zusammen mit dem Code geschrieben; vor dem Code waren sie nicht ausführbar (neue Members, Kompilierfehler statt rot).
+- Spec-Text „Vorbelegung durch SQL/168“ (Abschnitt Einstellungen) meint nach der Nummern-Umstellung SQL/169.
+- Zusatzfund Doku: `docs/betrieb/03` Tabelle 5.2a hatte keine Zeile SQL/168 (vorbestehend, nicht nachgetragen).
+- Fotos nicht aufgenommen: `docs/anwender/bilder/17-05-fertig-melden-fenster.jpg` (Melden-Fenster mit beiden Knöpfen) und
+  `17-07-teilmeldungen-admin.jpg` (Spalte Art) ersetzen.
+
+**Hinweise für Etappe 4a:** `TeilelisteWirksam`/`nurFa` unverändert; `BdeStandardsichtTeile` hat noch keinen Leser, steht nicht in
+`EditableProperties` bzw. der Werkbank-Maske und nicht in der Liste `ProductionWorkplaces`. Neue Lesewege auf `BdeTeilMeldungen` (Tageshistorie
+Etappe 5) beachten Fallstrick §69.
 
 ## Deploy
 

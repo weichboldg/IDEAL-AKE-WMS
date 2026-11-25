@@ -467,6 +467,9 @@ Quellen-Weiche je Abgleich: [[0019-quellen-weiche-view-sdata-je-abgleich]]. Ordn
 - v1.99.74 (Summiert, Etappe 2): `TeilelisteAggregat.Einzelzeilen` (FE-Termin aufsteigend) und `.Arbeitsgaenge` aus
   `BdeTeilelisteService.AgAggregieren` (je Kürzel schlechtester Stand über `ArbeitsgangStatusRegel.Ableiten`, neutrale zählen nicht).
   Statuszelle als Partial `Views/BdeTeileliste/_TeilStatus.cshtml` (Einzeln + Summiert-Unterzeilen); Summen-Haken-Kopplung in `bde-teileliste.js`.
+  Teilfertigmeldung (v1.99.75): `TeilelisteZeile.Meldungen`/`Abschluss`/`Gemeldet`/`Rest`, Mengenregel `MengenFuerArtOk` (Fertig Vorgabe Rest,
+  Teilfertig Gut > 0, Übermeldung = Hinweis), `MeldeAuftrag.Abschliessend`; Controller-Parameter `art` (`teil`/`fertig`); Baugruppe über
+  `BdeBookingService.ReportCompletionCoreAsync(..., istFinal)`. Bestätigungsfenster (`data-bestaetigen`) in `bde-teileliste.js` statt `confirm`.
 
 ## OperationConfigSync: Sage-Arbeitsgangnummer (v1.99.27)
 

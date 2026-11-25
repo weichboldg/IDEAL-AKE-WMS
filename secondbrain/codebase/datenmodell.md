@@ -329,3 +329,8 @@ oben ist durch SQL/149 ueberholt (jetzt 45).
 - `BdeTeilMeldungen.WarehouseRequisitionItemId` int NULL, FK `WarehouseRequisitionItems` Restrict. UNIQUE `UX_BdeTeilMeldungen_Schluessel` jetzt
   `WHERE [IsCancelled] = 0 AND [WarehouseRequisitionItemId] IS NULL`; neu `UX_BdeTeilMeldungen_Lagerbestellung` (`WarehouseRequisitionItemId`,
   `Kuerzel`) `WHERE [IsCancelled] = 0 AND [WarehouseRequisitionItemId] IS NOT NULL`. ADR [[0038-teilmeldung-auch-fuer-lagerbestell-positionen]].
+- `BdeTeilMeldungen.IstAbschliessend` bit NOT NULL (DB-Default 1, kein EF-`HasDefaultValue`; v1.99.75, SQL/169) – 1 = Fertig (schließt die Zeile),
+  0 = Teilfertig. Beide UNIQUE-Filter zusätzlich `[IstAbschliessend] = 1`: eindeutig ist nur die abschließende Meldung, Teilmeldungen beliebig oft.
+  Schreiber nur `BdeTeilelisteService.MeldeAsync` (setzt den Wert immer ausdrücklich). ADR [[0037-teilfertigmeldung-nur-abschliessende-meldung-eindeutig]].
+- `ProductionWorkplaces.BdeStandardsichtTeile` bit NOT NULL Default 0 (v1.99.75, SQL/169) – Startreiter der BDE-Seite; Vorbelegung 1 bei BDE aktiv +
+  BDE-Teileliste + Kürzel nur bei Erstanlage der Spalte. **Noch ohne Leser und ohne Pflegemaske** (ab Etappe 4a).

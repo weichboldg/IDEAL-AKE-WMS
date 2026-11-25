@@ -2325,3 +2325,14 @@ Code: `hardware-scanner.js` Block „Scannen ohne Feld“, CSS `.hw-scan-bereit`
 - **Warum:** Sichtbarkeit steuern hier zwei Mechanismen (Bootstrap-Collapse per Klasse, Zahnrad per Inline-Stil); eine Layout-Regel, die
   `display` setzt, überschreibt beide still. Der Fehler zeigt sich nur unter der Kartenschwelle und nur mit zugeklappten Kinderzeilen –
   kein Test sieht ihn (TS-194.4 Schritt 5 prüft ihn von Hand).
+
+## 69. Mehrere Teilmeldungen je Zeile: „gemeldet“ heißt nur noch „abschließend gemeldet“ (v1.99.75, [[2026-11-25-bde-masken-vereinheitlichung-spec]])
+
+- **Problem:** Seit Etappe 3 hat eine Teileliste-Zeile beliebig viele nicht stornierte Meldungen (Teilfertig, `IstAbschliessend = 0`) und höchstens
+  eine abschließende. Ein Leseweg, der wie bisher „gibt es eine Meldung?“ fragt (`FirstOrDefault`, `Any`, `ToDictionary` je Schlüssel), hält eine
+  Teilmeldung für den Abschluss, wirft bei doppeltem Schlüssel oder zählt Waisen je Meldung statt je Schlüssel.
+- **Regel:** Neuer Leseweg auf `BdeTeilMeldungen` wählt ausdrücklich: **alle** Meldungen (Summe, Liste) oder **nur `IstAbschliessend`**
+  (fertig, Doppelschutz, Ausblenden, AG-Status erledigt). Gruppieren statt `ToDictionary`. Zusätzlich gilt §67 (`WarehouseRequisitionItemId`).
+- **Regel:** `IstAbschliessend` immer ausdrücklich setzen – kein EF-`HasDefaultValue` (bool-Sentinel), der DB-Default 1 ist nur für den Bestand.
+- **Warum:** Der UNIQUE-Index schützt nur noch den Abschluss; Teilmeldungen fängt kein Index mehr ab. Fehler dieser Art fallen erst mit echten
+  Teilmeldungen auf, der Bestand (alle = 1) verdeckt sie (ADR [[0037-teilfertigmeldung-nur-abschliessende-meldung-eindeutig]]).
