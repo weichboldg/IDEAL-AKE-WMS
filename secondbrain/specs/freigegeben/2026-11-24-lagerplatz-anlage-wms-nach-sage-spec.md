@@ -1272,3 +1272,5 @@ Nachlauf-Einträge der Spec vorhanden.
 12. IDEAL: Testsystem `idealakeweb01:88` auf `IDEAL_TEST_2026_05_03`, P-1..P-9, V3, Benjamin legt Testlager an, TS-192 komplett.
 13. Empfehlung: `SageLagerplatzAnlageAktiv = false` und `SageLagerAnlageLagertechniken = Aus` ins DEV-Sicherheits-SQL von `D:\Dev\scripts\dev-deploy.ps1` aufnehmen.
 14. Testsystem-Lauf mit dem Publish-Paket, danach Merge (Schranke 2).
+
+**Schlusslauf v1.99.79 (2026-11-25):** QA bestanden (F-5/F-8 Review OK; F-6 Konflikt-SELECT auf ake_TEST2026 nennt PlatzID 1; F-7 live NICHT MOEGLICH ohne Sage-Schreibschalter; Hinweis H-C STRING_AGG-Version am IDEAL-Sage-Server) - Nachweis [[2026-11-25-kommission-lagerplatz-bde-goal-lauf]], Abschnitt „QA Schlusslauf v1.99.79“.

@@ -1006,3 +1006,5 @@ Testdaten auf IDEAL_WMS_DEV (bleiben): Sage-Attribut-Definitionen/-Werte an 5000
 11. Rollen am echten Konto des Pflegers (`fraesenpfad_pflegen` + `masterdata_read`); Manifest-Prüfung `FraesenpfadOhneStammdatenLesen` = 0.
 12. AKE: Schalter aus, keine Fräsen-Spalte, Artikel bearbeiten unverändert.
 13. F-1 und F-3 entscheiden; danach Merge (Schranke 2).
+
+**Schlusslauf v1.99.79 (2026-11-25):** QA bestanden mit offenem Punkt F-16: AKE-Abgleich ohne Blechdicke fehlerfrei; IDEAL-Abgleich scheitert an der SQL-Anmeldung svc_idealakewms auf IDEAL_TEST_2026_05_03, USER_OSBlechdicke weiter unbelegt (Gerald). F-10/F-12/F-17/F-18/F-19 OK - Nachweis [[2026-11-25-kommission-lagerplatz-bde-goal-lauf]], Abschnitt „QA Schlusslauf v1.99.79“.

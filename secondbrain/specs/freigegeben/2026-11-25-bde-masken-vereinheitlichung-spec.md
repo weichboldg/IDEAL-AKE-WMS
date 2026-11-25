@@ -1278,3 +1278,5 @@ Keine Sage-, Sync- oder Mail-Schalter berührt.
 7. AK 35b Android-Handy mit lokalem Konto (docs/betrieb/09).
 8. AK 32a: Dienst-Lauf Struktur-Erkennung nach Standardsicht-Wechsel unverändert.
 9. Entscheiden: N1–N4, N6, N7, F-20…F-31; Fotos 11-02/11-03 (F-30, unreferenziert, nicht gelöscht); lokale DB `IDEAL_AKE_WMS` (N9).
+
+**Schlusslauf v1.99.79 (2026-11-25):** QA bestanden (F-26/F-27/F-28/F-31/F-34 bis F-37 an DEV OK, fremde terminalId abgewiesen; Hinweis H-A: Pause/Fertig/Teilmenge ohne Terminal-Pruefung, Bestand) - Nachweis [[2026-11-25-kommission-lagerplatz-bde-goal-lauf]], Abschnitt „QA Schlusslauf v1.99.79“.

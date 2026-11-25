@@ -694,3 +694,5 @@ Version 1.99.70, Commit 6e426113). Manifest-Einträge für SQL/168, Einstellung 
 8. 191.16 `Sync:KommissionierNachtragUhrzeit` = 24 speichern → abgelehnt.
 9. Leitstand-Benutzer über die Knopf-Änderung informieren (Manifest-Info).
 10. Optional: Foto Aktivitäts-Protokoll nachholen, sobald ein Lauf existiert.
+
+**Schlusslauf v1.99.79 (2026-11-25):** QA bestanden (F-1 Repository nie null belegt; F-2 per Unit-Test, live NICHT MOEGLICH - kein FA mit Altbestand auf DEV) - Nachweis [[2026-11-25-kommission-lagerplatz-bde-goal-lauf]], Abschnitt „QA Schlusslauf v1.99.79“.

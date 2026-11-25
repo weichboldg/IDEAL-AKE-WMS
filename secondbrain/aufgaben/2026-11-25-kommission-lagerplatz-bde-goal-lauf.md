@@ -86,3 +86,65 @@ Alle Befunde der Specs werden gesammelt und nach der letzten Epic-Etappe in EINE
 | F-37 | Epic-QA N7 | Kollisionsdialog: Fokus auf Dialog statt „OK“ | Fokus auf OK | behoben (f1f0e4f2) |
 | F-38 | Epic-QA N9 | QA legte 3 Tabellen in lokaler DB `.`/IDEAL_AKE_WMS an (BfAuftraege, BfAuftragPositionen, SageFaArbeitsgangAnlagen) | **Erledigt 2026-11-25: bleiben.** Lokale DB PC-WEICHBOLD/MSSQLSERVER (nicht DEV, nicht AKESQL20); `__EFMigrationsHistory` führt 20261117154645_AddBfAuftraege + 20261117192807_AddSageFaArbeitsgangAnlagen bereits als angewendet → Tabellen machen die Kopie konsistent, Löschen würde sie brechen; leer, kein Repo-Verweis auf diese DB | offen Gerald (erledigt: bleiben) |
 | F-39 | Epic-QA N10 | FreshInstall ohne History-Zeile `20260910081155_AddProductionOrderMatchcode` (Altbestand) | nachtragen | widerlegt (Migration in 47de3ba2 entfernt, nie deployt – Zeile gehört NICHT in FreshInstall) |
+
+## QA Schlusslauf v1.99.79 (2026-11-25)
+
+qa-agent, synchron, Review und Szenarien selbst. Worktree `feature/2026-08-07-ideal-teile-1-5`, HEAD `a4feb6af`, Diff-Basis `a3287fb0..a4feb6af` (43 Dateien, +475/-56). **Ergebnis: bestanden** – keine FEHLER, kein Befund hoch/mittel aus dem Diff; F-16 IDEAL nicht abschließbar (Sage-Test-Anmeldung des Dienstes), siehe unten.
+
+**1. Build und Tests (Worktree):** `dotnet build IdealAkeWms.slnx` 0 Fehler / 32 Warnungen (Bestand). `dotnet test`: IdealAkeWms.Tests 3698 bestanden / 1 übersprungen / 0 Fehler; IDEALAKEWMSService.Tests 848 / 0 / 0.
+
+**2. DEV-Deploy** (`D:\Dev\scripts\dev-deploy.ps1`, erhöhte Shell, Quelle Worktree, Web + Dienst, keine Migration): AKE Exit 0, „HTTP 200, Fusszeile v1.99.79“ (http://localhost:8081); IDEAL Exit 0, „HTTP 200, Fusszeile v1.99.79“ (http://localhost:8082). DEV-Absicherung lief.
+
+**3. Code-Review (Diff selbst gelesen):**
+- F-1: einzige Implementierung `PickingOrderRepository.GetAktiveZeilenAsync` (`ToListAsync`, nie null), ungecacht registriert (`PickingOrderRegistrierung.cs:45`); kein Caching-Decorator, sonst nur Test-Doubles (`PickingControllerTests` Setup ergänzt, Fallstrick 71). OK.
+- F-28: Guard an allen sechs Start-Aktionen (StartProductionForOrder, StartSetup, StartProduction, StartActivity, Resume, ReportCompletion); einzige UI-Aufruferin ist `bde-fa-sicht.js`. Benutzer ohne Terminal: Die BDE-Seite leitet schon vorher mit sichtbarer Warnung „Für diesen Benutzer ist kein Terminal konfiguriert …“ auf die Startseite (`BdeTeilelisteController.cs:101-105`); die JSON-Aktionen antworten „Dieses Terminal ist nicht dem angemeldeten Benutzer zugeordnet – Seite neu laden.“ + „– nichts gebucht.“ (Default-Zweig `bde-fa-sicht.js`). Bewusst und sichtbar, nicht still.
+- F-5, F-6, F-8, F-10, F-18, F-19, F-26, F-27, F-34 bis F-37 gelesen: keine Befunde. F-18: Skript ohne `GO`, `RETURN` nach dem Guard beendet das ganze Skript.
+- Fehlerklassen geprüft: kein `@Html.Raw` in Skripten (StockOverview-JSON nur Literale), kein `hidden` + `d-*`, kein neuer stiller Fallback (F-1 entfernt einen), kein Parallel-Array-Binding, F-7 serverseitig validiert (`StorageLocationsController.cs:289-290`), keine doppelte Regel (F-27 teilt `FamilieAsync` mit `BuildNormalCandidatesAsync`).
+- **Neue Hinweise (niedrig, kein Regress):** H-A `Pause`, `Finish`, `ReportPartial`, `FinishGroup`, `CloseOthers` nehmen `bookingId`/`operatorId` vom Client ohne Terminal-/Besitzprüfung (Bestand, außerhalb F-28) – Entscheid Gerald, ob der Guard dort auch hin soll. H-B F-2 zeigt `ex.Message` im Warntext (ggf. technischer Text für den Leitstand). H-C `STRING_AGG … WITHIN GROUP` (F-6) braucht SQL Server ab 2017 auf dem Sage-Server; an ake_TEST2026 belegt, für IDEAL Prüfabfrage `SELECT @@VERSION` (Gerald).
+
+**4. Geänderte bestehende Tests:** `SageLagerplatzAnlageServiceTests.SqlText_PlatzBefehl` (F-6 bewusst), `BdeTerminalControllerTests` Fixture (GetCurrentAppUserId + Terminal-Mock, F-28 bewusst), `PickingControllerTests` Setup GetAktiveZeilenAsync (F-1, Fallstrick 71), `BdeKopfBuchungenTests` (+Sub-FA, F-35), `BdeScanResolverTests.Normal_Running_…` (F-27 bewusst NotInScope → Running), `FraesenPfadTests.Controller(bool fraesenAktiv = false)` (nur Parameter, Default = alt), `ViewKeyDriftGuardTests` (+F-12). Kein „Sonstiges“.
+
+**5. Checkliste:** keine Migration, kein Schema-SQL; Version 1.99.79 in beiden `AppVersion.cs`; `Views/Help/Changelog.cshtml` + Brain-Changelog [[2026-11-25-v1-99-79-sammel-fixes-goal-lauf]]; TS-200 in `docs/TESTSZENARIEN.md` + Index Zeile 200. Keine neue oder geänderte Einstellung (ADR 0020 entfällt). Kein neuer Deploy-Schritt; Manifest-Eintrag des Einmal-Skripts gilt unverändert.
+
+**6. Szenarien DEV** (Browser claude-in-chrome, eigener Tab; manipulierte Requests per curl mit Windows-Sitzung; SQL `sqlcmd -S . -E -C`). Screenshots nicht möglich (CDP-Timeout), Belege über DOM-Text und HTTP-Antworten.
+
+| Schritt | Ergebnis | Status |
+|---|---|---|
+| F-28 fremde terminalId (AKE, eigenes Terminal 3, gesendet 1) an StartActivity, StartSetup, StartProduction, ReportCompletion, Resume, StartProductionForOrder | alle `InvalidState` „Dieses Terminal ist nicht dem angemeldeten Benutzer zugeordnet – Seite neu laden.“; `BdeBookings` vorher/nachher 58 | OK |
+| F-28 eigenes Terminal AKE: StartActivity, Resume (UI) | Success (Buchung 65) bzw. fachlich „Dieser Arbeitsgang gehört nicht zu dieser Werkbank.“ – Guard passiert | OK |
+| F-28 eigenes Terminal IDEAL: Fortsetzen (UI), Anstempeln (UI), StartSetup, ReportCompletion | „Fortgesetzt.“; Kollisionsdialog; `QuantityRequired`; „Diese Werkbank meldet nicht ohne Zeit fertig.“ – Guard passiert überall | OK |
+| F-28 Benutzer ohne Terminal | nur Code + Unit-Test (kein zweites Windows-Konto) | NICHT MOEGLICH live |
+| F-27 Scan IDEAL Wb 65: laufende Sub-FA 1067191 / unbekannt 99999991 / FA 1060414 an Wb 47 | UI „FA 1067191: Der Arbeitsgang läuft bereits (offene Buchung) …“; API `Running` / `NotFound` / `NotInScope` | OK |
+| F-26 Ticker IDEAL | Laufzeit 0:00 h → 0:02 h ohne Neuladen | OK |
+| F-35 Sub-FA in „Meine Buchungen“ | IDEAL „1060414 · Sub-FA 1067191 / EG Entgraten Fläche“; AKE „2609192 / 01 ZB“ ohne Zusatz | OK |
+| F-37 Kollisionsdialog IDEAL (Werker 9901 bucht Sub-FA 1067193, Werker 123 startet) | Dialog „Arbeitsgang bereits in Arbeit … QA Werker B“; Enter ohne Klick schließt ihn | OK |
+| F-31 Tageshistorie ohne Werker | Anmeldeseite mit `ziel=historie`; falsche Nr. → Fehler, `ziel` bleibt; richtige → 302 `/BdeTeileliste/Tageshistorie?…`; `ziel=https://evil.example` → 302 auf Liste (kein Open Redirect) | OK |
+| F-34 Ziel-Spalte IDEAL Wb 67 | „FA 1059463 · Pos. 3 · …“ (kein „Sub-FA 0“); Testzeile Lagerbestellung „Lagerbestellung · QA-TS200.14-LB“ (BdeTeilMeldungen Id 33, danach storniert) | OK |
+| F-36 Summen-Haken IDEAL Summiert | Summe an → Einzel aus → wieder an → Summe war gesetzt (nächster Klick leert alle, Knopf deaktiviert); Knopf „2 Zeilen, Summe 2“ | OK |
+| F-33 Kontrast | `.bde-terminal` an allen BDE-Seiten; #0a58ca auf #F5F5F5 = 5,90:1, auf Weiß 6,44:1 (gerechnet); Browser-Messung nicht möglich | OK (gerechnet) |
+| F-12 Bestandsübersicht AKE | „Aktueller Bestand“ und „Artikelnummer“ im Spaltendialog deaktiviert | OK |
+| F-17 IDEAL Artikel 7878 (`FraesenPfadAktiv` vorübergehend an) | POST ohne Artikelnummer → „Artikelnummer ist erforderlich“, Karte mit `\\idealfs1\…` bleibt, nichts gespeichert (ModifiedAt unverändert) | OK |
+| F-19 AKE Glasbestellung 58, Suche „Flantastic 92“ | Treffer „S5600549 - Schwarzglasbord Flantastic 92-139-Z [T&R] Sonder“ wörtlich | OK |
+| F-18 Guard read-only ausgewertet | AKE_WMS_DEV „ABBRUCH (kein IDEAL)“ (Wert false), IDEAL_WMS_DEV „weiter“ (true); Skript selbst nicht ausgeführt (ADR 0015) | OK |
+| F-6 Konflikt-SELECT read-only ake_TEST2026 | „… schon anders belegt (PlatzID 1 HAUPT = Hauptlager;0;0;0)“ | OK |
+| F-7 Neues Lager 11 Zeichen | Seite braucht `SageLagerplatzAnlageAktiv` (Sage-Schreibschalter) – nicht eingeschaltet; Unit-Test + Code | NICHT MOEGLICH live |
+| F-2 Altbestand geprüft, Anlegen scheitert | kein FA mit `AltbestandPruefen` auf DEV, Fehler nicht provozierbar; Unit-Test | NICHT MOEGLICH live |
+| F-29 | keine View/kein JS ruft ActiveBookings, PausedBookings, StartProductionForOrder, api operator/today-history/available-operations; bewusst stehen gelassen, keine toten UI-Verweise | OK |
+
+**F-16 Artikel-Abgleich (Auftrag Gerald 2026-11-25, Sage nur lesend):**
+- **DEV AKE** (`Sync:ArticlesEnabled` false → true, `Sync:BlechteileFelderNachlesen` false belassen; Dienst-Neustart 22:37:57; SageConnection ake_TEST2026, SData sagetest01 ake_TEST2026;1): „Quelle: SData“ … „Run erfolgreich beendet - gelesen=100599, neu=0, aktualisiert=0, hauptlagerplatz_fehlt=106“ (22:42:17). Fehler 0. Warnungen: 1× „Zugangsdaten aus appsettings - bitte in die Service-Einstellungen übernehmen“, 106× „Hauptlagerplatz 'FTG;0;0;0' fuer Artikel … nicht als WMS-Lagerplatz gefunden - FK bleibt leer“ (DEV-Lagerplatzstand). Nichts zu Blechteilen oder USER_OSBlechdicke – AKE läuft ohne das Feld. **OK.**
+- **DEV IDEAL** (`Sync:ArticlesEnabled` und `Sync:BlechteileFelderNachlesen` false → true, Dienst-Neustart 22:44:37): „Run fehlgeschlagen: Die von der Anmeldung angeforderte IDEAL_TEST_2026_05_03-Datenbank kann nicht geöffnet werden. Fehler bei der Anmeldung. Fehler bei der Anmeldung für den Benutzer "AKENB\svc_idealakewms".“ (22:44:49). Der IDEAL-Abgleich liest zuerst die Sage-View per SQL (`idealsql2\SAGE100TEST`); die SData-Nachlese der Blechteile-Felder kommt erst danach (`SageImportService.SyncArticlesAsync`) und wurde nicht erreicht. **Existenz von USER_OSBlechdicke in Sage IDEAL weiter unbelegt – NICHT MOEGLICH.** Hinweis: DEV IDEAL `SData:BaseUrl` ist `https://idealsage2.ideal.ideal-ake.at:5493` (Dataset IDEAL_TEST_2026_03_05;1), nicht sagetest01. Teileliste Wb 67: Spalte Blechdicke vorhanden, Werte „–“, keine Fehlermeldung.
+- Für Gerald: dem Dienstkonto `AKENB\svc_idealakewms` Lesezugriff auf `IDEAL_TEST_2026_05_03` geben (oder SageConnection DEV IDEAL auf eine erreichbare Test-DB), dann Abgleich mit Nachlese wiederholen; alternativ Prüfabfrage P-1 in Sage IDEAL.
+
+**Umgeschaltet / zurückgesetzt (DEV):** AKE_WMS_DEV `Sync:ArticlesEnabled` true 22:37 → false 22:44. IDEAL_WMS_DEV `Sync:ArticlesEnabled` + `Sync:BlechteileFelderNachlesen` true 22:44 → false 22:47. IDEAL_WMS_DEV AppSetting `FraesenPfadAktiv` (Zeile fehlte) vorübergehend eingefügt → wieder gelöscht. Danach geprüft: an beiden DEV-DBs kein `Sync:*Enabled` ungleich false. Testdaten: AKE Buchung 65 (Tätigkeit, Werker 5155) läuft; IDEAL Buchung 35 (Werker 123, fortgesetzt) und 36 (Werker 9901, Sub-FA 1067193) laufen; BdeTeilMeldungen Id 33 storniert. Nichts nach Sage geschrieben, Sage-Produktion nicht berührt.
+
+**7. Publish:** `C:\Git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-07-ideal-teile-1-5\publish\` – IDEALAKEWMSWeb + IDEALAKEWMSWebService (Release, Ordner vorher geleert), SQL\, deploy\, `publish-info.txt` Version 1.99.79, Commit a4feb6afb103e9ce31d6a7c72a235132364bfd3d. Zu deployen: Web + Dienst (beide geändert), keine Migration; Einmal-Skript Fräsen-Pfad bleibt Trockenlauf/Gerald. Nach dem Merge nur neu publizieren, falls der Merge getestete Dateien mit parallelen main-Änderungen kombiniert.
+
+**Offen für den Menschen:**
+1. F-16 IDEAL: Lesezugriff des Dienstkontos auf Sage-Test IDEAL, dann Abgleich mit Nachlese an und Protokoll prüfen (USER_OSBlechdicke).
+2. F-6 Live-Schreibtest Konflikt (Gerald, Sage-Test) + `SELECT @@VERSION` am IDEAL-Sage-Server (STRING_AGG).
+3. F-7 Neues Lager mit 11 Zeichen auf einem System mit `SageLagerplatzAnlageAktiv`.
+4. F-2 Altbestand-Fehlerfall, sobald ein FA mit „Altbestand prüfen“ vorhanden ist.
+5. F-28 mit einem Benutzer ohne Terminal; Entscheid H-A (Guard auch an Pause/Fertig/Teilmenge).
+6. F-33 Kontrast im Browser am Fertigungsterminal nachmessen.
+7. Testsystem-Lauf mit dem Publish-Paket, danach Merge (Schranke 2).
