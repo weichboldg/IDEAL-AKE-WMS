@@ -619,3 +619,10 @@ August) = offene außerhalb des Zeitraums. Erwartung vorher gerechnet, Ergebnis 
 6. 189.14 bei 390 px Breite: genau ein Scrollbalken, keine Seiten-Querscrollleiste.
 7. CSV-Hinweise (AK 15) mit eingeschalteter CSV-Übergabe auf dem Testsystem.
 8. Testsystem-Lauf mit dem Paket aus `publish\` (Web tauschen, Manifest-Info), danach Merge.
+
+## FREIGABE-NACHTRAG 2026-11-25 (Gerald) – QA-Befund B3, Umsetzung in v1.99.69
+
+B3: Einkauf/Admin sehen WE-Zeilen bei `EinkaufAktiv`, auch wenn `WareneingangBestellungAktiv` aus ist (übernommen aus der alten
+Einkauf-Liste). Gerald 2026-11-25: „wenn es ein kleiner Fix ist, deine Empfehlung“ → WE-Zeilen auch für den Einkauf nur bei
+eingeschaltetem Modul (`zeigtWe` in `SageBookingQueueController.Index` um die Modulbedingung ergänzen). Einheitlich: Modul aus =
+keine WE-Zeilen. TS-189.10 und AK 10 entsprechend anpassen.
