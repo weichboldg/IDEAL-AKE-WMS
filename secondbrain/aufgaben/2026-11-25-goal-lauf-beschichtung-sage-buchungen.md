@@ -33,3 +33,4 @@ Auftrag Gerald 2026-11-25 („passt“): Reihenfolge Bugfix → Gesamtsicht → 
 - Gerald 2026-11-25: Gesamtsicht B3 → WE-Zeilen auch für Einkauf nur mit Modul, in v1.99.69 mit N-1.
 - Referenz v1.99.68: 19244bfa, SQL/167 + Migration 20261125134408_AddStockMovementAbteilung, TS-190, Build 0 Fehler, Tests Web 3536/1 skip/0, Service 798/0. Offen P-2: übernimmt Sage die gesendete Zeilen-Referenz / zeigt es Zeilen-Memo? (nur Mensch, Testsystem).
 - v1.99.69 (N-1 leerer Entwurf + Gesamtsicht B3) wird vor der gemeinsamen QA 68+69 gebaut.
+- v1.99.69: eff16911, Root Cause N-1 belegt (Dictionary<int,…>-Binder fällt ohne `mengen[..]` auf leeres Präfix → ModelState-Fehler unter ""), Fix [Bind(Prefix="mengen")]; B3 zeigtWe = Modul && (stockRead || Einkauf). Tests Web 3539/1/0, Service 798/0. Gleiches Muster latent in StockMovementsController.OutboundAllConfirm (stueckGezeigt, ModelState ungeprüft) – nur gemeldet. QA 68+69 läuft.
