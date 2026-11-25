@@ -2,7 +2,7 @@
 type: spec
 title: BDE-Teileliste kompakt und mobil bedienbar (Filter einklappbar, Kartenansicht)
 slug: 2026-11-18-bde-vereinfacht-mobil-kompakt-spec
-status: Entwurf
+status: Ueberholt
 created: 2026-11-18
 updated: 2026-11-18
 source_backlog: "[[2026-11-18-bde-vereinfacht-mobil-kompakt]]"
@@ -38,6 +38,8 @@ freigabe_am: ""
 ---
 
 # BDE-Teileliste kompakt und mobil bedienbar
+
+> [!warning] Aufgegangen im Epic [[2026-11-25-bde-masken-vereinheitlichung]] (Etappe 1, Gerald 2026-11-25). Diese Spec nicht einzeln umsetzen; Inhalt und offene Fragen wandern in die Epic-Spec.
 
 Bezug: [[2026-11-13-bde-vereinfacht-teileliste-blechfertigung-spec]] (Status Testbereit, liegt in `specs/entwurf/`, nicht in
 `specs/freigegeben/`), Nachtrag Kontrast v1.99.36. Termin: [[2026-11-18-termin-ideal-1000-notizen]].
@@ -335,3 +337,5 @@ Kartenansicht, Spaltenfilter nur am Terminal“ ergänzen; Anwender- und Brain-C
 2. Schwelle Kartenansicht/eingeklappter Filter: 992 px oder 768 px? →
 3. Spaltenfilter in der Kartenansicht nicht bedienbar (Anzahl + Zurücksetzen) – akzeptiert? →
 4. Konto/Gerät am Handy (Terminal-Zuordnung)? →
+
+> [!note] Zurückgestellt (Gerald 2026-11-18 19:20: „hinten anstellen“). Spec bleibt Entwurf, Rückfragen offen.
