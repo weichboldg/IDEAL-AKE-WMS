@@ -1,6 +1,6 @@
 # 08 – Diagnose-Abfragen (nur lesend)
 
-**Stand:** v1.99.43, 2026-11-19 · **Zielgruppe:** IT-Administratoren (ohne Entwicklerwissen)
+**Stand:** v1.99.66, 2026-11-25 · **Zielgruppe:** IT-Administratoren (ohne Entwicklerwissen)
 
 Sammlung **lesender** SQL-Abfragen für die WMS-Datenbank, gruppiert nach Thema. Jede Abfrage hat Zweck, erwartetes Ergebnis und Quelle.
 Die Abfragen stammen aus dem Update-Manifest (`scripts/deploy/nachlauf.psd1`), aus `docs/TESTSZENARIEN.md` und aus den Testberichten;
@@ -265,7 +265,7 @@ GROUP BY SageWeStatus
 ORDER BY SageWeStatus;
 ```
 
-- **Zweck:** Überblick wie auf `/PurchaseOrders/SageWareneingaenge`.
+- **Zweck:** Überblick wie auf `/SageBookingQueue?herkunft=Wareneingang` (bis v1.99.65 `/PurchaseOrders/SageWareneingaenge`; `NichtNoetig`/`NurInSage` zeigt die Seite nicht).
 - **Erwartet:** `Fehler` und `Klaeren` = 0 bzw. in Bearbeitung; `Gesendet` nur kurzzeitig.
 - **Quelle:** wie oben; Bedeutung `scripts/deploy/nachlauf.psd1:432-434,444-449`.
 

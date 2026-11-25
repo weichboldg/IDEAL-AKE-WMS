@@ -98,6 +98,7 @@
                     <ul class="mb-0 small">
                         <li>Bestandsuebersicht (<code>/StockOverview</code>, read-only)</li>
                         <li>Bewegungshistorie (<code>/StockMovements</code> Index, read-only)</li>
+                        <li>v1.99.66: Lager → Sage-Buchungen (<code>/SageBookingQueue</code>, Filter <code>RequireStockReadOrEinkaufAccess</code>): Lagerbuchungen, mit aktivem Modul „Wareneingang zu Bestellung“ auch die Sage-Wareneingänge; Knöpfe nur mit Lager-Keyuser-Recht</li>
                         <li>KEIN Zugriff auf Ein-/Aus-/Umbuchung, Lagerplatz-Sonderaktionen, Lager-Worklist, Bedarfsmeldungen</li>
                     </ul>
                 </td>
@@ -222,7 +223,8 @@
                 <td>
                     <ul class="mb-0 small">
                         <li>Einkauf → Bestellvorschläge (<code>/PurchaseProposals</code>, Filter <code>RequireEinkaufAccess</code>), CSV</li>
-                        <li>Einkauf → Offene Bestellungen (<code>/EinkaufPurchaseOrders</code>) und Einkauf → Sage-Wareneingänge (offen) (<code>/EinkaufPurchaseOrders/SageWareneingaenge</code>), Filter <code>RequireEinkaufAccess</code>; kein Lager-Recht nötig</li>
+                        <li>Einkauf → Offene Bestellungen (<code>/EinkaufPurchaseOrders</code>) und Einkauf → Sage-Wareneingänge (offen) (<code>/EinkaufPurchaseOrders/SageWareneingaenge</code>, seit v1.99.66 Umleitung auf <code>/SageBookingQueue?herkunft=Wareneingang&amp;nurOffene=true</code>), Filter <code>RequireEinkaufAccess</code>; kein Lager-Recht nötig</li>
+                        <li>v1.99.66: Sage-Buchungen (<code>/SageBookingQueue</code>) lesen über Filter <code>RequireStockReadOrEinkaufAccess</code> (Lager-Lesen <em>oder</em> Einkauf mit <code>EinkaufAktiv</code>); der Einkauf ohne Lager-Recht sieht dort nur die Sage-Wareneingänge, ohne Knöpfe</li>
                         <li>Wareneingang buchen nur mit Lager-Recht (<code>RequireStockAccess</code>); Aktionen an Sage-Wareneingängen nur mit Lager-Keyuser-Recht (Filter <code>RequireStockKeyUserAccess</code>)</li>
                         <li>Sichtbar nur wenn AppSetting <code>EinkaufAktiv</code> aktiv ist (Filter <code>RequireEinkaufAktiv</code>, Default aus – auch für admin)</li>
                         <li>Anlage der Rolle über das Update-Skript (Prüfung <code>Pruefung/RolleEinkauf</code>), Zuweisen unter /Roles</li>

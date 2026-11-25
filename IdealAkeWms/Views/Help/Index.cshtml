@@ -140,9 +140,9 @@
                         der Zeile ein Hinweis und nichts wird gebucht. Positionen mit Charge/Seriennummer bucht der Einkauf in Sage.
                         Je Position gibt es ein Feld <em>Positionsmemo</em> (seit v1.99.6, höchstens 200 Zeichen): Der Text steht als Notiz an der
                         Einbuchung und im Sage-Wareneingang im Positions-Memo vor der WMS-Kennung.
-                        Den Stand zeigt <em>Lager &rarr; Sage-Wareneingänge</em> (bis v1.99.6 &bdquo;Wareneingänge an Sage&ldquo;). Seit v1.99.31 sieht der
-                        Einkauf unter <em>Einkauf &rarr; Sage-Wareneingänge (offen)</em> nur die noch nicht an Sage übergebenen (nur lesend; Aktionen nur mit
-                        Lager-Keyuser-Recht).
+                        Den Stand zeigt seit v1.99.66 <em>Lager &rarr; Sage-Buchungen</em> mit Herkunft &bdquo;Wareneingang&ldquo; (bis v1.99.65 eigene Liste
+                        &bdquo;Sage-Wareneingänge&ldquo;; alte Links leiten um). Der Einkauf sieht dort über <em>Einkauf &rarr; Sage-Wareneingänge (offen)</em>
+                        nur die Sage-Wareneingänge, standardmäßig nur die offenen (nur lesend; Aktionen nur mit Lager-Keyuser-Recht).
                         <strong>Seit v1.99.7</strong> wiederholt der Dienst einen Fehler selbst (Anzahl und Abstand in den Service-Einstellungen) und sucht
                         vor jedem Versuch den Beleg in Sage über die Memo-Kennung <code>WE#&hellip;#</code>: gefunden = <em>an Sage übergeben</em>, ohne
                         zweiten Beleg. Findet er einen Beleg derselben Bestellung ohne Kennung (gleicher Tag oder später, gleiche Lieferschein-Nr.), steht der
@@ -167,7 +167,7 @@
                         5&nbsp;Lieferschein, 6&nbsp;Sage-Belegnummer, 7&nbsp;Erfasser (Windows-Kontoname ohne Domäne, sonst WMS-Benutzername),
                         8&nbsp;Datum der Erfassung, 9&nbsp;übergeben am (Datum jeweils <code>JJJJ-MM-TT hh:mm</code>). Ein Feld mit Strichpunkt oder
                         Anführungszeichen steht in Anführungszeichen. Den Stand zeigt die Spalte &bdquo;CSV&ldquo;
-                        der Sage-Wareneingänge (wartet / offen / geschrieben / Fehler). Netzfehler wiederholt der Dienst selbst (Standard 3-mal, frühestens nach
+                        der Sage-Buchungen (im Zahnrad einblenden; wartet / offen / geschrieben / Fehler). Netzfehler wiederholt der Dienst selbst (Standard 3-mal, frühestens nach
                         15 Minuten); danach auf der Freigabe nachsehen und <em>CSV erneut schreiben</em>. &bdquo;Datei existiert bereits&ldquo; steht nur noch an
                         Zeilen von vor v1.99.33; <em>CSV erneut schreiben</em> legt sie als <code>_1</code>, <code>_2</code> &hellip; ab.
                         <br />
@@ -305,7 +305,7 @@
                         <code>einkauf</code> unter <em>Rollen</em> zuweisen.
                     </dd>
 
-                    <dt>Sage-Lagerbuchungen (seit v1.28.0)</dt>
+                    <dt>Sage-Buchungen (seit v1.28.0, bis v1.99.65 &bdquo;Sage-Lagerbuchungen&ldquo;)</dt>
                     <dd>
                         Manuelle <strong>Ein- und Ausbuchungen</strong> koennen automatisch und zeitnah an
                         <strong>Sage</strong> gemeldet werden, damit Sage den echten Lagerbestand ohne manuellen
@@ -318,10 +318,16 @@
                                 <em>Service-Einstellungen</em> (<code>SageLagerbuchungAktiv</code>) <em>und</em> je Lagerplatz
                                 das Feld <strong>&bdquo;Sage-Buchung erlaubt&ldquo;</strong> (Stammdaten &rarr; Lagerplaetze).
                                 Erst wenn beide aktiv sind, wird gemeldet &mdash; standardmaessig ist alles aus.</li>
-                            <li><strong>Uebersicht &amp; Status:</strong> Unter <em>Lager &rarr; Sage-Lagerbuchungen</em>
-                                sind alle Meldungen mit Status (<em>offen &rarr; gesendet &rarr; bestaetigt</em> bzw. <em>Fehler</em>)
-                                nachvollziehbar. Fehlgeschlagene Meldungen lassen sich mit <em>&bdquo;Erneut senden&ldquo;</em>
-                                wieder einreihen; der Dienst prueft dabei vorher in Sage, ob die Buchung schon existiert (keine Doppelbuchung).</li>
+                            <li><strong>Uebersicht &amp; Status:</strong> Unter <em>Lager &rarr; Sage-Buchungen</em>
+                                steht alles, was das WMS an Sage übergibt, in einer Liste: Ein-/Ausbuchungen, Umbuchungen, Lagerbestellungen und
+                                (mit aktivem Modul &bdquo;Wareneingang zu Bestellung&ldquo;) die Sage-Wareneingänge. Spalte <em>Herkunft</em> sagt, woher
+                                die Zeile kommt; <em>Status</em> ist für alle gleich (<em>wartet &rarr; gesendet &rarr; übergeben</em>, <em>Fehler</em>,
+                                <em>klären</em>), <em>Status im Weg</em> zeigt den ursprünglichen Status. Filter: Herkunft, Status, &bdquo;nur offene&ldquo;,
+                                Bestellung, Zeitraum. Ohne &bdquo;von&ldquo; gelten die letzten 30 Tage; offene Buchungen stehen immer in der Liste
+                                (Hinweis über der Tabelle). Die Wareneingang-Spalten (Lieferschein, Barcode, Positionsmemo, Memo, CSV) sind im Zahnrad
+                                standardmäßig ausgeblendet. Fehlgeschlagene Lagerbuchungen lassen sich mit <em>&bdquo;Erneut senden&ldquo;</em>
+                                wieder einreihen; der Dienst prueft dabei vorher in Sage, ob die Buchung schon existiert (keine Doppelbuchung). Die
+                                Wareneingang-Knöpfe stehen an der ersten Position eines Vorgangs. Nach jedem Knopf bleibt die gefilterte Seite stehen.</li>
                             <li><strong>Verbindungstest (Admin):</strong> Im Reiter <em>Einstellungen &rarr; Sage-Test</em> (seit v1.99.14,
                                 vorher auf den Service-Einstellungen) prueft <strong>&bdquo;Sage-Verbindung testen&ldquo;</strong> URL,
                                 TLS-Zertifikat und Anmeldung und zeigt Status, Antwort-Header und Antwort an &mdash; ohne eine echte Buchung
@@ -494,7 +500,7 @@
                     Blechfertigung, Beschichtung, Einkauf/Wareneingang, Stammdaten, Administration. Startseite und Menue kommen aus
                     <strong>einer</strong> Quelle: Sie sehen genau die Kacheln, deren Seite Sie auch oeffnen duerfen und deren Modul unter
                     <em>Einstellungen</em> eingeschaltet ist. Ein Bereich ohne Kachel und ein Menue ohne Eintrag erscheinen nicht.
-                    Protokoll- und Pflegeseiten (z.&nbsp;B. Sage-Lagerbuchungen, Kategorien, Service-Einstellungen) stehen nur im Menue.
+                    Protokoll- und Pflegeseiten (z.&nbsp;B. Sage-Buchungen, Kategorien, Service-Einstellungen) stehen nur im Menue.
                 </p>
                 <p>
                     Seit v1.99.50 hat jede Kachel ein eigenes Symbol. Ein hohler Rahmen steht fuer einen ganzen Lagerplatz (mit Minus =

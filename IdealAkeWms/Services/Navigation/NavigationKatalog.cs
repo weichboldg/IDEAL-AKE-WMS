@@ -85,10 +85,9 @@ public static class NavZiele
     public static readonly NavZiel Artikelinfo = new("Artikelinfo", "Artikelinfo", "Articles", "Info", KatLager, "QR-Code scannen: Details und Bestand", SymUpcScan);
     public static readonly NavZiel LagerplatzAusbuchen = new("LagerplatzAusbuchen", "Lagerplatz ausbuchen", "StockMovements", "OutboundAll", KatLager, "Einen ganzen Lagerplatz leeren", SymLagerplatzAusbuchen);
     public static readonly NavZiel LagerplatzUmbuchen = new("LagerplatzUmbuchen", "Lagerplatz umbuchen", "StockMovements", "LocationTransfer", KatLager, "Einen ganzen Lagerplatz umziehen", SymLagerplatzUmbuchen);
-    public static readonly NavZiel SageLagerbuchungen = new("SageLagerbuchungen", "Sage-Lagerbuchungen", "SageBookingQueue", "Index");
+    public static readonly NavZiel SageLagerbuchungen = new("SageLagerbuchungen", "Sage-Buchungen", "SageBookingQueue", "Index"); // v1.99.66 Titel, Key bleibt (Favoriten)
     public static readonly NavZiel OffeneBestellungenLager = new("OffeneBestellungenLager", "Offene Bestellungen", "PurchaseOrders", "Index", KatEinkauf, "Offene Sage-Bestellungen für den Wareneingang", SymSanduhr);
     public static readonly NavZiel WareneingangZuBestellung = new("WareneingangZuBestellung", "Wareneingang zu Bestellung", "PurchaseOrders", "Receive", KatEinkauf, "Gelieferte Ware zur Bestellung buchen", SymLkw);
-    public static readonly NavZiel SageWareneingaengeLager = new("SageWareneingaengeLager", "Sage-Wareneingänge", "PurchaseOrders", "SageWareneingaenge");
 
     // ---- Bestellungen
     public static readonly NavZiel Bedarfsmeldungen = new("Bedarfsmeldungen", "Bedarfsmeldungen", "PartRequisitions", "Index", KatBestellungen, "Bedarf an die Empfänger melden", SymEnvelopeCheck);
@@ -159,7 +158,7 @@ public static class NavZiele
     public static readonly IReadOnlyList<NavZiel> Alle =
     [
         Einbuchung, MehrfachEinbuchung, Ausbuchung, Umbuchung, Bestaende, Bewegungshistorie, Artikelinfo, LagerplatzAusbuchen, LagerplatzUmbuchen,
-        SageLagerbuchungen, OffeneBestellungenLager, WareneingangZuBestellung, SageWareneingaengeLager,
+        SageLagerbuchungen, OffeneBestellungenLager, WareneingangZuBestellung,
         Bedarfsmeldungen, Lagerbestellungen, MeineFehlteile, LagerEingehendeListen, LagerFehlteile,
         Kommissionierung, Kommissionierlisten, LeitstandKommissionierung,
         FaListe, FaStruktur, FaVervollstaendigen, FaAbarbeitungsliste, Vormontage, BdeTerminal, BdeCockpit, BdeBuchungen, BdeStammdaten,
@@ -255,7 +254,7 @@ public sealed class NavigationSicht(ICurrentUserService user, IAppSettingReposit
             "Bestaende" or "Bewegungshistorie" or "SageLagerbuchungen" => stockRead,
             "Artikelinfo" => mdRead,
             "LagerplatzAusbuchen" or "LagerplatzUmbuchen" => transfer,
-            "OffeneBestellungenLager" or "SageWareneingaengeLager" => wareneingang && stockRead,
+            "OffeneBestellungenLager" => wareneingang && stockRead,
             "WareneingangZuBestellung" => wareneingang && stock,
             "Bedarfsmeldungen" => bestellungen && stock,
             "Lagerbestellungen" or "MeineFehlteile" => lagerbestellungSicht,

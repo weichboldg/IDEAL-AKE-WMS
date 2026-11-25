@@ -1,6 +1,6 @@
 # 07 – Troubleshooting
 
-**Stand:** v1.99.29, 2026-11-16 · **Zielgruppe:** IT-Administratoren (ohne Entwicklerwissen)
+**Stand:** v1.99.66, 2026-11-25 · **Zielgruppe:** IT-Administratoren (ohne Entwicklerwissen)
 
 Fehlerbilder, die im Projekt tatsächlich aufgetreten oder ausdrücklich dokumentiert sind – je Fall Ursache, Prüfung, Lösung und Quelle.
 Was nicht belegt ist, steht als **zu prüfen** da. Log-Orte: [06-logs-ueberwachung.md](06-logs-ueberwachung.md); lesende SQL-Abfragen
@@ -50,7 +50,7 @@ für AKE: Konto und SPN von AKESQL20 (Quelle: [[2026-11-12-deploy-fahrplan-buend
 | Register Sage-Test: „Sage-SData nicht konfiguriert“ | `SData:BaseUrl` oder `SData:Dataset` leer | `/ServiceSettings` Gruppe Sage-Lagerbuchung | Werte setzen (IDEAL erst mit SData-Endpunkt) | `README.md:539-540`; [[2026-11-13-ake-regression-akenet-4445-browser-testbericht]] (4445 anfangs leer) |
 | Sage-Lagerbuchung in Status **Fehler** | Sage hat abgelehnt (belegte Beispiele: SSL, 401, 400, 500) | `/SageBookingQueue`, Spalte Fehler (A-3.2) | Ursache klären, dann „Erneut senden“ (prüft vorher per Memo-Suche, kein Doppelbuchen) | [[2026-10-20-ake-testsystem-bestandsaufnahme]] Sage-Lagerbuchungen |
 | Gelbes Banner „TLS-Zertifikatsprüfung deaktiviert“ | `SageLagerbuchungSslZertifikatPruefen` aus | `/ServiceSettings` | Auf Prod einschalten; aus nur für Testsysteme | [[services]] TLS-Schalter |
-| Sage-Wareneingang **Fehler** | Sage-Schreibfehler | `/PurchaseOrders/SageWareneingaenge`, Spalten Versuche/Fehler (A-4.2) | Dienst wiederholt selbst (Standard 3 Versuche, 15 min Abstand, jeweils mit Suche in Sage); danach in Sage prüfen und „Erneut senden“ | `scripts/deploy/nachlauf.psd1:319-324` |
+| Sage-Wareneingang **Fehler** | Sage-Schreibfehler | `/SageBookingQueue?herkunft=Wareneingang` (bis v1.99.65 `/PurchaseOrders/SageWareneingaenge`), Spalten Vers./Fehler (A-4.2) | Dienst wiederholt selbst (Standard 3 Versuche, 15 min Abstand, jeweils mit Suche in Sage); danach in Sage prüfen und „Erneut senden“ | `scripts/deploy/nachlauf.psd1:319-324` |
 | Sage-Wareneingang **Klären** | Möglicher Beleg in Sage ohne WMS-Kennung, oder liegen geblieben, weil der Sage-Wareneingang ausgeschaltet wurde | wie oben; in Sage nach Bestellung/Datum suchen | In Sage prüfen, dann „Als übergeben markieren“ (Belegnummer) **oder** „Erneut senden“. Wird nie automatisch nachgeschickt | `scripts/deploy/nachlauf.psd1:322-324`; [[fallstricke]] §31 |
 | Einkauf schließt Wareneingang in Sage von Hand → Doppelbestand | Seit v1.99.4 macht das WMS den Sage-Beleg | — | Einkauf informieren: Status „An Sage übergeben“ nicht von Hand schließen | `scripts/deploy/nachlauf.psd1:313-315`; `scripts/deploy/nachlauf.psd1:238-239` |
 | Wareneingang: kein Ziel-Lagerplatz wählbar bzw. „Sage-Platz … ist im WMS nicht buchbar“ | Mit `SageWareneingangBelegAktiv` sind nur Sage-Plätze mit „Sage-Buchung erlaubt“ buchbar; auf 4445 hatte keiner der 853 buchbaren Plätze diese Kennung | Lagerplatz-Stammdaten | Zielplätze buchbar machen und „Sage-Buchung erlaubt“ setzen; vorher klären, ob das zusätzliche Lagerbuchungen auslöst (**zu prüfen**, laut Brain ungeprüft) | [[2026-11-12-deploy-fahrplan-buendel-v1-99]] AKE Test-IDEAL; `scripts/deploy/nachlauf.psd1:307-309` |

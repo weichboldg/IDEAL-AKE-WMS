@@ -25,10 +25,10 @@ public interface ISageBookingQueueRepository
     Task<SageBookingQueueItem?> GetByIdWithMovementAsync(int id);
 
     /// <summary>
-    /// Alle Eintraege (optional nach Status gefiltert) inkl. Bewegung/Artikel/Lagerplatz, neueste zuerst
+    /// v1.99.66 (Sage-Buchungen F8): Eintraege im Zeitraum (Erstellt, bis = ganzer Tag) plus alle offenen (nicht Bestaetigt), inkl. Bewegung/Artikel/Lagerplatz, neueste zuerst
     /// — Datenquelle der Monitoring-Liste (Spaltenfilter + Pagination im Controller).
     /// </summary>
-    Task<List<SageBookingQueueItem>> GetForMonitoringAsync(SageBookingQueueStatus? status);
+    Task<List<SageBookingQueueItem>> GetForMonitoringAsync(DateTime von, DateTime? bis);
 
     /// <summary>Status auf Gesendet setzen (VOR dem HTTP-Call), SentAt/LastAttemptAt/AttemptCount fortschreiben.</summary>
     /// <param name="kennung">v1.99.9: beim Senden verwendete Memo-Kennung (SM#[K#]&lt;id&gt;#), gespeichert fuer den Lookup.</param>

@@ -3,11 +3,14 @@ using IdealAkeWms.Models;
 using IdealAkeWms.Models.ViewModels;
 using IdealAkeWms.Services;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Routing;
 
 namespace IdealAkeWms.Controllers;
 
 /// <summary>
 /// v1.99.4 (Spec 2026-11-08-wareneingang-teil-2-sage-we-beleg-rahmenabrufe E3, F4): Liste „Sage-Wareneingänge“ und „Erneut senden“ von Hand.
+/// v1.99.66 (Spec 2026-11-23-sage-buchungen-gesamtsicht): Liste in „Sage-Buchungen“ (<see cref="SageBookingQueueController"/>) aufgegangen, hier nur
+/// noch die Umleitung und die Aktionen (Rücksprung über <c>returnUrl</c>).
 /// v1.99.7 (E5): der Dienst wiederholt selbst mit Sage-Prüfung; „Klären“ = kein automatisches Senden, weiter nur „Erneut senden“ oder
 /// „Als übergeben markieren“; Q-2-Hinweis bei ausgeschaltetem Sage-Wareneingang. Lesen = Klassen-Filter
 /// <see cref="RequireStockReadAccessAttribute"/> + Feature-Gate; „Erneut senden“ = <see cref="RequireStockKeyUserAccessAttribute"/> wie die Sage-Queue.
@@ -31,89 +34,25 @@ public partial class PurchaseOrdersController
     /// aktuellen System-Kuerzel.</summary>
     public static string SageWeMemo(PurchaseOrderReceipt erste, string? kuerzel) => SageWareneingang.Kennung(erste, kuerzel);
 
-    // Server-Spaltenfilter: Col-Key -> gerenderter Zelltext (ADR 0005/0017)
-    private static readonly Dictionary<string, Func<SageWareneingangZeile, string?>> SageWeColumnMap = new()
+    /// <summary>v1.99.66 (Spec 2026-11-23-sage-buchungen-gesamtsicht F10): die Liste ist in „Sage-Buchungen“ aufgegangen - alte Lesezeichen leiten
+    /// dauerhaft (301) dorthin um, mit Herkunft Wareneingang; der Status wird über die F2-Zuordnung übersetzt (NichtNoetig/NurInSage fallen weg).
+    /// Muster „Abgeloeste Routen“ (ProductionOrdersController). Als GET weiter hinter den Klassen-Filtern dieses Controllers.</summary>
+    public IActionResult SageWareneingaenge(SageWareneingangStatus? status, string? bestellung, DateTime? von, DateTime? bis)
+        => UmleitungSageBuchungen(status, bestellung, von, bis, nurOffene: false);
+
+    /// <summary>Gemeinsam für Lager und <see cref="EinkaufPurchaseOrdersController"/> (dort mit „nur offene“).</summary>
+    internal IActionResult UmleitungSageBuchungen(SageWareneingangStatus? status, string? bestellung, DateTime? von, DateTime? bis, bool nurOffene)
     {
-        ["gebucht"] = z => z.Receipt.CreatedAt.ToString("dd.MM.yyyy HH:mm"),
-        ["bestellung"] = z => z.Receipt.Belegnummer,
-        ["pos"] = z => z.Receipt.BelPosId.ToString(),
-        ["artikel"] = z => z.Receipt.StockMovement.Article.ArticleNumber,
-        ["menge"] = z => z.Receipt.Quantity.ToString("0.###"),
-        ["platz"] = z => z.Receipt.StockMovement.StorageLocation.Code,
-        ["lieferschein"] = z => z.Receipt.Lieferschein,
-        ["barcode"] = z => z.Receipt.Barcode,   // v1.99.11 Wareneingang-CSV
-        ["memo-position"] = z => z.Receipt.StockMovement.Note,
-        ["status"] = z => SageWeStatusText(z.Receipt.SageWeStatus),
-        ["versuche"] = z => z.Receipt.SageWeVersuche.ToString(),
-        ["sagebeleg"] = z => z.Receipt.SageWeBelegnummer,
-        ["memo"] = z => z.Memo,
-        ["fehler"] = z => z.Receipt.SageWeFehler,
-        ["csv"] = z => z.Csv,                   // v1.99.11: gerenderter Text (WareneingangCsv.StatusText)
-    };
-
-    /// <summary>v1.99.31 (F2a.2): „offen“ = noch nicht an Sage übergeben (Einkauf → Sage-Wareneingänge (offen)); ohne Uebergeben und NichtNoetig.</summary>
-    public static readonly IReadOnlyList<SageWareneingangStatus> OffeneSageWeStatus =
-    [
-        SageWareneingangStatus.Offen, SageWareneingangStatus.Gesendet, SageWareneingangStatus.Fehler,
-        SageWareneingangStatus.Klaeren, SageWareneingangStatus.NurInSage,
-    ];
-
-    public Task<IActionResult> SageWareneingaenge(SageWareneingangStatus? status, string? bestellung, DateTime? von, DateTime? bis,
-        int page = 1, int? pageSize = null)
-        => SageWeListeAsync(false, status, bestellung, von, bis, page, pageSize);
-
-    /// <summary>v1.99.31: gemeinsame Liste für Lager → Sage-Wareneingänge (<paramref name="nurOffene"/> = false, unverändert) und
-    /// Einkauf → Sage-Wareneingänge (offen) (<see cref="EinkaufPurchaseOrdersController"/>, nurOffene = true). Die Einschränkung gilt immer,
-    /// auch bei <c>status=Uebergeben</c> per URL (leere Liste).</summary>
-    internal async Task<IActionResult> SageWeListeAsync(bool nurOffene, SageWareneingangStatus? status, string? bestellung, DateTime? von,
-        DateTime? bis, int page, int? pageSize)
-    {
-        if (page < 1) page = 1;
-        var userDefault = await _user.GetDefaultPageSizeAsync();
-        var effectivePageSize = PageSize.Resolve(pageSize, userDefault);
-
-        var receipts = await _receipts.GetSageWareneingaengeAsync(status, bestellung, von, bis);
-        if (nurOffene) receipts = receipts.Where(r => OffeneSageWeStatus.Contains(r.SageWeStatus)).ToList();
-        var kuerzel = (await _serviceSettings.GetValueAsync(SageSystemKuerzel.Key))?.Trim();
-        var memoJeVorgang = receipts.Where(r => r.SageWeVorgang != null).GroupBy(r => r.SageWeVorgang!.Value)
-            .ToDictionary(g => g.Key, g => SageWeMemo(g.MinBy(r => r.Id)!, kuerzel));
-        // v1.99.11 (Wareneingang-CSV F4): Ausgangszeilen der Vorgaenge mit Barcode in EINER Abfrage, Schalter wie im Dienst
-        var sageWeAn = SageWareneingang.IstAn(await _serviceSettings.GetValueAsync(SageWareneingang.ToggleKey));
-        var csvAn = SageWareneingang.IstAn(await _serviceSettings.GetValueAsync(WareneingangCsv.AktivKey));
-        var csvPfad = await _serviceSettings.GetValueAsync(WareneingangCsv.PfadKey);
-        var exporte = await _receipts.GetCsvExporteAsync(receipts.Where(r => r.Barcode != null && r.SageWeVorgang != null)
-            .Select(r => r.SageWeVorgang!.Value).Distinct().ToList());
-        var zeilen = receipts.Select(r =>
+        var ziel = new RouteValueDictionary
         {
-            var export = r.SageWeVorgang is { } ev && exporte.TryGetValue(ev, out var x) ? x : null;
-            return new SageWareneingangZeile
-            {
-                Receipt = r,
-                Memo = r.SageWeVorgang is { } v && memoJeVorgang.TryGetValue(v, out var m) ? m : null,
-                Csv = WareneingangCsv.StatusText(r, export, csvAn, sageWeAn, csvPfad),
-                CsvFehler = export?.Status == WareneingangCsvStatus.Fehler,
-            };
-        });
-        var gefiltert = ColumnFilterHelper.Apply(zeilen.AsQueryable(), ColumnFilterHelper.ReadFromQuery(HttpContext?.Request), SageWeColumnMap,
-            ColumnFilterTypes.For("PurchaseOrders/SageWareneingaenge")).ToList();
-
-        // F2a.4: Aktionen posten auf diesen Controller (Class-Gate WareneingangBestellungAktiv) - im Einkauf nur mit eingeschaltetem Gate zeigen
-        var canTransfer = await _user.CanTransferStockAsync();
-        var gateAn = !nurOffene || await WareneingangBestellungAnAsync();
-        return View("~/Views/PurchaseOrders/SageWareneingaenge.cshtml", new SageWareneingaengeViewModel
-        {
-            NurOffene = nurOffene,
-            CanReceive = !nurOffene || (await _user.CanAccessStockAsync() && gateAn),
-            Zeilen = gefiltert.Skip((page - 1) * effectivePageSize).Take(effectivePageSize).ToList(),
-            Status = status, Bestellung = bestellung, Von = von, Bis = bis,
-            CanErneutSenden = canTransfer && gateAn,
-            AusHinweis = SageWareneingang.AusHinweis(sageWeAn, await _receipts.SageWeNichtUebergebenAsync()),
-            CsvHinweise = csvAn ? WareneingangCsv.Hinweise(csvAn, sageWeAn, csvPfad, await _receipts.CsvWartendAsync()) : new(),
-            Pagination = new PaginationState
-            {
-                CurrentPage = page, PageSize = effectivePageSize, PageSizeRaw = PageSize.ResolveRaw(pageSize, userDefault), TotalCount = gefiltert.Count,
-            },
-        });
+            ["herkunft"] = SageBuchungHerkunft.Wareneingang,
+            ["status"] = status is { } s ? SageBuchungenGesamtsicht.Anzeige(s) : null,
+            ["bestellung"] = bestellung,
+            ["von"] = von?.ToString("yyyy-MM-dd"),
+            ["bis"] = bis?.ToString("yyyy-MM-dd"),
+        };
+        if (nurOffene) ziel["nurOffene"] = true;
+        return RedirectToActionPermanent("Index", "SageBookingQueue", ziel);
     }
 
     /// <summary>„Erneut senden“ (Status Fehler oder Klären): die ganze Beleg-Gruppe zurück auf Offen. Der Dienst sucht vor dem Senden die
@@ -121,17 +60,17 @@ public partial class PurchaseOrdersController
     [HttpPost]
     [ValidateAntiForgeryToken]
     [RequireStockKeyUserAccess]
-    public async Task<IActionResult> SageWeErneutSenden(Guid vorgang)
+    public async Task<IActionResult> SageWeErneutSenden(Guid vorgang, string? returnUrl = null)
     {
         if (!SageWareneingang.IstAn(await _serviceSettings.GetValueAsync(SageWareneingang.ToggleKey)))
         {
             TempData["WarningMessage"] = "Nicht eingereiht: Der Sage-Wareneingang ist ausgeschaltet (Service-Einstellung „Wareneingänge als Sage-Wareneingangsbeleg buchen“).";
-            return RedirectToAction(nameof(SageWareneingaenge));
+            return SageBookingQueueController.Zurueck(this, returnUrl, SageBuchungHerkunft.Wareneingang);
         }
         var n = await _receipts.SageWeErneutSendenAsync(vorgang, _user.GetDisplayName(), _user.GetWindowsUserName());
         if (n == 0) TempData["WarningMessage"] = "Nichts erneut eingereiht: Der Wareneingang steht nicht (mehr) auf „Fehler“ oder „Klären“.";
         else TempData["SuccessMessage"] = $"{n} Position(en) erneut zum Senden vorgemerkt. Der Dienst sucht den Beleg vorher in Sage und legt ihn sonst beim nächsten Takt an.";
-        return RedirectToAction(nameof(SageWareneingaenge));
+        return SageBookingQueueController.Zurueck(this, returnUrl, SageBuchungHerkunft.Wareneingang);
     }
 
     /// <summary>v1.99.7 (E5, „Klären“): Beleg existiert in Sage - von Hand als übergeben markieren (Belegnummer Pflicht, max. 45 Zeichen seit v1.99.22), ohne Senden.
@@ -139,18 +78,18 @@ public partial class PurchaseOrdersController
     [HttpPost]
     [ValidateAntiForgeryToken]
     [RequireStockKeyUserAccess]
-    public async Task<IActionResult> SageWeAlsUebergeben(Guid vorgang, string? belegnummer)
+    public async Task<IActionResult> SageWeAlsUebergeben(Guid vorgang, string? belegnummer, string? returnUrl = null)
     {
         var b = belegnummer?.Trim();
         if (string.IsNullOrEmpty(b) || b.Length > SagePurchaseOrderLine.BelegnummerMaxLaenge)
         {
             TempData["WarningMessage"] = "Nicht markiert: Bitte die Sage-Belegnummer angeben (höchstens 45 Zeichen).";
-            return RedirectToAction(nameof(SageWareneingaenge));
+            return SageBookingQueueController.Zurueck(this, returnUrl, SageBuchungHerkunft.Wareneingang);
         }
         var n = await _receipts.SageWeAlsUebergebenAsync(vorgang, b, _user.GetDisplayName(), _user.GetWindowsUserName());
         if (n == 0) TempData["WarningMessage"] = "Nicht markiert: Der Wareneingang steht nicht (mehr) auf „Fehler“ oder „Klären“.";
         else TempData["SuccessMessage"] = $"{n} Position(en) als an Sage übergeben markiert (Beleg {b}). Es wird nichts gesendet.";
-        return RedirectToAction(nameof(SageWareneingaenge));
+        return SageBookingQueueController.Zurueck(this, returnUrl, SageBuchungHerkunft.Wareneingang);
     }
 
     /// <summary>v1.99.11 (Wareneingang-CSV F4): Ausgangszeile im Status Fehler zurück auf Offen - der Dienst schreibt beim nächsten Takt neu
@@ -158,11 +97,11 @@ public partial class PurchaseOrdersController
     [HttpPost]
     [ValidateAntiForgeryToken]
     [RequireStockKeyUserAccess]
-    public async Task<IActionResult> CsvErneutSchreiben(Guid vorgang)
+    public async Task<IActionResult> CsvErneutSchreiben(Guid vorgang, string? returnUrl = null)
     {
         var n = await _receipts.CsvErneutSchreibenAsync(vorgang, _user.GetDisplayName(), _user.GetWindowsUserName());
         if (n == 0) TempData["WarningMessage"] = "Nichts vorgemerkt: Die CSV-Übergabe steht nicht (mehr) auf „Fehler“.";
         else TempData["SuccessMessage"] = "CSV zum erneuten Schreiben vorgemerkt. Der Dienst schreibt sie beim nächsten Takt (eine vorhandene Datei wird nicht überschrieben).";
-        return RedirectToAction(nameof(SageWareneingaenge));
+        return SageBookingQueueController.Zurueck(this, returnUrl, SageBuchungHerkunft.Wareneingang);
     }
 }

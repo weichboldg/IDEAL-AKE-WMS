@@ -531,7 +531,7 @@ Bei Änderungen der Tabellenstruktur müssen diese Scripts angepasst werden.
 | `BfEmpfaengergruppeId` | (leer) | Empfängergruppe der Bestell-Mail (Auswahl aus Stammdaten); leer = Abschicken gesperrt. Mail über den Dienst-Schalter `Sync:BfAuftragEmailEnabled` |
 | `BfStatuswerte` | `EILT` | Status-Werte je Position, kommagetrennt (je 1–30 Zeichen, ohne `;` `"`); steht vorne in der WiCAM-Bemerkung |
 | `BfSchachtelterminArbeitstage` / `BfFeTerminArbeitstage` | `1` / `10` | Termine ab dem Freigabetag in Arbeitstagen ohne Wochenende und Feiertage (Stammdaten → Feiertage); FE-Termin nie vor dem Schachteltermin |
-| `WareneingangBarcodeAktiv` | `false` (kein Seed) | „Wareneingang zu Bestellung“: Feld „Barcode (Lieferschein)“ neben der Lieferschein-Nr. (v1.99.11), Spalte Barcode in „Sage-Wareneingänge“; die CSV schreibt nur der Dienst-Schalter `WareneingangCsvAktiv`. Nur exakt `true`. Standort: AKE (IDEAL ohne Wirkung, Sage-Wareneingang aus). |
+| `WareneingangBarcodeAktiv` | `false` (kein Seed) | „Wareneingang zu Bestellung“: Feld „Barcode (Lieferschein)“ neben der Lieferschein-Nr. (v1.99.11), Spalte Barcode in „Sage-Buchungen“ (bis v1.99.65 „Sage-Wareneingänge“); die CSV schreibt nur der Dienst-Schalter `WareneingangCsvAktiv`. Nur exakt `true`. Standort: AKE (IDEAL ohne Wirkung, Sage-Wareneingang aus). |
 | `EinkaufAktiv` | `false` (kein Seed) | Hauptmenü „Einkauf → Bestellvorschläge“ (v1.99.20) für admin und Rolle `einkauf`; aus = kein Menü, `/PurchaseProposals` leitet auf die Startseite um (auch admin). Nur exakt `true`. Erst einschalten, wenn die Dienst-Abgleiche Artikel (SData), Kreditoren, Artikel-Lieferanten und Offene Bestellungen gelaufen sind; IDEAL aus lassen bis zur SData-Schnittstelle. |
 | `EinkaufOffeneBedarfe` | nicht gesetzt = `Lagerbestellungen,Bedarfsmeldungen` (kein Seed) | Mehrfachauswahl: welche offenen WMS-Bedarfe die verfügbare Menge der Bestellvorschläge mindern (abgesendete Lagerbestellungen, teilgeliefert nur Rest „wird nachgeliefert“; offene Bedarfsmeldungen). Leer = keine. Seit v1.99.30 gilt dieselbe Auswahl auch für „Verfügbar“ in der Artikelinfo; FA-Bedarfe zählen immer, angerechnet ohne Doppelzählung (je FA max(FA-Rest, Bedarfsmeldung), dann max(FA-Teil, Lagerbestellungen)). |
 | `OffeneBestellungenVorschauWochen` | `2` (kein Seed) | Vorbelegung des Spaltenfilters Liefertermin in „Offene Bestellungen“ (Lager und Einkauf): Montag der aktuellen KW bis Sonntag der N-ten KW (1–26, v1.84.0; seit v1.99.31 statt „heute + N Wochen“, Feld „Wochen“ entfallen). |
@@ -764,7 +764,7 @@ C:\Services\IDEALAKEWMSService\
 > `Sync:SageLagerbuchungStuckMinutes` = Fehler „Ergebnis unklar“. **Seit v1.99.7** automatisches Wiederholen mit Sage-Prüfung
 > (`Sync:SageWareneingangMaxWiederholungen`, Standard 3, 0 = nie; `Sync:SageWareneingangWiederholAbstandMinuten`, Standard 15): vor jedem
 > erneuten Senden Suche `EinkaufBelegeInfo` nach Memo `WE#<Id>#` (gefunden = übergeben ohne Senden), sonst Sicherungsnetz (Bestellung + Datum +
-> Lieferschein) → Status „Klären“. Schalter aus = offene Einträge auf „Klären“, kein Nachschicken. Liste „Lager → Sage-Wareneingänge“.
+> Lieferschein) → Status „Klären“. Schalter aus = offene Einträge auf „Klären“, kein Nachschicken. Liste „Lager → Sage-Buchungen“ (seit v1.99.66, Herkunft Wareneingang; bis v1.99.65 „Lager → Sage-Wareneingänge“).
 > **System-Kürzel (v1.99.9):** `Sync:SageSystemKuerzel` (Default leer, beide Standorte; nur `A–Z`/`0–9`, Buchstabe vorne, höchstens 5
 > Zeichen, Server prüft) – leer = `WE#<Id>#`/`SM#<id>#` (**Produktion: leer lassen**), sonst `WE#<K>#<Id>#`/`SM#<K>#<id>#`. Für Testsysteme,
 > die gemeinsam in eine Sage-Testdatenbank schreiben (DEV, AT = AKE-Test, ATI = AKE Test-IDEAL, IT = IDEAL-Test). Die verwendete Kennung wird
@@ -793,7 +793,7 @@ C:\Services\IDEALAKEWMSService\
 > Ordner; Feld 1 = Barcode ohne Nummer). „Datei existiert bereits“ entsteht seither nicht mehr – Altzeilen zeigt `Pruefung/WareneingangCsvKollision`.
 > Prod erst nach Bestätigung durch enaio (E-1), dass der Import Dateien mit Suffix verarbeitet.
 > **Dienstkonto:** braucht auf Freigabe und NTFS „Ändern“ (bei `LocalSystem` das Computerkonto `DOMÄNE\SERVER$`). Lauf „Wareneingang-CSV“ im
-> Aktivitäts-Protokoll, Stand in „Lager → Sage-Wareneingänge“ (Spalte CSV).
+> Aktivitäts-Protokoll, Stand in „Lager → Sage-Buchungen“ (Spalte CSV, im Zahnrad einblenden).
 > `SData:BaseUrl` (Host+Port ohne Pfad, z.B. `https://sagetest01.ake.at:5493`), `SData:Application`
 > (Default `ol`), `SData:ServiceContract` (Default `CommonWawiServices`), `SData:Dataset` (Mandant,
 > z.B. `ake_TEST2026;1`), sowie Intervall/Batch/Retry/Cap-Keys. Zusätzlich je Lagerplatz das Feld

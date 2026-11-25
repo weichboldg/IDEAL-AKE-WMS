@@ -606,5 +606,8 @@ WHERE NOT EXISTS (SELECT 1 FROM dbo.Roles r WHERE r.[Key] = v.k);'
 @{ Id='Info/Lagerbestellung-Entnahmeplatz'; Version='1.99.53'; Typ='Info'; Firma='beide'; Phase='Nachher'; Ausfuehrung='anzeigen'
    Text='Nur bei eingeschaltetem Schalter: Lager waehlt je Position "Entnahme aus" (Vorschlag wie Kommissionierung: Hauptlagerplatz mit Bestand, sonst Platz mit dem meisten Bestand); Abschliessen bucht die Ist-Menge als Entnahme aus. Ab dem Einschalttag diese Lieferungen in Sage NICHT mehr von Hand ausbuchen - das WMS uebergibt die Entnahme (sonst doppelte Entnahme).'
    Quelle='2026-11-23-v1-99-53-lagerbestellung-verbrauchsbuchung' }
+@{ Id='v1.99.66-SageBuchungenInfo'; Version='1.99.66'; Typ='Info'; Firma='beide'; Phase='Nachher'; Ausfuehrung='anzeigen'
+   Text='Lager/Einkauf informieren: "Sage-Lagerbuchungen" heisst jetzt "Sage-Buchungen" und enthaelt auch die Sage-Wareneingaenge mit allen Knoepfen (Erneut senden, Als uebergeben markieren, CSV erneut schreiben). Der Menuepunkt "Sage-Wareneingaenge" entfaellt, alte Links leiten um. "Nur in Sage buchen" steht nicht mehr in der Liste.'
+   Quelle='2026-11-23-sage-buchungen-gesamtsicht' }
 )
 }

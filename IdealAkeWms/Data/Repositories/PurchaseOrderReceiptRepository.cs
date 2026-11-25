@@ -37,8 +37,9 @@ public interface IPurchaseOrderReceiptRepository
     /// <summary>Im WMS erfasst je <c>BelPosId</c>, mit den an Sage uebergebenen Teilmengen (eine Abfrage fuer alle sichtbaren Zeilen, kein N+1).</summary>
     Task<Dictionary<int, ErfasstJeBelPos>> GetErfasstJeBelPosAsync(IReadOnlyCollection<int> belPosIds);
 
-    /// <summary>v1.99.4 (E3): Wareneingaenge mit Sage-WE-Status (ohne NichtNoetig), neueste zuerst, mit Artikel und Lagerplatz.</summary>
-    Task<List<PurchaseOrderReceipt>> GetSageWareneingaengeAsync(SageWareneingangStatus? status, string? bestellung, DateTime? von, DateTime? bis);
+    /// <summary>v1.99.4 (E3): Wareneingaenge mit Sage-WE-Status, neueste zuerst, mit Artikel und Lagerplatz. v1.99.66 (Sage-Buchungen F1/F8): ohne
+    /// NichtNoetig und NurInSage; Zeitraum nach Erstellt, offene (Offen/Gesendet/Fehler/Klaeren) immer; Status filtert die Seite.</summary>
+    Task<List<PurchaseOrderReceipt>> GetSageWareneingaengeAsync(string? bestellung, DateTime von, DateTime? bis);
 
     /// <summary>v1.99.4 (E3): „Erneut senden“ - alle Fehler-Receipts der Gruppe auf Offen, Fehlertext leer, Versuche bleiben, Modified* gesetzt.
     /// Liefert die Anzahl; 0 = nichts im Status Fehler.</summary>
@@ -84,16 +85,17 @@ public class PurchaseOrderReceiptRepository : IPurchaseOrderReceiptRepository
             g.Where(r => r.SageWeStatus != SageWareneingangStatus.NichtNoetig).Select(r => r.SageWeStatus).ToList()));
     }
 
-    public async Task<List<PurchaseOrderReceipt>> GetSageWareneingaengeAsync(SageWareneingangStatus? status, string? bestellung, DateTime? von, DateTime? bis)
+    public async Task<List<PurchaseOrderReceipt>> GetSageWareneingaengeAsync(string? bestellung, DateTime von, DateTime? bis)
     {
+        var ab = von.Date;
+        DateTime? bisExkl = bis?.Date.AddDays(1);
         var q = _db.PurchaseOrderReceipts.AsNoTracking()
             .Include(r => r.StockMovement).ThenInclude(m => m.Article)
             .Include(r => r.StockMovement).ThenInclude(m => m.StorageLocation)
-            .Where(r => r.SageWeStatus != SageWareneingangStatus.NichtNoetig);
-        if (status != null) q = q.Where(r => r.SageWeStatus == status);
+            .Where(r => r.SageWeStatus != SageWareneingangStatus.NichtNoetig && r.SageWeStatus != SageWareneingangStatus.NurInSage)
+            // Regel wie SageBuchungenGesamtsicht.ImZeitraum; nur Uebergeben ist erledigt
+            .Where(r => r.SageWeStatus != SageWareneingangStatus.Uebergeben || (r.CreatedAt >= ab && (bisExkl == null || r.CreatedAt < bisExkl)));
         if (!string.IsNullOrWhiteSpace(bestellung)) { var b = bestellung.Trim(); q = q.Where(r => r.Belegnummer.Contains(b)); }
-        if (von != null) q = q.Where(r => r.CreatedAt >= von.Value.Date);
-        if (bis != null) q = q.Where(r => r.CreatedAt < bis.Value.Date.AddDays(1));
         return await q.OrderByDescending(r => r.CreatedAt).ThenBy(r => r.Id).ToListAsync();
     }
 

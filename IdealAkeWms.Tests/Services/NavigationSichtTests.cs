@@ -292,7 +292,7 @@ public class NavigationSichtTests
         var nav = new NavigationErgebnis(new HashSet<string> { "Einbuchung", "FaListe", "Einstellungen", "SageLagerbuchungen" }, false);
         var (sichtbar, nicht) = nav.Favoriten(["Einstellungen", "FaListe", "Benutzer", "Quatsch", "SageLagerbuchungen", "Einbuchung", "FaListe", "Benutzer"]);
         sichtbar.Select(z => z.Key).Should().Equal("Einbuchung", "FaListe", "Einstellungen");
-        nicht.Should().Equal("Benutzer", "Quatsch (nicht mehr vorhandene Funktion)", "Sage-Lagerbuchungen");
+        nicht.Should().Equal("Benutzer", "Quatsch (nicht mehr vorhandene Funktion)", "Sage-Buchungen"); // v1.99.66 Titel, Key bleibt
         nav.Favoriten([]).Sichtbar.Should().BeEmpty();
     }
 }

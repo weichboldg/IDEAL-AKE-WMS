@@ -74,17 +74,17 @@ public class SageBookingQueueRepository : ISageBookingQueueRepository
             .FirstOrDefaultAsync(q => q.Id == id);
     }
 
-    public async Task<List<SageBookingQueueItem>> GetForMonitoringAsync(SageBookingQueueStatus? status)
+    public async Task<List<SageBookingQueueItem>> GetForMonitoringAsync(DateTime von, DateTime? bis)
     {
-        var query = _context.SageBookingQueueItems
+        // v1.99.66 (Sage-Buchungen F8): Zeitraum nach Erstellt, offene (Offen/Gesendet/Fehler) immer - Regel wie SageBuchungenGesamtsicht.ImZeitraum
+        var ab = von.Date;
+        DateTime? bisExkl = bis?.Date.AddDays(1);
+        return await _context.SageBookingQueueItems.AsNoTracking()
             .Include(q => q.StockMovement).ThenInclude(m => m.Article)
             .Include(q => q.StockMovement).ThenInclude(m => m.StorageLocation)
-            .AsQueryable();
-
-        if (status.HasValue)
-            query = query.Where(q => q.Status == status.Value);
-
-        return await query.OrderByDescending(q => q.Id).ToListAsync();
+            .Where(q => q.Status != SageBookingQueueStatus.Bestaetigt
+                        || (q.CreatedAt >= ab && (bisExkl == null || q.CreatedAt < bisExkl)))
+            .OrderByDescending(q => q.Id).ToListAsync();
     }
 
     public async Task MarkSentAsync(int id, string kennung)

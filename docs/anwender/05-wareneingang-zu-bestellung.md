@@ -1,6 +1,6 @@
 # 05 – Wareneingang zu Bestellung
 
-Stand: Version 1.99.59 · Standort AKE (IDEAL siehe unten) · Bilder aus dem AKE-Testsystem; 05-06 aus dem DEV-System AKE mit 1.99.59, 05-07 und 05-08 mit 1.99.53
+Stand: Version 1.99.66 · Standort AKE (IDEAL siehe unten) · Bilder aus dem AKE-Testsystem; 05-06 aus dem DEV-System AKE mit 1.99.59, 05-07 und 05-08 mit 1.99.53
 
 ## Zweck
 
@@ -16,9 +16,9 @@ Die Bestellungen kommen aus Sage (Abgleich durch den WMS-Dienst). Die Liste dazu
 
 | Aufgabe | Rolle (wie unter *Stammdaten → Rollen*) |
 |---|---|
-| Offene Bestellungen ansehen, Liste „Sage-Wareneingänge“ ansehen | **Lagerbestand-Ansicht**, **Lager**, **Lager Keyuser**, **Kommissionierer** |
+| Offene Bestellungen ansehen, Sage-Wareneingänge in „Sage-Buchungen“ ansehen | **Lagerbestand-Ansicht**, **Lager**, **Lager Keyuser**, **Kommissionierer** |
 | Wareneingang zu Bestellung einbuchen | **Lager**, **Lager Keyuser** oder **Kommissionierer** |
-| In „Sage-Wareneingänge“: Erneut senden, Als übergeben markieren, CSV erneut schreiben | **Lager Keyuser** |
+| In „Sage-Buchungen“ an einem Sage-Wareneingang: Erneut senden, Als übergeben markieren, CSV erneut schreiben | **Lager Keyuser** |
 | Einkauf → Offene Bestellungen und Einkauf → Sage-Wareneingänge (offen) ansehen (seit 1.99.31) | **Einkauf** |
 | alles | **Administrator** |
 
@@ -147,12 +147,18 @@ Lagerbuchung an Sage). Die Bestellposition in Sage schließt der Einkauf von Han
   und wenn beim ersten Wareneingang keine Lieferschein-Nr. stand.
 - **Rahmenabrufe** gehen nie als Sage-Wareneingang, sondern wie bisher als Lagerbuchung; das Barcode-Feld ist dort gesperrt.
 
-**Liste Lager → Sage-Wareneingänge:** zeigt jeden Wareneingang, der an Sage gehen soll, mit Status, Lieferschein, Barcode, Positionsmemo und
-CSV-Stand.
+**Liste Lager → Sage-Buchungen** (seit Version 1.99.66; bis 1.99.65 eigene Liste „Sage-Wareneingänge“, alte Links leiten um): zeigt jeden
+Wareneingang, der an Sage gehen soll, als Zeile mit Herkunft **Wareneingang** – zusammen mit den Lagerbuchungen (Kapitel 09). Mit Filter
+*Herkunft = Wareneingang* sieht man nur die Wareneingänge. Lieferschein, Barcode, Positionsmemo, Memo und CSV sind im Zahnrad
+standardmäßig ausgeblendet. Ohne Datum „von“ gelten die letzten 30 Tage; offene Einträge stehen immer in der Liste. „Nur in Sage buchen“
+steht nicht mehr in der Liste.
 
-![Liste „Sage-Wareneingänge“ mit Filter Status, Bestellung, Zeitraum](bilder/05-05-sage-wareneingaenge.jpg)
+![Liste „Sage-Wareneingänge“ mit Filter Status, Bestellung, Zeitraum (Bild vor 1.99.66, neues Bild folgt)](bilder/05-05-sage-wareneingaenge.jpg)
 
-- Status u. a. **an Sage übergeben**, **Fehler** (der Dienst wiederholt selbst) und **Klären**.
+- Status: **wartet**, **gesendet**, **übergeben**, **Fehler** (der Dienst wiederholt selbst) und **klären**; der ursprüngliche Status steht
+  in der Spalte „Status im Weg“.
+- Die Knöpfe stehen an der ersten Position eines Vorgangs und wirken auf alle Positionen; die übrigen Positionen zeigen „gehört zu Vorgang …“.
+  Nach dem Klick bleibt die gefilterte Seite stehen.
 - **Klären** heißt: In Sage könnte es schon einen Beleg ohne WMS-Kennung geben (gleiche Bestellung, gleicher Tag, gleiche Lieferschein-Nr.),
   oder der Sage-Wareneingang wurde ausgeschaltet, während Einträge offen waren. Der Dienst sendet dann **nicht** von selbst. Lager Keyuser
   prüft in Sage und klickt **Als übergeben markieren** (Beleg existiert, Sage-Belegnummer eintragen, höchstens 45 Zeichen) oder **Erneut senden**
@@ -160,9 +166,9 @@ CSV-Stand.
 - **CSV:** wartet / offen / geschrieben / Fehler. Bei Fehler auf der Freigabe nachsehen und **CSV erneut schreiben**. „Datei existiert bereits“
   gibt es seit 1.99.33 nicht mehr neu; an älteren Zeilen legt **CSV erneut schreiben** die Datei als `_1`, `_2` … ab.
 
-**Einkauf → Sage-Wareneingänge (offen)** (seit Version 1.99.31): dieselbe Liste für den Einkauf, aber nur Wareneingänge, die noch **nicht**
-an Sage übergeben sind (Status offen, gesendet, Fehler, Klären, nur in Sage). Nur lesend; die Knöpfe Erneut senden / Als übergeben markieren
-sieht nur, wer zusätzlich Lager Keyuser ist. Nach jeder Übergabe an Sage liest der Dienst die offenen Bestellungen sofort neu.
+**Einkauf → Sage-Wareneingänge (offen)** (seit Version 1.99.31): öffnet seit 1.99.66 „Sage-Buchungen“ mit *Herkunft = Wareneingang* und
+*nur offene* (wartet, gesendet, Fehler, klären). Der Einkauf ohne Lager-Recht sieht dort nur die Sage-Wareneingänge und keine Knöpfe; die
+Knöpfe sieht nur, wer zusätzlich Lager Keyuser ist. Nach jeder Übergabe an Sage liest der Dienst die offenen Bestellungen sofort neu.
 
 **Was in der CSV-Datei steht (seit Version 1.99.29):** eine einzige Zeile ohne Überschriften, die enaio nach der Reihenfolge der Felder
 einliest – Barcode, Kreditornummer, Kreditorname, Bestellnummer, Lieferschein, Sage-Belegnummer, **Erfasser**, Datum, übergeben am.

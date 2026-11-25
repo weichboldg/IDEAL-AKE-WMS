@@ -249,7 +249,8 @@ public partial class PurchaseOrdersControllerTests
             m.GetCustomAttributes(typeof(RequireStockAccessAttribute), false).Should().NotBeEmpty($"{m} bucht nur mit Lager-Recht");
         // Formulare/Links der gemeinsamen Views zielen ausdruecklich auf PurchaseOrders (sonst /EinkaufPurchaseOrders/Receive)
         File.ReadAllText(ViewPfad("Index.cshtml")).Should().NotContain("<a asp-action=\"Receive\"");
-        var sw = File.ReadAllText(ViewPfad("SageWareneingaenge.cshtml"));
+        // v1.99.66: Liste in „Sage-Buchungen“ (Views/SageBookingQueue/Index.cshtml), Aktionen bleiben am PurchaseOrdersController
+        var sw = File.ReadAllText(Path.Combine(ViewPfad(""), "..", "SageBookingQueue", "Index.cshtml"));
         foreach (var a in new[] { "SageWeErneutSenden", "SageWeAlsUebergeben", "CsvErneutSchreiben" })
             sw.Should().Contain($"asp-controller=\"PurchaseOrders\" asp-action=\"{a}\"");
     }

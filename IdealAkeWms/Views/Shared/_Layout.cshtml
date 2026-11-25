@@ -94,15 +94,11 @@
                                             <li><a class="dropdown-item" asp-controller="PurchaseOrders" asp-action="Receive">Wareneingang zu Bestellung</a></li>
                                         }
                                     }
-                                    @* v1.99.7: beide Sage-Protokolle in einem eigenen Block, Sichtbarkeit je Eintrag wie bisher *@
+                                    @* v1.99.66: eine Seite „Sage-Buchungen“ (Lagerbuchungen + Sage-Wareneingänge), Menüpunkt „Sage-Wareneingänge“ entfallen *@
                                     @if (nav.Zeigt(NavZiele.SageLagerbuchungen))
                                     {
                                         <li><hr class="dropdown-divider" style="@divider" /></li>
-                                        <li><a class="dropdown-item" asp-controller="SageBookingQueue" asp-action="Index">Sage-Lagerbuchungen</a></li>
-                                    }
-                                    @if (nav.Zeigt(NavZiele.SageWareneingaengeLager))
-                                    {
-                                        <li><a class="dropdown-item" asp-controller="PurchaseOrders" asp-action="SageWareneingaenge">Sage-Wareneingänge</a></li>
+                                        <li><a class="dropdown-item" asp-controller="SageBookingQueue" asp-action="Index">Sage-Buchungen</a></li>
                                     }
                                     @if (nav.Zeigt(NavZiele.LagerplatzAusbuchen))
                                     {

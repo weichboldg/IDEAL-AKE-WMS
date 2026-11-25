@@ -1,6 +1,6 @@
 # 09 – Einbuchen, Ausbuchen, Umbuchen
 
-Stand: Version 1.99.47 · Standorte AKE und IDEAL · Bilder aus dem AKE-Testsystem
+Stand: Version 1.99.66 (Text „Sage-Buchungen“; sonst 1.99.47) · Standorte AKE und IDEAL · Bilder aus dem AKE-Testsystem
 
 ## Zweck
 
@@ -193,7 +193,7 @@ den Haupt-FA („FA 1065141 (Haupt-FA 1059463)“).
 - **FA-Pflicht:** Ist sie für die Buchungsart eingestellt, wird nur mit einem eindeutig gefundenen FA gebucht. Ein erledigter oder stornierter FA
   ergibt nur eine Warnung.
 - **Sage:** Ein- und Ausbuchungen auf Lagerplätzen mit „Sage-Buchung erlaubt“ meldet der WMS-Dienst an Sage, wenn die WMS-Betreuung das
-  eingeschaltet hat (Stand unter *Lager → Sage-Lagerbuchungen*). Umbuchungen nur mit einem eigenen Schalter; Umbuchungen mit FA gehen nie an Sage.
+  eingeschaltet hat (Stand unter *Lager → Sage-Buchungen*, bis 1.99.65 „Sage-Lagerbuchungen“). Umbuchungen nur mit einem eigenen Schalter; Umbuchungen mit FA gehen nie an Sage.
 - **Falsch gebucht?** Eine Buchung lässt sich nicht löschen. Mit der Gegenbuchung korrigieren (Einbuchung ↔ Ausbuchung, Umbuchung zurück) und in
   der Bewegungshistorie prüfen.
 - Mengen mit Komma eingeben (`2,5`).

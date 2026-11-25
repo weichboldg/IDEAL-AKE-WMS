@@ -863,6 +863,41 @@ public static class ColumnDefinitions
         ]
     };
 
+    /// <summary>v1.99.66 (Spec 2026-11-23-sage-buchungen-gesamtsicht F4): Seite „Sage-Buchungen“ (SageBookingQueue/Index). Die fünf WE-Spalten
+    /// sind standardmäßig ausgeblendet (Antwort 5); ohne WE-Recht fehlen sie in View und #column-config ganz (F7).</summary>
+    public static readonly ViewConfig SageBookingQueue = new("SageBookingQueue", "Sage-Buchungen", SupportsReorder: false, SupportsSortDefault: false)
+    {
+        Columns =
+        [
+            new ColumnDef("id",               "#",              Locked: false),
+            new ColumnDef("herkunft",         "Herkunft",       Locked: true),
+            new ColumnDef("status",           "Status",         Locked: true),
+            new ColumnDef("status-weg",       "Status im Weg",  Locked: false),
+            new ColumnDef("created-at",       "Erstellt",       Locked: false),
+            new ColumnDef("bestellung",       "Bestellung",     Locked: false),
+            new ColumnDef("pos",              "Pos.-ID",        Locked: false),
+            new ColumnDef("article",          "Artikel",        Locked: false),
+            new ColumnDef("quantity",         "Menge",          Locked: false),
+            new ColumnDef("storage-location", "Lagerplatz",     Locked: false),
+            new ColumnDef("sagebeleg",        "Sage-Beleg",     Locked: false),
+            new ColumnDef("sent-at",          "Gesendet",       Locked: false),
+            new ColumnDef("confirmed-at",     "Übergeben am",   Locked: false),
+            new ColumnDef("attempts",         "Vers.",          Locked: false),
+            new ColumnDef("error",            "Fehler",         Locked: false),
+            new ColumnDef("erfasst-von",      "Erfasst von",    Locked: false),
+            new ColumnDef("lieferschein",     "Lieferschein",   Locked: false, DefaultHidden: true),
+            new ColumnDef("barcode",          "Barcode",        Locked: false, DefaultHidden: true),
+            new ColumnDef("memo-position",    "Positionsmemo",  Locked: false, DefaultHidden: true),
+            new ColumnDef("memo",             "Memo",           Locked: false, DefaultHidden: true),
+            new ColumnDef("csv",              "CSV",            Locked: false, DefaultHidden: true),
+            new ColumnDef("actions",          "",               Locked: true),
+        ]
+    };
+
+    /// <summary>Die WE-Spalten der Seite „Sage-Buchungen“ (nur mit WE-Recht gerendert).</summary>
+    public static readonly IReadOnlySet<string> SageBookingQueueWeSpalten =
+        new HashSet<string> { "bestellung", "pos", "sagebeleg", "lieferschein", "barcode", "memo-position", "memo", "csv" };
+
     public static ViewConfig? GetByViewKey(string viewKey) => viewKey switch
     {
         "ProductionOrders" => ProductionOrders,
@@ -895,6 +930,7 @@ public static class ColumnDefinitions
         "Debitors"                       => Debitors,
         "PurchaseOrders"                 => PurchaseOrders,
         "PurchaseOrderReceive"           => PurchaseOrderReceive,
+        "SageBookingQueue"               => SageBookingQueue,
         _                  => null
     };
 }

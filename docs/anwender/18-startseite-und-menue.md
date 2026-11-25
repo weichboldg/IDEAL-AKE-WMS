@@ -1,6 +1,6 @@
 # 18 Startseite und Menü
 
-Stand: Version **1.99.61** (24.11.2026, Text zu FA-Struktur; sonst 1.99.53). Bilder: 18-01, 18-06 und 18-07 (AKE), 18-02 und 18-05 (IDEAL) aus den DEV-Systemen mit 1.99.53; 18-03 und 18-04 Testsysteme mit 1.99.45 (ohne Symbole, Inhalt sonst gleich).
+Stand: Version **1.99.66** (25.11.2026, Text „Sage-Buchungen“; 1.99.61 Text zu FA-Struktur; sonst 1.99.53). Bilder: 18-01, 18-06 und 18-07 (AKE), 18-02 und 18-05 (IDEAL) aus den DEV-Systemen mit 1.99.53; 18-03 und 18-04 Testsysteme mit 1.99.45 (ohne Symbole, Inhalt sonst gleich).
 
 ## Zweck
 
@@ -67,7 +67,7 @@ Ein Bereich ohne sichtbare Kachel erscheint nicht. Hat man gar keine Funktion, s
   ausbuchen, Pfeil = umbuchen, „!“ = Lager: Fehlteile). Ein Blatt mit Inhalt ist eine Liste, ein Tropfen steht für
   Beschichtung. Jedes Symbol gibt es nur einmal (seit 1.99.50). Das Symbol ist nur Erkennungshilfe – maßgeblich ist der Name der Kachel.
 - Manche Seiten gibt es **nur im Menü**, nicht als Kachel (z. B. Kreditoren, Debitoren, Empfänger, Service-Einstellungen,
-  Sage-Lagerbuchungen). Sie sind seltener gebraucht.
+  Sage-Buchungen). Sie sind seltener gebraucht.
 - **OSEON AG-Übersicht** erscheint nur, wenn das OSEON-Modul (Teileverfolgung) eingeschaltet ist.
 - **FA-Struktur** steht seit 1.99.60 im Menü **Fertigungsaufträge** unter „FA-Liste“. Seit 1.99.61 erscheinen Menüpunkt und Kachel nur, wenn
   die hierarchische Struktur eingeschaltet ist (in der Regel IDEAL); sonst führt auch die direkte Adresse mit Hinweis zur Startseite.

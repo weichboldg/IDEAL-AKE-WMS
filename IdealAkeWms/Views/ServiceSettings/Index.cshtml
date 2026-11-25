@@ -59,13 +59,13 @@
 @if (sageWeHinweis != null)
 {
     <div class="alert alert-warning" role="alert">
-        <strong>&#9888; @sageWeHinweis</strong> <a asp-controller="PurchaseOrders" asp-action="SageWareneingaenge">Zu den Sage-Wareneingängen</a>
+        <strong>&#9888; @sageWeHinweis</strong> <a asp-controller="SageBookingQueue" asp-action="Index" asp-route-herkunft="Wareneingang">Zu den Sage-Buchungen</a>
     </div>
 }
 @foreach (var h in csvHinweise)
 {
     <div class="alert alert-warning" role="alert">
-        <strong>&#9888; @h</strong> <a asp-controller="PurchaseOrders" asp-action="SageWareneingaenge">Zu den Sage-Wareneingängen</a>
+        <strong>&#9888; @h</strong> <a asp-controller="SageBookingQueue" asp-action="Index" asp-route-herkunft="Wareneingang">Zu den Sage-Buchungen</a>
     </div>
 }
 

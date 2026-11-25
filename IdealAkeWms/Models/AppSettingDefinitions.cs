@@ -125,7 +125,7 @@ public static class AppSettingDefinitions
             abhaengig: AppSettingKeys.WareneingangBestellungAktiv),
         B(AppSettingKeys.WareneingangBarcodeAktiv, "false", GLager, "Wareneingang: Barcode-Feld (Lieferschein-Aufkleber)",
             "An = In „Wareneingang zu Bestellung“ steht neben der Lieferschein-Nr. das Feld „Barcode (Lieferschein)“ (Scan oder Eingabe), gespeichert am Wareneingang. Aus = kein Feld. Die CSV-Datei schreibt nur der Dienst-Schalter „Wareneingang: CSV-Übergabe auf Netzlaufwerk“ (Service-Einstellungen).",
-            "Lager → Wareneingang zu Bestellung; Lager → Sage-Wareneingänge (Spalte Barcode)", "AKE (IDEAL ohne Wirkung, Sage-Wareneingang aus)", seed: false,
+            "Lager → Wareneingang zu Bestellung; Lager → Sage-Buchungen (Spalte Barcode)", "AKE (IDEAL ohne Wirkung, Sage-Wareneingang aus)", seed: false,
             abhaengig: AppSettingKeys.WareneingangBestellungAktiv),
         new(AppSettingKeys.FaPflichtBuchungsarten, SettingType.MultiChoice, "", GLager,
             "Für die gewählten Buchungsarten wird nur gebucht, wenn der FA eindeutig im WMS gefunden wird; sonst Fehler am FA-Feld. Erledigt, storniert oder in Sage vermisst = nur Warnung. Leer = keine Pflicht.",

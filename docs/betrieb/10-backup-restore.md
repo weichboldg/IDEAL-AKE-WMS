@@ -1,6 +1,6 @@
 # 10 – Backup und Wiederherstellung
 
-**Stand:** v1.99.23, 2026-11-14 · **Zielgruppe:** IT-Administratoren · **Zweck:** Was je System gesichert werden muss, was das
+**Stand:** v1.99.66, 2026-11-25 · **Zielgruppe:** IT-Administratoren · **Zweck:** Was je System gesichert werden muss, was das
 Update-Skript selbst sichert und wie eine Wiederherstellung abläuft, ohne dabei Migrationen oder Sage-Buchungen zu verwirren.
 
 Übersicht: [00-index.md](00-index.md). Systeme und Pfade: [02-systeme-umgebungen.md](02-systeme-umgebungen.md). Update/Rückfall:
@@ -80,7 +80,7 @@ lassen.
      Web **nicht** vorher starten. (Quelle: `scripts/deploy/Update-IdealAkeWms.ps1:788-815`)
 5. App-Pool starten, dann Dienst starten. Fußzeile, `/SyncLog`, `logs\` prüfen ([06-logs-ueberwachung.md](06-logs-ueberwachung.md)).
 6. **Sage abgleichen:** Lagerbuchungen und Wareneingangsbelege, die nach dem Backup an Sage gingen, sind in Sage, aber nicht mehr im
-   WMS. **zu prüfen** im Einzelfall mit dem Fachbereich (Liste „Sage-Lagerbuchungen“ / „Sage-Wareneingänge“, Sage-Belege mit Memo
+   WMS. **zu prüfen** im Einzelfall mit dem Fachbereich (Liste „Sage-Buchungen“, bis v1.99.65 „Sage-Lagerbuchungen“ / „Sage-Wareneingänge“, Sage-Belege mit Memo
    `SM#…#`/`WE#…#`). (Quelle: `README.md:726-729`, [[integrationen]] „Idempotenz“)
 7. Deploy-Marker: Ein Restore auf einen Stand vor einem Daten-/Einmal-Lauf entfernt dessen Marker; der nächste Update-Lauf bietet ihn
    erneut an. Vor `SCHARF`/`uebernehmen` die Zählung lesen. (Quelle: `scripts/deploy/Update-IdealAkeWms.ps1:325-333`, `:536-546`)

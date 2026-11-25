@@ -1,6 +1,6 @@
 # 06 – Logs und Überwachung
 
-**Stand:** v1.99.23, 2026-11-14 · **Zielgruppe:** IT-Administratoren (ohne Entwicklerwissen)
+**Stand:** v1.99.66, 2026-11-25 · **Zielgruppe:** IT-Administratoren (ohne Entwicklerwissen)
 
 Wo IdealAkeWms (Web-App unter IIS) und der Windows-Dienst `IDEALAKEWMSService` protokollieren, was man täglich und wöchentlich ansieht
 und wie typische Warnungen zu lesen sind. Fehlerbilder mit Lösung stehen in [07-troubleshooting.md](07-troubleshooting.md), lesende
@@ -21,8 +21,7 @@ Quellenangaben: Pfade relativ zum Repository (Worktree), Brain-Notizen als `[[Na
 | Dienst-Log `<Dienst>\logs\notifications\notifications-<Datum>.log` | Meldebestand-Prüfung und Mailversand | IT | `IDEALAKEWMSService/appsettings.json:94-117` |
 | Windows-Ereignisanzeige (Anwendung, Quelle ASP.NET Core Module / IIS-W3SVC-WP) | Startfehler der Web-App, App-Pool-Recycling | IT | (Quelle: [[2026-10-15-scan-handler-hardware-scanner-spec]] Abschnitt 6; [[2026-09-08-uat-protokoll-ideal-buendel-chrome]]) |
 | Aktivitäts-Protokoll in der App (`/SyncLog`, Tabelle `dbo.SyncLogs`) | jeder Lauf des Dienstes mit Ergebnis-Zählern | Admins in der App, ohne Server-Zugriff | (Quelle: [[0010-aktivitaets-protokoll-mit-isolierten-dbcontexts]]) |
-| Seite „Sage-Lagerbuchungen“ (`/SageBookingQueue`) | Warteschlange der Buchungen WMS → Sage | Lager-Keyuser, Admins | `IdealAkeWms/Controllers/SageBookingQueueController.cs:10-16` |
-| Seite „Sage-Wareneingänge“ (`/PurchaseOrders/SageWareneingaenge`) | Wareneingänge, die an Sage übergeben werden, inkl. CSV-Stand | Lager, Einkauf, Admins | `IdealAkeWms/Controllers/PurchaseOrdersController.SageWe.cs:8-14,54` |
+| Seite „Sage-Buchungen“ (`/SageBookingQueue`, bis v1.99.65 „Sage-Lagerbuchungen“ und eigene Seite „Sage-Wareneingänge“) | alles, was WMS → Sage geht: Lagerbuchungen und Sage-Wareneingänge inkl. CSV-Stand | Lager, Lager-Keyuser, Einkauf (nur Wareneingänge), Admins | `IdealAkeWms/Controllers/SageBookingQueueController.cs:10-16,48` |
 | Update-Protokolle `C:\<Firma>\deploy-logs\` | Mitschrift jedes Laufs des Update-Skripts, Trockenlauf-Ausgaben | IT | `scripts/deploy/Update-IdealAkeWms.ps1:94,557` |
 | Fehlermail an Empfänger aus `ErrorNotification:Recipients` | Sync-Fehler des Dienstes mit Fehlertext | IT (wenn eingetragen) | `IDEALAKEWMSService/Services/SyncErrorNotifier.cs:32-45` |
 
@@ -164,11 +163,14 @@ auf idealweb01 auf 180 (Quelle: [[2026-10-20-ake-testsystem-bestandsaufnahme]] A
 
 ---
 
-## 5. Sage-Lagerbuchungen (`/SageBookingQueue`)
+## 5. Sage-Buchungen (`/SageBookingQueue`)
 
-- Menü **Lager → Sage-Lagerbuchungen** (Quelle: `IdealAkeWms/Views/Shared/_Layout.cshtml:125-127`). Lesen mit Lager-Lesezugriff,
-  „Erneut senden“ nur Lager-Keyuser (Quelle: `IdealAkeWms/Controllers/SageBookingQueueController.cs:10-15`).
-- Status je Eintrag: `Offen` (0), `Gesendet` (1), `Bestaetigt` (2), `Fehler` (3) (Quelle: `IdealAkeWms/Models/SageBookingQueueStatus.cs:13-16`;
+- Menü **Lager → Sage-Buchungen** (seit v1.99.66; Quelle: `IdealAkeWms/Views/Shared/_Layout.cshtml:98-102`). Eine Liste für Lagerbuchungen
+  (Herkunft Einbuchung, Ausbuchung, Umbuchung, Lagerbestellung) und Sage-Wareneingänge (Herkunft Wareneingang, §6). Gemeinsamer Status
+  wartet / gesendet / übergeben / Fehler / klären, der ursprüngliche in „Status im Weg“ (Quelle: `IdealAkeWms/Services/SageBuchungenGesamtsicht.cs:40-61`).
+  Ohne Datum „von“ die letzten 30 Tage; offene Einträge immer (Hinweis über der Tabelle). Lesen mit Lager-Lesezugriff oder Einkauf
+  (Filter `RequireStockReadOrEinkaufAccess`), „Erneut senden“ nur Lager-Keyuser (Quelle: `IdealAkeWms/Controllers/SageBookingQueueController.cs:48,137-141`).
+- Status je Lagerbuchung in der DB: `Offen` (0), `Gesendet` (1), `Bestaetigt` (2), `Fehler` (3) (Quelle: `IdealAkeWms/Models/SageBookingQueueStatus.cs:13-16`;
   `SQL/00_FreshInstall.sql:321`).
 - Der Dienst arbeitet die Warteschlange im Sekunden-Takt ab (`Sync:SageLagerbuchungIntervalSeconds`, Standard 20). Hängende `Gesendet`
   werden nach `Sync:SageLagerbuchungStuckMinutes` (10) per Suche in Sage geklärt; ab `Sync:SageLagerbuchungMaxErrorsPerRun` (50) Fehlern
@@ -181,11 +183,12 @@ auf idealweb01 auf 180 (Quelle: [[2026-10-20-ake-testsystem-bestandsaufnahme]] A
 **Bewertung:** Einträge in `Fehler` sind immer ein Arbeitsauftrag; ein `Gesendet`, das länger als die Hänge-Zeit steht, ebenfalls.
 Am AKE-Test lagen am 20.10.2026 sechs alte Fehler (SSL, 401, 400, 500) vom 03.08. (Quelle: [[2026-10-20-ake-testsystem-bestandsaufnahme]]).
 
-## 6. Sage-Wareneingänge (`/PurchaseOrders/SageWareneingaenge`)
+## 6. Sage-Wareneingänge (in `/SageBookingQueue?herkunft=Wareneingang`)
 
-- Menü **Lager → Sage-Wareneingänge**, nur sichtbar, wenn der Wareneingang zu Bestellungen aktiv ist (Quelle:
-  `IdealAkeWms/Views/Shared/_Layout.cshtml:128-131`). Aktionen „Erneut senden“, „Als übergeben markieren“, „CSV erneut schreiben“ nur
-  Lager-Keyuser (Quelle: `IdealAkeWms/Controllers/PurchaseOrdersController.SageWe.cs:101-141`).
+- Seit v1.99.66 Teil von „Sage-Buchungen“ (§5); die alte Adresse `/PurchaseOrders/SageWareneingaenge` leitet dauerhaft um (301), ebenso
+  `/EinkaufPurchaseOrders/SageWareneingaenge` (mit „nur offene“). WE-Zeilen nur, wenn der Wareneingang zu Bestellungen aktiv ist (Einkauf:
+  `EinkaufAktiv`). `NichtNoetig` und `NurInSage` stehen nicht in der Liste. Aktionen „Erneut senden“, „Als übergeben markieren“,
+  „CSV erneut schreiben“ nur Lager-Keyuser, an der ersten Position je Vorgang (Quelle: `IdealAkeWms/Controllers/PurchaseOrdersController.SageWe.cs:40,63-100`).
 - Status (Spalte `SageWeStatus`): `NichtNoetig` 0, `Offen` 1, `Gesendet` 2, `Uebergeben` 3, `Fehler` 4, `NurInSage` 5, `Klaeren` 6
   (Quelle: `IdealAkeWms/Models/PurchaseOrderReceipt.cs:15-26`).
 - **Fehler** wiederholt der Dienst selbst (Standard 3 Versuche, Abstand 15 min) und sucht vor jedem Versuch den Beleg in Sage
@@ -226,8 +229,8 @@ Schnittstellen im Detail: [05-schnittstellen.md](05-schnittstellen.md).
 |---|---|---|---|---|
 | T1 | Laufen die Syncs? Letzter `Run erfolgreich beendet` je wichtigem Dienst nicht älter als ein Takt (Standard 15 min) | `/SyncLog?service=ProductionOrder`, `…=Article`, `…=Lagerbestand` oder Abfrage 08 §2.1 | aktuelle Einträge | `README.md:935`; [08-diagnose-abfragen.md](08-diagnose-abfragen.md) |
 | T2 | Fehler im Aktivitäts-Protokoll seit gestern | `/SyncLog?level=Error` oder 08 §2.2 | keine neuen; bekannte OSEON-Timeouts/Deadlocks einordnen (§9) | [[2026-10-20-ake-testsystem-bestandsaufnahme]] 2.3 |
-| T3 | Sage-Lagerbuchungen in `Fehler` oder hängend in `Gesendet` | `/SageBookingQueue`, Status „Fehler“ | 0 | §5 |
-| T4 | Sage-Wareneingänge in `Fehler` / `Klären`, CSV mit Fehler | `/PurchaseOrders/SageWareneingaenge` | 0 offen zu klären | §6 |
+| T3 | Sage-Buchungen in `Fehler` oder hängend in `gesendet` | `/SageBookingQueue?nurOffene=true` (Status „Fehler“) | 0 | §5 |
+| T4 | Sage-Wareneingänge in `Fehler` / `klären`, CSV mit Fehler | `/SageBookingQueue?herkunft=Wareneingang&nurOffene=true` | 0 offen zu klären | §6 |
 | T5 | `[ERR]`/`[FTL]` im Web- und Dienst-Log des Tages | `<Web>\logs`, `<Dienst>\logs` | nur bekannte (§9) | Prüfmuster aus [[2026-10-30-sage-sdata-fa-ansicht-spec]] QA („ohne `[ERR]`/`[FTL]`“) |
 | T6 | Dienst läuft | Dienste-Konsole, Dienst `IDEALAKEWMSService` (Name je System, siehe 02) | „Wird ausgeführt“ | `scripts/deploy/Install-IdealAkeWms.ps1:56` |
 

@@ -67,7 +67,7 @@ public static class ColumnFilterTypes
                 ("picking-date", D), ("production-date", D), ("delivery-date", D)),
             ["ProductionWorkplaces/Index"] = L(("pre-picking-days", N), ("sage-missing", D)),
             ["Roles/Index"] = L(("user-count", N)),
-            ["SageBookingQueue/Index"] = L(("id", N), ("quantity", N), ("created-at", D), ("sent-at", D), ("confirmed-at", D), ("attempts", N)),
+            ["SageBookingQueue/Index"] = L(("id", N), ("pos", N), ("quantity", N), ("created-at", D), ("sent-at", D), ("confirmed-at", D), ("attempts", N)), // v1.99.66 Sage-Buchungen
             ["SageTest/Stueckliste"] = L(("menge", N), ("soll", N), ("ist", N)), // v1.99.14 Register Sage-Test, Client-Modus
             ["StockMovements/Index"] = L(("datetime", D)),
             ["StockOverview/Index"] = L(("reorder-level", N), ("current-stock", N)),
@@ -82,7 +82,6 @@ public static class ColumnFilterTypes
             ["PurchaseOrders/Index"] = L(("liefertermin", D), ("bestellt", N), ("geliefert", N), ("offen", N), ("erfasst", N)),
             ["PurchaseProposals/Index"] = L(("bestand", N), ("sage-verfuegbar", N), ("offen-bestellt", N), ("liefertermin", D), ("naechster-bedarf", D), ("fa-bedarf", N), ("bedarfe", N), ("verfuegbar", N), ("meldebestand", N),
                 ("letzte-bestellmenge", N), ("letzte-bestellung-am", D), ("vorschlag", N), ("sage-bestellmenge", N), ("wbz", N), ("wunschtermin", D), ("user-mindestbestand", N)), // v1.99.20 Bestellvorschlaege
-            ["PurchaseOrders/SageWareneingaenge"] = L(("gebucht", D), ("pos", N), ("menge", N), ("versuche", N)), // v1.99.4 Wareneingang Teil 2 E3
             ["WorkSteps/Index"] = L(("sort-order", N)),
         };
 
