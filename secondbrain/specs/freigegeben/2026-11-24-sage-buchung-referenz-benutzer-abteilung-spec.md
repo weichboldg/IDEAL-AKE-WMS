@@ -2,11 +2,11 @@
 type: spec
 title: "Sage-Übergabe: Referenz mit Kennung, WMS-Benutzer und Abteilung (Ausbuchung)"
 slug: 2026-11-24-sage-buchung-referenz-benutzer-abteilung-spec
-status: InUmsetzung
+status: Testbereit
 freigabe_von: Gerald
 freigabe_am: 2026-11-25
 created: 2026-11-24
-updated: 2026-11-24
+updated: 2026-11-25
 source_backlog: "[[2026-11-24-sage-buchung-abteilung-und-benutzer]]"
 task: ""
 jira: ""
@@ -333,3 +333,120 @@ und Abteilung“, plus Eintrag in `secondbrain/tests/testszenarien-index.md`:
    voller Text ins Kopf-Memo (varchar(max), keine Kürzung nötig). → **ja, passt – inkl. ID vom WMS (Gerald 2026-11-25).**
    Damit `Referenz` = `<Kennung> <Abteilung> <Benutzer>` (z. B. `SM#ATI#12345# C1 Gerald Weichbold`), auf 31 Zeichen gekürzt
    (Kürzungsregel: erst Benutzer am Ende, dann Abteilung; die Kennung nie – bestätigt Gerald 2026-11-25). Voller Text ins Zeilen-`Memo`.
+
+## Deploy (final, qa-agent 2026-11-25, aus dem Diff `19244bfa^..19244bfa`)
+
+- **Web-App:** ja (`IdealAkeWms/`: `StockMovement.Abteilung`, `StockMovementsController` Outbound/OutboundAll/OutboundAllConfirm, ViewModels,
+  `Outbound.cshtml`, `OutboundAll.cshtml`, Spalte in `SageBookingQueue/Index.cshtml` + `ColumnDefinitions` + `SageBuchungenGesamtsicht`, Hilfe, Changelog).
+- **Service:** ja (`SageReferenz.cs` neu, `SageLagerbuchungPayload(Builder).cs`, `SageWareneingangPayload.cs`). Geteiltes EF-Modell: Dienst **nach** dem Schema-Schritt starten.
+- **Migration:** ja, `20261125134408_AddStockMovementAbteilung` + `SQL/167_AddStockMovementAbteilung.sql` (additiv, `NVARCHAR(200) NULL`, nicht destruktiv, kein Backfill).
+  `SQL/AgentJobs/` nicht betroffen (Grep: kein INSERT/MERGE auf `StockMovements`).
+- **Manifest** `scripts/deploy/nachlauf.psd1`: `SQL/167` (Schema, automatisch, beide) und `v1.99.68-SageReferenzInfo` (Info, Nachher: Lager informieren) vorhanden.
+  Die vorläufige Id `SQL167-StockMovementAbteilung` ist als `SQL/167` umgesetzt (Konvention der übrigen Schema-Einträge, der Drift-Test führt `SQL/167`) – in Ordnung.
+- **Reihenfolge Testsystem:** DB-Backup (Routine) → `publish\` kopieren → `deploy\Update-IdealAkeWms.ps1` (Web stoppen, Schema SQL/167, Web, Dienst) → Info an Lager.
+- **Paket:** `C:\Git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-07-ideal-teile-1-5\publish\` = **v1.99.69** (enthält diese Spec und die Nachträge v1.99.69),
+  Komponenten Web + Dienst, beide zu deployen.
+- Nach dem Merge nur dann neu aus `main` publizieren, wenn der Merge getestete Dateien mit parallelen `main`-Änderungen zusammengeführt hat
+  (`dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWMSWeb`,
+  `dotnet publish IDEALAKEWMSService/IDEALAKEWMSService.csproj -c Release -o .\publish\IDEALAKEWMSWebService`).
+
+## QA-Nachweis (qa-agent, 2026-11-25)
+
+Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5`, Branch `feature/2026-08-07-ideal-teile-1-5`, HEAD `eff16911536d38e6d3a8e079da3f3f7b53876ce8`
+(v1.99.69). Geprüfter Commit dieser Spec: `19244bfa` (v1.99.68).
+
+### 1. Build und Tests (HEAD v1.99.69)
+- `dotnet build IdealAkeWms.slnx`: 0 Fehler, 30 Warnungen (Altbestand).
+- `dotnet test`: **IDEALAKEWMSService.Tests 798 bestanden / 0 übersprungen / 0 Fehler**; **IdealAkeWms.Tests 3539 bestanden / 1 übersprungen / 0 Fehler** (3540 gesamt).
+
+### 2. Code-Review `19244bfa^..19244bfa` (selbst, synchron)
+Gelesen: `SageReferenz.cs`, `SageLagerbuchungPayload(Builder).cs`, `SageWareneingangPayload.cs`, `StockMovementsController` (Outbound GET/POST,
+OutboundAll, OutboundAllConfirm inkl. JS-Absendeweg `form.submit()` – das Select liegt im Formular), ViewModels, beide Views, Gesamtsicht-Spalte
+(View und Server-Spaltenfilter lesen dasselbe `Spalten`-Dictionary), Migration/Snapshot, `SQL/167`, FreshInstall, Manifest, alle Teständerungen.
+Gegengeprüft: Das SData-Schema der Lagerbuchungszeile kennt `Referenz` und `Memo` ([[sage-sdata-commonwawiservices]] Z. 56); der einzige Build-Aufruf
+`SageBookingWorker.cs:405` übergibt die gespeicherte Kennung; das Kopf-Memo bleibt `SageBookingCorrelation.Memo(kennung)`.
+Gezielt geprüfte Fehlerklassen: kein neues `<script>`/`@Html.Raw`; kein `hidden` mit `d-*`; die Abteilung wird **serverseitig** gegen die Liste geprüft
+(fail closed, gespeichert wird der Listen-Name); keine parallelen Arrays; der Listenfilter „nicht in Sage“ steht an genau einer Stelle (`AbteilungenAsync`).
+
+| # | Befund | Schwere | Umgang |
+|---|---|---|---|
+| R-1 | P-2-Antwort: Sage füllt `KHKLagerplatzbuchungen.Referenz` heute **selbst aus dem Kopf-Memo** (auf 31 abgeschnitten). Ob ein gesendetes Zeilen-`Referenz` das übersteuert und ob das Zeilen-`Memo` sichtbar ankommt, ist nicht belegt. | mittel (fachlich offen) | Manual-UAT P-2 auf dem Sage-Testsystem (Checkliste 1). Kein Code-Befund; fällt es durch, greift Rückfrage 3 (Referenz ans Kopf-Memo). |
+| R-2 | Freigabe-Antwort 5 nennt „Abteilung max. 10 wie DPS“; umgesetzt ist nur das Abschneiden am Ende (erst Benutzer, dann Abteilung), ohne 10er-Grenze. Die Bestätigung vom 2026-11-25 beschreibt genau diese Regel. | niedrig | akzeptiert (bestätigte Regel), hier vermerkt. |
+| R-3 | Lagerplatz ausbuchen: Nach abgewiesener Abteilung ist die Auswahl nicht vorbelegt (gemeldete Abweichung). | niedrig | akzeptiert (nichts gebucht, die Meldung nennt den Wert). |
+| R-4 | Gemeldete Abweichungen `List<string>` statt `List<ProductionWorkplace>`, Manifest-Id `SQL/167`, Format nach Freigabe-Antwort 5: geprüft, fachlich gleichwertig. Kein schriftlicher Plan: Prozessabweichung ohne Code-Folge. | Hinweis | vermerkt. |
+| R-5 | Brain-Changelog fehlt für v1.99.68 (ebenso v1.99.65–v1.99.69; letzter Eintrag `2026-11-24-v1-99-64-…`), `feature-map.md` ohne v1.99.68. | niedrig (Checkliste) | an den Lauf zurück: vor dem Merge nachziehen (Checkliste 9). |
+| R-6 | `AbteilungenAsync`: `?? new()` auf das Repository-Ergebnis. Die Folge wäre eine leere Liste, also jede Abteilung abgewiesen (fail closed), kein stilles Buchen. | Hinweis | kein Handlungsbedarf. |
+
+### 3. Beweisart je Akzeptanzkriterium
+| AK | Beweis | Grün? |
+|---|---|---|
+| 1 Referenz/Kopf-Memo ohne Abteilung | `SageReferenzTests` (Payload, Kopf-Memo byte-gleich); Ankunft in Sage = Manual-UAT P-2 | Payload ja / Sage offen |
+| 2 mit Abteilung + DB | `SageReferenzTests`, `LagerbuchungFaVerknuepfungTests`; DEV: Bewegung 19600 `Abteilung` = C1 | ja (Sage offen) |
+| 3 Ein-/Umbuchung ohne Abteilung | `SageReferenzTests` (Einbuchung), `AndereSchreibwege_OhneAbteilung_AK12` | ja |
+| 4 Benutzer = `CreatedBy`, auch nacherfasst | Builder liest nur `movement.CreatedBy` (Review); Nacherfassung live = Manual-UAT | Review ja / live offen |
+| 5 gleicher Text bei erneutem Versand | `SageReferenzTests` (zweimal Build) | ja |
+| 6 Memo-Lookup unverändert | Kopf-Memo-Test + bestehende `SageBookingCorrelationTests` grün | ja |
+| 7 Sage-WE Kopf-Memo, Wiedererkennung | `SageWareneingangServiceTests`, `WeKopfMemo_WiedererkennungUnveraendert_AK7`; Sage-Lookup gegen echte Belege = Manual-UAT | Unit ja / Sage offen |
+| 8 Kürzung | `SageReferenzTests` (200-Zeichen-Fälle, Kennung > 31) | ja |
+| 9 Auswahlfeld | Unit (Liste ohne „nicht in Sage“); DEV-Browser an beiden Standorten | ja |
+| 10 manipulierter POST | Unit (Outbound + OutboundAllConfirm, ohne echte Bindung); Browser-Manipulation auf DEV nicht möglich | Unit ja / Manual-UAT |
+| 11 alle Zeilen gleiche Abteilung | Unit (2 Zeilen); DEV 1 Zeile über den FA-Weg | ja (Mehrzeilen-Browserweg Manual-UAT) |
+| 12 andere Wege ohne Feld | Unit + Review (Felder nur in Outbound/OutboundAll) | ja |
+| 13 Gesamtsicht-Spalte | `SageBuchungenGesamtsichtTests`; DEV: Filter `colf_abteilung`, Standard ausgeblendet | ja |
+| 14 SQL/167 idempotent, FreshInstall | DEV AKE zweimal Exit 0; FreshInstall-Diff (Spalte + MigrationId) | ja |
+
+### 4. Geänderte bestehende Tests
+- `SageWareneingangServiceTests` (6 Erwartungen `WE#…#` → `WMS: WE#…# t`): Verhalten absichtlich geändert (AK 7).
+- `LagerplatzAusbuchenFaFilterTests`, `StockMovementsControllerBulkInboundTests`, `LagerbuchungFaVerknuepfungTests` (Konstruktor + `IProductionWorkplaceRepository`): reine Typanpassung.
+- `NachlaufManifestDriftTests` (+ `SQL/167` in der Liste): Registrierung der neuen Datei, kein Fixture-Biegen.
+Keine Kategorie „anders“.
+
+### 5. Checkliste CLAUDE.md / ADR 0020
+Migration + `SQL/167` mit `COL_LENGTH`-Guard, DDL im eigenen Batch, History separat: ja. FreshInstall an beiden Stellen: ja. AgentJobs: nicht betroffen.
+Audit: `Abteilung` nur beim Anlegen, kein Update-Weg. Version in beiden `AppVersion.cs` 1.99.68, Anwender-Changelog + Hilfe: ja. **Brain-Changelog/feature-map: fehlt (R-5).**
+`docs/TESTSZENARIEN.md` TS-190 + Testindex Zeile 164: ja. Doku `docs/anwender`/`docs/betrieb` nachgezogen. ADR 0020: keine neue Einstellung (Abschnitt „Einstellungen“ begründet).
+
+### 6. DEV-Deploy und Testlauf
+`standort: beide`. Erhöhte Shell (Admin = True). `dev-deploy.ps1 -Quelle <worktree>`: **AKE** Exit 0, „HTTP 200, Fusszeile v1.99.69“, „Fertig: AKE v1.99.69 auf
+http://localhost:8081/“; **IDEAL** Exit 0, „HTTP 200, Fusszeile v1.99.69“, „Fertig: IDEAL v1.99.69 auf http://localhost:8082/“. Migration auf beiden DEV-DBs:
+`COL_LENGTH('dbo.StockMovements','Abteilung')` = 400, History-Zeile = 1. DEV-Absicherung: `SageLagerbuchungAktiv` = false, `SageWareneingangBelegAktiv` = false,
+`Sync:SageSystemKuerzel` = DEV (beide). **Nichts an Sage gesendet** (keine neuen Queue-Einträge). Screenshots liefen ins Zeitlimit; geprüft über Barrierefreiheitsbaum + `sqlcmd`.
+
+| Schritt | Ort / Daten | Ergebnis | Status |
+|---|---|---|---|
+| 190.1 Ausbuchung ohne Abteilung | AKE, QA173-L, 00193009, 1 Stk | Bewegung 19601, `Abteilung` NULL, `CreatedBy` „Gerald Weichbold“; der Sage-Teil braucht Senden | OK (WMS) / NICHT MOEGLICH (Sage, Senden gesperrt) |
+| 190.2 mit Abteilung C1 | AKE, dto. | Bewegung 19600 `Abteilung` = C1 | OK (WMS) / NICHT MOEGLICH (Sage) |
+| 190.2 Spalte Abteilung | AKE, Queue-Eintrag 16 (Bewegung 19376 kurz `Abteilung` = QA190, danach zurück auf NULL) | `?colf_abteilung=QA190` → „Eintraege 1–1 von 1“ (statt 16); Spalte standardmäßig ausgeblendet | OK |
+| 190.3 Lagerplatz ausbuchen mit Abteilung | AKE QA173-L, FA-Filter 111, Abteilung B2, Fenster „Jetzt ausbuchen“ | Bewegung 19602 (00193050, 2 Stk, FA 111) `Abteilung` = B2. Ohne FA-Filter öffnet der Knopf einen Browser-`confirm()` – nicht ausgelöst | OK (1 Zeile) / NICHT MOEGLICH (3-Zeilen-Weg, Dialog) |
+| 190.4 Einbuchung/Umbuchung | – | Masken ohne Feld laut Review; die Referenz braucht Senden | NICHT MOEGLICH (Sage) |
+| 190.5 Requeue | – | braucht Senden an Sage | NICHT MOEGLICH |
+| 190.6 Nacherfassung | – | braucht Senden an Sage | NICHT MOEGLICH |
+| 190.7 Sage-WE Kopf-Memo | – | `SageWareneingangBelegAktiv` aus, braucht Senden | NICHT MOEGLICH |
+| 190.8 Lagerbestellung | – | braucht Senden | NICHT MOEGLICH |
+| 190.9 Auswahlliste | AKE (76 Werkbänke, keine „nicht in Sage“) und IDEAL (88 gesamt, 61 „nicht in Sage“) | AKE: „– keine –“ + 76 Namen; IDEAL: „– keine –“ + **27** Namen, „Verkauf“/„Ersatzteile“/„AV-PPS“ fehlen; Beschriftung „Abteilung (optional)“, Hilfetext per `aria-describedby`; nach Validierungsfehler bleibt die Liste gefüllt | OK |
+| 190.10 manipulierter POST | – | Browser-Werkzeug ohne JS/DevTools; Anmeldung per curl nur mit Kennwort | NICHT MOEGLICH (Unit-Test belegt den Controller) |
+| 190.11 WMS-only-Platz | AKE QA173-L (`SageBuchungErlaubt` = 0) | Bewegungen 19600–19602 mit Abteilung gespeichert, **0** Queue-Einträge | OK |
+| 190.12 SQL/167 zweimal | AKE_WMS_DEV | zweimal Exit 0, keine Änderung, History genau 1 Zeile | OK |
+
+DEV-Testdaten: AKE_WMS_DEV Bewegungen 19600 (C1), 19601 (NULL), 19602 (B2, FA 111) auf QA173-L (Bestand 00193009 −2, 00193050 −2);
+Bewegung 19376 kurz `Abteilung` = QA190, zurückgesetzt auf NULL.
+
+### 7. Publish
+`<worktree>\publish\` – `IDEALAKEWMSWeb`, `IDEALAKEWMSWebService`, `SQL`, `deploy` vorher geleert, beide `dotnet publish` Exit 0, `SQL\167_AddStockMovementAbteilung.sql`
+und `deploy\nachlauf.psd1` enthalten. `publish-info.txt`: Version 1.99.69, Commit `eff16911536d38e6d3a8e079da3f3f7b53876ce8`, Branch `feature/2026-08-07-ideal-teile-1-5`,
+Erstellt 2026-11-25 15:08, Komponenten IDEALAKEWMSWeb + IDEALAKEWMSWebService. Ältere `paket*.zip` unverändert.
+
+**Ergebnis: Testbereit.** Build und Tests grün, Review ohne blockierenden Befund, alle auf DEV möglichen Schritte OK. Alles, was Senden an Sage braucht, bleibt für den Menschen.
+
+## Manuelle Testcheckliste (Mensch, Schranke 2)
+1. **P-2 auf dem Sage-Testsystem** (R-1): Ausbuchung mit Abteilung senden; `SELECT TOP 5 BuchungsID, Memo, Referenz FROM dbo.KHKLagerplatzbuchungen WHERE Memo LIKE '%IdealAkeWms Lagerbuchung%' ORDER BY BuchungsID DESC;`
+   – steht in `Referenz` `SM#…# <Abteilung> <Benutzer>`, oder überschreibt Sage aus dem Kopf-Memo? Kommt das Zeilen-Memo `WMS: …` an, sichtbar im Lagerbuchungsprotokoll?
+2. 190.1/190.2 komplett (Sage-Teil), 190.4 Einbuchung und Umbuchung, 190.8 Lagerbestellung – je Referenz ohne bzw. mit Abteilung.
+3. 190.5 Requeue nach Fehler: dieselbe Referenz, keine Doppelbuchung.
+4. 190.6 Nacherfassung: Benutzer der Bewegung, nicht `system:sage-booking`.
+5. 190.7 Sage-WE: Kopf-Memo `WMS: WE#…# <Benutzer>`; Wiedererkennung mit neuem **und** altem Memo.
+6. 190.3 ohne FA-Filter (Bestätigungsdialog) mit 3 Artikeln: alle Bewegungen mit derselben Abteilung.
+7. 190.10 per Entwicklertools (Option-Wert ändern) in beiden Masken: abgewiesen, keine Bewegung.
+8. Sichtprüfung der Masken (Kontrast, Tastatur) an beiden Standorten.
+9. Vor dem Merge: Brain-Changelog v1.99.65–v1.99.69 und `feature-map.md` nachziehen (R-5).
+10. Testsystem-Lauf mit dem Paket `publish\` (v1.99.69) an AKE und IDEAL (SQL/167 läuft über das Update-Skript), danach Merge.

@@ -543,3 +543,62 @@ gehört aber vor der Abnahme entschieden.
 QA-Befund N-1 (Altbestand): Ein Entwurf mit 0 Positionen lässt sich nicht absenden („Eingabe nicht gespeichert: ungültiger Wert
 in .“), vermutet Model-Binding `Dictionary<int,string>? mengen` in `BeschichtungsauftraegeController.Bearbeiten`. Gerald 2026-11-25:
 „ja – bitte gleich ausbessern“ → Root Cause belegen, beheben, Test, im Anschluss an die Referenz-Spec (v1.99.68) als v1.99.69.
+
+## QA Nachtrag v1.99.69 (qa-agent, 2026-11-25)
+
+HEAD `eff16911536d38e6d3a8e079da3f3f7b53876ce8`, geprüfter Commit `eff16911^..eff16911` (Teil N-1; Teil B3 siehe [[2026-11-23-sage-buchungen-gesamtsicht-spec]]).
+
+### 1. Build und Tests
+`dotnet build IdealAkeWms.slnx` 0 Fehler; `dotnet test`: IDEALAKEWMSService.Tests 798/0/0, IdealAkeWms.Tests 3539 bestanden / 1 übersprungen / 0 Fehler.
+
+### 2. Code-Review (selbst, synchron)
+Änderung: `[Bind(Prefix = "mengen")]` am Parameter `mengen` von `BeschichtungsauftraegeController.Bearbeiten`; die View sendet `mengen[@p.Id]`
+(`Details.cshtml:314`), passt zum festen Präfix. Ursache belegt durch `DictionaryIntKeyBindingTests` (echter `ParameterBinder` + `FormValueProvider`):
+ohne `mengen[..]`-Felder fällt der Binder auf das leere Präfix zurück, liest `id`, `rowVersion`, `ziel` … als int-Schlüssel und setzt den
+ModelState-Fehler unter "" – genau die Meldung „ungültiger Wert in .“ aus `Bearbeiten` (`ModelState.IsValid`-Prüfung, Z. 191–193). Mit Feldern bindet
+es weiter (Positiv-Test). Verhaltensbeleg auf DEV: dieselbe Aktion, die in v1.99.67 „ungültiger Wert in .“ lieferte, liefert jetzt die fachliche Meldung (162.30 c).
+
+| # | Befund | Schwere | Umgang |
+|---|---|---|---|
+| N2-1 | Gleiches Muster ohne festes Präfix: `StockMovementsController.OutboundAllConfirm(… Dictionary<int,string>? stueckGezeigt …)`. Im Weg ohne FA-Filter sendet das Formular keine `stueckGezeigt[..]`-Felder; der Binder erzeugt dann ModelState-Fehler. Die Aktion prüft `ModelState` nicht, deshalb heute ohne Wirkung. | Hinweis | nicht geändert (außerhalb des Nachtrags); bei künftiger `ModelState`-Prüfung dort ebenfalls `[Bind(Prefix = "stueckGezeigt")]` setzen. |
+Sonst keine Befunde.
+
+### 3. Beweisart
+Root Cause und Fix: `DictionaryIntKeyBindingTests` (echte ASP.NET-Bindung ohne TestServer, 2 Formulare ohne Felder + 1 mit Feldern) – automatisiert grün.
+Ablauf in der Maske (Knöpfe, Meldungen): Manual-UAT, auf DEV gelaufen (unten).
+
+### 4. Geänderte bestehende Tests
+Keine in diesem Teil (neu: `DictionaryIntKeyBindingTests`).
+
+### 5. Checkliste
+Version beide `AppVersion.cs` 1.99.69, Anwender-Changelog, `docs/anwender/15-…`, TS-162.30 in `docs/TESTSZENARIEN.md` und Testindex: ja. Keine Migration, keine Einstellung.
+Brain-Changelog v1.99.69 fehlt (siehe Befund R-5 in [[2026-11-24-sage-buchung-referenz-benutzer-abteilung-spec]]).
+
+### 6. DEV-Deploy und Testlauf
+`dev-deploy.ps1` AKE und IDEAL je Exit 0, Fußzeile v1.99.69 (Details in der Referenz-Spec). Geprüft über Barrierefreiheitsbaum + `sqlcmd`.
+
+| Schritt | Ort / Daten | Ergebnis | Status |
+|---|---|---|---|
+| 162.30 (c) leerer Entwurf, ohne Kandidat „Auf Übergeben setzen“ | IDEAL BA-2026-00011 (0 Positionen, der Repro der vorigen QA) | Meldung „Übergeben mit 0 Positionen ist nicht möglich (BA-2026-00011) — nichts gespeichert. Ist nichts zu bes…“; Status 10 | OK |
+| 162.30 (b) nur Kopf ändern + „Speichern“ | BA-11, RAL geändert | „Gespeichert.“; DB `Ral`, `ModifiedAt`/`ModifiedBy` gesetzt | OK |
+| 162.30 (a) Kandidat anhaken + „Speichern“ | BA-11, Kandidat 1067206 / 0 / 1 (50000296) | „Gespeichert, 1 Position(en) hinzugefügt.“, „Positionen (1)“, DB 1 Position | OK |
+| Speichern leert wieder | BA-11, Entfernen + Speichern | 0 Positionen, Status 10 | OK |
+| 162.30 (d) leerer Entwurf, Kandidat anhaken + „Auf Übergeben setzen“ | BA-11 | „Gespeichert, 1 Position(en) hinzugefügt, Status auf „Übergeben“ gesetzt.“; DB Status 30, 1 Position | OK |
+| „ungültiger Wert in .“ | alle vier Fälle | in keinem Fall erschienen | OK |
+
+DEV-Testdaten: IDEAL BA-2026-00011 ist jetzt **Übergeben** (Status 30) mit 1 Position 50000296 (VaterFA 1067206); RAL kurz „9004 mattQA9010“, zurück auf „9004 matt“.
+
+### 7. Publish
+`<worktree>\publish\` v1.99.69, Commit `eff16911536d38e6d3a8e079da3f3f7b53876ce8`, Erstellt 2026-11-25 15:08 (Details in der Referenz-Spec).
+
+### Deploy (final für v1.99.69, aus dem Diff `eff16911^..eff16911`)
+- **Web-App:** ja (`BeschichtungsauftraegeController`, `SageBookingQueueController`, Changelog). **Service:** nein (nur `AppVersion.cs`); das Paket enthält beide (eine Version).
+- **Migration:** nein; kein SQL, kein Einmal-Skript, kein Manifest-Eintrag nötig.
+- Reihenfolge: zusammen mit v1.99.68 aus demselben Paket (das SQL/167 mitbringt). Nach dem Merge nur bei zusammengeführten parallelen `main`-Änderungen neu publizieren.
+
+**Ergebnis Nachtrag 2: Testbereit** (Status bleibt Testbereit). N-1 behoben und auf DEV belegt.
+
+### Manuelle Testcheckliste Nachtrag 2 (Mensch, Schranke 2)
+1. 162.30 an DEV/Testsystem AKE wiederholen (nur IDEAL gelaufen).
+2. Offene Punkte der Checkliste „Nachtrag“ oben (2–7) bleiben; Punkt 1 (Entscheid N-1) ist erledigt.
+3. Testsystem-Lauf mit dem Paket `publish\` (v1.99.69), danach Merge.

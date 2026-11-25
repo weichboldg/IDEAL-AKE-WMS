@@ -626,3 +626,59 @@ B3: Einkauf/Admin sehen WE-Zeilen bei `EinkaufAktiv`, auch wenn `WareneingangBes
 Einkauf-Liste). Gerald 2026-11-25: „wenn es ein kleiner Fix ist, deine Empfehlung“ → WE-Zeilen auch für den Einkauf nur bei
 eingeschaltetem Modul (`zeigtWe` in `SageBookingQueueController.Index` um die Modulbedingung ergänzen). Einheitlich: Modul aus =
 keine WE-Zeilen. TS-189.10 und AK 10 entsprechend anpassen.
+
+## QA Nachtrag v1.99.69 (qa-agent, 2026-11-25)
+
+HEAD `eff16911536d38e6d3a8e079da3f3f7b53876ce8`, geprüfter Commit `eff16911^..eff16911` (Teil B3; Teil N-1 siehe [[2026-11-25-beschichtungsauftrag-vorschlag-ohne-auswahl-spec]]).
+
+### 1. Build und Tests
+`dotnet build IdealAkeWms.slnx` 0 Fehler; `dotnet test`: IDEALAKEWMSService.Tests 798/0/0, IdealAkeWms.Tests 3539 bestanden / 1 übersprungen / 0 Fehler.
+
+### 2. Code-Review (selbst, synchron)
+`SageBookingQueueController.Index`: `zeigtWe = weModul && (stockRead || EinkaufAsync(...))` statt `(stockRead && weModul) || EinkaufAsync(...)`. `EinkaufAsync` wird
+bei Modul aus nicht mehr ausgewertet (Kurzschluss) – unschädlich, rein lesend. Einkauf ohne Lager-Recht und Modul aus: `zeigtWe` = false, Lagerbuchungen nur für
+`stockRead` → leere Liste „Keine Einträge.“, wie TS-189.10 beschreibt. Die Zugangsprüfung (`RequireStockReadOrEinkaufAccess`) bleibt unverändert.
+
+| # | Befund | Schwere | Umgang |
+|---|---|---|---|
+| B3-H1 | Bei Modul aus steht der Menüeintrag „Sage-Wareneingänge (offen)“ unter Einkauf weiter im Menü (DEV AKE gesehen); er führt dann in eine leere Liste. Spec und TS-189.10 sagen dazu nichts. | Hinweis | nicht geändert; Entscheid beim Menschen (Checkliste 2). |
+Sonst keine Befunde.
+
+### 3. Beweisart
+AK 10 (Modul aus = keine WE-Zeilen, auch Einkauf): `SageWareneingaengeListeTests` (Einkauf ohne Lager-Recht, Modul aus → 0 Zeilen) – automatisiert grün.
+Ansicht als Lager/Admin auf DEV: Manual-UAT, gelaufen. Ansicht als reiner Einkauf-Benutzer: NICHT MOEGLICH (nur die Admin-Sitzung verfügbar).
+
+### 4. Geänderte bestehende Tests
+`SageWareneingaengeListeTests`: Im Einkauf-Fall entfällt `weModul: false` (Einkauf sah WE-Zeilen bisher ohne Modul; jetzt mit Modul an = Standard) –
+Verhalten absichtlich geändert durch B3/AK 10; der Negativfall ist als neue Zusicherung ergänzt. Keine Kategorie „anders“.
+
+### 5. Checkliste
+TS-189.10 in `docs/TESTSZENARIEN.md` und Testindex Zeile 163 nachgezogen, Anwender-Changelog und `docs/anwender/05-…` ja. Keine Migration, keine Einstellung.
+Brain-Changelog v1.99.69 fehlt (Befund R-5 in [[2026-11-24-sage-buchung-referenz-benutzer-abteilung-spec]]).
+
+### 6. DEV-Deploy und Testlauf
+`dev-deploy.ps1` AKE und IDEAL je Exit 0, Fußzeile v1.99.69. TS-189.10 auf **DEV AKE** gelaufen (DEV IDEAL hat 0 `PurchaseOrderReceipts`, dort wäre „keine WE-Zeilen“
+ohne Aussage). Schalter `WareneingangBestellungAktiv` per SQL kurz auf false, nach Ablauf des 2-Minuten-Einstellungs-Caches geprüft, danach zurück auf true
+(AKE und IDEAL am Ende beide `true`, per `sqlcmd` bestätigt; IDEAL war ebenfalls kurz false, dort ohne Test zurückgesetzt).
+
+| Schritt | Ort / Daten | Ergebnis | Status |
+|---|---|---|---|
+| Vorher, Modul an | AKE `?von=2026-01-01&herkunft=Wareneingang` | „Eintraege 1–3 von 3“ (WE-Zeilen), Auswahl „Wareneingang“ und Feld „Bestellung“ da | OK |
+| 189.10 Modul aus, als Lager/Admin | AKE, dieselbe URL | Herkunft nur Alle/Einbuchung/Ausbuchung/Umbuchung/Lagerbestellung (kein „Wareneingang“), kein Feld „Bestellung“, `?herkunft=Wareneingang` zeigt alle Lagerbuchungen „Eintraege 1–16 von 16“, keine WE-Zeile | OK |
+| 189.10 als Einkauf ohne Lager-Recht | – | kein solcher Benutzer in der Sitzung (Anmeldung nur mit Kennwort) | NICHT MOEGLICH (Unit-Test belegt) |
+| WE-Spalten im Zahnrad bei Modul aus | – | ohne Screenshot nicht geprüft | NICHT MOEGLICH |
+
+### 7. Publish
+`<worktree>\publish\` v1.99.69, Commit `eff16911536d38e6d3a8e079da3f3f7b53876ce8`, Erstellt 2026-11-25 15:08.
+
+### Deploy (final für v1.99.69)
+Web ja (`SageBookingQueueController`), Service nein (nur Version), keine Migration, kein Manifest-Eintrag. Paket wie oben; nach dem Merge nur bei
+zusammengeführten parallelen `main`-Änderungen neu publizieren.
+
+**Ergebnis Nachtrag B3: Testbereit** (Status bleibt Testbereit).
+
+### Manuelle Testcheckliste Nachtrag B3 (Mensch, Schranke 2)
+1. TS-189.10 als Einkauf-Benutzer ohne Lager-Recht mit Modul aus: „Keine Einträge.“, keine Knöpfe.
+2. Entscheid B3-H1: Menüeintrag „Sage-Wareneingänge (offen)“ bei Modul aus ausblenden?
+3. Zahnrad bei Modul aus: keine WE-Spalten (Lieferschein, Barcode, Positionsmemo).
+4. Testsystem-Lauf mit dem Paket `publish\` (v1.99.69), danach Merge.
