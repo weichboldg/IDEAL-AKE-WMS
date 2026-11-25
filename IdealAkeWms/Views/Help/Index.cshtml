@@ -1905,9 +1905,10 @@
             <div class="card-body">
 
                 <div class="alert alert-info mb-3">
-                    Das BDE-Modul wird ueber die Einstellungen aktiviert (<strong>BDE aktiv</strong>).
-                    Optional kann der vereinfachte Modus aktiviert werden (<strong>Nur FA-Meldung</strong>) &mdash;
-                    in diesem Fall buchen Operatoren direkt auf Produktionsauftraege statt auf einzelne Arbeitsgaenge.
+                    Das BDE-Modul wird ueber die Einstellungen aktiviert (<strong>BDE aktiv</strong>). Die Einstellung
+                    <strong>Nur FA-Meldung</strong> (<code>BdeNurFaMeldung</code>) ist seit v1.99.76 eine Altlast: die BDE-Seite beachtet sie nicht
+                    mehr, der Buchungsdienst kann Starts aber weiter abweisen &mdash; aus lassen (Update-Skript-Pruefung
+                    <code>Pruefung/BdeNurFaMeldungAn</code>). Fertig melden ohne Start/Stopp steuert die Werkbank-Option &bdquo;Nur AG-Fertigmeldung&ldquo;.
                 </div>
 
                 <h6 class="mt-3">Rollen</h6>
@@ -1922,51 +1923,59 @@
                     <dd>Zusaetzlich: Buchungen korrigieren/stornieren, Terminals konfigurieren.</dd>
                 </dl>
 
-                <div class="alert alert-warning mb-3">
-                    <strong>Seit v1.99.78 ist die Terminal-Seite abgeloest.</strong> Der Menuepunkt <em>BDE &rsaquo; Terminal</em>, die Startseite und
-                    alte Lesezeichen oeffnen an beiden Standorten die BDE-Seite der Terminal-Werkbank (Reiter FA bzw. Teile, siehe
-                    &bdquo;BDE-Teileliste&ldquo; unten). Gebucht wird dort ueber dieselben Fenster. Die <strong>Tageshistorie</strong> ist eine eigene
-                    Seite: Knopf &bdquo;Tageshistorie&ldquo; im Kopf der BDE-Seite oder <em>BDE &rsaquo; Tageshistorie</em> &mdash; Buchungen und
-                    Teilmeldungen (teil- und fertig) des Werkers von heute, neueste zuerst, mit Spaltenfiltern. Der folgende Abschnitt beschreibt die
-                    alte Terminal-Seite (bis v1.99.77). BDE am Handy: Android, lokales WMS-Konto mit Formular-Login und eine Terminal-Zuordnung.
-                </div>
-                <h6 class="mt-3">Terminal-Bedienung (Schritt fuer Schritt)</h6>
+                <h6 class="mt-3">BDE-Seite (seit v1.99.78 die einzige Buchungsseite)</h6>
+                <p>
+                    <a asp-controller="BdeTerminal" asp-action="Index">BDE &rsaquo; Terminal</a>, die Startseite und alte Lesezeichen oeffnen an
+                    beiden Standorten die BDE-Seite der Terminal-Werkbank. Die fruehere Terminal-Seite (Karten &bdquo;1. Operator&ldquo; und
+                    &bdquo;2. Arbeitsgang waehlen&ldquo;) gibt es nicht mehr. Voraussetzung: fuer den angemeldeten WMS-Benutzer ist unter
+                    <em>BDE &rsaquo; Stammdaten &rsaquo; Terminals</em> ein Terminal mit Werkbank angelegt, sonst kommt &bdquo;Fuer diesen Benutzer
+                    ist kein Terminal konfiguriert&ldquo;. Ausfuehrliche Anleitung: Anwender-Kapitel 11 (BDE) und 17 (BDE-Teileliste).
+                </p>
                 <ol>
-                    <li><strong>Operator anmelden:</strong> Personalnummer am Terminal scannen oder eingeben + &bdquo;Scannen&ldquo; klicken. Der Name wird als Badge angezeigt.</li>
-                    <li><strong>Arbeitsgang waehlen:</strong> Nach der Anmeldung erscheinen die verfuegbaren Arbeitsgaenge als Buttons, gruppiert nach produktiven (aus FA) und ungeplanten Taetigkeiten (Wartung, Reinigung, &hellip;). Alternativ: FA-Nummer und AG-Nummer vom Laufzettel scannen.
-                        <span class="d-block mt-1">Seit v1.57.0 stehen die produktiven Arbeitsgaenge <strong>je Auftrag</strong> in einem Block
-                        (Auftrag, ggf. Sub-FA, Bezeichnung, Fertigungstermin) &mdash; der naechste faellige Auftrag oben, Auftraege ohne Termin
-                        am Ende. Jeder Knopf zeigt den Status: grau mit leerem Kreis = offen, rot mit Warndreieck = ueberfaellig, blau mit
-                        Sanduhr = laeuft (ein <em>anderer</em> Werker bucht gerade), blau mit rotem Rand und beiden Zeichen = laeuft und
-                        ueberfaellig. Auch einen laufenden Arbeitsgang kann man waehlen; ob Ruesten bzw. Produktion starten darf,
-                        prueft das System wie bisher (sonst Meldung &bdquo;AG ist bereits in Arbeit durch &hellip;&ldquo;). Eigene laufende
-                        Arbeitsgaenge stehen unter &bdquo;Aktuelle Buchungen&ldquo;.
-                        Fertigungstermin: IDEAL = FE-Termin der Struktur (bei Kombigeraeten der frueheste), sonst bzw. bei AKE der
-                        Fertigungstermin des Auftrags. Ueberfaellig = Termin plus Offset in Arbeitstagen aus <em>BDE-Stammdaten &rsaquo;
-                        Arbeitsgaenge</em> liegt vor heute (ohne Eintrag Offset 0). Im Modus &bdquo;Nur FA-Meldung&ldquo; bleibt die Liste wie bisher.</span>
-                        <span class="d-block mt-1"><strong>Seit v1.64.0 (IDEAL, hierarchische Struktur an):</strong> je Haupt-FA ein Kopf mit
-                        FA-Nummer, Prio (falls gesetzt), Anzahl Arbeitsgaenge und Fertigungstermin. Reihenfolge: Prio aufsteigend (ohne Prio am
-                        Ende), dann frueherer Termin, dann FA-Nummer. Antippen klappt die Sub-FAs mit ihren Arbeitsgaengen auf und wieder zu.
-                        Sichtbar waren zuerst einige Haupt-FAs (Einstellung <code>BdeTerminalMaxHauptFa</code>, seit v1.99.78 entfernt),
-                        &bdquo;Weitere &hellip; anzeigen&ldquo; blendete die naechsten ein. Offene Gruppen bleiben nach Start, Pause und Beenden offen.
-                        Bei AKE bleibt die Liste flach wie bisher.</span>
-                        <span class="d-block mt-1"><strong>Auswahl (beide Standorte):</strong> Der gewaehlte Arbeitsgang traegt einen dunklen
-                        Rahmen und ein &#10003;. Die Knoepfe stehen direkt unter der Karte &bdquo;2. Arbeitsgang waehlen&ldquo;, darueber
-                        &bdquo;Gewaehlt: FA / Sub-FA &middot; Kuerzel Name&ldquo;.</span>
-                        <span class="d-block mt-1"><strong>Scan:</strong> Die FA-Nummer allein genuegt. IDEAL: Haupt-FA (Barcode auf dem
-                        Sage-Papier) klappt die Gruppe auf, nichts ist vorgewaehlt; eine Sub-FA mit genau einem offenen Arbeitsgang an dieser
-                        Werkbank waehlt ihn direkt. AKE: genau ein Treffer wird gewaehlt, sonst erscheint eine Auswahl. <code>FA,AG</code> geht
-                        wie bisher.</span></li>
-                    <li><strong>Ruesten starten:</strong> Fuer einen produktiven AG &rarr; &bdquo;Ruesten starten&ldquo; klicken. Ruestzeit wird erfasst.</li>
-                    <li><strong>Produktion starten:</strong> Ruesten abgeschlossen &rarr; &bdquo;Produktion starten&ldquo; (schliesst Ruestung automatisch).</li>
-                    <li><strong>Teilmenge melden:</strong> Waehrend laufender Produktion &rarr; &bdquo;Teilfertigmeldung&ldquo; &rarr; Gutmenge + Ausschuss eingeben.</li>
-                    <li><strong>Pausieren:</strong> &bdquo;Pause&ldquo; klicken &rarr; bei Produktion optional Mengen eingeben. Ein anderer Operator kann den AG fortsetzen.</li>
-                    <li><strong>Beenden:</strong> &bdquo;Beenden&ldquo; &rarr; finale Gutmenge + Ausschuss eingeben. AG ist abgeschlossen.</li>
-                    <li><strong>Operator wechseln:</strong> &bdquo;Wechseln&ldquo;-Button im Operator-Badge klicken &rarr; neuen Operator scannen.</li>
+                    <li><strong>Werker anmelden:</strong> Personalnummer scannen (auch Handscanner ohne Antippen) oder eintippen, &bdquo;Anmelden&ldquo;.
+                        Im Werker-Balken rechts &bdquo;Tageshistorie&ldquo; und &bdquo;Werker wechseln&ldquo;. Oben rechts laesst sich eine andere
+                        BDE-aktive Werkbank waehlen.</li>
+                    <li><strong>Reiter:</strong> <em>Teile Einzeln</em> und <em>Teile Summiert</em> (nur IDEAL-Werkbaenke mit BDE-Teileliste und Kuerzel,
+                        sonst ausgegraut) sowie <em>FA</em>. Welcher Reiter zuerst kommt, legt die Werkbank fest (<em>BDE-Standardsicht</em>, siehe
+                        &bdquo;Werkbank fuer BDE konfigurieren&ldquo;); danach merkt sich das WMS die gewaehlte Sicht je Werker und Werkbank. AKE: nur FA.</li>
+                    <li><strong>Reiter FA:</strong> offene Arbeitsgaenge der Werkbank als Tabelle (Haupt-FA, Sub-FA, Arbeitsgang, AG-Status aller
+                        Arbeitsgaenge des Auftrags mit umrahmtem Zeilen-AG, Sollmenge, FE-Termin, Prio, Status als Text) mit Spaltenfiltern, Zahnrad und
+                        Blaettern; Reihenfolge Prio, dann frueherer Fertigungstermin. Je Zeile <strong>Ruesten</strong> oder <strong>Produktion</strong>
+                        anstempeln. Laeuft der Arbeitsgang bei einem anderen Werker, oeffnet das Fenster &bdquo;Arbeitsgang bereits in Arbeit&ldquo;
+                        &mdash; es wird nichts gebucht.</li>
+                    <li><strong>Meine Buchungen</strong> (oben im Reiter FA): laufende und pausierte Buchungen des Werkers mit Pause, Teilfertig, Fertig,
+                        Ruesten fertig, Produktion, Beenden bzw. Fortsetzen; seit v1.99.79 mit Sub-FA und weiterlaufender Laufzeit. Der Schalter
+                        &bdquo;Zeiten und Details&ldquo; blendet Startzeit, Laufzeit, Werkbank, Terminal und Personalnummer ein (je Werker im Browser gemerkt).</li>
+                    <li><strong>FA scannen:</strong> <code>FA</code>, <code>FA/AG</code> oder <code>FA,AG</code>. Eine eindeutige Zeile wird markiert und
+                        angesprungen, bei mehreren offenen Arbeitsgaengen kommt &bdquo;Arbeitsgang waehlen&ldquo;. Gelbe Meldung &bdquo;nicht gefunden&ldquo;,
+                        seit v1.99.79 getrennt davon &bdquo;laeuft bereits (offene Buchung)&ldquo; bzw. &bdquo;hat an dieser Werkbank keinen offenen
+                        Arbeitsgang&ldquo;.</li>
+                    <li><strong>Taetigkeit starten</strong> (rechts oben): ungeplante Taetigkeit wie Wartung oder Reinigung; Ende ueber &bdquo;Beenden&ldquo;
+                        unter Meine Buchungen.</li>
+                    <li><strong>Mengen melden:</strong> Teilfertig und Fertig ueber das Fenster &bdquo;Mengen melden&ldquo; (Gut, Ausschuss); Fertig unter
+                        Sollmenge fragt nach. Arbeiten andere Werker auf demselben Arbeitsgang, fragt &bdquo;Weitere aktive Buchungen&ldquo;, ob alle oder
+                        nur die eigene beendet werden.</li>
                 </ol>
                 <p class="mt-2 mb-1">
-                    Nach jeder Aktion (Starten, Pausieren, Beenden, Teilmenge) erscheint eine <strong>gruene Bestaetigungs-Meldung</strong> (Toast) am oberen Bildschirmrand.
-                    Die <strong>Tageshistorie</strong> des Operators ist seit v1.99.78 eine eigene Seite (siehe Hinweis oben).
+                    Nach jeder Buchung laedt die Seite neu und zeigt oben eine <strong>gruene Bestaetigungs-Meldung</strong>. Seit v1.99.79 nehmen die
+                    Buchungen nur das Terminal des angemeldeten Benutzers an; sonst kommt &bdquo;Dieses Terminal ist nicht dem angemeldeten Benutzer
+                    zugeordnet &ndash; Seite neu laden.&ldquo; und es wird nichts gebucht.
+                </p>
+
+                <h6 class="mt-3">Tageshistorie (seit v1.99.78)</h6>
+                <p>
+                    Knopf &bdquo;Tageshistorie&ldquo; im Werker-Balken oder
+                    <a asp-controller="BdeTeileliste" asp-action="Tageshistorie">BDE &rsaquo; Tageshistorie</a>: Buchungen (Ruesten, Produktion,
+                    Taetigkeit) und Teilmeldungen (Teilfertig, Fertig; IDEAL) des Werkers von heute an allen Werkbaenken, neueste zuerst, mit
+                    Spaltenfiltern und Blaettern. Stornierte Buchungen fehlen. Ohne angemeldeten Werker kommt zuerst die Anmeldung, danach oeffnet
+                    direkt die Tageshistorie (seit v1.99.79).
+                </p>
+
+                <h6 class="mt-3">BDE am Handy (seit v1.99.78)</h6>
+                <p>
+                    Android-Browser im WLAN des Standorts; je Geraet ein lokales WMS-Konto mit Formular-Anmeldung (Windows-Anmeldung greift am Handy
+                    nicht) und eine Terminal-Zuordnung. Unter 992&nbsp;px Breite erscheinen die Tabellen als Karten. Einrichtung: Betriebshandbuch
+                    Kapitel 09, Abschnitt 4.1.
                 </p>
 
                 <h6 class="mt-3">FA bereits verpackt/abgeholt (seit v1.26.0)</h6>
@@ -2023,26 +2032,33 @@
                 <h6 class="mt-3">BDE-Teileliste f&uuml;r die Blechfertigung (seit v1.99.32, IDEAL)</h6>
                 <ul>
                     <li><strong>Einschalten:</strong> <em>Stammdaten &rarr; Werkbaenke &rarr; Bearbeiten</em>, Option &bdquo;BDE-Teileliste&ldquo;.
-                        Wirkt nur mit <em>BDE aktiv</em> und Arbeitsschritt-Kuerzel; ist &bdquo;Nur FA-Meldung&ldquo; (<code>BdeNurFaMeldung</code>) an,
-                        bleibt das Terminal wie bisher.</li>
+                        Wirkt nur mit <em>BDE aktiv</em> und Arbeitsschritt-Kuerzel. Seit v1.99.76 darunter die Auswahl <em>BDE-Standardsicht</em>
+                        (<em>Teile</em> oder <em>FA</em>): welcher Reiter beim Oeffnen zuerst erscheint, solange der Werker keine Sicht gewaehlt hat.
+                        <em>Teile</em> laesst sich nur mit BDE aktiv, Kuerzel und BDE-Teileliste speichern; beim Update ist es dort vorbelegt, wo die
+                        Teileliste bisher wirkte (Liste der Werkbaenke: Kennzeichen &bdquo;Standard Teile&ldquo;).</li>
                     <li><strong>Zeilen:</strong> alle Teile (Blatt) und Baugruppen der FA-Struktur, deren Arbeitsschritte das Kuerzel enthalten.
                         Baugruppen tragen die Kennzeichnung &bdquo;Baugruppe&ldquo; und klappen ihre Teile auf (nur zur Ansicht). Zeilen, deren Auftrag
                         erledigt oder storniert ist, fehlen; Zeilen ohne WMS-Auftrag sind meldbar (&bdquo;kein WMS-Auftrag&ldquo;).
                         Die Kalenderwoche filtert auf den FE-Termin des Hauptauftrags (Vorgabe: aktuelle bis naechste KW).
                         Spalte <em>Beschichtet</em> = Kennzeichen der Position aus der FA-Struktur (&bdquo;&ndash;&ldquo;, wenn die Beschichtungsquelle keins je Position kennt).</li>
-                    <li><strong>Melden:</strong> einzeln (Gut vorbelegt mit der Sollmenge, Ausschuss optional), als Block (angehakte Zeilen der Seite,
-                        volle Sollmenge, Rueckfrage nennt Anzahl und Summe) oder in <em>Summiert</em> (je Matchcode alle offenen Positionen).
-                        Eine Baugruppe erledigt dabei ihren eigenen Arbeitsgang mit dem Kuerzel; Blechteile sind reine Teilmeldungen. Es wird nichts
-                        an Sage gemeldet.</li>
-                    <li><strong>Zuruecknehmen:</strong> eigene Meldung bis Schichtende (&bdquo;gemeldete zeigen&ldquo;, Knopf &bdquo;Zurücknehmen&ldquo;;
-                        ohne Schichtkalender bis Ende des Meldetags). Danach storniert der BDE-Admin unter <em>BDE-Buchungen &rarr; Teilmeldungen</em>
+                    <li><strong>Melden (seit v1.99.75):</strong> einzeln ueber &bdquo;Melden&ldquo; &ndash; Gut vorbelegt mit der <em>Restmenge</em>
+                        (Soll minus bereits gemeldet), dann <strong>Teilfertig melden</strong> (Zeile bleibt offen, Gut groesser 0, Status
+                        &bdquo;gemeldet X von Soll&ldquo;) oder <strong>Fertig melden</strong> (schliesst die Zeile ab). Erreicht eine Teilmeldung die
+                        Sollmenge, wird sie gespeichert mit dem Hinweis &bdquo;Sollmenge erreicht &ndash; bitte Fertig melden&ldquo;. Als Block (angehakte
+                        Zeilen der Seite, Rueckfrage nennt Anzahl und Summe) und mit dem Summen-Haken in <em>Summiert</em> wird jede Zeile mit ihrer
+                        Restmenge, Ausschuss 0, fertig gemeldet; Teilfertig geht nur einzeln. Eine Baugruppe erledigt mit Fertig ihren eigenen Arbeitsgang
+                        mit dem Kuerzel, Teilfertig bucht die Teilmenge und laesst den Arbeitsgang offen; Blechteile sind reine Teilmeldungen. Es wird
+                        nichts an Sage gemeldet.</li>
+                    <li><strong>Zuruecknehmen:</strong> eigene Meldung bis Schichtende (&bdquo;gemeldete zeigen&ldquo;, Knopf &bdquo;Zurücknehmen&ldquo;
+                        je Meldung mit eigenem Bestaetigungsfenster seit v1.99.75; ohne Schichtkalender bis Ende des Meldetags). Danach storniert der BDE-Admin unter <em>BDE-Buchungen &rarr; Teilmeldungen</em>
                         (Grund Pflicht); Schichtleiter sehen die Liste ohne Storno.</li>
                     <li><strong>Filter</strong> (Sicht, Woche relativ, Spaltenfilter, &bdquo;gemeldete zeigen&ldquo;, Seitengroesse) gelten je Werker
                         und Werkbank am selben Terminal-Benutzer; die Spaltenauswahl (Zahnrad) gilt fuer den Terminal-Benutzer, nicht je Werker.</li>
                     <li><strong>Arbeitsgang-Erkennung:</strong> fuer Kuerzel einer Werkbank mit Option entsteht kein Arbeitsgang mehr an der
                         Baugruppe, wenn das Kuerzel nur an ihren Blechteilen steht (Zaehler <code>teileliste_blatt_uebersprungen</code> im
                         Aktivitaets-Protokoll). Der Dienst liest dafuer nur die Werkbank-Option, nicht <code>BdeNurFaMeldung</code>.</li>
-                    <li><strong>Spalten (seit v1.99.72):</strong> <em>Blechdicke</em> (Sage <code>USER_OSBlechdicke</code>, Spaltenfilter als Zahl),
+                    <li><strong>Spalten (seit v1.99.72):</strong> <em>Blechdicke</em> (Sage <code>USER_OSBlechdicke</code>, Spaltenfilter als Zahl; ist das Benutzerfeld in den Service-Einstellungen leer, zeigt
+                        die Spalte seit v1.99.79 &bdquo;&ndash;&ldquo;),
                         Material sichtbar; Bemerkung PN und Fertigungsinfo PN ueber das Zahnrad einblendbar. <em>Summiert</em> zeigt je Matchcode die
                         verschiedenen Werte der beitragenden Positionen, kommagetrennt. Der CSV-Export nimmt die sichtbaren Spalten und aendert den
                         gespeicherten Werker-Filter nicht.</li>
@@ -2059,7 +2075,7 @@
                         Explorer Strg+L, einfuegen, Enter. In der Teileliste nur Anzeige &ndash; gepflegt wird in der Artikelinfo.</li>
                     <li><strong>AG-Status (seit v1.99.73):</strong> Spalte &bdquo;AG-Status&ldquo; in <em>Einzeln</em> zeigt je Arbeitsschritt ein Zeichen
                         mit Kuerzel wie die FA-Struktur (Haken erledigt, Kreis offen, Dreieck ueberfaellig, Sanduhr laeuft). Erledigt zaehlt auch eine
-                        Teilmeldung (Blechteil ohne BDE-Arbeitsgang); ist ein Kuerzel an einer Werkbank mit BDE-Teileliste, gilt es ohne Meldung als offen
+                        Fertig-Meldung (Blechteil ohne BDE-Arbeitsgang), nur teilfertig gemeldet zaehlt als laeuft (seit v1.99.75); ist ein Kuerzel an einer Werkbank mit BDE-Teileliste, gilt es ohne Meldung als offen
                         bzw. ueberfaellig (Soll = FE-Termin minus Vorlauf). Filterbar nach Status-Text oder Kuerzel. Lagerbestell-Zeilen ohne Status.</li>
                     <li><strong>Baugruppen-Teile (seit v1.99.73):</strong> &bdquo;Teile (n)&ldquo; neben dem Matchcode klappt die Teile als eigene Zeilen
                         mit allen Spalten auf (nur Anzeige, nicht meldbar). Trifft ein Spaltenfilter nur ein Teil, ist die Baugruppe aufgeklappt und das
@@ -2068,9 +2084,9 @@
                         Liste erscheint als Karten, Bedienelemente sind mindestens 44&nbsp;px hoch. Spaltenfilter sind dort nicht bedienbar, wirken aber
                         weiter &ndash; &bdquo;Filter zuruecksetzen&ldquo; hebt sie auf.</li>
                     <li><strong>Summiert aufklappen (seit v1.99.74):</strong> &bdquo;Auftraege (n)&ldquo; neben dem Matchcode zeigt die einzelnen Auftraege
-                        (FE-Termin aufsteigend) mit eigenem Haken, AG-Status und Status. Haken auf der Summenzeile = alle offenen Auftraege darunter mit voller
-                        Sollmenge; fuer eine Teilmenge nur einzelne Auftraege anhaken (die anderen bleiben offen). Abwaehlen eines Auftrags nimmt den
-                        Summen-Haken weg. AG-Status der Summenzeile = schlechtester Stand je Kuerzel (erledigt nur, wenn alle erledigt).</li>
+                        (FE-Termin aufsteigend) mit eigenem Haken, AG-Status und Status. Haken auf der Summenzeile = alle offenen Auftraege darunter mit ihrer
+                        Restmenge (seit v1.99.75); fuer eine Teilmenge nur einzelne Auftraege anhaken (die anderen bleiben offen). Abwaehlen eines Auftrags nimmt den
+                        Summen-Haken weg, alle wieder anhaken setzt ihn wieder (seit v1.99.79). AG-Status der Summenzeile = schlechtester Stand je Kuerzel (erledigt nur, wenn alle erledigt).</li>
                 </ul>
 
                 <h6 class="mt-3">Werkbank fuer BDE konfigurieren</h6>
@@ -2079,9 +2095,11 @@
                     <li>Gewuenschte Werkbank bearbeiten.</li>
                     <li>Im Abschnitt <strong>BDE-Einstellungen</strong> den Schalter <em>BDE aktiv</em> einschalten.</li>
                     <li>Optional: Unter <em>Default-Arbeitsgang (BDE)</em> einen werkbank-spezifischen AG-Namen eintragen (z.&nbsp;B. &bdquo;BOHREN&ldquo;). Leer lassen, um das globale Setting zu verwenden.</li>
+                    <li>Optional (IDEAL): <em>BDE-Teileliste (vereinfacht)</em>, darunter <em>Lagerbestellungen in der Teileliste</em> (nur zusammen mit
+                        BDE-Teileliste) und <em>BDE-Standardsicht</em> (Teile/FA); <em>Nur AG-Fertigmeldung</em> fuer Werkbaenke ohne Start/Stopp.</li>
                     <li>Speichern.</li>
                 </ol>
-                <p class="text-muted">Nur BDE-aktivierte Werkbaenke erscheinen im Cockpit, in Terminal-Auswahllisten und in den Dropdown-Filtern der Buchungsuebersicht.</p>
+                <p class="text-muted">Nur BDE-aktivierte Werkbaenke erscheinen im Cockpit, in der Werkbank-Auswahl der BDE-Seite und in den Dropdown-Filtern der Buchungsuebersicht.</p>
 
                 <h6 class="mt-3">Ein Arbeitsgang an mehreren Werkbaenken (seit v1.63.0)</h6>
                 <ul>
@@ -2112,7 +2130,7 @@
                 <ul>
                     <li>Einschalten unter <em>Stammdaten &rarr; Werkbaenke &rarr; Bearbeiten &rarr; BDE-Einstellungen &rarr;
                         Nur AG-Fertigmeldung (ohne Start/Stop)</em>. Standard: aus.</li>
-                    <li>Am Terminal gibt es nach Antippen oder Scan eines Arbeitsgangs nur <strong>&bdquo;Fertig melden&ldquo;</strong>. Die Gutmenge
+                    <li>Im Reiter FA hat jede Zeile nur <strong>&bdquo;Fertig melden&ldquo;</strong> (auch nach dem Scan vorgewaehlt). Die Gutmenge
                         ist mit der Sollmenge des Auftrags vorbelegt, Ausschuss 0. Nach dem Bestaetigen ist der Arbeitsgang erledigt.</li>
                     <li>Gespeichert wird eine Buchung mit Werker, Werkbank, Zeitpunkt und Menge, aber <strong>ohne Zeit</strong>: Start = Ende,
                         Dauer 0. Die Ist-Zeit je Arbeitsgang ist an solchen Werkbaenken deshalb 0. Im Cockpit erscheint die Meldung nicht.</li>
@@ -2121,11 +2139,13 @@
                     <li>Laeuft der Arbeitsgang gerade bei einem anderen Werker, gilt dieselbe Regel wie beim Start: ohne
                         &bdquo;Ein Arbeitsgang darf mehrere parallele Buchungen haben&ldquo; kommt der Hinweis &bdquo;AG ist bereits in Arbeit&ldquo;,
                         mit der Einstellung wird gemeldet und das System bietet an, die anderen Buchungen zu schliessen.</li>
-                    <li>Ist die Einstellung <code>BdeNurFaMeldung</code> (Nur FA-Meldung) an, hat die Option keine Wirkung.</li>
+                    <li>Die BDE-Seite beachtet <code>BdeNurFaMeldung</code> (Nur FA-Meldung) seit v1.99.76 nicht mehr; die Einstellung aus lassen
+                        (Altlast, siehe Hinweis oben).</li>
                 </ul>
 
                 <h6 class="mt-3">Fehler &bdquo;Werkbank ist nicht fuer BDE aktiviert&ldquo;</h6>
-                <p>Tritt beim Scan am Terminal auf, wenn die zugewiesene Werkbank nicht als BDE-aktiv markiert ist. Loesung: Stammdaten &rarr; Werkbaenke &rarr; betroffene Werkbank bearbeiten &rarr; <em>BDE aktiv</em> einschalten.</p>
+                <p>Die BDE-Seite zeigt dann &bdquo;Werkbank ist nicht BDE-aktiv&ldquo; mit einer Auswahl der BDE-aktiven Werkbaenke; beim Buchen meldet
+                    der Dienst &bdquo;Werkbank ist nicht für BDE aktiviert.&ldquo; Loesung: Stammdaten &rarr; Werkbaenke &rarr; betroffene Werkbank bearbeiten &rarr; <em>BDE aktiv</em> einschalten.</p>
 
                 <h6 class="mt-3">Mehrfach-Anmeldung konfigurieren</h6>
                 <ol>
@@ -2139,7 +2159,8 @@
                 <p>Arbeitet ein Mitarbeiter parallel auf mehreren Auftraegen, wird die Gesamtzeit automatisch auf die Auftraege aufgeteilt &mdash; primaer nach tatsaechlicher Gutmenge, bei fehlender Rueckmeldung nach geplanter Sollmenge. Beispiel: 4&nbsp;h parallel auf FA-A (5&nbsp;Stk) und FA-B (5&nbsp;Stk) ergeben je 2&nbsp;h effektive Zeit pro Auftrag. Die effektive Zeit wird in der Buchungsuebersicht in der Spalte &bdquo;Effektive Zeit&ldquo; angezeigt.</p>
 
                 <h6 class="mt-3">Pausierte Auftraege fortsetzen</h6>
-                <p>Nach dem Operator-Scan am Terminal sehen Sie einen Hinweis mit allen Ihren pausierten Auftraegen und koennen diese per Klick fortsetzen.</p>
+                <p>Pausierte Buchungen stehen nach der Anmeldung im Reiter FA unter <strong>Meine Buchungen</strong> (gestrichelter Balken, &bdquo;&hellip; pausiert&ldquo;);
+                    &bdquo;Fortsetzen&ldquo; setzt sie als Produktion fort.</p>
 
                 <h6 class="mt-3">Gleichzeitiger Abschluss mehrerer Auftr&auml;ge</h6>
                 <p>Wenn <code>BdeGleichzeitigerAbschlussBeiMehrfachStart</code> aktiv ist (setzt <code>BdeMehrfachBuchungProOperator</code> voraus), &ouml;ffnet ein Klick auf &bdquo;Fertig&ldquo; bei &ge;2 laufenden Produktionsbuchungen automatisch den <strong>Gruppen-Abschluss-Dialog</strong>:</p>
@@ -2159,7 +2180,7 @@
                 </ol>
 
                 <h6 class="mt-3">Auto-Pause am Schichtende</h6>
-                <p>Wenn der Schichtkalender aktiv ist, pausiert der BDE-Worker laufende Buchungen am Schichtende automatisch (Status "Auto-pausiert"). Die Buchung wird mit der exakten Schicht-Ende-Zeit als Ende markiert &mdash; unabhaengig davon, wann der Service tatsaechlich tickt. Mitarbeiter sehen am Folge-Tag im Paused-Hint "auto-pausiert seit ... (Schichtende)" und koennen mit "Fortsetzen" eine neue Buchung starten. Activity- und Setup-Buchungen werden gleichbehandelt wie Production.</p>
+                <p>Wenn der Schichtkalender aktiv ist, pausiert der BDE-Worker laufende Buchungen am Schichtende automatisch (Status "Auto-pausiert"). Die Buchung wird mit der exakten Schicht-Ende-Zeit als Ende markiert &mdash; unabhaengig davon, wann der Service tatsaechlich tickt. Mitarbeiter sehen die Buchung am Folgetag unter "Meine Buchungen" als pausiert und koennen mit "Fortsetzen" eine neue Buchung starten. Activity- und Setup-Buchungen werden gleichbehandelt wie Production.</p>
 
                 <h6 class="mt-3">Feiertags-Sync (Nager.Date)</h6>
                 <p>Der Service kann Feiertage automatisch von date.nager.at synchronisieren (Service-Settings: Toggle aktivieren, optional Bundesland AT-3 NOe / AT-6 Stmk / AT-4 OOe / AT-5 Sbg / AT-7 T / AT-8 V / AT-9 W / AT-1 Bgl / AT-2 K). Der Sync ist additiv &mdash; manuelle Eintraege werden nie ueberschrieben. Sync-Eintraege haben Quelle "Sync"; manuelle Eintraege bleiben "Manuell".</p>

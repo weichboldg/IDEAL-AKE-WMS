@@ -1,6 +1,6 @@
 # 09 – Sicherheit, Konten und Rechte
 
-**Stand:** v1.99.78, 2026-11-25 (Abschnitt 4.1 BDE am Handy), v1.99.29, 2026-11-16 · **Zielgruppe:** IT-Administratoren (ohne Entwicklerwissen) · **Zweck:** Unter welchen Konten Web-App und
+**Stand:** v1.99.80, 2026-11-25 (4.1: Buchungen nur mit eigenem Terminal seit v1.99.79), v1.99.78, 2026-11-25 (Abschnitt 4.1 BDE am Handy), v1.99.29, 2026-11-16 · **Zielgruppe:** IT-Administratoren (ohne Entwicklerwissen) · **Zweck:** Unter welchen Konten Web-App und
 Dienst laufen, welche Rechte sie auf SQL Server, Ordner und Freigaben brauchen, wie Anmeldung und Rollen funktionieren und wo Geheimnisse
 liegen – und was nie im Klartext stehen darf.
 
@@ -145,6 +145,11 @@ Fehlerbilder rund um Anmeldung (400 bei POST, Button ohne Wirkung): [07-troubles
   Terminal meldet die Seite „Für diesen Benutzer ist kein Terminal konfiguriert …“ und führt auf die Startseite.
   (Quelle: `IdealAkeWms/Controllers/BdeTerminalController.cs` `Index`, Abfrage `GetByUserIdAsync`)
 - **Werker:** meldet sich danach wie am Terminal-PC mit der **Personalnummer** an; das Gerätekonto ist nicht der Werker.
+- **Nur das eigene Terminal (seit v1.99.79):** Die Buchungsaufrufe mit Terminal (Rüsten, Produktion, Tätigkeit starten, Fortsetzen, Fertig melden ohne Start) nehmen nur das Terminal des
+  angemeldeten WMS-Benutzers an – dasselbe, das die BDE-Seite anzeigt. Ein fremdes oder fehlendes Terminal lehnt der Server ab: „Dieses
+  Terminal ist nicht dem angemeldeten Benutzer zugeordnet – Seite neu laden.“; es wird nichts gebucht. Ein Konto darf deshalb nicht ohne
+  Terminal-Zuordnung buchen. Prüfabfrage: [08 A-8.9](08-diagnose-abfragen.md).
+  (Quelle: `IdealAkeWms/Controllers/BdeTerminalController.cs:273-280`)
 - **Stand:** Die Handy-Konten sind noch **nicht angelegt** (Manifest-Info `v1.99.78-BdeHandyKontenInfo`). Anwender-Anleitung:
   `docs/anwender/11-bde-terminal.md`.
 

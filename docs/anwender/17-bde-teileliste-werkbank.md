@@ -1,6 +1,6 @@
 # 17 BDE-Teileliste an der Werkbank (vereinfachte Fertigmeldung)
 
-Stand: Version 1.99.79 (Summen-Haken kommt zurück, Text), 1.99.78 (Abschnitt 1 Verweise auf Kapitel 11, Tageshistorie, Text), 1.99.77 (Abschnitt 1 Reiter FA mit Buchungen, Text), 1.99.76 (Wer darf, Reiter, Abschnitt 1, Text), 1.99.73 (Abschnitt 2 und Handy, Text; Fotos 1.99.78), 1.99.72 (Abschnitte 8 und 9, Text; Fotos folgen) bzw. 1.99.43 · nur Standort IDEAL · Bilder aus dem IDEAL-Testsystem
+Stand: Version 1.99.79 (Doku-Nachzug 1.99.80: Statustabelle repariert, Blechdicke „–“, Termin einstellbar; Summen-Haken kommt zurück, Text), 1.99.78 (Abschnitt 1 Verweise auf Kapitel 11, Tageshistorie, Text), 1.99.77 (Abschnitt 1 Reiter FA mit Buchungen, Text), 1.99.76 (Wer darf, Reiter, Abschnitt 1, Text), 1.99.73 (Abschnitt 2 und Handy, Text; Fotos 1.99.78), 1.99.72 (Abschnitte 8 und 9, Text; Fotos folgen) bzw. 1.99.43 · nur Standort IDEAL · Bilder aus dem IDEAL-Testsystem
 
 ## Zweck
 
@@ -81,12 +81,12 @@ weitere Spalten einblenden (z. B. Artikelnummer, Sub-FA, Position, Arbeitsschrit
 | offen | noch nicht gemeldet |
 | teilgemeldet – Rest … | mit **Teilfertig** gemeldet, Zeile bleibt offen (seit 1.99.75) |
 | ✓ fertig gemeldet | mit **Fertig** abgeschlossen |
-
-Seit 1.99.75 steht über dem Status **gemeldet X von Soll** (Summe Gut aller Meldungen) und darunter jede Meldung einzeln:
-**Teil** oder **Fertig**, Gut/Ausschuss, Werker, Datum Uhrzeit; bei eigenen Meldungen der Knopf **Zurücknehmen**.
 | ⚠ Strukturzeile nicht eindeutig – bitte AV | das WMS kann die Zeile nicht sicher zuordnen; nicht melden, Arbeitsvorbereitung informieren |
 | kein WMS-Auftrag | zu diesem Hauptauftrag gibt es im WMS keinen offenen Auftrag |
 | nicht meldbar | die Zeile ist in Sage nicht mehr vorhanden, beendet oder inaktiv |
+
+Seit 1.99.75 steht über dem Status **gemeldet X von Soll** (Summe Gut aller Meldungen) und darunter jede Meldung einzeln:
+**Teil** oder **Fertig**, Gut/Ausschuss, Werker, Datum Uhrzeit; bei eigenen Meldungen der Knopf **Zurücknehmen**.
 
 **AG-Status (seit 1.99.73):** je Arbeitsschritt der Zeile ein Zeichen mit Kürzel, wie in der FA-Struktur:
 
@@ -206,7 +206,8 @@ Voraussetzung (richtet die WMS-Betreuung ein): *Stammdaten → Werkbänke → Be
   Arbeitsschritten trägt. Entwürfe, abgeschlossene und stornierte Bestellungen erscheinen nicht.
 - Kennzeichen in der Spalte Status: **Lagerbestellung <Nr>**, darunter klein der Kommentar der Bestellung.
 - **Menge** = bestellte Menge, **Abteilung** = die bestellende Werkbank, **Hauptauftrag** leer.
-- **FE-Termin** = Tag des Abschickens + **10 Arbeitstage** (ohne Wochenende und Feiertage). Die Kalenderwoche filtert auf diesen Termin.
+- **FE-Termin** = Tag des Abschickens + **10 Arbeitstage** (ohne Wochenende und Feiertage; die Zahl stellt der Administrator in den
+  Einstellungen ein, Standard 10). Die Kalenderwoche filtert auf diesen Termin.
 - **Fertig melden** wie ein Teil (einzeln, als Block oder in *Summiert*, dort als „LB <Nr>“ bei den Hauptaufträgen). Es wird **nichts
   gebucht**: kein Lagerbestand, keine Änderung an der Lagerbestellung, nichts an Sage. Das Lager schließt die Bestellung wie gewohnt ab.
 - Ist die Bestellung inzwischen abgeschlossen, oder trägt der Artikel das Kürzel nicht mehr, weist das WMS die Meldung mit Grund ab.
@@ -218,7 +219,8 @@ Voraussetzung (richtet die WMS-Betreuung ein): *Stammdaten → Werkbänke → Be
 
 ### 9. Neue Spalten: Blechdicke und Fräsen-Pfad (seit 1.99.72)
 
-- **Blechdicke** (aus Sage) ist sichtbar; der Spaltenfilter rechnet mit Zahlen (`3,00` trifft 3,00). *Summiert* zeigt jetzt auch
+- **Blechdicke** (aus Sage) ist sichtbar; der Spaltenfilter rechnet mit Zahlen (`3,00` trifft 3,00). Steht überall **„–“**, ist das
+  Sage-Feld für die Blechdicke noch nicht eingerichtet (seit 1.99.79) – bitte der IT melden. *Summiert* zeigt jetzt auch
   **Material** und **Blechdicke**; Bemerkung PN und Fertigungsinfo PN lassen sich dort über das Zahnrad einblenden.
 - **Fräsen-Pfad** (nur wenn eingeschaltet): über das **Zahnrad** einblenden – die Wahl bleibt für den Terminal-Benutzer gespeichert.
   Der Link öffnet den Ordner des Fräsprogramms. Öffnet er nicht: **Pfad kopieren**, im Explorer **Strg+L**, einfügen, **Enter**.

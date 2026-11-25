@@ -1,6 +1,6 @@
 # 01 – Kommissionierung
 
-Stand: Version 1.99.70 (Abschnitt „Weitere Knöpfe“, Hinweise) bzw. 1.99.58 · Standorte AKE und IDEAL · Bilder aus dem AKE-Testsystem (IDEAL-Bild extra gekennzeichnet)
+Stand: Version 1.99.79 (Hinweis „Altbestand geprüft“), 1.99.70 (Abschnitt „Weitere Knöpfe“, Hinweise) bzw. 1.99.58 · Standorte AKE und IDEAL · Bilder aus dem AKE-Testsystem (IDEAL-Bild extra gekennzeichnet)
 
 ## Zweck
 
@@ -96,7 +96,8 @@ Weitere Knöpfe in der Leiste:
 - **Fehlende Kommissionieraufträge erzeugen** und **„Fehlende Kommissionieraufträge für alle freigegebenen FAs erzeugen“** sehen seit
   Version 1.99.70 **nur noch Administratoren**. Sie machen sofort, was der nächtliche Lauf macht – nur für Notfälle.
 - **Altbestand geprüft** (Knopf in der FA-Zeile bei „Altbestand prüfen“) legt die fehlenden Aufträge des FA sofort an, wenn der FA
-  freigegeben ist.
+  freigegeben ist. Klappt das Anlegen nicht, ist „Altbestand geprüft“ trotzdem gespeichert und ein gelber Hinweis erscheint – der
+  nächtliche Lauf holt die Aufträge nach (seit 1.99.79).
 - **⚠ Stückliste kleiner** (gelbes Badge in der FA-Zeile): Die Stückliste ist nach der Freigabe kleiner geworden als die offenen
   Kommissionierzeilen (Position entfallen oder Menge gesenkt). Der Tooltip nennt Artikel, Position, Stücklisten- und beauftragte Menge.
   Offene Zeilen werden **nicht** automatisch gekürzt – der Leitstand entscheidet (z. B. Auftrag zurücknehmen oder beim Abschluss

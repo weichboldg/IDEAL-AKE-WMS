@@ -1,6 +1,6 @@
 # 08 – Diagnose-Abfragen (nur lesend)
 
-**Stand:** v1.99.70, 2026-11-25 · **Zielgruppe:** IT-Administratoren (ohne Entwicklerwissen)
+**Stand:** v1.99.80, 2026-11-25 (A-8.8 Teilmeldungen, A-8.9 Terminal-Zuordnung, Hinweis A-8.7 Konflikt), v1.99.70 · **Zielgruppe:** IT-Administratoren (ohne Entwicklerwissen)
 
 Sammlung **lesender** SQL-Abfragen für die WMS-Datenbank, gruppiert nach Thema. Jede Abfrage hat Zweck, erwartetes Ergebnis und Quelle.
 Die Abfragen stammen aus dem Update-Manifest (`scripts/deploy/nachlauf.psd1`), aus `docs/TESTSZENARIEN.md` und aus den Testberichten;
@@ -702,6 +702,52 @@ SELECT TOP 1 Message FROM dbo.SyncLogs WHERE Message LIKE N'Sage-Datenbank:%' OR
   versucht es selbst erneut; `Fehler` = fachlich: Grund lesen, in Sage bzw. im WMS korrigieren, dann „Erneut senden“.
 - Prüfabfragen gegen Sage (P-1 bis P-10, nur `SELECT`): Spec `2026-11-24-lagerplatz-anlage-wms-nach-sage`, Abschnitt
   „Migrations-/SQL-Auswirkungen“, und [05 § 4b](05-schnittstellen.md).
+- Seit v1.99.79 steht bei einem Konflikt die belegende Sage-`PlatzID` im Fehlertext (`SageUebergabeFehler`); diesen Platz in Sage ansehen
+  (nur lesen), bevor „Erneut senden“ gedrückt wird.
+
+---
+
+### A-8.8 BDE-Teilmeldungen: Teilfertig und Fertig (ab v1.99.75, IDEAL)
+
+```sql
+-- Meldungen eines Haupt-FA: IstAbschliessend 1 = Fertig (schliesst die Zeile), 0 = Teilfertig (Zeile bleibt offen)
+SELECT m.Id, m.HauptFA, m.SubFA, m.Position, m.Matchcode, m.Kuerzel, m.GoodQuantity, m.ScrapQuantity, m.SollmengeBeiMeldung,
+       m.IstAbschliessend, m.IsCancelled, m.CancellationReason, m.GemeldetAm, m.WarehouseRequisitionItemId
+FROM dbo.BdeTeilMeldungen m
+WHERE m.HauptFA = <HauptFA>
+ORDER BY m.SubFA, m.Position, m.GemeldetAm;
+
+-- Gemeldet X von Soll je Zeile (nur gueltige Meldungen)
+SELECT m.HauptFA, m.SubFA, m.Position, m.Kuerzel, SUM(m.GoodQuantity) AS GutGesamt, MAX(m.SollmengeBeiMeldung) AS Soll,
+       MAX(CAST(m.IstAbschliessend AS int)) AS Abgeschlossen
+FROM dbo.BdeTeilMeldungen m
+WHERE m.IsCancelled = 0 AND m.HauptFA = <HauptFA>
+GROUP BY m.HauptFA, m.SubFA, m.Position, m.Kuerzel;
+```
+
+- **Erwartet:** je Zeile beliebig viele Teilfertig-Meldungen, aber höchstens **eine** nicht stornierte Fertig-Meldung (UNIQUE-Index mit
+  `[IstAbschliessend] = 1`, SQL/169). Vor v1.99.75 angelegte Meldungen stehen auf `IstAbschliessend = 1`.
+- **Quelle:** `IdealAkeWms/Models/BdeTeilMeldung.cs:14-65`, `SQL/169_AddBdeTeilMeldungIstAbschliessendUndStandardsicht.sql`,
+  [[0037-teilfertigmeldung-nur-abschliessende-meldung-eindeutig]].
+
+---
+
+### A-8.9 BDE: Terminal-Zuordnung je WMS-Benutzer (ab v1.99.78)
+
+```sql
+-- Wer hat welches Terminal mit welcher Werkbank? (ohne Kennwort-Spalten)
+SELECT u.Id AS UserId, u.Name, u.WindowsUserName, u.IsActive, t.Id AS TerminalId, t.Description, w.Name AS Werkbank, w.BdeAktiv
+FROM dbo.Users u
+LEFT JOIN dbo.BdeTerminals t ON t.UserId = u.Id
+LEFT JOIN dbo.ProductionWorkplaces w ON w.Id = t.DefaultProductionWorkplaceId
+WHERE u.IsActive = 1
+ORDER BY CASE WHEN t.Id IS NULL THEN 1 ELSE 0 END, u.Name;
+```
+
+- **Zweck:** „Für diesen Benutzer ist kein Terminal konfiguriert“ (Benutzer ohne Zeile in `BdeTerminals`) und seit v1.99.79 „Dieses Terminal
+  ist nicht dem angemeldeten Benutzer zugeordnet – Seite neu laden.“ (die Seite schickt ein anderes Terminal als das des angemeldeten
+  Benutzers, z. B. nach Kontowechsel im selben Browser) eingrenzen. Werkbank mit `BdeAktiv = 0` → die Seite zeigt „Werkbank ist nicht BDE-aktiv“.
+- **Quelle:** `IdealAkeWms/Controllers/BdeTerminalController.cs:39-50,273-280`, `IdealAkeWms/Controllers/BdeTeilelisteController.cs:97-104`.
 
 ## Verwandte Kapitel
 

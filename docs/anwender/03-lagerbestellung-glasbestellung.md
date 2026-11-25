@@ -1,6 +1,6 @@
 # 03 – Lagerbestellung und Glasbestellung
 
-Stand: Version 1.99.57 (Bilder aus dem AKE-Testsystem, Stand 1.99.29 – Foto zu „Entnahme aus“ folgt nach Einschalten des Schalters) · Standorte AKE und IDEAL
+Stand: Version 1.99.79 (Abschnitt 8 Fräsen-Pfad seit 1.99.72), 1.99.57 (Bilder aus dem AKE-Testsystem, Stand 1.99.29 – Foto zu „Entnahme aus“ folgt nach Einschalten des Schalters) · Standorte AKE und IDEAL
 
 ## Zweck
 

@@ -1,6 +1,6 @@
 # 10 – Bestände und Spaltenfilter-Suche
 
-Stand: Version 1.99.62 · Standorte AKE und IDEAL · Bilder aus dem AKE-Testsystem
+Stand: Version 1.99.79 (Fräsen-Pfad in Bestände seit 1.99.72; „Aktueller Bestand“ fest eingeblendet), 1.99.62 · Standorte AKE und IDEAL · Bilder aus dem AKE-Testsystem
 
 ## Zweck
 
@@ -128,7 +128,8 @@ Nicht jede Liste hat ein Zahnrad: In **Bestände**, **Bewegungshistorie**, Lager
 Listen gibt es nur **CSV**. Ein Rechtsklick auf einen Spaltenkopf öffnet in Listen mit Zahnrad die Auswahl ebenfalls.
 
 **Seit 1.99.72** hat auch **Lager → Bestände** ein Zahnrad. Bei IDEAL (wenn eingeschaltet) lässt sich dort die Spalte **Fräsen-Pfad**
-einblenden (Standard ausgeblendet; Spaltenfilter z. B. `gerhard\listen`).
+einblenden (Standard ausgeblendet; Spaltenfilter z. B. `gerhard\listen`). **Aktueller Bestand** lässt sich nicht ausblenden
+(seit 1.99.79).
 
 ![Bestände: Zahnrad mit der Spalte Fräsen-Pfad (Standard aus)](bilder/10-08-bestaende-zahnrad-fraesenpfad.jpg)
 

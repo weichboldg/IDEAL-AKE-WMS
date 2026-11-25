@@ -1,6 +1,6 @@
 # AGENTS.md – Leitfaden für KI-Assistenten im Betrieb von IdealAkeWms
 
-**Stand:** v1.99.43, 2026-11-19 · **Zielgruppe:** KI-Assistenten (z. B. Claude, Copilot), die Administratoren bei Diagnose und Betrieb
+**Stand:** v1.99.80, 2026-11-25 (Lagerplatz-Anlage per Direkt-SQL, Schalter-Liste, Diagnose-Einstiege v1.99.70–79), v1.99.43, 2026-11-19 · **Zielgruppe:** KI-Assistenten (z. B. Claude, Copilot), die Administratoren bei Diagnose und Betrieb
 unterstützen · **Zweck:** Regeln, die vor jeder Antwort und jeder Aktion gelten. Für Entwicklungsarbeit gilt stattdessen `CLAUDE.md` im
 Repository-Wurzelverzeichnis.
 
@@ -32,7 +32,14 @@ Repository-Wurzelverzeichnis.
   (`IDEALAKEWMSService/Services/SageWareneingangClient.cs:47`, HTTP POST) und seit v1.99.38 (IDEAL) Arbeitsgänge in Sage-Fertigungsaufträgen
   (`IDEALAKEWMSService/Services/SageFaArbeitsgangClient.cs:15-25`, HTTP POST `FertigungsauftragService`, Warteschlange
   `SageFaArbeitsgangAnlagen`), jeweils hinter Schaltern (`SageLagerbuchungAktiv`, `SageWareneingangBelegAktiv`,
-  `SageFaArbeitsgaengeAnlegenAktiv`, Quelle: `IdealAkeWms/Models/ServiceSettingDefinitions.cs:297-298,300`).
+  `SageFaArbeitsgaengeAnlegenAktiv`, Quelle: `IdealAkeWms/Models/ServiceSettingDefinitions.cs:312-313,315`).
+- **Seit v1.99.71 zusätzlich per Direkt-SQL:** Lager und Lagerplätze anlegen (`KHKLagerorte`, `KHKLagerplaetze`, Nummern über `spSysTan`) über
+  die Warteschlange `SageStammdatenOutbox` und den Dienst-Schritt „Lagerplätze → Sage“, hinter `SageLagerplatzAnlageAktiv` und
+  `SageLagerAnlageLagertechniken` (beide aus ausgeliefert; `ServiceSettingDefinitions.cs:319-321`, ADR
+  `secondbrain/architektur/adr/0036-lagerplatz-anlage-in-sage-per-direkt-sql-hinter-austauschbarer-schnittstelle.md`,
+  [05 § 4b](05-schnittstellen.md)). Das ist der **einzige** schreibende SQL-Weg nach Sage. Ein KI-Assistent drückt dort weder
+  „Lagerplätze in Sage anlegen“ noch „Erneut senden“, setzt keine Outbox-Einträge zurück und ruft `spSysTan` nicht auf – auch nicht, um einen
+  Konflikt „Konflikt in Sage: … (PlatzID …)“ zu lösen; den genannten Sage-Platz nur lesend ansehen und dem Menschen berichten.
 - Ein KI-Assistent löst **keine** Sage-Buchung aus, schaltet diese Schalter nicht ein, setzt keine Warteschlangen-Einträge zurück
   („Erneut senden“, „Requeue“, „Erneut einreihen“), reiht keine Arbeitsgänge für Sage ein und bestätigt nicht „In Sage vorhanden“ (das
   setzt einen Eintrag ohne Sage-Prüfung auf erledigt – nur ein Mensch nach eigenem Blick in Sage), und ruft keine SData-Endpunkte mit
@@ -40,6 +47,37 @@ Repository-Wurzelverzeichnis.
   auf Sage-Datenbanken: nur `SELECT`, und nur wenn ausdrücklich verlangt.
 - Was nur in Sage steht, wird nicht angenommen, sondern als Prüfabfrage bzw. Prüffrage für den Menschen formuliert.
   (Quelle: `CLAUDE.md` Abschnitt „Belegen statt deuten“)
+
+## 3a. Schalter, die ein KI-Assistent nie umschaltet
+
+Zusätzlich zu den Sage-Schaltern oben (Stand v1.99.80, Fundstellen in [04-konfiguration.md](04-konfiguration.md)):
+
+| Schalter | Wo | Warum nie |
+|---|---|---|
+| `SageLagerplatzAnlageAktiv`, `SageLagerAnlageLagertechniken` | `/ServiceSettings` | schreibt per SQL in die Sage-Mandanten-DB; Einschalten nur nach Abnahme, Rechten, Prüfabfragen und Sage-Backup (Manifest `v1.99.71-SageLagerplatzAnlageAktiv`) |
+| `Sync:KommissionierNachtragEnabled`, `Sync:KommissionierNachtragUhrzeit` | `/ServiceSettings` | legt nachts Kommissionieraufträge an (ändert WMS-Daten, v1.99.70) |
+| `Sync:BlechteileFelderNachlesen`, `Sync:Userfeld:*` (u. a. `…:Blechfertigung:USER_OSBlechdicke`) | `/ServiceSettings` | ändert Artikel-Merkmale; ein falscher Feldname lässt den Artikel-Abgleich warnen bzw. scheitern ([04 § 5.6](04-konfiguration.md)) |
+| `FraesenPfadAktiv` | `/Settings` | blendet Fräsen-Pfade an vielen Seiten ein und schaltet die Pflege frei; nur nach dem Erstimport (IDEAL) |
+| `BdeNurFaMeldung` | `/Settings` | Altlast; an = der Buchungsdienst kann Starts abweisen. Nur melden, wenn an (`Pruefung/BdeNurFaMeldungAn`) |
+| Werkbank-Optionen *BDE-Teileliste*, *Lagerbestellungen in der Teileliste*, *BDE-Standardsicht*, *Nur AG-Fertigmeldung* | *Stammdaten → Werkbänke* | ändern, was Werker an der Werkbank sehen und melden |
+| Terminal-Zuordnungen | *BDE → Stammdaten → Terminals* | ohne passende Zuordnung bucht niemand (seit v1.99.79 nur das eigene Terminal) |
+
+Das Einmal-Skript `Einmalig/2026-11-25_v1.99.72_FraesenPfad_Erstimport` (IDEAL, ändert Artikel) startet ein Mensch mit `SCHARF` – nie der
+Assistent ([03 § 5.4](03-installation-update-rollback.md)).
+
+## 3b. Diagnose-Einstiege v1.99.70 bis v1.99.80
+
+| Frage | Einstieg |
+|---|---|
+| Lief der nächtliche Kommissionier-Nachtrag? Warum „⚠ Stückliste kleiner“? | [08 A-6.5](08-diagnose-abfragen.md), [07 § 6](07-troubleshooting.md), Protokoll „Kommissionier-Nachtrag“ ([06 § 4.3](06-logs-ueberwachung.md)) |
+| Lagerplatz kommt nicht in Sage an, Konflikt mit PlatzID | [08 A-8.7](08-diagnose-abfragen.md), [07 § 3](07-troubleshooting.md), [05 § 4b](05-schnittstellen.md) |
+| Teilfertig/Fertig einer Teileliste-Zeile, „gemeldet X von Soll“ | [08 A-8.8](08-diagnose-abfragen.md) (`BdeTeilMeldungen.IstAbschliessend`) |
+| „kein Terminal konfiguriert“ / „Terminal nicht dem angemeldeten Benutzer zugeordnet“ | [08 A-8.9](08-diagnose-abfragen.md), [07 § 6](07-troubleshooting.md), [09 § 4.1](09-sicherheit-konten-rechte.md) |
+| Blechdicke „–“, Warnung der Blechteile-Nachlese | [04 § 5.6](04-konfiguration.md), [06 § 9](06-logs-ueberwachung.md), [07 § 3](07-troubleshooting.md) |
+| Welche Hand-Schritte brachte ein Update 1.99.70–1.99.80? | [03 § 5.4a](03-installation-update-rollback.md), [00 Versionstabelle](00-index.md) |
+
+Anwender-Sicht dazu: `docs/anwender/01-kommissionierung.md`, `11-bde-terminal.md`, `17-bde-teileliste-werkbank.md`,
+`19-lagerplaetze-in-sage-anlegen.md`.
 
 ## 4. Änderungen nur nach ausdrücklicher Bestätigung
 

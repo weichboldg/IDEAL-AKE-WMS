@@ -1,6 +1,6 @@
 # 06 – Logs und Überwachung
 
-**Stand:** v1.99.66, 2026-11-25 · **Zielgruppe:** IT-Administratoren (ohne Entwicklerwissen)
+**Stand:** v1.99.80, 2026-11-25 (Dienst-Namen Kommissionier-Nachtrag und Lagerplätze → Sage, Warnungen Blechteile/Lagerplatz/Terminal), v1.99.66 · **Zielgruppe:** IT-Administratoren (ohne Entwicklerwissen)
 
 Wo IdealAkeWms (Web-App unter IIS) und der Windows-Dienst `IDEALAKEWMSService` protokollieren, was man täglich und wöchentlich ansieht
 und wie typische Warnungen zu lesen sind. Fehlerbilder mit Lösung stehen in [07-troubleshooting.md](07-troubleshooting.md), lesende
@@ -151,6 +151,8 @@ Für die tägliche Prüfung wichtig:
 | `EinkaufBestellungen`, `Kreditoren`, `ArtikelLieferant` | SData-Abgleiche (lesend) | `SyncLogServices.cs:94-97` |
 | `LieferverzugMail`, `PartRequisitionEmail`, `WarehouseRequisitionEmail` | Mailversand | `SyncLogServices.cs:100-102` |
 | `OseonTracking`, `OseonArticleCategories`, `EnaioDms` | Fremdsysteme (AKE) | `SyncLogServices.cs:73-76` |
+| `KommissionierNachtrag` | Kommissionier-Nachtrag (einmal je Nacht, seit v1.99.70; Zähler `fa_geprueft`, `fa_mit_nachtrag`, `auftraege_angelegt`, `zeilen_angelegt`, `ohne_rest`, `altbestand_pruefen`, `ohne_stueckliste`, `fehler`, `stueckliste_kleiner`) | `SyncLogServices.cs:44,112`; `IDEALAKEWMSService/Services/KommissionierNachtragService.cs:83-84` |
+| `SageLagerplatzAnlage` | Lagerplätze → Sage (schreibt per Direkt-SQL nach Sage, seit v1.99.71; nur mit `SageLagerplatzAnlageAktiv`) | `SyncLogServices.cs:46,111`; [05 § 4b](05-schnittstellen.md) |
 | `CleanupAktivitaetsprotokoll` | Bereinigung des Protokolls | `SyncLogServices.cs:104` |
 | `Einstellungspruefung` | Prüfung der Einstellungen beim Web-Start | `SyncLogServices.cs:105`; `IdealAkeWms/Program.cs:381-398` |
 
@@ -266,6 +268,10 @@ Wiederanlauf-Regel des Dienstes (dreimal Neustart nach 60 s, `scripts/deploy/Ins
 | `Zugangsdaten aus appsettings …` | Sage-Lagerbuchung u. a. | SData-Zugang kommt noch aus der Datei (Übergang) | Zugang in `/ServiceSettings` eintragen | `README.md:535-538` |
 | `SData-Kennwort nicht entschlüsselbar – in den Service-Einstellungen neu eingeben` | Sage-Läufe, Error | Schlüsselring fehlt/anders; nichts geht an Sage | ja, siehe 07 | `README.md:532-534`; [[fallstricke]] §33 |
 | `Run fehlgeschlagen: Ungültiger Objektname "dbo.PurchaseOrderReceipts".` | Sage-Lagerbuchung | Dienst lief neuer als das DB-Schema (während eines Updates) | nur, wenn nach dem Update weiter | [[2026-11-13-ake-regression-akenet-4445-browser-testbericht]] Fortsetzung 5 |
+| `FA <Nr>: Fehler – …` | Kommissionier-Nachtrag, Warning | Nachtrag für diesen FA gescheitert, die anderen FAs laufen weiter | nächsten Nachtlauf abwarten; bei Wiederholung [07](07-troubleshooting.md) | `IDEALAKEWMSService/Services/KommissionierNachtragService.cs:100-101` |
+| `Blechteile-Feld „USER_OSBlechdicke“ nicht konfiguriert – nicht gelesen, Wert geleert (Anzeige „–“).` | Artikel-Sync (IDEAL), Hinweis | Einstellung `Sync:Userfeld:Blechfertigung:USER_OSBlechdicke` leer bzw. Zeile fehlt; Blechdicke wird geleert (seit v1.99.79) | nur, wenn Sage das Feld kennt: Einstellung setzen ([04 § 5.6](04-konfiguration.md)) | `IDEALAKEWMSService/Services/Sdata/SdataArtikelReader.cs:363-364` |
+| `Blechteile-Felder (SData-Nachlese) fehlgeschlagen: … – Artikel-Abgleich (View) bleibt gültig, Merkmale unverändert.` | Artikel-Sync (IDEAL), Warning | SData-Nachlese gescheitert (z. B. Feldname in Sage unbekannt, SData nicht erreichbar) | ja: Meldungstext lesen, Feldnamen bzw. SData-Zugang prüfen | `IDEALAKEWMSService/Services/Sdata/BlechteileFelderNachlese.cs:48` |
+| `Konflikt in Sage: Koordinaten oder Kurzbezeichnung schon anders belegt (PlatzID …)` | Lagerplätze → Sage, Spalte „Übergabe-Fehler“ | Sage hat schon einen Platz mit diesen Koordinaten oder dieser Kurzbezeichnung | ja, siehe 07 | `IDEALAKEWMSService/Services/SqlSageLagerplatzAnlage.cs:48-53` |
 | `SyncLog write failed for …` | Dienst-/Web-Log, Warning | Protokollzeile konnte nicht in die DB geschrieben werden (z. B. Meldung > 1000 Zeichen) | ja, DB/Länge prüfen | `IdealAkeWms/Services/SyncLogger/SyncRun.cs:91-94`; [[fallstricke]] §31 |
 | `Kommissionierfotos verschoben: n, uebersprungen: m.` | Web-Log, Info, erster Start ab v1.96.0 | Fotos aus `wwwroot` nach `App_Data` umgezogen | bei `m > 0` Rest prüfen | `IdealAkeWms/Services/PhotoStorage.cs:60`; `scripts/deploy/nachlauf.psd1:300-302` |
 | **`[ERR]` zu UNIQUE-Verletzung (2601/2627) oder Deadlock (1205) im Web-Log** | Web-Log | **Seit v1.99.23 gewollt abgefangen** (Doppel-Absenden, Gleichstand); Entity Framework schreibt den Fehler trotzdem als `[ERR]`. Anwender sahen „bereits gebucht“ bzw. es wurde wiederholt | kein Handlungsbedarf, nur bei Häufung | [[2026-11-14-schutz-doppel-absenden-und-unsichtbare-positionen-spec]] QA-Befund F3; `IdealAkeWms/Controllers/PurchaseOrdersController.Receive.cs:162-168` |

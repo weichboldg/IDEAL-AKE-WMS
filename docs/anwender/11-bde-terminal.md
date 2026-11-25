@@ -1,6 +1,6 @@
 # 11 – BDE: Arbeitsgänge buchen
 
-Stand: Version 1.99.79 (Scan „läuft bereits“, Sub-FA und Laufzeit in „Meine Buchungen“, Tageshistorie nach Anmeldung; Text), 1.99.78 (Terminal-Seite abgelöst, Kapitel umgeschrieben, Tageshistorie neu; alle Fotos 1.99.78), 1.99.77
+Stand: Version 1.99.79 (Doku-Nachzug 1.99.80: Meldung „Terminal nicht zugeordnet“; Scan „läuft bereits“, Sub-FA und Laufzeit in „Meine Buchungen“, Tageshistorie nach Anmeldung; Text), 1.99.78 (Terminal-Seite abgelöst, Kapitel umgeschrieben, Tageshistorie neu; alle Fotos 1.99.78), 1.99.77
 (Meine Buchungen, Scan, Tätigkeit), 1.99.76 (FA-Sicht) · Standorte AKE und IDEAL · Bilder aus dem IDEAL-Testsystem
 
 ## Zweck
@@ -138,6 +138,9 @@ Teile und Baugruppen nach Matchcode, teilfertig oder fertig melden, einzeln oder
 - Mengen dürfen nicht negativ sein; Gut- oder Ausschussmenge muss angegeben werden.
 - Ist der Schichtkalender eingeschaltet, pausiert das WMS laufende Buchungen am Schichtende selbst („auto-pausiert“); am nächsten Tag
   **Fortsetzen** unter „Meine Buchungen“.
+- „Dieses Terminal ist nicht dem angemeldeten Benutzer zugeordnet – Seite neu laden. – nichts gebucht.“ (seit 1.99.79): Die Seite war
+  noch unter einem anderen Konto offen. Seite neu laden (F5) und die Buchung wiederholen; bleibt die Meldung, die WMS-Betreuung
+  informieren (Terminal-Zuordnung prüfen).
 - **Handy (Android):** eigenes lokales WMS-Konto je Gerät mit Formular-Login und eine Terminal-Zuordnung – richtet die WMS-Betreuung ein. Auf
   schmalen Bildschirmen erscheinen die Tabellen als Karten.
 
