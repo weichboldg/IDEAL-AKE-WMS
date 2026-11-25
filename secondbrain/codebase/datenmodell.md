@@ -24,7 +24,7 @@ App-Zustand liegt in einem Satelliten — Begruendung:
 | Entitaet | Kardinalitaet | Inhalt |
 |---|---|---|
 | `ProductionOrder` | Master | Sage-Daten; `IsDone` (Sage), `IsCancelled` + `CancelledAt`/`CancelledBy` (Reconciliation, Migration 80) |
-| `ProductionOrderPickingStatus` | 1:1 | HasGlass, HasExternalPurchase, HasCoatingParts, IsCoatingDone, IsReleasedForPicking, PickingPriority, AssignedPicker, **IsDonePicking** |
+| `ProductionOrderPickingStatus` | 1:1 | HasGlass, HasExternalPurchase, HasCoatingParts, IsCoatingDone, IsReleasedForPicking, PickingPriority, AssignedPicker, **IsDonePicking**, `StuecklisteKleiner` (v1.99.70, SQL/168, NVARCHAR(1000) null: Marker „Stückliste kleiner als offene Kommissionierzeilen“; einziger Schreiber `PickingOrderWorkflow.ErzeugeOffeneAsync` über `SetStuecklisteKleinerAsync`, nur bei Änderung) |
 | `ProductionOrderBdeStatus` | 1:1 | IsDoneBde |
 | `ProductionOrderExtraInfo` | 1:1 | read-only Sage-Zusatzinfos: Kaeltemittel, Ventil, AusfuehrungEZ, Maschine, SageStatus (Migration 81) |
 | `FaWorkStep` (+ `FaWorkStepSpec`) | 1:N | tatsaechlich benoetigte Vorbau-AGs; `IsRemoved`, `Source` (`Sync`/`Manual`), `IsSpecComplete`, `Status` |

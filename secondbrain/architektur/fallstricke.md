@@ -2278,3 +2278,15 @@ Code: `hardware-scanner.js` Block „Scannen ohne Feld“, CSS `.hw-scan-bereit`
 - **Regel:** Jeder `Dictionary<int,…>`- (und `int[]`-Index-)Parameter, dessen Felder im Formular fehlen dürfen, bekommt `[Bind(Prefix = "<name>")]`.
 - **Warum:** Der Fehler zeigt sich nur im Randfall „keine Zeilen“ und mit einer Meldung ohne Feldnamen; Tests mit direktem Action-Aufruf binden nicht
   und sehen ihn nie. Nur die echte Bindung belegt ihn.
+
+## 65. Web-Workflow im Dienst: gemeinsame Registrierung, `DienstBenutzer`, 1000-Zeichen-Meldungen (v1.99.70, [[2026-11-25-kommissionierauftraege-nachtrag-nachts-spec]])
+
+- **`ICurrentUserService` im Dienst nur als `DienstBenutzer`.** Der Web-`CurrentUserService` liefert ohne `HttpContext` `"SYSTEM"` und widerspräche
+  ADR [[0003-auditableentity-als-entity-basis]] (Dienste schreiben ihren Namen). `DienstBenutzer` gibt den Lauf-Namen zurück; Rollenabfragen
+  (`IsAdminAsync` …) **werfen** `NotSupportedException`. **Warum:** Ein Web-Workflow, der im Dienst still eine Rolle prüft, bekäme sonst ein
+  erfundenes „ja/nein“ – lieber laut scheitern (Test `KommissionierNachtragServiceTests.DI_…`).
+- **Ein DI-Graph, eine Registrierung.** Der Kommissionierauftrags-Workflow hängt an BOM-, Repository- und Cache-Diensten. Web, Dienst und
+  `BomDiResolutionTests` registrieren ihn deshalb gemeinsam über `AddKommissionierauftraege`. **Warum:** Getrennte Listen driften auseinander,
+  und eine fehlende Abhängigkeit zeigt sich erst zur Laufzeit im Dienst nachts (`ValidateOnBuild` im Test belegt den Graphen).
+- **`SyncLogs.Message` hat 1000 Zeichen und wird beim Schreiben nicht gekürzt** (siehe oben, Diagnosen). Meldungen mit Fremdtext (Ausnahmen,
+  Artikellisten des Markers) kürzt der Lauf selbst auf 1000. **Warum:** Sonst fehlt genau die Warnzeile, die den Fehler eines FA erklärt.

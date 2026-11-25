@@ -162,7 +162,7 @@ Warum die Flags in Satelliten liegen: [[0009-app-status-in-satelliten-tabellen-n
 
 - `PickingController`: `Index` = Auftragsliste, `Auftrag/{id}` (Stueckliste im Auftragsmodus), `AuftragUmbuchen`, `AuftragAbschliessen`,
   `AuftragDrucken` – `[RequirePickingAccess]`; `Bom/{faId}` nur lesend mit Auftragsliste.
-- `PickingLeitstandController.AuftraegeNachziehen` – `[RequireLeitstandAccess]`; Freigabe/Ruecknahme/Prio/Kommissionierer schreiben auf Auftraege durch.
+- `PickingLeitstandController.AuftraegeNachziehen` – seit v1.99.70 zusätzlich `[RequireAdminAccess]` (Knöpfe nur für Admins, Nachtrag nachts durch den Dienst, [[2026-11-25-kommissionierauftraege-nachtrag-nachts-spec]]); `AltbestandGeprueft` (Leitstand) erzeugt bei freigegebenem, offenem FA sofort die fehlenden Aufträge. Vorher: `[RequireLeitstandAccess]`; Freigabe/Ruecknahme/Prio/Kommissionierer schreiben auf Auftraege durch.
 - `PickingAreasController` (Kommissionierbereiche + Regeln) – Klasse `[RequireMasterDataReadAccess]`, Schreiben `[RequireMasterDataAccess]`. Keine neue Rolle.
 - `StockApiController` `fa-lookup`/`fa-search` (v1.87.0) unter dem Klassenfilter `RequireStockOrPickingOrTrackingAccess`. FA-Links in Lager-Tools
   folgen dem FA-Leserecht `FaBuchungsText.CanViewProductionOrdersAsync` (= Regel von `RequirePickingOrTrackingOrLeitstandAccess`, ein Ort).

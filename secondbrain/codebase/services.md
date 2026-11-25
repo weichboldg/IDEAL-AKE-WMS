@@ -553,3 +553,18 @@ Quellen-Weiche je Abgleich: [[0019-quellen-weiche-view-sdata-je-abgleich]]. Ordn
   mit gespeichertem Haken „offen“. `AnlegenAsync` mit `auswahl` null/leer = alle freien Positionen, offen.
 - `PositionBezeichnung` (internal) seit v1.99.67 mit VaterFA: `Artnr (Pos. n, VaterFA v)`, ohne FA `(ohne FA)`. `BearbeitenAsync(…, ziel)` lehnt
   Übergeben mit 0 verbleibenden Positionen vor dem Speichern ab.
+
+
+## Kommissionier-Nachtrag (v1.99.70, [[2026-11-25-kommissionierauftraege-nachtrag-nachts-spec]])
+
+- `IDEALAKEWMSService/Services/KommissionierNachtragService.cs`, SyncLog-Service `KommissionierNachtrag` („Kommissionier-Nachtrag“), Aufruf im
+  `SyncWorker` vor dem Lagerbestand-Schritt über `RunWennFaelligAsync(dryRun, jetzt)`: einmal je Tag ab `Sync:KommissionierNachtragUhrzeit`
+  (Int 0–23, Default 2), Gate `Sync:KommissionierNachtragEnabled` (Bool, Default an), Termin über den Startmerker „Run gestartet“
+  (`LetzteBestellungPlaner.Faellig`), verpasster Termin wird nachgeholt, DryRun läuft nie.
+- Je freigegebenem, offenem HauptFA ein eigener DI-Scope mit `PickingOrderWorkflow.ErzeugeOffeneAsync` (dieselbe Logik wie Freigabe und Leitstand-Knopf);
+  Fehler eines FA = Warnzeile + Zähler `fehler`, der Lauf geht weiter. Counts `fa_geprueft`, `fa_mit_nachtrag`, `auftraege_angelegt`, `zeilen_angelegt`,
+  `ohne_rest`, `altbestand_pruefen`, `ohne_stueckliste`, `fehler`, `stueckliste_kleiner`. Meldungen auf 1000 Zeichen gekürzt.
+- `ICurrentUserService` im Dienst = `IDEALAKEWMSService/Common/DienstBenutzer.cs` (Name `KommissionierNachtrag`, Rollenabfragen werfen
+  `NotSupportedException`); Registrierung über die statische `KommissionierNachtragService.Registrieren`.
+- `AddKommissionierauftraege` (`IdealAkeWms/Services/PickingOrderRegistrierung.cs`): EINE Registrierung des Kommissionierauftrags-Graphen
+  (Workflow, Repositories, BOM) für Web-`Program.cs`, Dienst und `BomDiResolutionTests` ([[fallstricke]] §65).

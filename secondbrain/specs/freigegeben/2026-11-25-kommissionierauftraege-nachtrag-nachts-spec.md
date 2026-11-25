@@ -22,7 +22,7 @@ affected_code:
   - "IdealAkeWms/Services/PickingOrderRestmengen.cs (neu: record Ueberdeckung + Funktion Ueberdeckt, gleiche Abdeckungs-Regel Abgedeckt :19-27)"
   - "IdealAkeWms/Models/ProductionOrderPickingStatus.cs (neu: string? StuecklisteKleiner)"
   - "IdealAkeWms/Data/Repositories/IProductionOrderPickingStatusRepository.cs + ProductionOrderPickingStatusRepository.cs (neu: SetStuecklisteKleinerAsync nach Muster SetPickingStatusTextAsync :123-135)"
-  - "IdealAkeWms/Migrations/<ts>_AddPickingStatusStuecklisteKleiner.cs (neu) + SQL/168_AddPickingStatusStuecklisteKleiner.sql (neu, Nummer prüft der Dev-Lauf) + SQL/00_FreshInstall.sql (:447 Spalte, History-Block nach :3554)"
+  - "IdealAkeWms/Migrations/20261125161741_AddPickingStatusStuecklisteKleiner.cs (neu) + SQL/168_AddPickingStatusStuecklisteKleiner.sql (neu, Nummer prüft der Dev-Lauf) + SQL/00_FreshInstall.sql (:447 Spalte, History-Block nach :3554)"
   - "IdealAkeWms/Services/SyncLogger/SyncLogServices.cs (neuer Name in All + DisplayNames)"
   - "IdealAkeWms/Models/ServiceSettingDefinitions.cs (2 Keys: Basis, Meta, Int-Bereich)"
   - "IdealAkeWms/Controllers/PickingLeitstandController.cs (AuftraegeNachziehen :532-548 [RequireAdminAccess]; AltbestandGeprueft :550-567 legt sofort an; MapItem :125-163 übernimmt StuecklisteKleiner; Index setzt IsAdmin)"
@@ -360,16 +360,16 @@ Eine additive Migration, nicht daten-destruktiv, kein Backfill (ADR 0004):
 1. Model: `ProductionOrderPickingStatus.StuecklisteKleiner` (`string?`, `[MaxLength(1000)]`). Der Text wird auf 1000 Zeichen gekürzt (Punkt 8).
 2. `dotnet ef migrations add AddPickingStatusStuecklisteKleiner --project IdealAkeWms`.
 3. `SQL/168_AddPickingStatusStuecklisteKleiner.sql` nach dem Muster `SQL/167_AddStockMovementAbteilung.sql`:
-   - Tabellen-Guard `OBJECT_ID(N'dbo.ProductionOrderPickingStatuses', N'U')` mit `NOEXEC`.
-   - `IF COL_LENGTH(N'dbo.ProductionOrderPickingStatuses', N'StuecklisteKleiner') IS NULL ALTER TABLE … ADD [StuecklisteKleiner] NVARCHAR(1000) NULL;`
+   - Tabellen-Guard `OBJECT_ID(N'dbo.ProductionOrderPickingStatus', N'U')` mit `NOEXEC`.
+   - `IF COL_LENGTH(N'dbo.ProductionOrderPickingStatus', N'StuecklisteKleiner') IS NULL ALTER TABLE … ADD [StuecklisteKleiner] NVARCHAR(1000) NULL;`
      im eigenen Batch.
    - `__EFMigrationsHistory`-Insert im separaten Batch.
    - Nummer 168: höchste im Worktree ist `SQL/167` (Manifest `nachlauf.psd1:125`). Der Dev-Lauf prüft die Nummer erneut, weil parallele
      Entwürfe sie beanspruchen können.
 4. `SQL/00_FreshInstall.sql` an **zwei** Stellen nachziehen:
-   - die Spalte im `CREATE TABLE` der `ProductionOrderPickingStatuses` (bei `:447`, nach `IsDonePicking`)
+   - die Spalte im `CREATE TABLE` der `ProductionOrderPickingStatus` (bei `:447`, nach `IsDonePicking`)
    - die `MigrationId` im History-Block nach `:3552-3554`
-5. `SQL/AgentJobs/`: nicht betroffen. Die Suche nach `ProductionOrderPickingStatuses` in `SQL/AgentJobs/` trifft nichts, und die Spalte ist
+5. `SQL/AgentJobs/`: nicht betroffen. Die Suche nach `ProductionOrderPickingStatus` in `SQL/AgentJobs/` trifft nichts, und die Spalte ist
    nullable.
 
 Die beiden neuen ServiceSettings legt der Web-Start aus dem Katalog an (`IdealAkeWms/Program.cs:310-324`, idempotent), ohne SQL.
@@ -446,7 +446,7 @@ Verwendung, Standort leer = beide, Warnhinweis (`ServiceSettingDefinitions.cs:35
 Neues Kapitel **TS-191 — Kommissionier-Nachtrag nachts, Knopf nur für Admins** in `docs/TESTSZENARIEN.md`. Stand Worktree: höchstes Kapitel
 TS-190 (`docs/TESTSZENARIEN.md:13864`). Der Dev-Lauf prüft die Nummer erneut, weil andere Entwürfe vom 2026-11-24 ebenfalls „nächste freie“
 beanspruchen. Danach `secondbrain/tests/testszenarien-index.md` nachziehen. In TS-120.2, 120.6 und 120.13 einen Hinweis ergänzen: „Knopf
-seit v1.99.x nur Admin; Nachtrag automatisch → TS-191“.
+seit v1.99.70 nur Admin; Nachtrag automatisch → TS-191“.
 
 Vorbedingungen: DEV AKE und DEV IDEAL, Leitstand aktiv, ein Admin- und ein Leitstand-Konto (ohne `admin`). Zu Unit-Tests: Die Gleichzeitigkeit
 ist unter InMemory nicht prüfbar (`PickingOrderRepository.cs:74`), Rollen-UAT braucht ein echtes Nicht-Admin-Konto.
@@ -486,7 +486,7 @@ Diagnose Marker (TS-191.10/191.13):
 
 ```sql
 SELECT p.OrderNumber, s.StuecklisteKleiner, s.ModifiedAt, s.ModifiedBy
-FROM dbo.ProductionOrderPickingStatuses s
+FROM dbo.ProductionOrderPickingStatus s
 JOIN dbo.ProductionOrders p ON p.Id = s.ProductionOrderId
 WHERE s.StuecklisteKleiner IS NOT NULL;
 ```
@@ -530,7 +530,7 @@ Kein Epic.
   (`GetBoolSafeAsync`/`GetIntSafeAsync`). Der erste Dienststart holt den Lauf sofort einmal nach (F2), auch tagsüber. Das ist gewollt und
   idempotent, an AKE nach dem Einmal-Lauf vom 2026-11-24 voraussichtlich ohne neue Aufträge.
 - **Manifest-Einträge** (`scripts/deploy/nachlauf.psd1`, ADR 0022; Version = nächste freie, Stand Worktree 1.99.69 → voraussichtlich 1.99.70):
-  - `@{ Id='SQL/168'; Version='1.99.70'; Typ='Schema'; Firma='beide'; Phase='Schema'; Ausfuehrung='automatisch'; Datei='168_AddPickingStatusStuecklisteKleiner.sql'; MigrationId='<ts>_AddPickingStatusStuecklisteKleiner'; Voraussetzung='additiv: ProductionOrderPickingStatuses.StuecklisteKleiner NVARCHAR(1000) NULL (Marker Stueckliste kleiner als offene Kommissionierzeilen, Leitstand-Badge), kein Backfill'; Quelle='2026-11-25-kommissionierauftraege-nachtrag-nachts-spec' }`. Die Position folgt der Deploy-Reihenfolge nach `SQL/167` (`nachlauf.psd1:125-126`), nicht der Dateisortierung.
+  - `@{ Id='SQL/168'; Version='1.99.70'; Typ='Schema'; Firma='beide'; Phase='Schema'; Ausfuehrung='automatisch'; Datei='168_AddPickingStatusStuecklisteKleiner.sql'; MigrationId='20261125161741_AddPickingStatusStuecklisteKleiner'; Voraussetzung='additiv: ProductionOrderPickingStatus.StuecklisteKleiner NVARCHAR(1000) NULL (Marker Stueckliste kleiner als offene Kommissionierzeilen, Leitstand-Badge), kein Backfill'; Quelle='2026-11-25-kommissionierauftraege-nachtrag-nachts-spec' }`. Die Position folgt der Deploy-Reihenfolge nach `SQL/167` (`nachlauf.psd1:125-126`), nicht der Dateisortierung.
   - `@{ Id='v1.99.70-KommNachtrag-Lauf'; Version='1.99.70'; Typ='Einstellung'; Firma='beide'; Phase='Nachher'; Ausfuehrung='anzeigen'; Text='Neuer Dienst-Lauf "Kommissionier-Nachtrag": Sync:KommissionierNachtragEnabled (Default true), Sync:KommissionierNachtragUhrzeit (Default 2). Der erste Dienststart holt den Lauf einmal sofort nach - danach Aktivitaetsprotokoll "Kommissionier-Nachtrag" pruefen (Zaehler fehler/altbestand_pruefen).'; Quelle='2026-11-25-kommissionierauftraege-nachtrag-nachts-spec' }`
   - `@{ Id='v1.99.70-KommNachtrag-Knopf'; Version='1.99.70'; Typ='Info'; Firma='beide'; Phase='Nachher'; Ausfuehrung='anzeigen'; Text='Leitstand: Knoepfe "Fehlende Kommissionierauftraege ... erzeugen" nur noch fuer Admins; Nachtraege legt der Dienst nachts an; "Altbestand geprueft" legt die Auftraege sofort an; neues Badge "Stueckliste kleiner" (offene Zeilen werden nicht gekuerzt). Leitstand-Benutzer informieren.'; Quelle='2026-11-25-kommissionierauftraege-nachtrag-nachts-spec' }`
   - Keine Daten-, Einmal- oder Prüfungs-Einträge. Es gibt keinen Backfill (den Marker setzt der erste Nachtlauf), und der Seed läuft beim
@@ -590,3 +590,28 @@ Kein Epic.
 1. „Admin“ = Rolle `admin` über `[RequireAdminAccess]` oder eigenes Recht? → **Rolle `admin` über `[RequireAdminAccess]` (Gerald 2026-11-25).**
 2. Kleiner gewordene Stückliste: (a) dokumentieren, (b) melden im Nachtlauf, (c) offene Zeilen kürzen? → **(b), nichts kürzen. Zusätzlich die Warnung in der Stückliste bzw. im Leitstand der Kommissionierung anzeigen (Gerald 2026-11-25).**
 3. „Altbestand geprüft“: sofort Aufträge für diesen FA anlegen oder bis zur Nacht warten? → **Sofort für diesen FA anlegen (Gerald 2026-11-25).**
+
+## Umsetzung (2026-11-25)
+
+Worktree `feature/2026-08-07-ideal-teile-1-5`, Commit `fa1b754b` („wip: … feature-complete“). **v1.99.70**, **SQL/168**
+(`SQL/168_AddPickingStatusStuecklisteKleiner.sql`), Migration `20261125161741_AddPickingStatusStuecklisteKleiner`, **TS-191** (191.1–191.16 + 191.11a,
+Hinweise an TS-120.2/120.6/120.13). Kein ADR (0038 nicht vergeben). Changelog [[2026-11-25-v1-99-70-kommissionierauftraege-nachtrag-nachts]].
+
+Nachweis: Build `IdealAkeWms.slnx` 0 Fehler, Warnungen nicht mehr als Basis (30 → 30 voll, 24 inkrementell); Tests Web 3551 bestanden / 1 übersprungen
+(vorbestehend `ProductionOrderEagerCreateAgentJobTests`) / 0 Fehler, Dienst 801 / 0 / 0. Unabhängiges Review (qa-agent) steht aus.
+
+Nummern-Korrekturen in dieser Spec: `<ts>` → `20261125161741`; Tabelle heißt **singular** `ProductionOrderPickingStatus` (Spec nannte
+`…Statuses`; SQL, FreshInstall und Diagnose-Abfragen nutzen den echten Namen); „v1.99.x“ → v1.99.70.
+
+Abweichungen von der Spec:
+- Der Status-Repo wird in den Konstruktor des Dienst-Laufs injiziert; die statische DI-Registrierung `Registrieren` liegt in `KommissionierNachtragService`.
+- Altbestand- und Fehlertexte in `PickingOrderWorkflow` umformuliert (kein Verweis mehr auf den Knopf, „danach werden die fehlenden Aufträge sofort angelegt“).
+- Log-Meldungen des Laufs werden auf 1000 Zeichen gekürzt (`SyncLogs.Message`), [[fallstricke]] §65.
+- Manifest-`Quelle` der Einträge `v1.99.70-KommNachtrag-*` = Changelog-Slug `2026-11-25-v1-99-70-kommissionierauftraege-nachtrag-nachts` (Spec: `…-spec`).
+- Erfolgsmeldung nach „Altbestand geprüft“ hängt die Sammelmeldung an; ohne Nachtrag also „… 0 Kommissionierauftrag/-aufträge für 0 FA angelegt.“
+- `SyncWorker`-Schritt „Kommissionier-Nachtrag“ vor dem Lagerbestand-Schritt.
+- Zusätzlich TS-191.16 (`/ServiceSettings`-Bereich 0–23) und 191.11a (nicht freigegebener FA).
+
+Befunde: Spec-Manifest und Diagnose nannten die falsche Tabelle `ProductionOrderPickingStatuses` (korrigiert). Fotos für die Doku (DEV, nur ansehen):
+Leitstand-Zeile mit Badge „⚠ Stückliste kleiner“, Leitstand als Nicht-Admin ohne die Knöpfe, Stückliste mit gelbem Hinweis, optional
+Aktivitätsprotokoll „Kommissionier-Nachtrag“.
