@@ -70,6 +70,10 @@
                         {
                             <span class="badge bg-light text-dark border ms-1">Teileliste</span>
                         }
+                        @if (wp.BdeStandardsichtTeile)
+                        {
+                            <span class="badge bg-light text-dark border ms-1">Standard Teile</span>
+                        }
                     </td>
                     <td>
                         @if (wp.ProductionWorkplaceUsers.Any())

@@ -1,11 +1,11 @@
 @model IdealAkeWms.Models.ViewModels.BdeTeilelisteViewModel
 @{
-    ViewData["Title"] = "BDE-Teileliste – Anmelden";
+    ViewData["Title"] = "BDE – Anmelden";
 }
 <link rel="stylesheet" href="~/css/bde.css" asp-append-version="true" />
 
 <div class="container-fluid bde-terminal">
-    <h2>BDE-Teileliste <span class="badge bg-secondary align-middle">@Model.Werkbank.Name · Kürzel @Model.Kuerzel</span></h2>
+    <h2>BDE <span class="badge bg-secondary align-middle">@Model.Werkbank.Name@(Model.Kuerzel != null ? $" · Kürzel {Model.Kuerzel}" : "")</span></h2>
     <div class="card mt-3" style="max-width: 40rem;">
         <div class="card-header">Werker anmelden</div>
         <div class="card-body">

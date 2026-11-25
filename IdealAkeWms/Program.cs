@@ -115,6 +115,7 @@ builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddScoped<VormontageService>();
 builder.Services.AddScoped<FaAgStatusService>(); // v1.99.73 Status-Ladung AG-Symbole (FA-Struktur + Teileliste)
 builder.Services.AddScoped<BdeTeilelisteService>(); // v1.99.32
+builder.Services.AddScoped<BdeFaAngebot>(); // v1.99.76 Zeilenquelle Terminal-Liste + FA-Sicht
 builder.Services.AddSingleton<IBarcodeService, BarcodeService>();
 builder.Services.AddScoped<IWorkOperationRepository, WorkOperationRepository>();
 builder.Services.AddScoped<IOseonProductionOrderRepository, OseonProductionOrderRepository>();

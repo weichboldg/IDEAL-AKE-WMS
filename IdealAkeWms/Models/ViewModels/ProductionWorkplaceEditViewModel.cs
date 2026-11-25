@@ -49,6 +49,11 @@ public class ProductionWorkplaceEditViewModel
     [Display(Name = "BDE-Teileliste (vereinfacht)")]
     public bool BdeTeileliste { get; set; }
 
+    /// <summary>v1.99.76 (Spec 2026-11-25-bde-masken-vereinheitlichung E4-7): Startreiter der BDE-Seite, true = Teile, false = FA. Nur Oberflaeche;
+    /// „Teile“ nur mit Master, BDE aktiv, Kuerzel und BdeTeileliste (Server prueft).</summary>
+    [Display(Name = "BDE-Standardsicht")]
+    public bool BdeStandardsichtTeile { get; set; }
+
     /// <summary>v1.99.72 (Spec 2026-11-20-bde-liste-isolierungsfraese-pfad-material F6): Lagerbestell-Positionen in der Teileliste; nur mit BdeTeileliste.</summary>
     [Display(Name = "Lagerbestellungen in der Teileliste")]
     public bool BdeTeilelisteLagerbestellungen { get; set; }

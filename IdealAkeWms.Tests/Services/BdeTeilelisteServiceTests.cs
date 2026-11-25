@@ -177,13 +177,16 @@ public class BdeTeilelisteServiceTests
         r.Should().BeEquivalentTo(new Dictionary<string, bool> { ["100"] = true, ["200"] = false, ["300"] = false, ["400"] = true });
     }
 
-    // AK: Werkbank mit wirksamer Teileliste → Terminal leitet auf die Teileliste um; NurFA global gewinnt.
+    // AK: Werkbank mit Standardsicht Teile und verfuegbarer Teile-Sicht → Terminal leitet auf die BDE-Seite um (v1.99.76, E4-7):
+    // Master an, BDE-Teileliste, Kuerzel, BdeStandardsichtTeile; BdeNurFaMeldung wirkt nicht mehr (G5).
     [Theory]
-    [InlineData(true, "KA", false, true)]
-    [InlineData(true, "KA", true, false)]
-    [InlineData(false, "KA", false, false)]
-    [InlineData(true, null, false, false)]
-    public async Task Terminal_LeitetNurBeiWirksamerTeilelisteUm(bool option, string? code, bool nurFa, bool erwartetUmleitung)
+    [InlineData(true, "KA", true, true, false, true)]
+    [InlineData(true, "KA", true, true, true, true)]    // NurFA global wirkt nicht mehr (G5)
+    [InlineData(true, "KA", false, true, false, false)] // Standardsicht FA
+    [InlineData(true, "KA", true, false, false, false)] // Master aus
+    [InlineData(false, "KA", true, true, false, false)]
+    [InlineData(true, null, true, true, false, false)]
+    public async Task Terminal_LeitetNurBeiStandardsichtTeileUm(bool option, string? code, bool standardTeile, bool master, bool nurFa, bool erwartetUmleitung)
     {
         var ctx = TestDbContextFactory.Create();
         var user = new Mock<ICurrentUserService>();
@@ -192,13 +195,15 @@ public class BdeTeilelisteServiceTests
         terminals.Setup(t => t.GetByUserIdAsync(1)).ReturnsAsync(new BdeTerminal { Id = 7, DefaultProductionWorkplaceId = 65 });
         var workplaces = new Mock<IProductionWorkplaceRepository>();
         workplaces.Setup(w => w.GetByIdAsync(65)).ReturnsAsync(new ProductionWorkplace
-            { Id = 65, Name = "Kanten", BdeAktiv = true, BdeTeileliste = option, ArbeitsschrittCode = code });
+            { Id = 65, Name = "Kanten", BdeAktiv = true, BdeTeileliste = option, ArbeitsschrittCode = code, BdeStandardsichtTeile = standardTeile });
         workplaces.Setup(w => w.GetBdeActiveAsync()).ReturnsAsync(new List<ProductionWorkplace>());
         var settings = new Mock<IAppSettingRepository>();
         settings.Setup(s => s.GetValueAsync(AppSettingKeys.BdeNurFaMeldung)).ReturnsAsync(nurFa ? "true" : "false");
         settings.Setup(s => s.GetIntValueAsync(AppSettingKeys.BdeTerminalMaxHauptFa, 5)).ReturnsAsync(5);
+        var service = Mock.Of<IServiceSettingRepository>(s => s.GetValueAsync(IdealAkeWms.Services.HierarchischeStruktur.HierarchischeStrukturKeys.Master)
+            == Task.FromResult<string?>(master ? "true" : "false"));
         var c = new BdeTerminalController(terminals.Object, new BdeBookingService(ctx, user.Object, settings.Object), user.Object, workplaces.Object,
-            new BdeDefaultWorkOperationService(ctx, settings.Object), settings.Object, Mock.Of<IServiceSettingRepository>(), ctx,
+            new BdeDefaultWorkOperationService(ctx, settings.Object), settings.Object, service, ctx,
             Microsoft.Extensions.Logging.Abstractions.NullLogger<BdeTerminalController>.Instance);
 
         var r = await c.Index(null);

@@ -1,6 +1,6 @@
 @model IReadOnlyList<IdealAkeWms.Models.ViewModels.FaArbeitsschrittSymbol>
 @* v1.99.73 (Spec 2026-11-25-bde-masken-vereinheitlichung): Arbeitsgang-Symbole an EINER Stelle – FA-Struktur (_FaHierarchyNode), BDE-Teileliste
-   und spaeter die FA-Sicht. Name + Status in aria-label/title, fokussierbar fuer Tastatur/Screenreader. Status = Farbe + Zeichen + Text (nie
+   und FA-Sicht (v1.99.76: Markiert = AG der Zeile, Rahmen + aria-Text). Name + Status in aria-label/title, fokussierbar fuer Tastatur/Screenreader. Status = Farbe + Zeichen + Text (nie
    Farbe allein); ohne Status (BDE aus / Werkbank inaktiv) und "kein BDE-Arbeitsgang" neutral wie Teil 1, ohne Zeichen. *@
 @if (Model.Count == 0)
 {
@@ -12,7 +12,7 @@ else
         @foreach (var ag in Model)
         {
             var (agClass, agSvg) = IdealAkeWms.Models.ViewModels.FaAgStatusDarstellung.Fuer(ag.Status);
-            <span class="fa-ag-symbol @agClass" tabindex="0" role="img" aria-label="@ag.AriaLabel" title="@ag.AriaLabel">@Html.Raw(agSvg)@ag.Kuerzel</span>
+            <span class="fa-ag-symbol @agClass @(ag.Markiert ? "fa-ag-markiert" : null)" tabindex="0" role="img" aria-label="@ag.AriaLabel" title="@ag.AriaLabel">@Html.Raw(agSvg)@ag.Kuerzel</span>
         }
     </span>
 }

@@ -157,7 +157,7 @@ public class BdeTeilelisteMeldenTests
 
     [Theory]
     [InlineData(false, false)]
-    [InlineData(true, true)]
+    [InlineData(false, true)] // v1.99.76 (G5): BdeNurFaMeldung allein weist nicht mehr ab, nur die fehlende Option
     public async Task NichtWirksameWerkbank_Abgewiesen(bool option, bool nurFa)
     {
         var u = await AufbauAsync(option, nurFa);

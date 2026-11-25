@@ -64,8 +64,8 @@ public class ProductionWorkplace : AuditableEntity
     public bool BdeTeilelisteLagerbestellungen { get; set; }
 
     /// <summary>v1.99.75 (Spec 2026-11-25-bde-masken-vereinheitlichung, Antwort 3a): Startreiter der BDE-Seite (true = Teile, false = FA).
-    /// Nur Oberflaeche. Spalte entsteht mit SQL/169 (DEFAULT 0 nur dort, kein HasDefaultValue); Leser, Maske und EditableProperties
-    /// folgen in Etappe 4a.</summary>
+    /// Nur Oberflaeche, keine Wirkung auf Dienst oder Erkennung. Spalte entsteht mit SQL/169 (DEFAULT 0 nur dort, kein HasDefaultValue).
+    /// Seit v1.99.76 (Etappe 4a) gelesen von <see cref="IdealAkeWms.Services.WerkbankKuerzelFamilie.TeileStandard"/>, Werkbank-Maske und Liste.</summary>
     [Display(Name = "BDE-Standardsicht")]
     public bool BdeStandardsichtTeile { get; set; }
 

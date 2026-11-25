@@ -316,18 +316,20 @@ public class BdeBookingServiceStufe1Tests
     }
 
     [Fact]
-    public async Task NurFaGlobal_OptionWithoutEffect_ReportCompletionRejected_StartAllowed_AK32()
+    public async Task NurFaGlobal_ReportCompletionGateIgnoriertNurFa_StartAllowed_AK32()
     {
+        // v1.99.76 (Spec 2026-11-25-bde-masken-vereinheitlichung G5): das Gate „meldet ohne Zeit" liest BdeNurFaMeldung nicht mehr
+        // (die FA-Sicht bietet „Fertig melden" mit nurFaGlobal: false an). Der Start-Zweig :522 bleibt bewusst (Antwort 22).
         using var ctx = TestDbContextFactory.Create();
         var (ids, svc) = await FertigmeldungAsync(ctx, nurFa: true);
         var po = await ctx.ProductionOrders.FindAsync(ids.ProductionOrderId);
         po!.ProductionWorkplaceId = ids.WorkplaceId;
         await ctx.SaveChangesAsync();
 
-        (await svc.ReportCompletionAsync(ids.OperatorId, ids.WorkOperationId, ids.WorkplaceId, ids.TerminalId, 1, 0)).Message
-            .Should().Be("Diese Werkbank meldet nicht ohne Zeit fertig.");
         (await svc.StartProductionAsync(ids.OperatorId, ids.WorkOperationId, ids.WorkplaceId, ids.TerminalId)).Outcome
             .Should().Be(BdeBookingOutcome.Success);
+        (await svc.ReportCompletionAsync(ids.OperatorId, ids.WorkOperationId, ids.WorkplaceId, ids.TerminalId, 1, 0)).Message
+            .Should().NotBe("Diese Werkbank meldet nicht ohne Zeit fertig.");
     }
 
     [Fact]

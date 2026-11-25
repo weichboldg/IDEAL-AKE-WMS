@@ -296,7 +296,7 @@ public class BdeTeilelisteService
                 .Select(m => (Key: (TeilSchluessel.Von(m), m.Kuerzel.Trim().ToUpperInvariant()), m.IstAbschliessend)).ToList();
             var gemeldet = alle.Where(m => m.IstAbschliessend).Select(m => m.Key).ToHashSet();
             var teilgemeldet = alle.Select(m => m.Key).Where(k => !gemeldet.Contains(k)).ToHashSet(); // E1-1: Teilfertig = laeuft
-            var teileliste = lauf.Werkbaenke.Where(w => WerkbankKuerzelFamilie.TeilelisteWirksam(w, false))
+            var teileliste = lauf.Werkbaenke.Where(w => WerkbankKuerzelFamilie.TeilelisteWirksam(w))
                 .Select(w => WerkbankKuerzelFamilie.Kuerzel(w)!.ToUpperInvariant()).ToHashSet();
             TeilmeldungenAnwenden(structures, gemeldet, teileliste, lauf.Offsets, lauf.Rechner, DateTime.Today, teilgemeldet);
         }
@@ -552,8 +552,7 @@ public class BdeTeilelisteService
     {
         var ergebnis = new MeldeErgebnis();
         var wp = await _ctx.ProductionWorkplaces.FindAsync(workplaceId);
-        var nurFa = (await _settings.GetValueAsync(AppSettingKeys.BdeNurFaMeldung))?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
-        if (wp == null || !WerkbankKuerzelFamilie.TeilelisteWirksam(wp, nurFa))
+        if (wp == null || !WerkbankKuerzelFamilie.TeilelisteWirksam(wp)) // v1.99.76 (G5): ohne BdeNurFaMeldung
         {
             ergebnis.Abgewiesen.Add("Werkbank meldet nicht über die BDE-Teileliste");
             return ergebnis;

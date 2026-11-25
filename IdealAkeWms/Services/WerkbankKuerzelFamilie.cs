@@ -47,10 +47,20 @@ public static class WerkbankKuerzelFamilie
         w.BdeAktiv && w.BdeNurAgFertigmeldung && !nurFaGlobal;
 
     /// <summary>v1.99.32 (Spec 2026-11-13-bde-vereinfacht-teileliste-blechfertigung F1, ADR 0030): Werkbank-Option „BDE-Teileliste“
-    /// wirksam = BDE aktiv, Option an, globales <c>BdeNurFaMeldung</c> aus und ein Kuerzel gesetzt (es entscheidet allein
-    /// <c>ArbeitsschrittCode</c>, nie eine Code-Konstante).</summary>
-    public static bool TeilelisteWirksam(ProductionWorkplace w, bool nurFaGlobal) =>
-        w.BdeAktiv && w.BdeTeileliste && !nurFaGlobal && Code(w) != null;
+    /// wirksam = BDE aktiv, Option an und ein Kuerzel gesetzt (es entscheidet allein <c>ArbeitsschrittCode</c>, nie eine Code-Konstante).
+    /// v1.99.76 (Spec 2026-11-25-bde-masken-vereinheitlichung, G5/Antwort 2): ohne NurFA-Parameter – <c>BdeNurFaMeldung</c> wirkt hier nicht mehr.</summary>
+    public static bool TeilelisteWirksam(ProductionWorkplace w) =>
+        w.BdeAktiv && w.BdeTeileliste && Code(w) != null;
+
+    /// <summary>v1.99.76 (E4-7, Antwort 1): BDE-Seite (FA-Sicht) an beiden Standorten, sobald die Werkbank BDE-aktiv ist.</summary>
+    public static bool SeiteVerfuegbar(ProductionWorkplace w) => w.BdeAktiv;
+
+    /// <summary>v1.99.76 (E4-7, Antworten 13/15): Teile-Reiter nur bei Master <c>ProduktionsauftragHierarchisch</c> an und wirksamer
+    /// Teileliste – ein Meldeweg je Teil.</summary>
+    public static bool TeileSichtVerfuegbar(ProductionWorkplace w, bool hierarchisch) => hierarchisch && TeilelisteWirksam(w);
+
+    /// <summary>v1.99.76 (E4-7, Antwort 15): Startreiter Teile = Standardsicht Teile UND Teile-Sicht verfuegbar, sonst FA.</summary>
+    public static bool TeileStandard(ProductionWorkplace w, bool hierarchisch) => TeileSichtVerfuegbar(w, hierarchisch) && w.BdeStandardsichtTeile;
 
     /// <summary>Kuerzel der Werkbank (getrimmt) oder null — dieselbe Normalisierung wie die Familien-Pruefung.</summary>
     public static string? Kuerzel(ProductionWorkplace w) => Code(w);

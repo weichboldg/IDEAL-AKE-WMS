@@ -51,7 +51,7 @@ public class ProductionWorkplacesController : Controller
         ["arbeitsschritt"] = wp => wp.ArbeitsschrittCode,
         ["hall"] = wp => wp.Hall,
         ["bde"] = wp => (wp.BdeAktiv ? "Aktiv" : "Inaktiv") + (wp.BdeNurAgFertigmeldung ? " nur Fertigmeldung" : "")
-                     + (wp.BdeTeileliste ? " Teileliste" : ""),
+                     + (wp.BdeTeileliste ? " Teileliste" : "") + (wp.BdeStandardsichtTeile ? " Standard Teile" : ""),
         ["sage-missing"] = wp => wp.SageMissingSince?.ToString("dd.MM.yyyy"),
         ["users"] = wp => wp.ProductionWorkplaceUsers.Any()
             ? $"{wp.ProductionWorkplaceUsers.Count} {string.Join(", ", wp.ProductionWorkplaceUsers.Select(wu => wu.User.Name))}"
@@ -125,6 +125,7 @@ public class ProductionWorkplacesController : Controller
             BdeNurAgFertigmeldung = vm.BdeNurAgFertigmeldung,
             BdeTeileliste = vm.BdeTeileliste,
             BdeTeilelisteLagerbestellungen = vm.BdeTeilelisteLagerbestellungen,
+            BdeStandardsichtTeile = vm.BdeStandardsichtTeile,
             CreatedAt = DateTime.Now,
             CreatedBy = _currentUserService.GetDisplayName(),
             CreatedByWindows = _currentUserService.GetWindowsUserName()
@@ -175,6 +176,7 @@ public class ProductionWorkplacesController : Controller
             BdeNurAgFertigmeldung = workplace.BdeNurAgFertigmeldung,
             BdeTeileliste = workplace.BdeTeileliste,
             BdeTeilelisteLagerbestellungen = workplace.BdeTeilelisteLagerbestellungen,
+            BdeStandardsichtTeile = workplace.BdeStandardsichtTeile,
             SageMissingSince = workplace.SageMissingSince,
             CustomShifts = await _ctx.BdeShifts
                 .Where(s => s.ProductionWorkplaceId == workplace.Id)
@@ -225,6 +227,7 @@ public class ProductionWorkplacesController : Controller
         existing.BdeNurAgFertigmeldung = vm.BdeNurAgFertigmeldung;
         existing.BdeTeileliste = vm.BdeTeileliste;
         existing.BdeTeilelisteLagerbestellungen = vm.BdeTeilelisteLagerbestellungen;
+        existing.BdeStandardsichtTeile = vm.BdeStandardsichtTeile;
         // FA-a8: Kuerzel nur an Werkbaenken OHNE Sage-Nummer — entschieden am gespeicherten Wert, nie am Formular
         // (die Sage-Nummer kommt als readonly-Input zurueck und ist manipulierbar). Repository schuetzt zusaetzlich.
         if (existing.SageArbeitsplatznummer == null)
@@ -264,6 +267,11 @@ public class ProductionWorkplacesController : Controller
         // v1.99.72 (F6): Lagerbestellungen nur zusammen mit der Teileliste
         if (vm.BdeTeilelisteLagerbestellungen && !vm.BdeTeileliste)
             ModelState.AddModelError(nameof(vm.BdeTeilelisteLagerbestellungen), "„Lagerbestellungen in der Teileliste“ braucht „BDE-Teileliste“.");
+        // v1.99.76 (E4-7, AK 28, Antwort 15): Standardsicht „Teile“ nur mit verfuegbarer Teile-Sicht – auch das Ausschalten von
+        // BdeTeileliste bei stehender Standardsicht „Teile“ und ein manipulierter POST an AKE werden abgewiesen.
+        if (vm.BdeStandardsichtTeile && !(vm.BdeTeileliste && vm.BdeAktiv && code != null && await IsHierarchicalMasterAsync()))
+            ModelState.AddModelError(nameof(vm.BdeStandardsichtTeile),
+                "Standardsicht „Teile“ braucht „BDE aktiv“, ein Arbeitsschritt-Kürzel und „BDE-Teileliste (vereinfacht)“ – sonst „FA“ wählen.");
         if (!vm.BdeTeileliste) return;
         if (!await IsHierarchicalMasterAsync())
             ModelState.AddModelError(string.Empty, "Die BDE-Teileliste gibt es nur bei hierarchischen Produktionsaufträgen (IDEAL).");

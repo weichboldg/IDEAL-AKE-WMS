@@ -6,12 +6,28 @@ namespace IdealAkeWms.Models.ViewModels;
 public class BdeTeilelisteViewModel
 {
     public ProductionWorkplace Werkbank { get; set; } = null!;
-    public string Kuerzel { get; set; } = string.Empty;
+    /// <summary>v1.99.76: null an Werkbaenken ohne Kuerzel (AKE) – dann gibt es nur die FA-Sicht.</summary>
+    public string? Kuerzel { get; set; }
     public List<ProductionWorkplace> Werkbaenke { get; set; } = new();
     public BdeOperator? Werker { get; set; }
     public string? AnmeldeFehler { get; set; }
 
-    public bool Summiert { get; set; }
+    /// <summary>v1.99.76 (E4-7): Reiter "einzeln" | "summiert" | "fa".</summary>
+    public string Sicht { get; set; } = "einzeln";
+    public bool Summiert => Sicht == "summiert";
+    public bool IstFa => Sicht == "fa";
+
+    /// <summary>v1.99.76: Master <c>ProduktionsauftragHierarchisch</c> (false = AKE: keine Teile-Reiter).</summary>
+    public bool Hierarchisch { get; set; }
+
+    /// <summary>v1.99.76: <see cref="WerkbankKuerzelFamilie.TeileSichtVerfuegbar"/> – sonst Teile-Reiter deaktiviert mit Hinweis.</summary>
+    public bool TeileSicht { get; set; }
+
+    /// <summary>v1.99.76 (E4-1): Zeilen der FA-Sicht (aktuelle Seite).</summary>
+    public IReadOnlyList<BdeFaSichtZeile> FaZeilen { get; set; } = Array.Empty<BdeFaSichtZeile>();
+
+    /// <summary>v1.99.76 (E4-3): Werkbank meldet nur fertig – in 4a ohne Knopf, „Fertig melden“ folgt mit 4b.</summary>
+    public bool NurAgFertigmeldung { get; set; }
     public string? KwVon { get; set; }
     public string? KwBis { get; set; }
     public bool GemeldeteZeigen { get; set; }

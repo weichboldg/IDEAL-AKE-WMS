@@ -243,7 +243,10 @@ public sealed record FaArbeitsschrittSymbol(string Kuerzel, string? Name)
     };
 
     /// <summary><c>aria-label</c>/<c>title</c>: Teil-1-Beschriftung, ergaenzt um „ – Status“ (Spec FA 7, Abgleich 2026-10-13).</summary>
-    public string AriaLabel => StatusText is null ? Beschriftung : $"{Beschriftung} – {StatusText}";
+    public string AriaLabel => (StatusText is null ? Beschriftung : $"{Beschriftung} – {StatusText}") + (Markiert ? " – dieser Arbeitsgang" : "");
+
+    /// <summary>v1.99.76 (BDE-FA-Sicht, Antwort 4): Arbeitsgang der Tabellenzeile unter allen AG der Sub-FA (Rahmen + Text, nie Farbe allein).</summary>
+    public bool Markiert { get; init; }
 }
 
 /// <summary>

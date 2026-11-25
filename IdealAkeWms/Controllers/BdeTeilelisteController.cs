@@ -27,12 +27,14 @@ public class BdeTeilelisteController : Controller
     private readonly ICurrentUserService _userSvc;
     private readonly IUserViewPreferenceRepository _prefs;
     private readonly IServiceSettingRepository _serviceSettings;
+    private readonly BdeFaAngebot _faAngebot;
+    private readonly IBdeBookingService _booking;
 
     public BdeTeilelisteController(BdeTeilelisteService svc, IBdeTerminalRepository terminals, IProductionWorkplaceRepository workplaces,
         IBdeOperatorRepository operators, IAppSettingRepository settings, IFaHierarchyOrderInfoRepository orderInfos, ICurrentUserService userSvc,
-        IUserViewPreferenceRepository prefs, IServiceSettingRepository serviceSettings)
+        IUserViewPreferenceRepository prefs, IServiceSettingRepository serviceSettings, BdeFaAngebot faAngebot, IBdeBookingService booking)
     {
-        _serviceSettings = serviceSettings;
+        _serviceSettings = serviceSettings; _faAngebot = faAngebot; _booking = booking;
         _svc = svc; _terminals = terminals; _workplaces = workplaces; _operators = operators; _settings = settings;
         _orderInfos = orderInfos; _userSvc = userSvc; _prefs = prefs;
     }
@@ -65,14 +67,25 @@ public class BdeTeilelisteController : Controller
         return rv;
     }
 
-    private async Task<bool> NurFaAsync() =>
-        (await _settings.GetValueAsync(AppSettingKeys.BdeNurFaMeldung))?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
-
-    /// <summary>Werkbank mit wirksamer Teileliste oder null (dann zurueck ins Terminal, das selbst entscheidet).</summary>
-    private async Task<ProductionWorkplace?> WirksameWerkbankAsync(int workplaceId)
+    /// <summary>v1.99.76 (E4-7): Master <c>ProduktionsauftragHierarchisch</c> ("true"/"1"/"on"), EINE Lesung fuer Reiter, Melden und Beschichtet.</summary>
+    private async Task<bool> HierarchischAsync()
     {
-        var wp = await _workplaces.GetByIdAsync(workplaceId);
-        return wp != null && WerkbankKuerzelFamilie.TeilelisteWirksam(wp, await NurFaAsync()) ? wp : null;
+        var master = await _serviceSettings.GetValueAsync(IdealAkeWms.Services.HierarchischeStruktur.HierarchischeStrukturKeys.Master);
+        return master != null && (master.Equals("true", StringComparison.OrdinalIgnoreCase) || master == "1"
+            || master.Equals("on", StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>v1.99.76: BDE-aktive Werkbank (<see cref="WerkbankKuerzelFamilie.SeiteVerfuegbar"/>) oder null. Die Seite liest
+    /// <c>BdeNurFaMeldung</c> nicht (G5) und leitet nie zurueck aufs Terminal (ab Etappe 5 waere das ein Kreis).</summary>
+    private async Task<ProductionWorkplace?> BdeWerkbankAsync(int workplaceId) =>
+        await _workplaces.GetByIdAsync(workplaceId) is { } wp && WerkbankKuerzelFamilie.SeiteVerfuegbar(wp) ? wp : null;
+
+    /// <summary>v1.99.76 (E4-7, AK 29): angefragte Sicht, ohne Angabe die Standardsicht der Werkbank; Teile-Reiter ohne Teile-Sicht → FA.</summary>
+    internal static string SichtAufloesen(string? sicht, ProductionWorkplace wp, bool hierarchisch)
+    {
+        var s = sicht?.Trim().ToLowerInvariant();
+        if (s is not ("einzeln" or "summiert" or "fa")) s = WerkbankKuerzelFamilie.TeileStandard(wp, hierarchisch) ? "einzeln" : "fa";
+        return s != "fa" && !WerkbankKuerzelFamilie.TeileSichtVerfuegbar(wp, hierarchisch) ? "fa" : s;
     }
 
     private async Task<BdeOperator?> AktiverWerkerAsync(int? operatorId) =>
@@ -89,12 +102,15 @@ public class BdeTeilelisteController : Controller
             TempData["WarningMessage"] = "Für diesen Benutzer ist kein Terminal konfiguriert. Bitte an den BDE-Admin wenden.";
             return RedirectToAction("Index", "Home");
         }
-        var wp = await WirksameWerkbankAsync(workplaceId);
-        if (wp == null) return RedirectToAction("Index", "BdeTerminal", new { workplaceId });
+        var werkbaenke = await _workplaces.GetBdeActiveAsync();
+        var wp = await BdeWerkbankAsync(workplaceId);
+        if (wp == null) return View("NichtAktiv", werkbaenke); // AK 32d: Hinweis + Werkbank-Auswahl, kein Redirect
 
+        var hierarchisch = await HierarchischAsync();
         var vm = new BdeTeilelisteViewModel
         {
-            Werkbank = wp, Kuerzel = WerkbankKuerzelFamilie.Kuerzel(wp)!, Werkbaenke = await _workplaces.GetBdeActiveAsync(),
+            Werkbank = wp, Kuerzel = WerkbankKuerzelFamilie.Kuerzel(wp), Werkbaenke = werkbaenke,
+            Hierarchisch = hierarchisch, TeileSicht = WerkbankKuerzelFamilie.TeileSichtVerfuegbar(wp, hierarchisch),
         };
 
         if (!string.IsNullOrWhiteSpace(personalnummer))
@@ -112,7 +128,9 @@ public class BdeTeilelisteController : Controller
         var uid = _userSvc.GetCurrentAppUserId();
         var prefKey = FilterSchluessel(workplaceId, vm.Werker.Id);
         var colf = ColumnFilterHelper.ReadFromQuery(Request);
-        if (!Request.Query.Any(q => q.Key is "sicht" or "kwVon" or "kwBis" or "gemeldete" or "pageSize" or "page" || q.Key.StartsWith("colf_", StringComparison.Ordinal)))
+        var ohneAngaben = !Request.Query.Any(q => q.Key is "sicht" or "kwVon" or "kwBis" or "gemeldete" or "pageSize" or "page" || q.Key.StartsWith("colf_", StringComparison.Ordinal));
+        vm.Sicht = SichtAufloesen(ohneAngaben ? null : sicht, wp, hierarchisch);
+        if (ohneAngaben)
         {
             if (uid is int u && await _prefs.GetByUserAndViewAsync(u, prefKey) is { } pref
                 && TryLesen(pref.SettingsJson) is { } gespeichert)
@@ -121,20 +139,34 @@ public class BdeTeilelisteController : Controller
         }
         else if (uid is int u && IstNavigation(Request))
         {
-            var f = new GespeicherterFilter(sicht, WochenOffset(kwVon, DateTime.Today), WochenOffset(kwBis, DateTime.Today), gemeldete, pageSize,
+            var f = new GespeicherterFilter(vm.Sicht, WochenOffset(kwVon, DateTime.Today), WochenOffset(kwBis, DateTime.Today), gemeldete, pageSize,
                 colf.Count > 0 ? colf : null);
             await _prefs.SaveAsync(u, prefKey, System.Text.Json.JsonSerializer.Serialize(f), _userSvc.GetDisplayName(), _userSvc.GetWindowsUserName());
         }
 
-        vm.Summiert = string.Equals(sicht, "summiert", StringComparison.OrdinalIgnoreCase);
         vm.KwVon = kwVon; vm.KwBis = kwBis; vm.GemeldeteZeigen = gemeldete;
         vm.ReturnUrl = Request.Path + Request.QueryString;
 
         if (page < 1) page = 1;
         var userDefault = await _userSvc.GetDefaultPageSizeAsync();
         var size = PageSize.Resolve(pageSize, userDefault);
+
+        if (vm.IstFa)
+        {
+            // E4-1/E4-2: Zeilenquelle wie available-operations (BdeFaAngebot), Spaltenfilter vor Pagination (ADR 0005), Pagination statt MaxHauptFa.
+            var zeilen = ColumnFilterHelper.Apply(await _faAngebot.FaSichtAsync(wp, vm.Werker.Id), colf, BdeFaAngebot.Spalten,
+                ColumnFilterTypes.For("BdeTeileliste/Fa")).ToList();
+            vm.NurAgFertigmeldung = WerkbankKuerzelFamilie.NurAgFertigmeldungWirksam(wp, nurFaGlobal: false);
+            vm.FaZeilen = zeilen.Skip((page - 1) * size).Take(size).ToList();
+            vm.Pagination = new PaginationState
+            {
+                CurrentPage = page, PageSize = size, PageSizeRaw = PageSize.ResolveRaw(pageSize, userDefault), TotalCount = zeilen.Count,
+            };
+            return View("Fa", vm);
+        }
+        var kuerzel = vm.Kuerzel!; // Teile-Sicht verfuegbar => Kuerzel gesetzt
         var kw = IsoWeekRange.Resolve(kwVon, kwBis);
-        vm.Beschichtet = await BeschichtetZelleAsync();
+        vm.Beschichtet = await BeschichtetZelleAsync(hierarchisch);
         var infos = await _orderInfos.GetAllAsync();
         vm.Kopf = VormontageService.BuildKopfLookup(infos);
         vm.FraesenPfadAktiv = await RequireFraesenPfadAktivFilter.IstAktivAsync(_settings);
@@ -147,7 +179,7 @@ public class BdeTeilelisteController : Controller
         {
             // Summiert: Positions-Spalten filtern vor dem Zusammenzaehlen, Matchcode/Summe/Anzahl auf dem Aggregat (wie Vormontage).
             var vorfilter = colf.Where(c => !BdeTeilelisteService.SpaltenSummiert.ContainsKey(c.Key)).ToDictionary(c => c.Key, c => c.Value);
-            var daten = await _svc.LadenAsync(vm.Kuerzel, kw, gemeldete, vorfilter, vm.Beschichtet, vm.FraesenPfadAktiv, mitLager);
+            var daten = await _svc.LadenAsync(kuerzel, kw, gemeldete, vorfilter, vm.Beschichtet, vm.FraesenPfadAktiv, mitLager);
             var aggregate = BdeTeilelisteService.Summieren(daten.Zeilen, infos, colf, daten.Zusatz);
             vm.Spalten = BdeTeilelisteService.SpaltenZeile(vm.Kopf, vm.Beschichtet, daten.Zusatz); // v1.99.74: Zellen der Einzelauftraege
             vm.Waisen = daten.Waisen;
@@ -156,7 +188,7 @@ public class BdeTeilelisteController : Controller
         }
         else
         {
-            var daten = await _svc.LadenAsync(vm.Kuerzel, kw, gemeldete, colf, vm.Beschichtet, vm.FraesenPfadAktiv, mitLager);
+            var daten = await _svc.LadenAsync(kuerzel, kw, gemeldete, colf, vm.Beschichtet, vm.FraesenPfadAktiv, mitLager);
             vm.Spalten = BdeTeilelisteService.SpaltenZeile(vm.Kopf, vm.Beschichtet, daten.Zusatz);
             vm.Waisen = daten.Waisen;
             total = daten.Zeilen.Count;
@@ -191,6 +223,13 @@ public class BdeTeilelisteController : Controller
         {
             TempData["WarningMessage"] = "Für diesen Benutzer ist kein Terminal konfiguriert. Bitte an den BDE-Admin wenden.";
             return RedirectToAction("Index", "Home");
+        }
+        var zurueckVorab = Url.IsLocalUrl(returnUrl) ? returnUrl! : Url.Action(nameof(Index), new { workplaceId, operatorId })!;
+        // v1.99.76 (AK 31): Teilmeldung nur mit verfuegbarer Teile-Sicht (Master + BdeTeileliste + Kuerzel); der Service prueft TeilelisteWirksam.
+        if (await _workplaces.GetByIdAsync(workplaceId) is not { } mwp || !WerkbankKuerzelFamilie.TeileSichtVerfuegbar(mwp, await HierarchischAsync()))
+        {
+            TempData["WarningMessage"] = "Diese Werkbank hat keine BDE-Teileliste – nichts gemeldet.";
+            return LocalRedirect(zurueckVorab);
         }
         var texte = (schluessel ?? Array.Empty<string>()).SelectMany(t => t.Split('\n', StringSplitOptions.RemoveEmptyEntries))
             .Select(t => t.TrimEnd('\r')).Where(t => t.Length > 0).ToList(); // Formular-Versand macht aus LF ein CRLF; Artnr nicht trimmen
@@ -232,11 +271,8 @@ public class BdeTeilelisteController : Controller
 
     /// <summary>E6: Zelltext „Beschichtet“ je Position ueber den Resolver (Quelle aus den AppSettings, Auftragsmodell aus dem Master).
     /// Warnungen zu ungueltigen Quellwerten zeigt /Settings beim Speichern; hier wirkt der Wert wie „Automatisch“.</summary>
-    private async Task<Func<FaHierarchyNode, string?>> BeschichtetZelleAsync()
+    private async Task<Func<FaHierarchyNode, string?>> BeschichtetZelleAsync(bool hierarchisch)
     {
-        var master = await _serviceSettings.GetValueAsync(IdealAkeWms.Services.HierarchischeStruktur.HierarchischeStrukturKeys.Master);
-        var hierarchisch = master != null && (master.Equals("true", StringComparison.OrdinalIgnoreCase) || master == "1"
-            || master.Equals("on", StringComparison.OrdinalIgnoreCase));
         var quellen = IdealAkeWms.Services.Beschichtung.BeschichtungResolver.ResolveQuellen(
             await _settings.GetValueAsync(AppSettingKeys.BeschichtungKennzeichenQuelle),
             await _settings.GetValueAsync(AppSettingKeys.BeschichtungTerminQuelle), hierarchisch);
@@ -259,6 +295,44 @@ public class BdeTeilelisteController : Controller
         if (_userSvc.GetCurrentAppUserId() is int u) await _prefs.DeleteByUserAndViewAsync(u, FilterSchluessel(workplaceId, operatorId));
         return RedirectToAction(nameof(Index), new { workplaceId, operatorId });
     }
+
+    /// <summary>v1.99.76 (E4-3, Etappe 4a): Anstempeln je FA-Zeile = Ruesten bzw. Produktion starten ueber den bestehenden
+    /// <see cref="IBdeBookingService"/> (Startpruefungen dort). Terminal = Terminal des Web-Benutzers. Ergebnisse ohne eigenen Dialog
+    /// (Kollision, InvalidState) erscheinen als sichtbare Meldung nach dem Neuladen - nichts still verschluckt; die Dialoge folgen mit 4b.</summary>
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Anstempeln(int workplaceId, int operatorId, int workOperationId, string? art, string? returnUrl)
+    {
+        var zurueck = Url.IsLocalUrl(returnUrl) ? returnUrl! : Url.Action(nameof(Index), new { workplaceId, operatorId, sicht = "fa" })!;
+        var terminal = await TerminalAsync();
+        if (terminal == null)
+        {
+            TempData["WarningMessage"] = "Für diesen Benutzer ist kein Terminal konfiguriert. Bitte an den BDE-Admin wenden.";
+            return RedirectToAction("Index", "Home");
+        }
+        if (await AktiverWerkerAsync(operatorId) == null || await BdeWerkbankAsync(workplaceId) == null)
+        {
+            TempData["WarningMessage"] = "Werker nicht angemeldet oder Werkbank nicht BDE-aktiv – nichts gebucht.";
+            return LocalRedirect(zurueck);
+        }
+        var ruesten = string.Equals(art, "ruesten", StringComparison.OrdinalIgnoreCase);
+        var r = ruesten
+            ? await _booking.StartSetupAsync(operatorId, workOperationId, workplaceId, terminal.Id)
+            : await _booking.StartProductionAsync(operatorId, workOperationId, workplaceId, terminal.Id);
+        TempData[r.Outcome == BdeBookingOutcome.Success ? "SuccessMessage" : "WarningMessage"] = AnstempelnText(r, ruesten);
+        return LocalRedirect(zurueck);
+    }
+
+    /// <summary>Meldetext je Ergebnis (Texte wie <c>bde-terminal.js</c> post()).</summary>
+    internal static string AnstempelnText(BdeBookingResult r, bool ruesten) => r.Outcome switch
+    {
+        BdeBookingOutcome.Success => ruesten ? "Rüsten gestartet." : "Produktion gestartet.",
+        BdeBookingOutcome.CollisionOtherOperator =>
+            $"AG ist bereits in Arbeit durch {r.CollidingBooking?.BdeOperator?.DisplayName ?? "einen anderen Werker"} an "
+            + $"{r.CollidingBooking?.ProductionWorkplace?.Name ?? "einer anderen Werkbank"} seit {r.CollidingBooking?.StartedAt:HH:mm} – nichts gebucht.",
+        BdeBookingOutcome.NotFound => "Arbeitsgang nicht gefunden – nichts gebucht.",
+        _ => (r.Message ?? "Aktion nicht möglich") + " – nichts gebucht.",
+    };
 
     /// <summary>E4 (F13): Werker nimmt seine eigene Meldung bis zum Schichtende zurueck; danach nur der BDE-Admin.</summary>
     [HttpPost]

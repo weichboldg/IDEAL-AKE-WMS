@@ -1,6 +1,6 @@
 # 11 – BDE-Terminal
 
-Stand: Version 1.99.73 (Abschnitt 6, Text) bzw. 1.99.43 · Standorte AKE und IDEAL · Bilder aus dem IDEAL-Testsystem
+Stand: Version 1.99.76 (Abschnitt 7 FA-Sicht und Unterschiede, Text; Foto 11-05 folgt), 1.99.73 (Abschnitt 6, Text) bzw. 1.99.43 · Standorte AKE und IDEAL · Bilder aus dem IDEAL-Testsystem
 
 ## Zweck
 
@@ -116,6 +116,28 @@ die **BDE-Teileliste**: Teile und Baugruppen nach Matchcode, nur „fertig“ me
 Zeile den **AG-Status** (Zeichen wie in der FA-Struktur), Baugruppen-Teile als eigene Zeilen und am Handy eine Kartenansicht. Anleitung:
 [Kapitel 17](17-bde-teileliste-werkbank.md).
 
+### 7. FA-Sicht: Arbeitsgänge als Tabelle (seit Version 1.99.76)
+
+Die neue BDE-Seite (*BDE-Teileliste*, Reiter **FA**) zeigt die offenen Arbeitsgänge der Werkbank als Tabelle – in **derselben Reihenfolge**
+wie die Terminal-Liste. Sie öffnet sich
+
+- an IDEAL-Werkbänken mit BDE-Standardsicht **FA** über den Reiter **FA** der BDE-Teileliste,
+- an jeder BDE-Werkbank (auch AKE) über die Adresse `/BdeTeileliste?workplaceId=<Nummer>`. **BDE → Terminal** öffnet bis Version 1.99.78
+  weiter die bisherige Terminal-Liste.
+
+![FA-Sicht: Tabelle mit Haupt-FA, Sub-FA, Arbeitsgang, AG-Status, Status und den Knöpfen Rüsten und Produktion (Foto 1.99.76 folgt)](bilder/11-05-fa-sicht.jpg)
+
+1. Werker wie gewohnt mit der **Personalnummer** anmelden.
+2. **Spalten:** Haupt-FA, Sub-FA, Arbeitsgang, **AG-Status** (alle Arbeitsgänge des Auftrags als Zeichen wie in der FA-Struktur, der Arbeitsgang
+   der Zeile ist **umrahmt**), Bezeichnung, Artikelnummer, Matchcode, Sollmenge, FE-Termin, Soll-Termin AG, Prio, Kunde, Abteilung, Status.
+   Weitere (Material, Arbeitsschritte, Bemerkung PN, Sage-Status …) über das **Zahnrad**. Jede Spalte hat einen **Spaltenfilter**; lange Listen
+   werden **geblättert**.
+3. **Status:** *offen*, *überfällig*, *läuft* (ein anderer Werker arbeitet daran) oder **läuft bei Ihnen** (eigener laufender Arbeitsgang).
+4. **Anstempeln:** in der Zeile **Rüsten** oder **Produktion** antippen. Danach grüne Meldung „Produktion gestartet.“ bzw. „Rüsten gestartet.“.
+   Läuft der Arbeitsgang schon bei einem anderen Werker, kommt „AG ist bereits in Arbeit durch <Name> an <Werkbank> seit hh:mm – nichts gebucht.“
+5. Pausieren, Teil- und Fertigmeldung des laufenden Arbeitsgangs gehen in dieser Version noch über **BDE → Terminal** (Abschnitt 4).
+   An Werkbänken „nur AG-Fertigmeldung“ zeigt die FA-Sicht noch keinen Knopf.
+
 ## Unterschiede AKE und IDEAL
 
 | | AKE | IDEAL |
@@ -125,6 +147,7 @@ Zeile den **AG-Status** (Zeichen wie in der FA-Struktur), Baugruppen-Teile als e
 | Fertigungstermin | Termin des Auftrags | FE-Termin der Struktur |
 | Werkbänke mit Kürzel (z. B. EG) | keine | mehrere Werkbänke mit demselben Kürzel sehen und buchen dieselben Arbeitsgänge |
 | BDE-Teileliste (vereinfachte Fertigmeldung) | – | je Werkbank einschaltbar, siehe [Kapitel 17](17-bde-teileliste-werkbank.md) |
+| FA-Sicht (seit 1.99.76) | nur Reiter **FA**, keine Teile-Reiter; Spalten Sub-FA, Abteilung, Material leer | Reiter **FA** neben **Teile Einzeln** / **Teile Summiert**; Startreiter je Werkbank (BDE-Standardsicht) |
 
 ## Hinweise und Stolperfallen
 

@@ -1,0 +1,140 @@
+@model IdealAkeWms.Models.ViewModels.BdeTeilelisteViewModel
+@using IdealAkeWms.Services
+@using IdealAkeWms.Models.ViewModels
+@{
+    ViewData["Title"] = "BDE – Arbeitsgänge";
+    const int colCount = 23;
+    var sp = BdeFaAngebot.Spalten;
+}
+@* v1.99.76 (Spec 2026-11-25-bde-masken-vereinheitlichung, Etappe 4a, E4-1/E4-2/E4-3): Reiter FA – offene Arbeitsgaenge der Kuerzel-Familie
+   (Quelle BdeFaAngebot, Reihenfolge wie das Terminal), Server-Spaltenfilter + Pagination, Anstempeln je Zeile als Formular-POST.
+   Status = Text + AG-Symbole (Farbe nie allein). Kopf-Buchungen, Dialoge und Scan folgen mit Etappe 4b. *@
+<link rel="stylesheet" href="~/css/bde.css" asp-append-version="true" />
+
+<div class="container-fluid bde-terminal bde-tl-seite">
+    <partial name="_Kopf" model="Model" />
+
+    <div class="d-flex justify-content-end mb-1" data-table-toolbar></div>
+    <div class="table-responsive">
+        <table class="table table-sm table-striped align-middle mb-0 filterable-table bde-teileliste bde-fa-sicht" data-view-key="BdeTeilelisteFa" data-server-column-filter="true">
+            <thead>
+                <tr>
+                    <th data-filterable data-col-key="hauptfa">Haupt-FA</th>
+                    <th data-filterable data-col-key="subfa">Sub-FA</th>
+                    <th data-filterable data-col-key="arbeitsgang">Arbeitsgang</th>
+                    <th data-filterable data-col-key="ag-status" title="Alle Arbeitsgänge des Auftrags (Zeichen + Kürzel); der Arbeitsgang der Zeile ist umrahmt">AG-Status</th>
+                    <th data-filterable data-col-key="bezeichnung">Bezeichnung</th>
+                    <th data-filterable data-col-key="artnr">Artikelnummer</th>
+                    <th data-filterable data-col-key="matchcode">Matchcode</th>
+                    <th class="text-end" data-filterable data-filter-type="number" data-col-key="sollmenge">Sollmenge</th>
+                    <th class="text-nowrap" data-filterable data-col-key="fe-termin" data-date-filter>FE-Termin</th>
+                    <th class="text-nowrap" data-filterable data-col-key="soll-termin" data-date-filter title="Soll-Termin des Arbeitsgangs = Fertigungstermin + Offset aus den Arbeitsgang-Stammdaten">Soll-Termin AG</th>
+                    <th class="text-end" data-filterable data-filter-type="number" data-col-key="prio">Prio</th>
+                    <th data-filterable data-col-key="kunde">Kunde</th>
+                    <th data-filterable data-col-key="montage-abteilung">Abteilung</th>
+                    <th data-filterable data-col-key="material">Material</th>
+                    <th data-filterable data-col-key="arbeitsschritte">Arbeitsschritte</th>
+                    <th data-filterable data-col-key="arbeitsbereich">Arbeitsbereich</th>
+                    <th data-filterable data-col-key="bemerkungpn">Bemerkung PN</th>
+                    <th data-filterable data-col-key="fertigungsinfopn">Fertigungsinfo PN</th>
+                    <th data-filterable data-col-key="sage-status">Sage-Status</th>
+                    <th data-filterable data-col-key="vaterfa">Vater-Sub-FA</th>
+                    <th data-filterable data-col-key="position">Position</th>
+                    <th data-filterable data-col-key="status">Status</th>
+                    <th data-col-key="aktion"><span class="visually-hidden">Aktion</span></th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (!Model.FaZeilen.Any())
+                {
+                    <tr><td colspan="@colCount" class="text-center text-muted py-4">Keine offenen Arbeitsgänge an dieser Werkbank. Spaltenfilter prüfen oder eine andere Werkbank wählen.</td></tr>
+                }
+                @foreach (var z in Model.FaZeilen)
+                {
+                    var op = z.Op;
+                    var status = BdeFaAngebot.StatusText(z);
+                    <tr class="@(z.Zeile.LaeuftBeiMir ? "bde-fa-eigen" : null)">
+                        <td data-col-key="hauptfa" data-label="Haupt-FA">@sp["hauptfa"](z)</td>
+                        <td data-col-key="subfa" data-label="Sub-FA">@sp["subfa"](z)</td>
+                        <td data-col-key="arbeitsgang" data-label="Arbeitsgang"><span class="fw-semibold">@op.OperationNumber.Trim()</span> @op.Name</td>
+                        <td data-col-key="ag-status" data-label="AG-Status"><partial name="_FaAgSymbole" model="z.AgSymbole" /></td>
+                        <td data-col-key="bezeichnung" data-label="Bezeichnung">@sp["bezeichnung"](z)</td>
+                        <td data-col-key="artnr" data-label="Artikelnummer">@sp["artnr"](z)</td>
+                        <td data-col-key="matchcode" data-label="Matchcode">@sp["matchcode"](z)</td>
+                        <td class="text-end" data-col-key="sollmenge" data-label="Sollmenge">@sp["sollmenge"](z)</td>
+                        <td data-col-key="fe-termin" data-label="FE-Termin">@sp["fe-termin"](z)</td>
+                        <td data-col-key="soll-termin" data-label="Soll-Termin AG">@sp["soll-termin"](z)</td>
+                        <td class="text-end" data-col-key="prio" data-label="Prio">@sp["prio"](z)</td>
+                        <td data-col-key="kunde" data-label="Kunde">@sp["kunde"](z)</td>
+                        <td data-col-key="montage-abteilung" data-label="Abteilung">@sp["montage-abteilung"](z)</td>
+                        <td data-col-key="material" data-label="Material">@sp["material"](z)</td>
+                        <td data-col-key="arbeitsschritte" data-label="Arbeitsschritte">@sp["arbeitsschritte"](z)</td>
+                        <td data-col-key="arbeitsbereich" data-label="Arbeitsbereich">@sp["arbeitsbereich"](z)</td>
+                        <td data-col-key="bemerkungpn" data-label="Bemerkung PN">@sp["bemerkungpn"](z)</td>
+                        <td data-col-key="fertigungsinfopn" data-label="Fertigungsinfo PN">@sp["fertigungsinfopn"](z)</td>
+                        <td data-col-key="sage-status" data-label="Sage-Status">@sp["sage-status"](z)</td>
+                        <td data-col-key="vaterfa" data-label="Vater-Sub-FA">@sp["vaterfa"](z)</td>
+                        <td data-col-key="position" data-label="Position">@sp["position"](z)</td>
+                        <td data-col-key="status" data-label="Status">
+                            @{ var (css, svg) = FaAgStatusDarstellung.Fuer(z.Zeile.Ag.Symbol.Status); }
+                            <span class="fa-ag-symbol @css">@Html.Raw(svg)@status</span>
+                        </td>
+                        <td class="text-nowrap tl-zelle-aktion" data-col-key="aktion" data-label="Aktion">
+                            @if (!z.Zeile.LaeuftBeiMir && !Model.NurAgFertigmeldung)
+                            {
+                                var bez = $"{op.ProductionOrder.OrderNumber} / {op.OperationNumber.Trim()}";
+                                <form method="post" asp-action="Anstempeln" class="d-inline-flex flex-wrap gap-1">
+                                    <input type="hidden" name="workplaceId" value="@Model.Werkbank.Id" />
+                                    <input type="hidden" name="operatorId" value="@Model.Werker!.Id" />
+                                    <input type="hidden" name="workOperationId" value="@op.Id" />
+                                    <input type="hidden" name="returnUrl" value="@Model.ReturnUrl" />
+                                    <button type="submit" name="art" value="ruesten" class="btn btn-outline-primary bde-touch" aria-label="Rüsten starten @bez">Rüsten</button>
+                                    <button type="submit" name="art" value="produktion" class="btn btn-primary bde-touch" aria-label="Produktion starten @bez">Produktion</button>
+                                </form>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    <partial name="_Pagination" model="Model.Pagination" />
+</div>
+
+<script type="application/json" id="view-config">
+{ "viewKey": "BdeTeilelisteFa", "supportsReorder": true, "supportsSortDefault": false }
+</script>
+<script type="application/json" id="column-config">
+[
+    { "key": "hauptfa", "label": "Haupt-FA", "locked": false, "defaultWidth": null },
+    { "key": "subfa", "label": "Sub-FA", "locked": false, "defaultWidth": null },
+    { "key": "arbeitsgang", "label": "Arbeitsgang", "locked": true, "defaultWidth": null },
+    { "key": "ag-status", "label": "AG-Status", "locked": false, "defaultWidth": null },
+    { "key": "bezeichnung", "label": "Bezeichnung", "locked": false, "defaultWidth": null },
+    { "key": "artnr", "label": "Artikelnummer", "locked": false, "defaultWidth": null },
+    { "key": "matchcode", "label": "Matchcode", "locked": false, "defaultWidth": null },
+    { "key": "sollmenge", "label": "Sollmenge", "locked": false, "defaultWidth": null },
+    { "key": "fe-termin", "label": "FE-Termin", "locked": false, "defaultWidth": null },
+    { "key": "soll-termin", "label": "Soll-Termin AG", "locked": false, "defaultWidth": null },
+    { "key": "prio", "label": "Prio", "locked": false, "defaultWidth": null },
+    { "key": "kunde", "label": "Kunde", "locked": false, "defaultWidth": null },
+    { "key": "montage-abteilung", "label": "Abteilung", "locked": false, "defaultWidth": null },
+    { "key": "material", "label": "Material", "locked": false, "defaultWidth": null, "defaultHidden": true },
+    { "key": "arbeitsschritte", "label": "Arbeitsschritte", "locked": false, "defaultWidth": null, "defaultHidden": true },
+    { "key": "arbeitsbereich", "label": "Arbeitsbereich", "locked": false, "defaultWidth": null, "defaultHidden": true },
+    { "key": "bemerkungpn", "label": "Bemerkung PN", "locked": false, "defaultWidth": null, "defaultHidden": true },
+    { "key": "fertigungsinfopn", "label": "Fertigungsinfo PN", "locked": false, "defaultWidth": null, "defaultHidden": true },
+    { "key": "sage-status", "label": "Sage-Status", "locked": false, "defaultWidth": null, "defaultHidden": true },
+    { "key": "vaterfa", "label": "Vater-Sub-FA", "locked": false, "defaultWidth": null, "defaultHidden": true },
+    { "key": "position", "label": "Position", "locked": false, "defaultWidth": null, "defaultHidden": true },
+    { "key": "status", "label": "Status", "locked": true, "defaultWidth": null },
+    { "key": "aktion", "label": "Aktion", "locked": true, "defaultWidth": null }
+]
+</script>
+
+@section Scripts {
+    <script src="~/js/column-preferences.js" asp-append-version="true"></script>
+    <script src="~/js/table-filter.js" asp-append-version="true"></script>
+    <script src="~/js/bde-teileliste.js" asp-append-version="true"></script>
+}

@@ -224,6 +224,16 @@ WHERE NOT EXISTS (SELECT 1 FROM dbo.Roles r WHERE r.[Key] = v.k);'
    Pruefung='SELECT CASE WHEN EXISTS (SELECT 1 FROM dbo.ServiceSettings WHERE [Key] = N''SageLagerplatzAnlageAktiv'' AND LOWER(LTRIM(RTRIM([Value]))) = N''true'') AND (NOT EXISTS (SELECT 1 FROM dbo.ServiceSettings WHERE [Key] = N''Sync:Quelle:Lagerplaetze'' AND [Value] COLLATE Latin1_General_BIN = N''SData'') OR NOT EXISTS (SELECT 1 FROM dbo.StorageAreas WHERE IsActive = 1 AND SageMissingSince IS NULL)) THEN 1 ELSE 0 END'
    Text='Lagerplatz-Anlage in Sage ist an, aber Sync:Quelle:Lagerplaetze steht nicht auf SData oder es gibt keine aktiven Lagerorte: das Formular Lagerplaetze in Sage anlegen bietet keinen Lagerort an (/ServiceSettings > Quelle Lagerplaetze = SData, Lagerplatz-Abgleich laufen lassen).'
    Quelle='2026-11-25-v1-99-71-lagerplatz-anlage-wms-nach-sage' }
+# v1.99.76 (Spec 2026-11-25-bde-masken-vereinheitlichung, G5/AK 32c, Antwort 22): die neue BDE-Seite beachtet BdeNurFaMeldung nicht mehr, der Buchungsdienst in Alt-Zweigen schon.
+@{ Id='Pruefung/BdeNurFaMeldungAn'; Version='1.99.76'; Typ='Pruefung'; Firma='beide'; Phase='Vorher'; Ausfuehrung='anzeigen'
+   Pruefung='SELECT CASE WHEN OBJECT_ID(N''dbo.AppSettings'', N''U'') IS NULL THEN 0 ELSE (SELECT COUNT(*) FROM dbo.AppSettings WHERE [Key] = N''BdeNurFaMeldung'' AND LOWER(LTRIM(RTRIM([Value]))) IN (N''true'', N''1'', N''on'')) END'
+   Text='BdeNurFaMeldung ist an: die neue BDE-Seite beachtet die Einstellung nicht (Antwort 2), der Buchungsdienst aber weiter in seinen Alt-Zweigen (Starts koennen abgewiesen werden, Antwort 22). Vor dem Update mit Gerald klaeren.'
+   Quelle='2026-11-25-v1-99-76-bde-masken-etappe-4a-fa-sicht' }
+# v1.99.76 (E4-7, Antwort 15): Standardsicht Teile nur mit verfuegbarer Teile-Sicht; nach SQL/169 erwartet 0 (Vorbelegung nutzt dieselbe Bedingung).
+@{ Id='Pruefung/BdeStandardsichtOhneTeileSicht'; Version='1.99.76'; Typ='Pruefung'; Firma='IDEAL'; Phase='Nachher'; Ausfuehrung='anzeigen'; Braucht=@('SQL/169')
+   Pruefung='SELECT COUNT(*) FROM dbo.ProductionWorkplaces WHERE BdeStandardsichtTeile = 1 AND (BdeAktiv = 0 OR BdeTeileliste = 0 OR ISNULL(LTRIM(RTRIM(ArbeitsschrittCode)), N'''') = N'''')'
+   Text='Werkbaenke mit Standardsicht Teile ohne BDE aktiv, ohne BDE-Teileliste bzw. ohne Kuerzel: sie oeffnen die FA-Sicht. In Stammdaten > Werkbaenke korrigieren (BDE-Standardsicht = FA oder Teileliste einschalten).'
+   Quelle='2026-11-25-v1-99-76-bde-masken-etappe-4a-fa-sicht' }
 @{ Id='Pruefung/ArtikelQuelleSData'; Version='1.99.39'; Typ='Pruefung'; Firma='AKE'; Phase='Nachher'; Ausfuehrung='anzeigen'
    Pruefung='SELECT CASE WHEN EXISTS (SELECT 1 FROM dbo.ServiceSettings WHERE [Key] = N''Sync:Quelle:Artikel'' AND [Value] COLLATE Latin1_General_BIN = N''SData'') THEN 0 ELSE 1 END'
    Text='Sync:Quelle:Artikel steht nicht auf SData (Default View): dann bleiben ArticleSageDetails leer (Sage-Spalten in den Bestellvorschlaegen, Masse der Beschichtung AKE). Hand-Schritt, keine automatische Umschaltung: /ServiceSettings > Sage-Abgleich (SData) > Quelle Artikel-Abgleich = SData (exakte Schreibweise), danach im Aktivitaets-Protokoll den Lauf Artikel pruefen.'
@@ -684,5 +694,11 @@ WHERE NOT EXISTS (SELECT 1 FROM dbo.Roles r WHERE r.[Key] = v.k);'
 @{ Id='v1.99.75-BdeTeilfertigInfo'; Version='1.99.75'; Typ='Info'; Firma='IDEAL'; Phase='Nachher'; Ausfuehrung='anzeigen'
    Text='BDE-Teileliste: im Melden-Fenster jetzt Teilfertig melden (Zeile bleibt offen, gemeldet X von Soll) und Fertig melden (schliesst ab, Vorgabe = Restmenge). Auswahl fertigmelden und Summen-Haken melden die Restmenge. Werker kurz informieren; Browser-Cache am Terminal ggf. leeren.'
    Quelle='2026-11-25-v1-99-75-bde-masken-etappe-3-teilfertigmeldung' }
+@{ Id='v1.99.76-BdeStandardsichtEinstellung'; Version='1.99.76'; Typ='Einstellung'; Firma='IDEAL'; Phase='Nachher'; Ausfuehrung='anzeigen'
+   Text='Werkbank-Stammdaten: neue Auswahl BDE-Standardsicht (Teile / FA) je BDE-Werkbank pruefen; vorbelegt mit Teile, wo bisher die Teileliste wirkte. Der Schalter BDE-Teileliste bleibt in der Maske unveraendert (steuert die Arbeitsgang-Erkennung) und schaltet die Teile-Sicht frei; ohne ihn nur FA-Sicht.'
+   Quelle='2026-11-25-v1-99-76-bde-masken-etappe-4a-fa-sicht' }
+@{ Id='v1.99.76-BdeFaSichtAkeInfo'; Version='1.99.76'; Typ='Info'; Firma='AKE'; Phase='Nachher'; Ausfuehrung='anzeigen'
+   Text='BDE-Seite mit FA-Sicht gilt auch an AKE (derzeit ohne BDE-Nutzung), erreichbar ueber /BdeTeileliste; das Terminal bleibt bis v1.99.78 unveraendert. Keine Aktion noetig.'
+   Quelle='2026-11-25-v1-99-76-bde-masken-etappe-4a-fa-sicht' }
 )
 }

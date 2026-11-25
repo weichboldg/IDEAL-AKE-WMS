@@ -7,22 +7,29 @@
         <input asp-for="BdeTeileliste" class="form-check-input" role="switch" />
         <label asp-for="BdeTeileliste" class="form-check-label"></label>
         <div class="form-text">
-            Das Terminal dieser Werkbank zeigt statt der Haupt-FA-Gruppen eine Liste der Teile und Baugruppen nach Matchcode, deren
-            Arbeitsschritte das Kürzel der Werkbank enthalten. Gemeldet wird nur „fertig“ (ohne Zeit), einzeln oder als Block.
+            Schaltet auf der BDE-Seite die Reiter „Teile Einzeln“ und „Teile Summiert“ frei: Teile und Baugruppen nach Matchcode, deren
+            Arbeitsschritte das Kürzel der Werkbank enthalten. Gemeldet wird ohne Zeit (Teilfertig oder Fertig), einzeln oder als Block.
             Voraussetzung: „BDE aktiv“ und ein Arbeitsschritt-Kürzel. Standard: aus.
         </div>
         <div class="alert alert-warning small mt-2 mb-0" role="note">
             <strong>Achtung:</strong> Ändert die Arbeitsgang-Erkennung: Für das Kürzel dieser Werkbank entstehen keine Arbeitsgänge mehr
             an der Baugruppe aus Blechteilen. Ausschalten legt sie beim nächsten Lauf wieder an.
         </div>
-        @if (ViewBag.NurFaGlobal is true)
-        {
-            <div class="alert alert-warning small mt-2 mb-0" role="alert">
-                Die Einstellung <code>BdeNurFaMeldung</code> (Einstellungen › BDE) ist eingeschaltet. Solange sie gilt, hat
-                diese Option keine Wirkung.
-            </div>
-        }
         <span asp-validation-for="BdeTeileliste" class="text-danger d-block"></span>
+    </div>
+    @* v1.99.76 (Spec 2026-11-25-bde-masken-vereinheitlichung E4-7, ADR 0020): fester Wertebereich = Auswahl; Server prueft „Teile“. *@
+    <div class="mb-3">
+        <label asp-for="BdeStandardsichtTeile" class="form-label"></label>
+        <select asp-for="BdeStandardsichtTeile" class="form-select w-auto" aria-describedby="bdeStandardsichtHilfe">
+            <option value="false">FA – Arbeitsgänge mit Anstempeln</option>
+            <option value="true">Teile – Teileliste nach Matchcode</option>
+        </select>
+        <div class="form-text" id="bdeStandardsichtHilfe">
+            Welcher Reiter beim Öffnen der BDE-Seite zuerst erscheint, solange der Werker keine Sicht gewählt hat; danach merkt sich die Seite
+            die zuletzt gewählte. Beide Reiter bleiben umschaltbar. „Teile“ nur mit „BDE aktiv“, Kürzel und „BDE-Teileliste (vereinfacht)“.
+            Nur Oberfläche – keine Wirkung auf den Dienst oder die Arbeitsgang-Erkennung. Standard: FA. Nur IDEAL; an AKE gibt es nur die FA-Sicht.
+        </div>
+        <span asp-validation-for="BdeStandardsichtTeile" class="text-danger d-block"></span>
     </div>
     @* v1.99.72 (F6): Lagerbestell-Positionen in der Teileliste (Werkbank IF); Server prueft „nur mit BDE-Teileliste“. *@
     <div class="form-check form-switch mb-3">

@@ -1412,6 +1412,9 @@ th:hover .col-resize-handle {
     color: #212529; background-color: #fff; border: 1px solid #495057; border-radius: 0.2rem;
 }
 .fa-ag-symbol:focus-visible { outline: 2px solid #0d6efd; outline-offset: 1px; }
+/* v1.99.76 (BDE-FA-Sicht, Antwort 4): Arbeitsgang der Zeile unter allen AG des Auftrags – doppelter Ring weiss/#212529 (15:1 gegen den
+   weissen Innenring, unabhaengig von der Statusfarbe) plus Zusatz „dieser Arbeitsgang“ im aria-label. */
+.fa-ag-symbol.fa-ag-markiert { box-shadow: 0 0 0 2px #fff, 0 0 0 4px #212529; margin: 0 0.25rem; }
 /* Status je Symbol (Teil 2, v1.55.0): Bootstrap-5.3-subtle-Gruende mit emphasis-Text, Zeichen + Rand in der Kernfarbe.
    Eigener Chip-Grund -> Kontrast unabhaengig vom Zeilenzustand (normal/Hover/Hervorhebung/Filtertreffer/Kontext).
    Gemessen: Text 10,2-13,0:1, Zeichen/Rand gegen Chip 4,9-6,9:1, Rand gegen Zeilengruende >= 5,6:1 (WCAG AA). Bedeutung

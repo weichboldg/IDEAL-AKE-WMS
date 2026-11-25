@@ -27,6 +27,7 @@ public class BdeApiController : ControllerBase
     private readonly IHolidayRepository _holidays;
     private readonly IBusinessDayService _businessDays;
     private readonly IOperationConfigRepository _operationConfigs;
+    private readonly BdeFaAngebot _faAngebot;
 
     public BdeApiController(IBdeOperatorRepository ops, IBdeActivityRepository activities,
         IBdeBookingRepository bookings, IWorkOperationRepository workOps,
@@ -47,6 +48,8 @@ public class BdeApiController : ControllerBase
         _holidays = holidays;
         _businessDays = businessDays;
         _operationConfigs = operationConfigs;
+        // v1.99.76: gemeinsame Zeilenquelle aus den vorhandenen Abhaengigkeiten (Ctor bleibt, Tests unveraendert)
+        _faAngebot = new BdeFaAngebot(ctx, workOps, bookings, orderInfos, holidays, businessDays, operationConfigs);
     }
 
     [HttpGet("operator/{personnelNumber}")]
@@ -252,50 +255,11 @@ public class BdeApiController : ControllerBase
             return Ok(new { productive = orders, unplanned = Array.Empty<object>(), nurFaMode = true });
         }
 
-        // Offene WorkOperations der Kuerzel-Familie dieser Werkbank (v1.63.0, FA-a2; ohne Kuerzel = nur diese Werkbank)
-        var familie = WerkbankKuerzelFamilie.FamilieIds(workplace, await _ctx.ProductionWorkplaces.AsNoTracking().ToListAsync());
-        var workOps = await _workOps.GetOpenByWorkplaceIdsAsync(familie, excludePackedOrders: true);
-        var activeWoIds = (await _bookings.GetActiveCockpitAsync())
-            .Where(b => b.WorkOperationId.HasValue)
-            .Select(b => b.WorkOperationId!.Value)
-            .ToHashSet();
-
-        // Ermittle WorkOperation-IDs, die bereits als fertig gemeldet sind (IsFinal=true, nicht storniert)
-        var finishedWoIds = await _ctx.BdeBookingQuantities
-            .Where(q => q.IsFinal && !q.BdeBooking!.IsCancelled && q.BdeBooking.WorkOperationId.HasValue)
-            .Select(q => q.BdeBooking!.WorkOperationId!.Value)
-            .Distinct()
-            .ToListAsync();
-        var finishedWoIdSet = finishedWoIds.ToHashSet();
-
-        // Wenn Operator bekannt: WOs ausblenden, auf denen der Operator bereits aktiv bucht
-        var myActiveWoIds = operatorId.HasValue
-            ? await _ctx.BdeBookings
-                .Where(b => b.BdeOperatorId == operatorId.Value
-                         && b.EndedAt == null
-                         && !b.IsCancelled
-                         && b.WorkOperationId != null)
-                .Select(b => b.WorkOperationId!.Value)
-                .Distinct()
-                .ToListAsync()
-            : new List<int>();
-        var myActiveWoIdSet = myActiveWoIds.ToHashSet();
-
-        // FA-Struktur Teil 3 (v1.57.0, Antwort 6 = A): von ANDEREN Werkern gebuchte Arbeitsgaenge (activeWoIds) bleiben sichtbar
-        // als „laeuft“ — die Startpruefung bleibt im BdeBookingService. Eigene laufende und fertig gemeldete bleiben draussen.
-        var angebot = workOps.Where(wo => !finishedWoIdSet.Contains(wo.Id) && !myActiveWoIdSet.Contains(wo.Id)).ToList();
+        // Offene WorkOperations der Kuerzel-Familie dieser Werkbank (v1.63.0, FA-a2; ohne Kuerzel = nur diese Werkbank).
+        // v1.99.76: Zeilenquelle gemeinsam mit der FA-Sicht (BdeFaAngebot), eigene laufende bleiben hier draussen.
         var productive = new List<object>();
-        if (angebot.Count > 0)
-        {
-            // Je Aufruf hoechstens drei Abfragen mehr: Kopfzeilen (IDEAL FE_Termin; AKE leer), Feiertage, Offsets (beide gecacht).
-            var hauptFas = angebot.Select(wo => int.TryParse(wo.ProductionOrder.OrderNumber, out var h) ? h : (int?)null)
-                .OfType<int>().Distinct().ToList();
-            var kopf = (await _orderInfos.GetByHauptFaKeysAsync(hauptFas)).ToLookup(o => o.HauptFA);
-            var holidays = await _holidays.GetHolidayDatesAsync();
-            var offsets = await _operationConfigs.GetDueDateOffsetsAsync();
-
-            productive.AddRange(BdeTerminalAuftraege.Ordnen(angebot, activeWoIds, kopf, offsets,
-                    (d, o) => OseonDueDateCalculator.Calculate(d, o, _businessDays, holidays), DateTime.Today)
+            productive.AddRange((await _faAngebot.LadenAsync(workplace, operatorId, eigeneLaufendeAusblenden: true))
+                .Select(z => z.Ag)
                 .Select(a => (object)new
                 {
                     id = a.Op.Id,
@@ -317,7 +281,6 @@ public class BdeApiController : ControllerBase
                     statusClass = FaAgStatusDarstellung.Fuer(a.Symbol.Status).Css,
                     ariaLabel = a.Symbol.AriaLabel
                 }));
-        }
 
         // Unplanned activities
         var activities = (await _activities.GetAllActiveAsync())

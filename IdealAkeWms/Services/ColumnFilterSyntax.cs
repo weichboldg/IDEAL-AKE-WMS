@@ -45,6 +45,7 @@ public static class ColumnFilterTypes
             ["BdeBookings/Index"] = L(("started-at", D), ("ended-at", D), ("good-qty", N), ("scrap-qty", N)),
             ["BdeBookings/Teilmeldungen"] = L(("gemeldet-am", D), ("gut", N), ("ausschuss", N)), // v1.99.32
             ["BdeTeileliste/Index"] = L(("sollmenge", N), ("fe-termin", D), ("blechdicke", N)),                 // v1.99.32, blechdicke v1.99.72
+            ["BdeTeileliste/Fa"] = L(("sollmenge", N), ("fe-termin", D), ("soll-termin", D), ("prio", N)),                  // v1.99.76
             ["BdeTeileliste/Summiert"] = L(("sollmenge", N), ("anzahl", N), ("fe-termin", D), ("blechdicke", N)), // v1.99.32, blechdicke v1.99.72
             ["Beschichtungsauftraege/Details"] = L(("breite", N), ("hoehe", N), ("tiefe", N), ("menge", N)),
             ["Beschichtungsauftraege/Index"] = L(("start", D), ("retour", D), ("versendetam", D), ("positionen", N), ("angelegtam", D)),

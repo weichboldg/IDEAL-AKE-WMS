@@ -1,0 +1,32 @@
+@model List<IdealAkeWms.Models.ProductionWorkplace>
+@{
+    ViewData["Title"] = "BDE – Werkbank wählen";
+}
+@* v1.99.76 (AK 32d): Werkbank fehlt oder ist nicht BDE-aktiv – Hinweis mit Werkbank-Auswahl statt Redirect (sonst ab Etappe 5 ein Kreis mit BdeTerminal). *@
+<link rel="stylesheet" href="~/css/bde.css" asp-append-version="true" />
+
+<div class="container-fluid bde-terminal bde-tl-seite">
+    <h2>BDE</h2>
+    <div class="alert alert-warning" role="alert">
+        <strong>Werkbank ist nicht BDE-aktiv.</strong> Bitte eine BDE-aktive Werkbank wählen oder den BDE-Admin bitten, BDE an der Werkbank einzuschalten.
+    </div>
+    @if (Model.Count == 0)
+    {
+        <p>Es ist keine Werkbank BDE-aktiv.</p>
+    }
+    else
+    {
+        <form method="get" asp-action="Index" class="d-flex flex-wrap align-items-end gap-2" style="max-width: 40rem;">
+            <div>
+                <label for="nichtAktivWerkbank" class="form-label mb-0">Werkbank</label>
+                <select id="nichtAktivWerkbank" name="workplaceId" class="form-select bde-touch">
+                    @foreach (var wp in Model)
+                    {
+                        <option value="@wp.Id">@wp.Name</option>
+                    }
+                </select>
+            </div>
+            <button type="submit" class="btn btn-primary bde-touch">Öffnen</button>
+        </form>
+    }
+</div>

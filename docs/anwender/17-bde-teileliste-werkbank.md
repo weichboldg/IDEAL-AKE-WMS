@@ -1,6 +1,6 @@
 # 17 BDE-Teileliste an der Werkbank (vereinfachte Fertigmeldung)
 
-Stand: Version 1.99.73 (Abschnitt 2 und Handy, Text; Fotos folgen), 1.99.72 (Abschnitte 8 und 9, Text; Fotos folgen) bzw. 1.99.43 · nur Standort IDEAL · Bilder aus dem IDEAL-Testsystem
+Stand: Version 1.99.76 (Wer darf, Reiter, Abschnitt 1, Text; Foto 17-01 folgt neu), 1.99.73 (Abschnitt 2 und Handy, Text; Fotos folgen), 1.99.72 (Abschnitte 8 und 9, Text; Fotos folgen) bzw. 1.99.43 · nur Standort IDEAL · Bilder aus dem IDEAL-Testsystem
 
 ## Zweck
 
@@ -21,12 +21,17 @@ Das normale BDE-Terminal mit Rüsten, Produktion und Pause beschreibt [Kapitel 1
 
 **Voraussetzungen** (richtet die WMS-Betreuung ein):
 
-- *Einstellungen*: **BDE (Betriebsdatenerfassung)** an, **BDE: nur FA-Meldung** aus. Ist „nur FA-Meldung“ an, wirkt die Teileliste nicht.
+- *Einstellungen*: **BDE (Betriebsdatenerfassung)** an. Die Einstellung **BDE: nur FA-Meldung** wirkt seit 1.99.76 auf der BDE-Seite nicht mehr.
 - *Stammdaten → Werkbänke → Bearbeiten*: Werkbank mit **BDE aktiv** und einem **Arbeitsschritt-Kürzel** (z. B. *KA*), Schalter
-  **BDE-Teileliste (vereinfacht)** an (Standard: aus).
+  **BDE-Teileliste (vereinfacht)** an (Standard: aus). Nur damit gibt es die Reiter **Teile Einzeln** und **Teile Summiert**.
+- Seit 1.99.76 darunter die Auswahl **BDE-Standardsicht**: **Teile** oder **FA** – welcher Reiter beim Öffnen zuerst erscheint, solange der
+  Werker keine Sicht gewählt hat. **Teile** lässt sich nur mit „BDE aktiv“, Kürzel und „BDE-Teileliste“ speichern, sonst kommt
+  „Standardsicht „Teile“ braucht „BDE aktiv“, ein Arbeitsschritt-Kürzel und „BDE-Teileliste (vereinfacht)“ – sonst „FA“ wählen.“ Wer die
+  Teileliste ausschalten will, stellt vorher die Standardsicht auf **FA**. Beim Update ist **Teile** dort vorbelegt, wo die Teileliste bisher
+  wirkte. Die Werkbank-Liste zeigt dann das Kennzeichen **Standard Teile**. Nur Oberfläche, keine Wirkung auf die Arbeitsgang-Erkennung.
 - Der Terminal-Benutzer hat ein Terminal (wie in Kapitel 11), jeder Werker eine **Personalnummer**.
 
-![Werkbank bearbeiten: Schalter „BDE-Teileliste (vereinfacht)“ mit Warnhinweis](bilder/17-01-werkbank-option.jpg)
+![Werkbank bearbeiten: Schalter „BDE-Teileliste (vereinfacht)“ mit Warnhinweis und darunter die Auswahl „BDE-Standardsicht“ (Foto 1.99.76 folgt)](bilder/17-01-werkbank-option.jpg)
 
 > **Achtung beim Einschalten:** Der gelbe Hinweis an der Werkbank sagt: Für das Kürzel dieser Werkbank entstehen keine Arbeitsgänge mehr an
 > der Baugruppe aus Blechteilen. Ausschalten legt sie beim nächsten Lauf wieder an. Nur nach Absprache mit der Arbeitsvorbereitung umstellen.
@@ -35,8 +40,13 @@ Das normale BDE-Terminal mit Rüsten, Produktion und Pause beschreibt [Kapitel 1
 
 ### 1. Terminal öffnen, Werker anmelden
 
-Menü **BDE → Terminal**. Ist die Werkbank des Terminals auf Teileliste gestellt, öffnet sich automatisch die **BDE-Teileliste**. Oben steht
-z. B. **Kanten · Kürzel KA**.
+Menü **BDE → Terminal**. Steht die Werkbank des Terminals auf **BDE-Standardsicht = Teile**, öffnet sich automatisch die **BDE-Teileliste**
+(seit 1.99.76; vorher genügte der Schalter „BDE-Teileliste“). Oben steht z. B. **Kanten · Kürzel KA**.
+
+Seit 1.99.76 hat die Seite drei Reiter: **Teile Einzeln**, **Teile Summiert** und **FA**. Der Reiter **FA** zeigt die offenen Arbeitsgänge der
+Werkbank mit Anstempeln (Rüsten/Produktion), beschrieben in [Kapitel 11](11-bde-terminal.md), Abschnitt 7. Die zuletzt gewählte Sicht merkt
+sich das WMS je Werker und Werkbank. An Werkbänken ohne „BDE-Teileliste“ sind die Teile-Reiter ausgegraut, mit dem Hinweis „Teile-Reiter nur
+an Werkbänken mit „BDE-Teileliste (vereinfacht)“ und Kürzel – diese Werkbank zeigt die FA-Sicht.“
 
 1. Bei **Werker anmelden** die **Personalnummer** scannen oder eintippen, **Anmelden**.
 2. Unbekannte Nummer: „Unbekannte oder inaktive Personalnummer: …“.

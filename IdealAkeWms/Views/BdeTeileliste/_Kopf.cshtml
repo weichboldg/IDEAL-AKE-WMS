@@ -1,22 +1,28 @@
 @model IdealAkeWms.Models.ViewModels.BdeTeilelisteViewModel
-@* v1.99.32 BDE-Teileliste: Kopf (Werkbank, Werker), Sicht-Reiter, Filterkarte, Hinweise. Gemeinsam fuer Einzeln und Summiert. *@
+@* v1.99.32 BDE-Teileliste: Kopf (Werkbank, Werker), Sicht-Reiter, Filterkarte, Hinweise. Gemeinsam fuer Einzeln, Summiert und (v1.99.76) FA. *@
 @{
-    var sicht = Model.Summiert ? "summiert" : "einzeln";
+    var sicht = Model.Sicht;
     // v1.99.73 (E1-4 F2): Kurzfassung der Filter fuer den Aufklapp-Knopf unter 992 px.
     static string Kw(string? v) => v is { Length: 8 } && v[4] == '-' ? $"KW {v[6..]}/{v[..4]}" : v ?? "";
     var wochen = string.IsNullOrEmpty(Model.KwVon) && string.IsNullOrEmpty(Model.KwBis) ? "alle Wochen"
         : $"{(string.IsNullOrEmpty(Model.KwVon) ? "…" : Kw(Model.KwVon))} bis {(string.IsNullOrEmpty(Model.KwBis) ? "…" : Kw(Model.KwBis))}";
     var spaltenfilter = IdealAkeWms.Services.ColumnFilterHelper.ReadFromQuery(Context.Request).Count;
-    var kurz = wochen + ", gemeldete " + (Model.GemeldeteZeigen ? "sichtbar" : "ausgeblendet")
-        + (spaltenfilter > 0 ? $", {spaltenfilter} Spaltenfilter" : "");
+    var kurz = Model.IstFa ? (spaltenfilter > 0 ? $"{spaltenfilter} Spaltenfilter" : "keine Spaltenfilter")
+        : wochen + ", gemeldete " + (Model.GemeldeteZeigen ? "sichtbar" : "ausgeblendet") + (spaltenfilter > 0 ? $", {spaltenfilter} Spaltenfilter" : "");
+    // v1.99.76 (E4-7, AK 30): Teile-Reiter nur bei Master an; ohne Teile-Sicht deaktiviert mit Hinweis.
+    var teileReiter = new[] { ("einzeln", "Teile Einzeln"), ("summiert", "Teile Summiert") };
 }
 <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
     <h2 class="mb-0">
-        BDE-Teileliste <span class="badge bg-secondary align-middle">Kürzel @Model.Kuerzel</span>
+        @(Model.IstFa ? "BDE – Arbeitsgänge" : "BDE-Teileliste")
+        @if (Model.Kuerzel != null)
+        {
+            <span class="badge bg-secondary align-middle">Kürzel @Model.Kuerzel</span>
+        }
     </h2>
     <div class="d-flex align-items-center gap-2">
         <label for="teilelisteWerkbank" class="form-label mb-0">Werkbank</label>
-        <select id="teilelisteWerkbank" class="form-select bde-touch w-auto" data-ziel="@Url.Action("Index", "BdeTerminal")">
+        <select id="teilelisteWerkbank" class="form-select bde-touch w-auto" data-ziel="@Url.Action("Index", "BdeTeileliste")">
             @foreach (var wp in Model.Werkbaenke)
             {
                 <option value="@wp.Id" selected="@(wp.Id == Model.Werkbank.Id)">@wp.Name</option>
@@ -31,18 +37,38 @@
     <a class="btn btn-outline-secondary ms-auto bde-touch" asp-action="Index" asp-route-workplaceId="@Model.Werkbank.Id">Werker wechseln</a>
 </div>
 
-<ul class="nav nav-pills mb-2">
+<ul class="nav nav-pills mb-1" aria-label="Ansicht">
+    @if (Model.Hierarchisch)
+    {
+        foreach (var (wert, text) in teileReiter)
+        {
+            <li class="nav-item">
+                @if (Model.TeileSicht)
+                {
+                    <a class="nav-link bde-touch @(sicht == wert ? "active" : "")" aria-current="@(sicht == wert ? "page" : null)" asp-action="Index"
+                       asp-route-workplaceId="@Model.Werkbank.Id" asp-route-operatorId="@Model.Werker.Id" asp-route-sicht="@wert"
+                       asp-route-kwVon="@Model.KwVon" asp-route-kwBis="@Model.KwBis" asp-route-gemeldete="@Model.GemeldeteZeigen">@text</a>
+                }
+                else
+                {
+                    <span class="nav-link bde-touch disabled" aria-disabled="true" aria-describedby="teileReiterHinweis">@text</span>
+                }
+            </li>
+        }
+    }
     <li class="nav-item">
-        <a class="nav-link bde-touch @(Model.Summiert ? "" : "active")" asp-action="Index" asp-route-workplaceId="@Model.Werkbank.Id"
-           asp-route-operatorId="@Model.Werker.Id" asp-route-sicht="einzeln" asp-route-kwVon="@Model.KwVon" asp-route-kwBis="@Model.KwBis"
-           asp-route-gemeldete="@Model.GemeldeteZeigen">Einzeln</a>
-    </li>
-    <li class="nav-item">
-        <a class="nav-link bde-touch @(Model.Summiert ? "active" : "")" asp-action="Index" asp-route-workplaceId="@Model.Werkbank.Id"
-           asp-route-operatorId="@Model.Werker.Id" asp-route-sicht="summiert" asp-route-kwVon="@Model.KwVon" asp-route-kwBis="@Model.KwBis"
-           asp-route-gemeldete="@Model.GemeldeteZeigen">Summiert</a>
+        <a class="nav-link bde-touch @(Model.IstFa ? "active" : "")" aria-current="@(Model.IstFa ? "page" : null)" asp-action="Index"
+           asp-route-workplaceId="@Model.Werkbank.Id" asp-route-operatorId="@Model.Werker.Id" asp-route-sicht="fa">FA</a>
     </li>
 </ul>
+@if (Model.Hierarchisch && !Model.TeileSicht)
+{
+    <p id="teileReiterHinweis" class="small mb-2">Teile-Reiter nur an Werkbänken mit „BDE-Teileliste (vereinfacht)“ und Kürzel – diese Werkbank zeigt die FA-Sicht.</p>
+}
+else
+{
+    <div class="mb-1"></div>
+}
 
 <button type="button" class="btn btn-outline-secondary bde-touch w-100 d-lg-none text-start mb-2 bde-tl-filter-knopf" data-bs-toggle="collapse"
         data-bs-target="#tlFilter" aria-expanded="false" aria-controls="tlFilter">
@@ -54,6 +80,8 @@
             <input type="hidden" name="workplaceId" value="@Model.Werkbank.Id" />
             <input type="hidden" name="operatorId" value="@Model.Werker.Id" />
             <input type="hidden" name="sicht" value="@sicht" />
+            @if (!Model.IstFa)
+            {
             <div class="col-sm-4 col-md-3">
                 <label for="kwVon" class="form-label mb-0">Kalenderwoche von</label>
                 <input type="week" id="kwVon" name="kwVon" value="@Model.KwVon" class="form-control bde-touch" />
@@ -71,6 +99,7 @@
             <div class="col-auto">
                 <button type="submit" class="btn btn-secondary bde-touch">Filtern</button>
             </div>
+            }
             <div class="col-auto">
                 <button type="submit" form="filterReset" class="btn btn-outline-secondary bde-touch">Filter zurücksetzen</button>
             </div>
@@ -81,12 +110,22 @@
         </form>
         <details class="mt-2 small text-muted bde-tl-hinweise">
             <summary class="bde-touch">Hinweise zur Liste</summary>
-            Zeilen = Teile und Baugruppen der FA-Struktur, deren Arbeitsschritte <strong>@Model.Kuerzel</strong> enthalten. Die Kalenderwoche filtert auf
+            @if (Model.IstFa)
+            {
+                <text>Zeilen = offene Arbeitsgänge dieser Werkbank@(Model.Kuerzel != null ? " und der Werkbänke mit gleichem Kürzel" : ""), Reihenfolge wie bisher am
+                Terminal (Prio, Fertigungstermin). „läuft“ = ein anderer Werker bucht darauf; Anstempeln ist trotzdem möglich, der Server prüft dabei.
+                „läuft bei Ihnen“ = Sie buchen schon darauf. Fertig gemeldete Arbeitsgänge sind ausgeblendet. AG-Status zeigt alle Arbeitsgänge des
+                Auftrags, der Arbeitsgang der Zeile ist umrahmt. Filter werden je Werker und Werkbank gespeichert.</text>
+            }
+            else
+            {
+            <text>Zeilen = Teile und Baugruppen der FA-Struktur, deren Arbeitsschritte <strong>@Model.Kuerzel</strong> enthalten. Die Kalenderwoche filtert auf
             den Fertigstellungstermin (FE-Termin) des Hauptauftrags. Erledigte oder stornierte Aufträge sind ausgeblendet.
             Filter werden je Werker und Werkbank gespeichert; die Spaltenauswahl (Zahnrad) gilt für den Terminal-Benutzer.
             Baugruppen: „Teile (n)“ neben dem Matchcode klappt die Teile als eigene Zeilen auf (nur Anzeige); trifft ein Spaltenfilter nur ein Teil,
             ist die Baugruppe aufgeklappt und das Teil mit „Treffer“ markiert. Schmaler als 992 px (Handy) erscheint die Liste als Karten; die
-            Spaltenfilter sind dort nicht bedienbar – „Filter zurücksetzen“ hebt sie auf.
+            Spaltenfilter sind dort nicht bedienbar – „Filter zurücksetzen“ hebt sie auf.</text>
+            }
         </details>
     </div>
 </div>

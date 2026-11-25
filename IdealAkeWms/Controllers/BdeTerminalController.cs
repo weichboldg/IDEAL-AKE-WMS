@@ -61,14 +61,16 @@ public class BdeTerminalController : Controller
         var nurFa = (await _settings.GetValueAsync(AppSettingKeys.BdeNurFaMeldung))
             ?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
         ViewBag.NurFaMode = nurFa;
-        // v1.99.32 (ADR 0030): Werkbank mit wirksamer Teileliste zeigt statt der Auftragsliste die BDE-Teileliste.
-        if (activeWorkplace != null && WerkbankKuerzelFamilie.TeilelisteWirksam(activeWorkplace, nurFa))
+        // v1.64.0 (FA-1.1/1.3): Liste nach Haupt-FA gruppiert nur bei Master an (IDEAL); Anzeige-Grenze, ungueltig/< 1 → 5.
+        var hierarchisch = IsTrue(await _serviceSettings.GetValueAsync(
+            IdealAkeWms.Services.HierarchischeStruktur.HierarchischeStrukturKeys.Master));
+        ViewBag.Hierarchisch = hierarchisch;
+        // v1.99.32 (ADR 0030) / v1.99.76 (E4-7, Spec 2026-11-25-bde-masken-vereinheitlichung): Werkbank mit Standardsicht Teile und
+        // verfuegbarer Teile-Sicht oeffnet die neue BDE-Seite (bis Etappe 5, dann immer). Die Seite liest BdeNurFaMeldung nicht (G5).
+        if (activeWorkplace != null && WerkbankKuerzelFamilie.TeileStandard(activeWorkplace, hierarchisch))
             return RedirectToAction("Index", "BdeTeileliste", new { workplaceId = activeWorkplace.Id });
         // v1.63.0 (FA-c2/c3): Werkbank meldet Arbeitsgaenge nur fertig (ohne Start/Stop); NurFA global gewinnt.
         ViewBag.NurAgFertigmeldung = activeWorkplace != null && WerkbankKuerzelFamilie.NurAgFertigmeldungWirksam(activeWorkplace, nurFa);
-        // v1.64.0 (FA-1.1/1.3): Liste nach Haupt-FA gruppiert nur bei Master an (IDEAL); Anzeige-Grenze, ungueltig/< 1 → 5.
-        ViewBag.Hierarchisch = IsTrue(await _serviceSettings.GetValueAsync(
-            IdealAkeWms.Services.HierarchischeStruktur.HierarchischeStrukturKeys.Master));
         var maxHauptFa = await _settings.GetIntValueAsync(AppSettingKeys.BdeTerminalMaxHauptFa, 5);
         ViewBag.MaxHauptFa = maxHauptFa < 1 ? 5 : maxHauptFa;
 

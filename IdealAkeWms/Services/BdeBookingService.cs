@@ -284,8 +284,8 @@ public class BdeBookingService : IBdeBookingService
         if (gateError != null) return gateError;
 
         var workplace = await _ctx.ProductionWorkplaces.FindAsync(workplaceId);
-        var nurFa = await ReadBoolSettingAsync(AppSettingKeys.BdeNurFaMeldung);
-        if (!WerkbankKuerzelFamilie.NurAgFertigmeldungWirksam(workplace!, nurFa) && !WerkbankKuerzelFamilie.TeilelisteWirksam(workplace!, nurFa))
+        // v1.99.76 (G5, Antwort 15): Gate wie bisher, aber ohne BdeNurFaMeldung – Aufrufer sind Teileliste und FA-Sicht der neuen Seite.
+        if (!WerkbankKuerzelFamilie.NurAgFertigmeldungWirksam(workplace!, nurFaGlobal: false) && !WerkbankKuerzelFamilie.TeilelisteWirksam(workplace!))
             return BdeBookingResult.Invalid("Diese Werkbank meldet nicht ohne Zeit fertig.");
 
         var familyError = await EnsureWorkOperationInFamilyAsync(workOperationId, workplaceId);
