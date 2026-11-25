@@ -34,14 +34,17 @@ affected_code:
   - IdealAkeWms/Data/Repositories/ArticleRepository.cs + IArticleRepository.cs (Spaltenfilter fraesen-pfad, GetFraesenPfadeAsync)
   - IdealAkeWms/Controllers/StockOverviewController.cs
   - IdealAkeWms/Views/StockOverview/Index.cshtml
-  - IdealAkeWms/Views/WarehouseRequisitions/Edit.cshtml (+ Controller/ViewModel)
+  - IdealAkeWms/Views/WarehouseRequisitions/Edit.cshtml (neu Spaltenauswahl WarehouseRequisitionItems, Spalte Fräsen-Pfad, tr data-article, JS loadStock)
+  - IdealAkeWms/Controllers/WarehouseRequisitionsController.cs (Edit GET – Pfad je Position, Schalter-Flag)
+  - IdealAkeWms/Models/ViewModels/WarehouseRequisitionEditViewModel (Item um CamPath, Flag FraesenPfadAktiv)
   - IdealAkeWms/Views/WarehousePicking/Details.cshtml (+ WarehousePickingController)
   - IdealAkeWms/Views/BdeTeileliste/Index.cshtml
   - IdealAkeWms/Views/BdeTeileliste/Summiert.cshtml
   - IdealAkeWms/Services/BdeTeilelisteService.cs
   - IdealAkeWms/Controllers/BdeTeilelisteController.cs (Pfad nur lesend; kein POST FraesenPfad mehr, Antwort 22)
   - IdealAkeWms/Models/ViewModels/BdeTeilelisteViewModel.cs
-  - IdealAkeWms/Models/ViewModels/ColumnDefinitions.cs (Articles, StockOverview neu, WarehousePickingDetails, BdeTeileliste, BdeTeilelisteSummiert, BdeTeilmeldungen)
+  - IdealAkeWms/Models/ViewModels/ColumnDefinitions.cs (Articles, StockOverview neu, WarehouseRequisitionItems neu, WarehousePickingDetails, BdeTeileliste, BdeTeilelisteSummiert, BdeTeilmeldungen; GetByViewKey)
+  - IdealAkeWms.Tests/Views/ViewKeyDriftGuardTests.cs (neuer Fact Besteller-Seite, Muster OffeneBestellungen/WareneingangPositionen)
   - IdealAkeWms/Services/ColumnFilterSyntax.cs (ColumnFilterTypes)
   - IdealAkeWms/Models/BdeTeilMeldung.cs
   - IdealAkeWms/Data/ApplicationDbContext.cs
@@ -80,8 +83,7 @@ open_questions:
   - "(15, Fachbereich: Walter Kronberger) Pfad-Form: wie Spalte E übernehmen, „ist enthalten in …“ → Pfad des genannten Artikels oder leer? Rumpf: wie Spalte E, „ist enthalten in …“ nur melden."
   - "(16, Fachbereich: Walter Kronberger) Belegestation/Twin Kundenseite pflegen oder leer; Zeile 161 nicht importieren? Rumpf: Zeile 161 nur melden, Belegestation in eigenem Block importieren (bei „leer“ Block streichen)."
   - "(17, Fachbereich: Walter Kronberger) Spalten C/D/G: Bedeutung; Zuschnittmaß im WMS? Rumpf: nicht übernommen."
-  - "(24, Gerald) „Lagerbestellung“ in Stufe 1 = Besteller-Seite (WarehouseRequisitions/Edit) und Lager-Detailseite (WarehousePicking/Details) – beide (Rumpf) oder nur eine?"
-  - "(25, Gerald) Zugang Pfleger: Die Artikelseiten verlangen Stammdaten-Lesen (Klassenfilter). Rumpf: Pfleger bekommt fraesenpfad_pflegen + masterdata_read (sieht dann alle Stammdaten-Masken lesend, z. B. Kreditoren/Debitoren). Bestätigen, oder Zugang nur zu den Artikelseiten (mehr Code)?"
+  - "(26, Gerald, nicht blockierend) Artikelinfo und „Artikel bearbeiten“ sind Detailseiten ohne Spaltenauswahl: Pfad dort bei Schalter an immer sichtbar (Rumpf), oder auch dort erst auf Klick (z. B. eingeklappt)?"
 epic: false
 etappen: []
 deploy:
@@ -229,11 +231,20 @@ F13. **Masken Stufe 1** (Antwort 21), alle nur bei `FraesenPfadAktiv`, Anzeige i
 | Artikelinfo (`Articles/Info`) | Zeile „Fräsen-Pfad“ in den Stammdaten (Baustein); darunter für Pflegeberechtigte das Pflegeformular `_FraesenPfadPflegen` (F14) | – (Detailseite) |
 | Artikel bearbeiten (`Articles/Edit`) | eigene Karte „Fräsen-Pfad“ **unterhalb** des Stammdaten-Formulars (`Edit.cshtml:17-145`), außerhalb des `<form asp-action="Edit">`: Baustein + `_FraesenPfadPflegen` mit eigenem Knopf „Fräsen-Pfad speichern“ (F14). Das Edit-Formular selbst bekommt **kein** Feld. *(Fassung vor dem zweiten Nachzug: Textfeld im Edit-Formular – überholt, Antwort 23/Lösung 3.)* | – |
 | BDE-Teileliste Einzeln/Summiert | Spalte (F1/F2), **nur lesend** *(Stift – überholt, Antwort 22)* | Getter = Zelltext (UNC-Text), Server-Filter vor dem Paging wie die übrigen Spalten; `ColumnDefinitions.BdeTeileliste`/`…Summiert` |
-| Lagerbestellung – Lager-Detailseite (`WarehousePicking/Details`) | Spalte „Fräsen-Pfad“, Standard ausgeblendet | Tabelle hat Spaltenauswahl und Client-Filter (`Details.cshtml:67,232`): `<th data-filterable data-col-key="fraesen-pfad">`, Eintrag in deren ViewConfig (DefaultHidden) |
-| Lagerbestellung – Besteller-Seite (`WarehouseRequisitions/Edit`) | **keine** neue Spalte: Pfad als zweite, kleine Zeile in der Bezeichnungs-Zelle | Tabelle hat weder Spaltenauswahl noch Filter (`Edit.cshtml:35-38`); das JS liest die Artikelnummer über `row.cells[1]` (`Edit.cshtml:139`) – keine Spalte davor einfügen (Rückfrage 24) |
+| Lagerbestellung – Lager-Detailseite (`WarehousePicking/Details`) | Spalte „Fräsen-Pfad“, Standard ausgeblendet | Tabelle hat Spaltenauswahl und Client-Filter (`Details.cshtml:67,229-245`): `<th data-filterable data-col-key="fraesen-pfad">` als letzte Spalte (nach „Fehlteil-Status“); Eintrag in `ColumnDefinitions.WarehousePickingDetails` (`DefaultHidden: true`) **und** im handgeschriebenen `#column-config` mit `"defaultHidden": true`, beides bedingt wie `th`/`td` (B29) |
+| Lagerbestellung – Besteller-Seite (`WarehouseRequisitions/Edit`) | Spalte „Fräsen-Pfad“, Standard ausgeblendet (Antwort 24) | Tabelle bekommt eine **Spaltenauswahl** (heute keine, `Edit.cshtml:34-40`) nach Muster Wareneingang-Positionen (`Receive.cshtml:116,268,292`; ohne Filter/CSV): Toolbar-Host `data-table-toolbar`, `data-view-key="WarehouseRequisitionItems"`, `#view-config` `{ "viewKey": "WarehouseRequisitionItems", "supportsReorder": false, "supportsSortDefault": false }`, `#column-config`, `column-preferences.js`; neue `ColumnDefinitions.WarehouseRequisitionItems` (`pos` + `article-number` Locked, `description`, `quantity`, `unit`, `storage`, `fraesen-pfad` DefaultHidden) + Eintrag in `GetByViewKey` (`ColumnDefinitions.cs:902`, sonst 400 der Prefs-API, `ViewKeyDriftGuardTests.cs:36-37`). Pfad-Spalte nach „Lagerplatz“, vor der Knopf-Spalte (ohne Key). **JS-Absicherung:** `loadStock` liest die Artikelnummer heute über `row.cells[1]` (`Edit.cshtml:139`) – umgestellt auf `row.dataset.article` mit `data-article="@i.ArticleNumber"` am `<tr>` (Muster `Details.cshtml:89`); damit ist die Spaltenreihenfolge für das JS egal. *(Fassung vor dem dritten Nachzug: „keine neue Spalte, Pfad unter der Bezeichnung“ – überholt, Antwort 24.)* |
 | Bestandsübersicht (`StockOverview/Index`) | Spalte „Fräsen-Pfad“, Standard ausgeblendet | Server-Filter in-memory über `_stockOverviewColMap` (`StockOverviewController.cs:21-29,73`) mit Getter aus `GetFraesenPfadeAsync`; die Liste hat **heute keine Spaltenauswahl** (`Index.cshtml:100`, kein `data-view-key`/`#column-config`) – sie bekommt eine: neue `ColumnDefinitions.StockOverview` mit den 6 vorhandenen Spalten + `fraesen-pfad` (DefaultHidden), `data-view-key="StockOverview"`, `#column-config` (Drift-Guard `ViewKeyDriftGuardTests`) |
 
 Alle übrigen Listen mit Artikelbezug: Folge-Spec (Out-of-Scope).
+
+**Regel „Standard ausgeblendet“ (Antwort 24):** In **jeder** Tabelle der Stufe 1 (Artikel-Liste, BDE-Teileliste Einzeln und Summiert,
+Lager-Detailseite, Besteller-Seite, Bestandsübersicht) ist „Fräsen-Pfad“ nur über die Spaltenauswahl (Zahnrad) einblendbar und standardmäßig
+ausgeblendet. Wirksam ist allein das inline `#column-config` (`column-preferences.js:69,117`, gelesen `:885-886`); `ColumnDef.DefaultHidden`
+im Katalog muss gleich stehen. Pflicht je Tabelle also drei Quellen gleich: `<th data-col-key="fraesen-pfad">` + Zelle, JSON-Eintrag mit
+`"defaultHidden": true`, `ColumnDef("fraesen-pfad", "Fräsen-Pfad", DefaultHidden: true)` – `th`, `td` und JSON-Eintrag nur bei `FraesenPfadAktiv`
+(Muster bedingter Eintrag `Bom.cshtml` „ist-menge“, `ViewKeyDriftGuardTests.cs:44-54`). Ein Benutzer, der die Spalte einmal einblendet, behält
+seine Wahl (Prefs-API). Artikelinfo und „Artikel bearbeiten“ sind Detailseiten ohne Spaltenauswahl und zeigen den Pfad bei Schalter an als
+Zeile/Karte (Rückfrage 26, nicht blockierend).
 
 F14. **Fräsen-Pfad pflegen** (Antworten 12/19/22/23). **Ein** Schreibweg: neue Aktion `ArticlesController.FraesenPfad` (POST).
      - Pfleger: ein **persönliches Konto** mit Rolle `fraesenpfad_pflegen` (Antwort 22) – das Terminal-Konto der Fräse bekommt sie nicht.
@@ -254,8 +265,8 @@ F14. **Fräsen-Pfad pflegen** (Antworten 12/19/22/23). **Ein** Schreibweg: neue 
      - Wer pflegen darf: `CanPflegeFraesenPfadAsync()` = `admin`, `masterdata` oder neue Rolle **`fraesenpfad_pflegen`** (Anzeige „Fräsen-Pfad
        pflegen“). Die Rolle erlaubt nur diese eine Aktion; alle übrigen Artikelfelder bleiben `[RequireMasterDataAccess]` (Antwort 23).
      - Zugang: Artikelinfo und „Artikel bearbeiten“ liegen im `ArticlesController` mit Klassenfilter `[RequireMasterDataReadAccess]`
-       (`ArticlesController.cs:10`, B27). Ein Konto **nur** mit `fraesenpfad_pflegen` landet dort auf „Zugriff verweigert“. Festlegung (Rückfrage 25
-       bestätigt nur): der Pfleger bekommt **zusätzlich `masterdata_read`** (Hand-Schritt unter /Roles); kein Code am Klassenfilter. Er erreicht so
+       (`ArticlesController.cs:10`, B27). Ein Konto **nur** mit `fraesenpfad_pflegen` landet dort auf „Zugriff verweigert“. Festlegung (Antwort 25,
+       Variante a): der Pfleger bekommt **zusätzlich `masterdata_read`** (Hand-Schritt unter /Roles); kein Code am Klassenfilter. Er erreicht so
        Stammdaten › Artikel / Artikelinfo (`NavigationKatalog.cs:255`, `_Layout.cshtml:345-358`) und pflegt dort über die Artikelinfo; „Artikel
        bearbeiten“ bleibt ihm verschlossen (`[RequireMasterDataAccess]`, `ArticlesController.cs:100,144`). Fehlt `masterdata_read`, meldet das die
        Manifest-Prüfung `Pruefung/FraesenpfadOhneStammdatenLesen` (Deploy) statt still.
@@ -307,11 +318,12 @@ F15. **Schalter** `FraesenPfadAktiv` (Antwort 20): aus (Default, AKE) = Spalte, 
 | B21 | Zugriff: Artikel-Controller Klasse `[RequireMasterDataReadAccess]`, Create/Edit `[RequireMasterDataAccess]`; `ArticlesApiController` ohne Klassenfilter; Teileliste `[RequireBdeActive]`+`[RequireBdeUserAccess]` und nur mit Terminal des angemeldeten Web-Benutzers. | `ArticlesController.cs:10,78,86,100,144`; `ArticlesApiController.cs:8-10`; `BdeTeilelisteController.cs:17-18,81-91` |
 | B22 | Neue Rollen der letzten Versionen: Key in `RoleKeys`, Prüfmethode `HasAnyRoleAsync(Admin, …)`, Filter als `TypeFilterAttribute`, Anlage der Rollen-Zeile **nicht** per Start-Seed (der enthält nur die Altrollen), sondern per Manifest-`Pruefung` mit `Reparatur`. Feature-Gate-Filter: Muster `RequireBlechfertigungAktivAttribute` (MVC: WarningMessage + Startseite, API: 404). | `RoleKeys.cs:30-32`; `CurrentUserService.cs:121-122`; `RequireSchachtlerAccessAttribute.cs:9-29`; `Program.cs:237-271`; `nachlauf.psd1:263-270`; `RequireBlechfertigungAktivAttribute.cs:10-37` |
 | B23 | **Muster Sage-Benutzerfelder der Nachlese ist fest:** jedes `USER_OS…`-Feld = Konstante in `BfArtikelFelder` + Katalogeintrag mit Default = Feldname; Zeile fehlt = Default wird gelesen. Die Nachlese fragt alle konfigurierten `SageFelder` generisch ab (Dictionary, kein typisiertes DTO); der Writer legt die Merkmal-Definition selbst an. → Blechdicke braucht keinen Deploy-Eintrag. | `BfArtikelFelder.cs:13-26`; `SageUserfelder.cs:50-56,85`; `SdataArtikelReader.cs:359-364`; `ArtikelBenutzerfelderWriter.cs:40,50-53` |
-| B24 | Masken Stufe 1: Artikel-Liste Server-Modus mit `data-view-key="Articles"` und bedingten `#column-config`-Einträgen, Filter-SQL zentral; Bestandsübersicht Server-Filter in-memory, **ohne** Spaltenauswahl; Lagerbestellung Besteller-Seite ohne Spaltenauswahl/Filter, JS greift auf `row.cells[1]`; Lager-Detailseite mit Spaltenauswahl (Client-Filter). | `Articles/Index.cshtml:59,72-73,144-159`; `ArticleRepository.cs:169-190`; `ColumnDefinitions.cs:680-697`; `StockOverviewController.cs:21-29,73`; `StockOverview/Index.cshtml:100-108`; `WarehouseRequisitions/Edit.cshtml:35-48,139`; `WarehousePicking/Details.cshtml:67,89-91,232` |
+| B24 | Masken Stufe 1: Artikel-Liste Server-Modus mit `data-view-key="Articles"` und bedingten `#column-config`-Einträgen, Filter-SQL zentral; Bestandsübersicht Server-Filter in-memory, **ohne** Spaltenauswahl; Lagerbestellung Besteller-Seite ohne Spaltenauswahl/Filter, JS greift auf `row.cells[1]` (Nachprüfung v1.99.69: nur `loadStock` – Artikelnummer für die Lagerplatz-Anzeige, `Edit.cshtml:138-148`; das Hinzufügen von Artikeln liest `btn.dataset.art`, `:176,219`); Lager-Detailseite mit Spaltenauswahl (Client-Filter). | `Articles/Index.cshtml:59,72-73,144-159`; `ArticleRepository.cs:169-190`; `ColumnDefinitions.cs:680-697`; `StockOverviewController.cs:21-29,73`; `StockOverview/Index.cshtml:100-108`; `WarehouseRequisitions/Edit.cshtml:35-48,139`; `WarehousePicking/Details.cshtml:67,89-91,232` |
 | B25 | Termin-Bausteine: `AddBusinessDays` (Mo–Fr ohne Feiertage), Feiertage über `_holidays.GetHolidayDatesAsync()` wie bei den BF-Terminen; `SubmittedAt` wird nur beim Abschicken gesetzt; KW-Filter der Teileliste über den FE-Termin des Haupt-FA. | `BusinessDayService.cs:29-50`; `BfAuftragWorkflow.cs:217-221`; `WarehouseRequisitionRepository.cs:185`; `BdeTeilelisteService.cs:182-186` |
 | B26 | „Kopieren mit Rückfall markieren“ gibt es nur in `hardware-scanner.js`; ein Baustein für sechs Masken braucht den Handler an einer gemeinsamen Stelle. | `hardware-scanner.js:211-218` (`navigator.clipboard` `:216-217`) |
 | B27 | **Zugang Artikelseiten (Stand v1.99.69):** Klassenfilter `[RequireMasterDataReadAccess]` → `HasMasterDataReadAccessAsync()` = `admin`, `masterdata_read`, `masterdata`, sonst Redirect „Zugriff verweigert“; Rollen nur direkt am Benutzer (`UserRoles`), keine Vererbung. Artikelinfo hängt im Menü an Stammdaten-Lesen. Derselbe Klassenfilter sitzt auf 11 Controllern (u. a. Kreditoren, Debitoren, Werkbänke, Lagerplätze) – `masterdata_read` öffnet alle lesend. Ein Konto nur mit `fraesenpfad_pflegen` erreicht die Artikelseiten **nicht**. | `ArticlesController.cs:10`; `RequireMasterDataReadAccessAttribute.cs:26-34`; `CurrentUserService.cs:76-89,177-193`; `NavigationKatalog.cs:255`; `_Layout.cshtml:345-358`; `Help/Index.cshtml:546`; Grep `^\[RequireMasterDataReadAccess\]` in `Controllers/` = 11 Dateien |
 | B28 | **Schreibbausteine Artikel:** `GetByArticleNumberAsync` liest getrackt (`FirstOrDefaultAsync` ohne `AsNoTracking`), `UpdateAsync` = `_dbSet.Update` + `SaveChangesAsync`; kein Caching-Decorator für `IArticleRepository`. Info löst den Artikel über Artikelnummer bzw. exakten Matchcode auf und kennt im ViewModel nur die Artikelnummer (kein Id). | `ArticleRepository.cs:75-78`; `Repository.cs:40-44`; `Program.cs:74`; `ArticlesController.cs:222-240,290-306` |
+| B29 | **Spaltenauswahl (Stand v1.99.69):** `column-preferences.js` liest Spalten und `defaultHidden` **nur** aus dem inline `#column-config`/`#view-config` (`:69,117,885-886`); `ColumnDef.DefaultHidden` im Katalog wirkt allein nicht (handgeschriebenes JSON z. B. `Details.cshtml:232-245`, `Articles/Index.cshtml:152-153`). Ausblenden = `style.display = 'none'` je Zelle, die Zelle bleibt im DOM (`:160-179`); physisches Umordnen der Zellen nur bei `supportsReorder` (`:134-135,220-247`). Ein `cells[n]`-Zugriff bricht also nur durch Umordnen oder eine davor eingefügte Spalte. Neue viewKeys brauchen `GetByViewKey` (`ColumnDefinitions.cs:902`), sonst lehnt die Prefs-API ab (`ViewKeyDriftGuardTests.cs:9-11,36-41`). Vorbild Positionstabelle mit Zahnrad ohne Filter/CSV: `Receive.cshtml:116,268,292`, Test `ViewKeyDriftGuardTests.cs:67-85`. Besteller-Seite: `Edit` GET baut die Positionen ohne Pfad (`WarehouseRequisitionsController.cs:162-188`), Controller `[RequirePickingOrStockOrLagerbestellungAccess]` + `[RequireLagerbestellungAktiv]` (`:10-11`). | siehe Zelle |
 
 ### Lösung
 
@@ -352,11 +364,15 @@ sind Vorfilter (B3). Views + `#column-config` + `ColumnDefinitions.BdeTeileliste
   Aktion schreibt nachweislich nur `CamPath` + `Modified*`. (2) Ein Schreibweg statt zwei: dieselbe Aktion bedient Stammdaten-Benutzer auf „Artikel
   bearbeiten“ und Pfleger auf der Artikelinfo; Prüfregel und Audit an einer Stelle. (3) Der Edit-POST fasst `CamPath` nie an – die B20-Falle
   (Schalter aus löscht Pfade) kann nicht entstehen, statt bewacht werden zu müssen. (4) Zugang über die vorhandene Rolle `masterdata_read`
-  statt eines neuen Lese-Gates am Klassenfilter (B27, Rückfrage 25 bestätigt nur).
+  statt eines neuen Lese-Gates am Klassenfilter (B27, Antwort 25 Variante a).
   *(Fassung vor dem zweiten Nachzug: `ArticlesController.Edit` GET/POST mit B20-Wache plus `BdeTeilelisteController.FraesenPfad` – überholt,
   Antworten 22/23.)*
 - Masken nach F13; Artikel-Liste filtert per SQL (`"fraesen-pfad" => ColumnFilterSql.Predicate<Article>(f, a => a.CamPath)`), Bestandsübersicht
-  und Teileliste per Getter.
+  und Teileliste per Getter, Lager-Detailseite per Client-Filter. Besteller-Seite (Antwort 24): `Edit` GET holt bei Schalter an einmal
+  `GetFraesenPfadeAsync()` und gibt je Position den Pfad ins Item-ViewModel (Lookup Artikelnummer getrimmt, OrdinalIgnoreCase; kein Treffer, z. B.
+  DUMMY-Position → „–“); View: Spaltenauswahl nach F13 + `data-article` am `<tr>`, `loadStock` liest `row.dataset.article` (eine Zeile). Kein
+  Filter, kein CSV auf dieser Seite (kleine Positionstabelle, Muster Wareneingang-Positionen). Alle Stufe-1-Tabellen: „Standard ausgeblendet“
+  nach der Regel unter F13 (drei Quellen gleich).
 *(Fassung vor 2026-11-25 „3. Manuelles Text-Merkmal“ – `ArticleAttributesController.CreateDefinition`, Text-Zweig in `Articles/Edit`, `TextValue`
 im Edit-POST, `SaveValuesAsync`, Fallstrick-Umbau B8 – überholt, Antwort 19.)*
 
@@ -402,9 +418,9 @@ unverändert (kein Stift-Modal mehr, Antwort 22; das JS liest keine Formular-Sch
 | # | Schritt | hängt an |
 |---|---|---|
 | 1 | Summiert-Spalten Material/Bemerkung/Fertigungsinfo (F2 ohne Blechdicke/Pfad) | – |
-| 2 | `Articles.CamPath` (Model, Migration, SQL/164, FreshInstall), `FraesenPfad`-Helper + Test, Schalter `FraesenPfadAktiv`, Rolle + Filter, Baustein `_FraesenPfad` + `site.js`-Handler, Aktion `Articles/FraesenPfad` + `_FraesenPfadPflegen` auf Artikelinfo/Artikel bearbeiten, Artikel-Liste (F3, F4, F13 Artikel-Masken, F14, F15) | Zugang Pfleger: Rückfrage 25 ändert nur die Vergabe, nicht den Code |
+| 2 | `Articles.CamPath` (Model, Migration, SQL/164, FreshInstall), `FraesenPfad`-Helper + Test, Schalter `FraesenPfadAktiv`, Rolle + Filter, Baustein `_FraesenPfad` + `site.js`-Handler, Aktion `Articles/FraesenPfad` + `_FraesenPfadPflegen` auf Artikelinfo/Artikel bearbeiten, Artikel-Liste (F3, F4, F13 Artikel-Masken, F14, F15) | – (Zugang Pfleger entschieden, Antwort 25: nur Rollenvergabe) |
 | 3 | Teileliste: Spalte Pfad Einzeln/Summiert, nur lesend (F1, F2) *(Stift/POST – überholt, Antwort 22)* | Schritt 2 |
-| 4 | Bestandsübersicht (neue Spaltenauswahl) + Lagerbestellung Details/Edit (F13 Rest) | Schritt 2; Umfang Lagerbestellung: Rückfrage 24 |
+| 4 | Bestandsübersicht (neue Spaltenauswahl) + Lagerbestellung Lager-Detailseite (Spalte) und Besteller-Seite (neue Spaltenauswahl + `data-article`) (F13 Rest) | Schritt 2 *(„Umfang Lagerbestellung: Rückfrage 24“ – erledigt, Antwort 24: beide Seiten)* |
 | 5 | Blechdicke (F5) – fester Name `USER_OSBlechdicke` | Format: Rückfrage 1 / P-1 (nur Anzeige) |
 | 6 | Schema SQL/165 + Migration, Werkbank-Option (F6), Lagerbestell-Zeilen inkl. Termin + Melden + Summiert + Teilmeldungen (F7–F11), Einstellung Arbeitstage, ADR | – |
 | 7 | CSV-Fix (F12), Einmal-Skript Erstimport, Manifest, Hilfe, Changelog, Version, TS-171, Aufgabe Folge-Spec übrige Listen | Liste liegt vor; Inhalt der Liste: Rückfragen 15–17 |
@@ -424,7 +440,7 @@ unverändert (kein Stift-Modal mehr, Antwort 22; das JS liest keine Formular-Sch
   Stift in der Teileliste; keine AppSetting für das Merkmal, weil es kein Merkmal mehr gibt).*
 - Keine Pflege aus der BDE-Teileliste (Antwort 22: wieder gestrichen) – `bde-teileliste.js` und `BdeTeilelisteController` bekommen keinen Pflegeweg.
 - Keine Rollenweiche im Edit-POST, kein Pfad-Feld im Edit-Formular: eine schmale Aktion `Articles/FraesenPfad` für alle Pflegeberechtigten (F14).
-- Kein eigenes Lese-Gate für Pfleger am Artikel-Klassenfilter: vorhandene Rolle `masterdata_read` (B27, Rückfrage 25); fehlt sie, meldet es eine Manifest-Prüfung.
+- Kein eigenes Lese-Gate für Pfleger am Artikel-Klassenfilter: vorhandene Rolle `masterdata_read` (B27, Antwort 25); fehlt sie, meldet es eine Manifest-Prüfung.
 - Kein Pflege-Stift in der Artikel-Liste: Pflege auf Artikelinfo (Menü Stammdaten › Artikelinfo) und „Artikel bearbeiten“ reicht.
 
 ### Abhängigkeiten / Regressionsrisiko
@@ -433,7 +449,8 @@ unverändert (kein Stift-Modal mehr, Antwort 22; das JS liest keine Formular-Sch
   übernimmt die neuen Spalten (`data-label` an jeder neuen Zelle) bzw. die Kartenansicht.
 - `Articles/Edit`, `Articles/Index`, `ArticlesController`, `StockOverview` und die Lagerbestell-Views laufen an **beiden** Standorten: QA prüft an
   AKE (Schalter aus), dass Artikel bearbeiten alle Felder und Merkmale unverändert speichert (Edit-POST unverändert, F14), kein Fräsen-Pfad sichtbar ist und die
-  Bestandsübersicht mit neuer Spaltenauswahl wie bisher filtert. *(Fassung vor 2026-11-25: Regression `SaveValuesAsync` – überholt, Antwort 19.)*
+  Bestandsübersicht mit neuer Spaltenauswahl wie bisher filtert; die Besteller-Seite der Lagerbestellung (auch Glasbestellung, gleiche View
+  `Edit.cshtml:3`) hat an beiden Standorten das neue Zahnrad (ohne Pfad-Eintrag bei Schalter aus) und füllt die Lagerplatz-Spalte wie bisher. *(Fassung vor 2026-11-25: Regression `SaveValuesAsync` – überholt, Antwort 19.)*
 - `site.js` ist global: der neue Handler reagiert nur auf `[data-pfad-kopieren]` (delegiert), sonst nichts.
 - Recreate des UNIQUE `UX_BdeTeilMeldungen_Schluessel` (Filter erweitert): kurzer Index-Neuaufbau auf kleiner Tabelle; Prüfung auf Dubletten
   nicht nötig, da der Filter nur enger wird. **Konflikt** mit [[2026-11-25-bde-masken-vereinheitlichung-spec]] (SQL/168 baut denselben Index):
@@ -516,7 +533,7 @@ bewusst, nur lesend, ohne Lagerbestell-Rolle. Admin-Storno unverändert `[Requir
 (Pflegeformular auf Artikelinfo/Artikel bearbeiten), sonst nichts; vergeben an ein persönliches Konto, nicht an das Terminal-Konto. Pflegen dürfen
 `admin`, `masterdata`, `fraesenpfad_pflegen` (`CanPflegeFraesenPfadAsync`). Artikel bearbeiten (GET/POST) bleibt `[RequireMasterDataAccess]`
 (B21) – alle übrigen Artikelfelder ändert nur Stammdaten-Schreiben. Zugang zu den Artikelseiten: Pfleger bekommt zusätzlich `masterdata_read`
-(Klassenfilter, B27; Rückfrage 25), Manifest-Prüfung meldet Pfleger ohne Lesezugang. *(Fassung vor dem zweiten Nachzug: „über den Stift der
+(Klassenfilter, B27; Antwort 25 Variante a, kein Code am Filter), Manifest-Prüfung meldet Pfleger ohne Lesezugang. *(Fassung vor dem zweiten Nachzug: „über den Stift der
 Teileliste“ – überholt, Antwort 22.)* Lesen des Pfads: jeder, der die jeweilige Maske sehen darf (keine eigene Leserolle). Alles zusätzlich hinter
 `FraesenPfadAktiv` (ADR 0011). Drei Stellen Pflicht: Attribut/Filter, `secondbrain/codebase/controller.md`, `Views/Users/RoleOverview.cshtml`;
 Rollen-Zeile in `dbo.Roles` per Manifest-Prüfung (B22). *(Fassung vor 2026-11-25: „Keine neue Rolle“ – überholt, Antwort 12.)*
@@ -524,7 +541,9 @@ Rollen-Zeile in `dbo.Roles` per Manifest-Prüfung (B22). *(Fassung vor 2026-11-2
 **Listen-View-Pattern:** keine neue Liste. Neue Spalten mit `data-col-key`, `data-filterable`, `#column-config` = `ColumnDefinitions` (B17),
 Getter = Zelltext, Typ-Register für `blechdicke`, Pagination und Server-Spaltenfilter vor dem Paging bleiben (`BdeTeilelisteService.cs:190`).
 Fräsen-Pfad in den Listen nach F13 (Artikel-Liste SQL-Filter, Bestandsübersicht neue Spaltenauswahl, Lager-Detailseite Client-Filter wie die
-übrigen Spalten der Tabelle); Spalte überall Standard ausgeblendet; `ColumnFilterTypesDriftTests`/`ViewKeyDriftGuardTests` grün.
+übrigen Spalten der Tabelle, Besteller-Seite neue Spaltenauswahl ohne Filter/CSV – kleine, unpaginierte Positionstabelle einer Bestellung wie
+Wareneingang-Positionen); Spalte überall Standard ausgeblendet nach der Regel unter F13 (drei Quellen gleich, `"defaultHidden": true` im JSON);
+`ColumnFilterTypesDriftTests`/`ViewKeyDriftGuardTests` grün.
 
 ## Akzeptanzkriterien
 
@@ -537,7 +556,8 @@ Fräsen-Pfad in den Listen nach F13 (Artikel-Liste SQL-Filter, Bestandsübersich
 7. Rollen (Schalter an): Konto mit `fraesenpfad_pflegen` + `masterdata_read` sieht das Pflegeformular auf der Artikelinfo und speichert; „Artikel bearbeiten“ bleibt ihm „Zugriff verweigert“. Konto nur mit `masterdata_read` sieht den Pfad, aber kein Formular; direkter POST → „Zugriff verweigert“, nichts gespeichert. Konto nur mit `fraesenpfad_pflegen` (ohne Lesezugang) → Artikelinfo „Zugriff verweigert“, und die Manifest-Prüfung `Pruefung/FraesenpfadOhneStammdatenLesen` zählt es. `masterdata`/`admin` pflegen auf beiden Seiten. Die BDE-Teileliste zeigt den Pfad nur lesend, ohne Stift. Artikelnummer unbekannt (manipulierter POST) → Warnung, nichts gespeichert. Die Rolle steht in der Rollenübersicht mit Hinweis „braucht zusätzlich Stammdaten lesen“. *(Fassung vor dem zweiten Nachzug: „Stift in der Teileliste …“ – überholt, Antwort 22.)*
 8. Baustein (alle Masken F13): UNC-Wert erscheint als Link `file://server/freigabe/…` (Leerzeichen/Umlaute kodiert, `$` erhalten – Unit-Test mit den Beispielen aus F4); Klick am Fräsen-PC öffnet den Ordner im Explorer (Manual-UAT); „Pfad kopieren“ legt den UNC-Text in die Zwischenablage, ohne Zwischenablage-Recht wird markiert und der Hinweis gezeigt; leer → „–“.
 9. Blechdicke: nach Nachlese-Lauf ohne Einstellungszeile wird `USER_OSBlechdicke` gelesen und die Teileliste zeigt den Sage-Wert; mit leerer Einstellungszeile „–“ und im Aktivitäts-Protokoll der Hinweis „nicht konfiguriert“, ohne Abbruch der Nachlese.
-9a. Masken Stufe 1 (Schalter an): Artikel-Liste, Bestandsübersicht und Lager-Detailseite haben die Spalte „Fräsen-Pfad“ (Standard aus, einblendbar, Filter `gerhard\listen` trifft); Artikelinfo und Besteller-Seite zeigen den Pfad; die Besteller-Seite fügt weiterhin Artikel per Nummer richtig ein (JS `cells[1]` unverändert); die Bestandsübersicht filtert und blättert wie vorher.
+9a. Masken Stufe 1 (Schalter an): Artikel-Liste, Bestandsübersicht und Lager-Detailseite haben die Spalte „Fräsen-Pfad“ (Standard aus, einblendbar, Filter `gerhard\listen` trifft); Artikelinfo zeigt den Pfad; die Besteller-Seite hat ein Zahnrad, „Fräsen-Pfad“ ist dort Standard aus und einblendbar (Wahl bleibt nach Reload), Pos und Artikel-Nr lassen sich nicht ausblenden; die Lagerplatz-Spalte der Besteller-Seite füllt sich weiterhin für jede Position (JS über `data-article`), auch mit eingeblendetem Pfad; Artikel hinzufügen, Menge ändern, Entfernen laufen wie vorher; die Bestandsübersicht filtert und blättert wie vorher. *(Fassung vor dem dritten Nachzug: „Besteller-Seite zeigt den Pfad … fügt Artikel per Nummer ein (JS `cells[1]` unverändert)“ – überholt, Antwort 24; `cells[1]` diente nur der Lagerplatz-Anzeige, B24.)*
+9b. „Standard ausgeblendet“ überall: Ein Benutzer ohne gespeicherte Spaltenwahl sieht „Fräsen-Pfad“ in keiner der sechs Tabellen (Artikel-Liste, Teileliste Einzeln, Summiert, Lager-Detailseite, Besteller-Seite, Bestandsübersicht), findet sie aber in jedem Zahnrad. Schalter aus: kein Zahnrad listet sie.
 10. Werkbank-Option nur speicherbar mit „BDE-Teileliste“ an; Wert bleibt nach Speichern erhalten.
 11. Mit Option an: abgeschickte und teilgelieferte Lagerbestell-Positionen, deren Artikel-Arbeitsschritte das Kürzel tragen, erscheinen mit Badge „Lagerbestellung <Nr>“; Entwurf, abgeschlossene und stornierte nicht; Artikel ohne Kürzel nicht; mit Option aus oder `LagerbestellungAktiv` aus keine.
 12. Lagerbestell-Zeile zeigt Termin = Abschickdatum + 10 Arbeitstage (ohne Wochenende/Feiertage; mit Einstellung 5 entsprechend); KW-Filter zeigt sie nur, wenn dieser Termin in der KW-Spanne liegt; „gemeldete zeigen“ aus blendet gemeldete aus. *(Fassung vor 2026-11-25: „KW-Filter blendet nicht aus“ – überholt, Antwort 5-Nachtrag/13.)*
@@ -550,7 +570,10 @@ Fräsen-Pfad in den Listen nach F13 (Artikel-Liste SQL-Filter, Bestandsübersich
 19. CSV-Export enthält alle gefilterten Zeilen mit den sichtbaren Spalten; danach öffnet die Liste für denselben Werker mit der vorher gewählten Seitengröße (je Rückfrage 10).
 20. Einmal-Skript: Trockenlauf zeigt `TREFFER: n` und die Meldeliste (unbekannt, mehrdeutig, doppelt in der Liste, ohne gültigen Pfad – mind. Zeilen 155, 157, 161, 164–166 –, schon gepflegt); `Y:\…` wird als `\\idealfs1\Daten$\Produktion\CAM\…` geschrieben; Scharflauf schreibt n Werte; ein vorher von Hand gepflegter Pfad bleibt; zweiter Trockenlauf `TREFFER: 0`.
 21. Build und alle Tests grün, inkl. `TeilelisteKuerzelKonstantenWaechterTests`, `ColumnFilterTypesDriftTests`, `ViewKeyDriftGuardTests`, `SageUserfelderTests` (28 Einträge), `NachlaufManifestDriftTests`, `ResponsiveCssTests`, neuer Unit-Test `FraesenPfad` (Prüfen + FileUri), neuer Controller-Test `ArticlesController.FraesenPfad` (InMemory: gültig →
-    nur `CamPath` + `Modified*` geändert, übrige Spalten gleich; ungültig → nichts geändert, WarningMessage; leer → NULL).
+    nur `CamPath` + `Modified*` geändert, übrige Spalten gleich; ungültig → nichts geändert, WarningMessage; leer → NULL); neuer View-Test
+    Besteller-Seite in `ViewKeyDriftGuardTests` (Muster `:56-85`): `th`-Keys = `#column-config`-Keys = `ColumnDefinitions.WarehouseRequisitionItems`,
+    `fraesen-pfad` mit `"defaultHidden": true`, `supportsReorder` false, Toolbar-Host vorhanden, kein `row.cells[` mehr im View; je Stufe-1-Tabelle
+    steht `fraesen-pfad` im Katalog mit `DefaultHidden: true` und im View-JSON mit `"defaultHidden": true`.
 
 ## Test-Szenarien
 
@@ -568,7 +591,7 @@ eine im Entwurf, eine abgeschlossen; FA-Struktur mit IF-Zeilen; Einmal-Skript ge
 - **TS-171.3 Schalter aus (DEV AKE und IDEAL)** – kein Pfad, kein Formular in keiner Maske; Artikel bearbeiten speichern lässt `CamPath` unverändert (DB); POST `Articles/FraesenPfad` direkt (z. B. Formular aus Schalter-an-Sitzung erneut absenden) → Warnung, nichts gespeichert (AK 6).
 - **TS-171.4 Link und Pfad kopieren** – Link am Fräsen-PC öffnet den Ordner; Pfad mit Leerzeichen/Umlaut; Kopieren → Explorer Strg+L; Rückfall ohne Zwischenablage (AK 8).
 - **TS-171.4a Rolle und Zugang** – Konten A–D: Formular sichtbar ja/nein, Speichern, „Artikel bearbeiten“ für A verweigert, direkter POST mit B abgewiesen, C kommt nicht auf die Artikelinfo und erscheint in der Manifest-Prüfung `Pruefung/FraesenpfadOhneStammdatenLesen`; Teileliste am Terminal zeigt den Pfad ohne Stift; Rollenübersicht mit Hinweis (AK 7). *(Fassung vor dem zweiten Nachzug: „Stift + Rolle“ – überholt, Antwort 22.)*
-- **TS-171.4b Masken Stufe 1** – Artikel-Liste, Artikelinfo, Bestandsübersicht (neue Spaltenauswahl, Filter, Blättern), Lager-Detailseite, Besteller-Seite (Artikel per Nummer hinzufügen läuft weiter) (AK 9a).
+- **TS-171.4b Masken Stufe 1** – mit einem Benutzer ohne gespeicherte Spaltenwahl: Artikel-Liste, Bestandsübersicht (neue Spaltenauswahl, Filter, Blättern), Lager-Detailseite, Besteller-Seite (neues Zahnrad; Pfad einblenden, Reload; Lagerplatz-Spalte gefüllt; Artikel hinzufügen/Menge/Entfernen im Entwurf), Teileliste Einzeln/Summiert – überall „Fräsen-Pfad“ zuerst ausgeblendet, im Zahnrad vorhanden; Artikelinfo zeigt den Pfad (AK 9a, 9b). *(Fassung vor dem dritten Nachzug: „Besteller-Seite (Artikel per Nummer hinzufügen läuft weiter)“ – überholt, Antwort 24.)*
 - **TS-171.5 Blechdicke** – ohne Einstellungszeile → Wert aus `USER_OSBlechdicke` nach Dienst-Lauf; Zeile leer → „–“ + Hinweis (AK 9).
 - **TS-171.6 Werkbank-Option + Sichtbarkeit Lagerbestellungen** – Option ohne Teileliste abgewiesen; Status-Matrix Entwurf/abgeschickt/teilgeliefert/abgeschlossen/storniert; Termin = Abschicken + 10 AT über einen Feiertag; KW-Filter mit und ohne Treffer (AK 10–12).
 - **TS-171.7 Melden Lagerbestell-Zeile** – Einzel mit Ausschuss, Block gemischt mit FA-Zeilen, Summiert; DB-Kontrolle: keine StockMovements/BdeBookings, Lagerbestellung unverändert (AK 13, 17).
@@ -821,4 +844,23 @@ Befunde gegen die Spec (Koordination 2026-11-24, aus dem Dateiinhalt):
 
 Freigabe-Antwort:
 
-25. Zugang Pfleger: `fraesenpfad_pflegen` + `masterdata_read` (Rumpf) oder Lese-Gate nur für Artikelseiten? →
+25. Zugang Pfleger: `fraesenpfad_pflegen` + `masterdata_read` (Rumpf) oder Lese-Gate nur für Artikelseiten? → **(Gerald 2026-11-25) a reicht** – „der darf im Artikelstamm hinein, aber nur diesen Pfad pflegen, andere Stammdaten nicht“: `fraesenpfad_pflegen` + `masterdata_read`, kein Code am Filter; ändern darf er nur den Pfad.
+
+> [!note] Dritter Rumpf-Nachzug 2026-11-25
+> Antworten 24 und 25 eingearbeitet. 24: beide Lagerbestell-Seiten; „Fräsen-Pfad“ in **jeder** Stufe-1-Tabelle nur über die Spaltenauswahl,
+> Standard ausgeblendet (Regel unter F13, drei Quellen gleich inkl. `"defaultHidden": true` im View-JSON, B29). Besteller-Seite bekommt eine
+> Spaltenauswahl `WarehouseRequisitionItems` (Muster Wareneingang-Positionen, ohne Filter/CSV); `loadStock` liest die Artikelnummer über
+> `data-article` statt `row.cells[1]`. Korrektur B24/AK 9a: `cells[1]` diente nur der Lagerplatz-Anzeige, nicht dem Hinzufügen. 25: Variante a
+> ist im Rumpf unbedingt (F14, Lösung 3, Rollen, Ponytail), Manifest-Prüfung `Pruefung/FraesenpfadOhneStammdatenLesen` bleibt.
+> Geändert: Frontmatter (affected_code, open_questions: 24/25 raus, 26 neu), F13 (Tabelle + Regel), B24, B29 neu, Lösung 3, Umsetzungsreihenfolge
+> 2/4, Ponytail, Abhängigkeiten, Audit/Rollen, Listen-View-Pattern, AK 9a/9b/21, TS-171.4b.
+
+## Neue Rückfragen aus dem dritten Nachzug (2026-11-25)
+
+26. **(Gerald, nicht blockierend) Detailseiten:** Artikelinfo und „Artikel bearbeiten“ haben keine Spaltenauswahl; der Rumpf zeigt den Pfad dort
+    bei Schalter an immer (Zeile in den Stammdaten bzw. Karte unter dem Formular – der Pfleger braucht das Formular ohnehin). Passt das zu „default
+    nicht angezeigt“, oder soll der Pfad dort erst auf Klick erscheinen (z. B. eingeklappter Bereich)? Der Rumpf baut „immer sichtbar“.
+
+Freigabe-Antwort:
+
+26. Detailseiten Artikelinfo/Artikel bearbeiten: Pfad immer sichtbar (Rumpf) oder eingeklappt? →
