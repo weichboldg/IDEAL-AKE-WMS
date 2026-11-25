@@ -677,3 +677,57 @@ Jede Etappe: `frontend-design` explizit aufrufen, Kontrast messen, Ampel nie nur
 12. SQL/164-Koordination: Zweiter vereinigt die Filter → **Ja, Empfehlung uebernommen (Gerald 2026-11-25)**
 13. Master-Gate fuer Teile-Sicht → **Ja, Empfehlung uebernommen (Gerald 2026-11-25)**
 14. Pagination statt BdeTerminalMaxHauptFa → **Ja, Empfehlung uebernommen (Gerald 2026-11-25)**
+
+## Kritische Pruefung (2026-11-25)
+
+Grundlage: Spec-Stand `11895bf8`, Backlog [[2026-11-25-bde-masken-vereinheitlichung]], ADR 0026/0030, fallstricke, Code im Buendel-Worktree
+(Stichproben `BdeBookingService.cs:278-335`, `BdeTeilelisteService.cs:400-436`, `bde-terminal.js:671-727`, `fallstricke.md:1808`).
+Antworten 1–14 sind vollstaendig (jede mit Text, keine Entweder-oder-Frage nur mit „ja“) und im Rumpf eingearbeitet.
+
+### BLOCKER
+
+- **B-1 Teile-Sicht ohne `BdeTeileliste` oeffnet einen zweiten Meldeweg fuer dasselbe Teil.** Die Rework-Fassung macht die Teile-Sicht an **jeder**
+  Werkbank mit Kuerzel verfuegbar (E4-7, Helfer `TeileSichtVerfuegbar`, AK 31) und weitet das Gate „meldet ohne Zeit“ (`BdeBookingService.cs:288`)
+  entsprechend aus. Das hat Gerald so nicht entschieden – Antwort 3a trennt nur *Standardreiter* von *Datenwirkung*. Folge: An einer Werkbank, deren
+  Kuerzel Vater-AGs bekommt (`BdeTeileliste` aus, Erkennung V1 legt AGs an), kann ein Werker Blechteile im Teile-Reiter melden; diese Meldungen
+  schliessen den Vater-AG nie (die Spec loest das nur mit einem Warn-Banner, E4-7 letzter Punkt). Genau das Doppelweg-Problem, das Variante a
+  vermeiden sollte.
+  **Frage an Gerald:** Teile-Reiter **nur** an Werkbaenken mit `BdeTeileliste` an (dann ist `BdeTeileliste` = „Blechteile per Teilmeldung + Teile-Sicht“,
+  `BdeStandardsichtTeile` = nur Startreiter, „Teile“ als Standard nur mit `BdeTeileliste` speicherbar, Banner und AK 31 entfallen, Gate
+  `BdeBookingService.cs:288` bleibt inhaltlich wie heute) – **oder** an jeder Kuerzel-Werkbank mit Banner wie im Entwurf?
+  *Vorschlag der Pruefung: nur mit `BdeTeileliste`* (ein Meldeweg je Teil, kleinerer Diff, kein `IServiceSettingRepository` im `BdeBookingService` noetig
+  ausser fuers Master-Gate).
+
+### SOLLTE
+
+- **S-1 EF-Default-Falle bei `IstAbschliessend`.** `fallstricke.md:1808`: `HasDefaultValue` auf bool verschluckt ein explizites `false` beim Insert.
+  Mit `HasDefaultValue(true)` im Modell wuerde **jede** Teilfertig-Meldung abschliessend gespeichert. Vorschlag: DEFAULT (1) nur in Migration/SQL/168
+  und FreshInstall, im EF-Modell **kein** `HasDefaultValue`; `MeldeZeileAsync` setzt den Wert immer explizit. Gleiches fuer `BdeStandardsichtTeile`
+  (Default 0 ist zwar CLR-Default, trotzdem kein `HasDefaultValue` im Modell). Als AK ergaenzen: „Teilfertig-Meldung hat in der DB `IstAbschliessend = 0`“
+  (InMemory zeigt das nicht – Manual-UAT gegen SQL Server).
+- **S-2 Uebermeldung bei Teilfertig nicht geregelt.** Was passiert bei „Teilfertig“ mit Gut ≥ Restmenge bzw. Summe Gut > Soll? Vorschlag: erlaubt
+  (Mehrmenge kommt vor), Zeile bleibt offen, Hinweis im Ergebnis „Sollmenge erreicht – bitte Fertig melden“. In E3-1 und AK ergaenzen.
+- **S-3 Definition of Done Doku fehlt.** Die Spec nennt `docs/betrieb/09` (Handy), aber nicht `docs/anwender/` (BDE-Kapitel, neue Fotos per Playwright
+  gegen DEV) und Stand-Version im Index (CLAUDE.md, Definition of Done). In „Arbeitsweise“ je Etappe bzw. spaetestens Etappe 5 ergaenzen; die
+  Terminal-Fotos werden mit Etappe 5 ungueltig.
+- **S-4 Etappe 4 ist allein ein voller Lauf.** 20 Ablaeufe, Zeilenquelle-Extraktion aus `BdeApiController.cs:204-327`, Modal-Partials, neue Wirksamkeits-
+  Helfer mit Aufrufer-Umstellung, Werkbank-Maske. Vorschlag: Etappe 4 in **4a** (Helfer/Feld/Maske, Reiter, FA-Tabelle read-only + Anstempeln je Zeile)
+  und **4b** (Kopf-Buchungen, Modals, Scan, Taetigkeit) teilen – je eigener Commit, sonst bleibt bei Abbruch eine halbe FA-Sicht im Zweig.
+- **S-5 AK 26 ist nach Etappe 5 nicht mehr pruefbar** („wie im Terminal“ – die Vergleichsseite wird geloescht). Vorschlag: je Fall das erwartete
+  Verhalten ausschreiben (Kollision: Dialog „Arbeitsgang bereits in Arbeit“ mit Werkername, nichts gebucht; Gruppenpflicht: Tabelle aller FAs der
+  Gruppe, „Alle fertig melden“ bucht je FA eine IsFinal-Menge; Close-Others: Liste der anderen Werker, „Ja“ beendet deren Buchungen).
+- **S-6 Etappe 1/2 vor dem Datenmodell.** E1-1/AK 2 sprechen von „abschliessender Teilmeldung“, die es erst ab Etappe 3 gibt. Klarstellen: in Etappe 1–2
+  zaehlt jede nicht stornierte Meldung als abschliessend (heutiges Verhalten).
+
+### HINWEIS
+
+- H-1 Stichproben bestaetigt: `ReportCompletionCoreAsync` erzeugt heute immer `IsFinal = true` (`BdeBookingService.cs:330-331`), Ruecknahme storniert die
+  verknuepfte Buchung (`BdeTeilelisteService.cs:426-431`), `#activityModal`-Handler ist tot, `StartActivity` lebt ueber die Taetigkeitsliste
+  (`bde-terminal.js:671` vs. `:707-727`) – Ablaufliste Nr. 14 und Zusatzfund sind konsistent.
+- H-2 Laufzeit-Ticker (`bde-terminal.js:40-96`) entfaellt durch `location.reload()`-Muster; die Kopfzeile zeigt die Laufzeit nur zum Ladezeitpunkt. Bewusst
+  so akzeptieren oder einen kleinen Sekunden-Ticker im neuen JS vorsehen.
+- H-3 Antwort 2 („steht auf false“) ist fuer beide Standorte durch die Manifest-Pruefung `Pruefung/BdeNurFaMeldungAn` abgesichert – gut.
+- H-4 Versions-/TS-/SQL-Nummern sind vorlaeufig; die juengsten Commits zeigen v1.99.65 im Lauf – der Dev-Lauf muss neu zaehlen (steht drin).
+- H-5 AKE-DEV nur mit Worktree-Stand deployen (Memory/Projektregel), TS-194 nennt das bereits.
+
+**NACHBESSERUNG NOETIG: B-1 (Teile-Sicht nur mit `BdeTeileliste`?) entscheiden; S-1 und S-3 vor der Freigabe in den Rumpf ziehen.**
