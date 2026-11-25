@@ -11,6 +11,9 @@
     // v1.99.41 A8: Positionen (Haken, Menge, Entfernen, Hinzufuegen) in Entwurf und Uebergeben, Kopf nur im Entwurf
     // (Rueckfrage 10). Alle Eingaben gehoeren ueber form="entwurf-form" zu EINEM Formular mit EINEM Knopf „Speichern“,
     // obwohl sie in Kopf-Karte und Tabellen stehen (keine verschachtelten Formulare).
+    // v1.99.65: Entfernen in Uebergeben nur bei nicht verpackten Positionen (Workflow.Entfernbar); Verpackt und Entfernen
+    // schliessen sich aus (beschichtung-bemerkung.js sperrt, der Server lehnt ab); Uebergeben mit offenen Positionen fragt
+    // ueber #uebergeben-frage-modal.
     var bearbeitbar = Model.DarfSchreiben && BeschichtungsauftragWorkflow.PositionenAenderbar(a.Status);
     var kopfBearbeitbar = bearbeitbar && Model.IstEntwurf;
     string Menge(decimal m) => m.ToString("0.###", de);
@@ -106,7 +109,8 @@
                Stornieren bleibt eigene Anfrage mit Bestaetigung. *@
             if (bearbeitbar && ziel != BeschichtungsauftragStatus.Storniert)
             {
-                <button type="submit" form="entwurf-form" name="ziel" value="@ziel" class="btn btn-sm btn-primary" data-bemerkung-pruefen>Auf „@BeschichtungsauftragWorkflow.Anzeige(ziel)“ setzen</button>
+                <button type="submit" form="entwurf-form" name="ziel" value="@ziel" class="btn btn-sm btn-primary" data-bemerkung-pruefen
+                        data-uebergeben-frage="@(ziel == BeschichtungsauftragStatus.Uebergeben ? "true" : null)">Auf „@BeschichtungsauftragWorkflow.Anzeige(ziel)“ setzen</button>
                 continue;
             }
             <form method="post" asp-action="Status" asp-route-id="@a.Id" class="d-inline">
@@ -320,7 +324,7 @@
                         {
                             <span class="visually-hidden">@(p.Verpackt ? "verpackt" : "offen")</span>
                             <input type="checkbox" class="form-check-input" name="verpackt" value="@p.Id" form="entwurf-form" checked="@p.Verpackt"
-                                   aria-label="Position @BeschichtungsauftragWorkflow.PositionBezeichnung(p) verpackt" />
+                                   data-verpackt="@p.Id" data-bezeichnung="@BeschichtungsauftragWorkflow.PositionBezeichnung(p)" aria-label="Position @BeschichtungsauftragWorkflow.PositionBezeichnung(p) verpackt" />
                         }
                         else
                         {
@@ -330,8 +334,16 @@
                     @if (bearbeitbar)
                     {
                         <td class="text-center">
-                            <input type="checkbox" class="form-check-input" name="entfernen" value="@p.Id" form="entwurf-form"
-                                   aria-label="Position @p.Artnr entfernen" />
+                            @if (BeschichtungsauftragWorkflow.Entfernbar(a.Status, p.Verpackt))
+                            {
+                                <input type="checkbox" class="form-check-input" name="entfernen" value="@p.Id" form="entwurf-form"
+                                       data-entfernen="@p.Id" aria-label="Position @BeschichtungsauftragWorkflow.PositionBezeichnung(p) entfernen" />
+                            }
+                            else
+                            {
+                                @* v1.99.65 (Antwort R-2): verpackt in Uebergeben = nicht entfernbar; Text statt nur fehlender Checkbox *@
+                                <span class="small text-muted" title="In Übergeben lassen sich nur nicht verpackte Positionen entfernen">nicht entfernbar</span>
+                            }
                         </td>
                     }
                 </tr>
@@ -342,9 +354,39 @@
 
 @if (bearbeitbar)
 {
-    <div class="d-flex justify-content-end mt-2 mb-4">
-        <button type="submit" form="entwurf-form" class="btn btn-primary" data-bemerkung-pruefen>Speichern</button>
+    <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mt-2 mb-4">
+        <p class="form-text mb-0">
+            @(Model.IstEntwurf
+                ? "„Verpackt“ und „Entfernen“ schließen sich aus: Wer „Entfernen“ anhakt, sperrt „Verpackt“ dieser Zeile."
+                : "In Übergeben lassen sich nur nicht verpackte Positionen entfernen — auch hier hinzugefügte, solange sie nicht angehakt sind.")
+        </p>
+        <button type="submit" form="entwurf-form" class="btn btn-primary ms-auto" data-bemerkung-pruefen>Speichern</button>
     </div>
+
+    @if (Model.IstEntwurf)
+    {
+        @* v1.99.65 (Antwort R-1): Uebergeben mit offenen Positionen fragt (beschichtung-bemerkung.js); kein Browser-Dialog *@
+        <div class="modal fade" id="uebergeben-frage-modal" tabindex="-1" aria-labelledby="uebergeben-frage-titel" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="uebergeben-frage-titel">Nicht alle Positionen verpackt</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Abbrechen"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p><span data-uebergeben-anzahl></span> ohne Verpackt-Kennzeichen:</p>
+                        <ul class="mb-2" data-uebergeben-liste></ul>
+                        <p class="mb-0 small">Versendet geht erst, wenn alle Positionen verpackt sind. In Übergeben lassen sich offene Positionen noch entfernen.</p>
+                    </div>
+                    <div class="modal-footer flex-wrap">
+                        <button type="button" class="btn btn-outline-secondary me-auto" data-bs-dismiss="modal">Abbrechen</button>
+                        <button type="button" class="btn btn-outline-primary" data-uebergeben-wahl="beibehalten">Nicht verpackt beibehalten und übergeben</button>
+                        <button type="button" class="btn btn-primary" data-uebergeben-wahl="entfernen">Positionen ohne Verpackt-Kennzeichen entfernen und übergeben</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
 
     @* Positionsauswahl (Anforderung 4a): Erst-Entwurf = freie HauptFA-Positionen, Reklamations-Entwurf = noch nicht
        enthaltene Ursprungspositionen. Nichts vorausgewaehlt; Wert = Herkunftsschluessel, nie die Knoten-Id.

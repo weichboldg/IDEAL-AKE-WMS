@@ -144,7 +144,7 @@ public class BeschichtungsauftraegeController : Controller
 
     /// <summary>„Aus Vorschlagsliste erstellen" (v1.99.41 A1-A4): nur die angehakten Positionen (<paramref name="schluessel"/>,
     /// Ansicht Liste), Summiert-Zeilen (<paramref name="artnr"/> = alle freien Positionen dieser Artnr) und freie Positionen
-    /// ohne FA. Nichts angehakt = Warnung, kein Auftrag.</summary>
+    /// ohne FA. v1.99.65 B1: nichts angehakt = alle freien Positionen, offen (Workflow).</summary>
     [HttpPost]
     [ValidateAntiForgeryToken]
     [RequireBeschichtungsauftragWriteAccess]

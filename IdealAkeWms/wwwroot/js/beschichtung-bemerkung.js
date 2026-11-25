@@ -28,4 +28,64 @@
             e.stopImmediatePropagation();
         }
     }, true);
+
+    // v1.99.65 B4: „Verpackt“ und „Entfernen“ schliessen sich aus. Entfernen angehakt => Verpackt derselben Zeile abgehakt und
+    // gesperrt (disabled = fuer Screenreader gesperrt, title nennt den Grund); Entfernen geloest => Verpackt wieder frei.
+    // Der Server lehnt den Widerspruch zusaetzlich ab (Workflow.BearbeitenAsync).
+    function verpacktZu(id) { return document.querySelector('[data-verpackt="' + id + '"]'); }
+    document.addEventListener('change', function (e) {
+        var entf = e.target.closest('[data-entfernen]');
+        var v = entf && verpacktZu(entf.getAttribute('data-entfernen'));
+        if (!v) return;
+        if (entf.checked) v.checked = false;
+        v.disabled = entf.checked;
+        if (entf.checked) v.title = 'Wird entfernt'; else v.removeAttribute('title');
+    });
+
+    // v1.99.65 (Antwort R-1): „Auf Übergeben setzen“ mit offenen Positionen fragt per Bootstrap-Modal: offene entfernen und
+    // uebergeben, oder offen beibehalten und uebergeben. Offen = Verpackt nicht angehakt und nicht schon zum Entfernen markiert.
+    var modalEl = document.getElementById('uebergeben-frage-modal');
+    if (!entwurf || !modalEl || !window.bootstrap) return;
+    var modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+    var knopf = null;
+    function offene() {
+        return Array.prototype.filter.call(document.querySelectorAll('[data-verpackt]'), function (v) {
+            var entf = document.querySelector('[data-entfernen="' + v.getAttribute('data-verpackt') + '"]');
+            return !v.checked && !(entf && entf.checked);
+        });
+    }
+    function dienstleisterGesetzt() {
+        var k = document.getElementById('creditorId'), d = document.getElementById('dienstleister');
+        if (!k && !d) return true;   // Kopf nicht bearbeitbar: Server entscheidet
+        return !!((k && k.value) || (d && d.value.trim()));
+    }
+    document.addEventListener('click', function (e) {
+        var ziel = e.target.closest('[data-uebergeben-frage]');
+        if (!ziel) return;
+        var liste = offene();
+        if (liste.length === 0 || !dienstleisterGesetzt()) return;   // ohne Dienstleister lehnt der Server zuerst ab – nichts entfernen
+        e.preventDefault();
+        knopf = ziel;
+        modalEl.querySelector('[data-uebergeben-anzahl]').textContent =
+            liste.length === 1 ? '1 Position' : liste.length + ' Positionen';
+        var ul = modalEl.querySelector('[data-uebergeben-liste]');
+        ul.replaceChildren.apply(ul, liste.map(function (v) {
+            var li = document.createElement('li');
+            li.textContent = v.getAttribute('data-bezeichnung');
+            return li;
+        }));
+        modal.show();
+    });
+    modalEl.addEventListener('click', function (e) {
+        var wahl = e.target.closest('[data-uebergeben-wahl]');
+        if (!wahl || !knopf) return;
+        if (wahl.getAttribute('data-uebergeben-wahl') === 'entfernen') {
+            offene().forEach(function (v) {
+                var entf = document.querySelector('[data-entfernen="' + v.getAttribute('data-verpackt') + '"]');
+                if (entf) { entf.checked = true; entf.dispatchEvent(new Event('change', { bubbles: true })); }
+            });
+        }
+        wahl.disabled = true;
+        entwurf.requestSubmit(knopf);   // sendet ziel=Uebergeben wie der Knopf selbst (Speichern, dann Statuswechsel)
+    });
 })();

@@ -1,6 +1,6 @@
 # 15 Beschichtung – Vorschlagsliste und Beschichtungsauftrag
 
-Stand: Version 1.99.56 · Standorte AKE und IDEAL · Bilder aus dem IDEAL-Testsystem
+Stand: Version 1.99.65 · Standorte AKE und IDEAL · Bilder aus dem IDEAL-Testsystem
 
 ## Zweck
 
@@ -34,7 +34,8 @@ Den Auftrag findet man am schnellsten über den Spaltenfilter **HauptFA**.
 
 ### 2. Teile anhaken – Spalte „Verpackt“
 
-In der letzten Spalte **Verpackt** die Teile anhaken, die jetzt zum Lackierer gehen.
+In der letzten Spalte **Verpackt** die Teile anhaken, die jetzt zum Lackierer gehen. Das ist freiwillig (seit 1.99.65): Ohne Haken
+kommen alle freien Teile in den Entwurf, und abgehakt wird dort beim Packen (siehe Schritt 4).
 
 - Ein Haken in der Ansicht *Summiert* nimmt **alle freien** Positionen dieses Artikels im Auftrag.
 - „vergeben“ und kein Kästchen: Die Teile stecken schon in einem Beschichtungsauftrag.
@@ -49,11 +50,12 @@ Im Gruppenkopf **+ Position ohne FA** klicken. Es erscheint eine Zeile mit **Art
 
 ### 4. Auftrag anlegen
 
-Im Gruppenkopf **Aus Vorschlagsliste erstellen** klicken. Der neue Auftrag öffnet sich als **Entwurf** – mit genau den angehakten
-Positionen, alle als *verpackt* markiert. Was nicht angehakt war, bleibt in der Vorschlagsliste frei.
+Im Gruppenkopf **Aus Vorschlagsliste erstellen** klicken. Der neue Auftrag öffnet sich als **Entwurf**:
 
+- **Mit Haken:** genau die angehakten Positionen, alle als *verpackt* markiert. Was nicht angehakt war, bleibt in der Vorschlagsliste frei.
+- **Ohne Haken** (seit 1.99.65): alle freien Positionen dieses Auftrags, alle *offen* (☐). Der Entwurf ist dann die Packliste: beim Packen
+  **Verpackt** anhaken, Teile, die nicht mitgehen, **Entfernen**. Sind schon Teile in einem anderen Auftrag, nennt ein gelber Hinweis sie.
 - Den Knopf sieht nur, wer Schreibrecht hat, und nur solange noch Positionen frei sind.
-- Nichts angehakt: „Keine Position angehakt — nichts angelegt.“
 
 ### 5. Entwurf ausfüllen
 
@@ -64,7 +66,9 @@ Im Auftrag oben links den **Kopf** ausfüllen:
   **Beschichter pflegen** (Stammdatenrecht) nachtragen.
 - Kein Kreditor? **— kein Kreditor, Freitext unten —** wählen und **Dienstleister (Freitext, nur ohne Kreditor)** ausfüllen.
 - **RAL**, **Start Beschichtung**, **Retour** prüfen.
-- Mengen, Haken **Verpackt** und **Entfernen** in der Positionstabelle anpassen, dann **Speichern**.
+- Mengen, Haken **Verpackt** und **Entfernen** in der Positionstabelle anpassen, dann **Speichern**. Je Zeile gilt **Verpackt oder
+  Entfernen** (seit 1.99.65): Wer *Entfernen* anhakt, sieht *Verpackt* derselben Zeile abgehakt und gesperrt; *Entfernen* lösen gibt
+  es wieder frei.
 - Unter **Positionen hinzufügen** stehen die noch freien Positionen dieses Auftrags, darunter **Positionen ohne FA**.
 
 Die **Bemerkung** rechts hat einen eigenen Knopf **Bemerkung speichern**. Ist sie geändert, aber nicht gespeichert, steht
@@ -72,7 +76,7 @@ Die **Bemerkung** rechts hat einen eigenen Knopf **Bemerkung speichern**. Ist si
 fortfahren?“
 
 Seit 1.99.56 **speichern die Statusknöpfe** (außer Stornieren) geänderte Mengen und Haken **mit**, bevor sie den Status setzen – ein
-eigenes **Speichern** davor ist nicht mehr nötig. Lehnt der Status ab (z. B. noch nicht alles verpackt), ist trotzdem gespeichert:
+eigenes **Speichern** davor ist nicht mehr nötig. Lehnt der Status ab (z. B. Dienstleister fehlt), ist trotzdem gespeichert:
 Meldung „Gespeichert.“ plus gelbe Warnung. **Drucken** und **PDF** fragen bei ungespeicherten Positionen nach, weil der Druck den
 gespeicherten Stand zeigt.
 
@@ -85,7 +89,15 @@ Oben im Auftrag zeigt der **Statusverlauf** jeden Schritt mit Zeit und Benutzer.
 ![Auftrag im Status Übergeben: Statusverlauf, Kopf, Positionen](bilder/15-04-auftrag-uebergeben.jpg)
 
 1. **Auf „Übergeben“ setzen** – geht nur mit Dienstleister (Kreditor oder Freitext). Sonst: „Dienstleister fehlt — zum Übergeben
-   erforderlich.“ Ab jetzt ist der Kopf fest; Positionen (Menge, Haken, Entfernen, Hinzufügen) lassen sich noch ändern.
+   erforderlich.“ Sind noch Positionen ohne Haken *Verpackt*, fragt ein Fenster „Nicht alle Positionen verpackt“ und listet sie
+   (seit 1.99.65):
+   - **Positionen ohne Verpackt-Kennzeichen entfernen und übergeben** – die offenen Teile kommen aus dem Auftrag und sind in der
+     Vorschlagsliste wieder frei.
+   - **Nicht verpackt beibehalten und übergeben** – die offenen Teile bleiben im Auftrag; vor *Versendet* müssen sie angehakt werden.
+   - **Abbrechen** – nichts passiert, der Auftrag bleibt im Entwurf.
+
+   Ab jetzt ist der Kopf fest. Menge, Haken und Hinzufügen lassen sich noch ändern. **Entfernen** geht nur noch bei Positionen
+   **ohne** Haken *Verpackt*; verpackte zeigen „nicht entfernbar“.
 2. **Drucken** oder **PDF** – das Blatt geht mit den Teilen zum Lackierer (siehe Abschnitt 7).
 3. **Auf „Versendet“ setzen** – geht nur, wenn **alle** Positionen verpackt sind. Sonst nennt die Meldung die offenen Positionen
    („Versendet nur, wenn alle Positionen verpackt sind — nicht verpackt (2): …“). Haken setzen, **Speichern**, erneut versenden.
@@ -142,7 +154,12 @@ Storniert) und der Spalte **Versendet am**. **Zur Vorschlagsliste** führt zurü
 ## Häufige Fragen
 
 **Ich habe einen Teil vergessen. Muss ich einen neuen Auftrag anlegen?** Nein, solange der Auftrag *Entwurf* oder *Übergeben* ist: unten
-unter **Positionen hinzufügen** anhaken und **Speichern**.
+unter **Positionen hinzufügen** anhaken und **Speichern**. Die neue Position ist *offen*; vor *Versendet* anhaken.
+
+**Ein Teil geht doch nicht mit, der Auftrag ist schon übergeben.** Ist die Position noch nicht verpackt: **Entfernen** anhaken und
+**Speichern**. Eine verpackte Position bleibt im übergebenen Auftrag (seit 1.99.65).
+
+**Kann ich „Aus Vorschlagsliste erstellen“ ohne Haken klicken?** Ja (seit 1.99.65). Dann stehen alle freien Positionen offen im Entwurf.
 
 **Warum lässt sich der Auftrag nicht auf „Versendet“ setzen?** Mindestens eine Position hat keinen Haken *Verpackt*. Die Meldung nennt sie.
 

@@ -141,15 +141,17 @@ public class BeschichtungsauftraegeControllerTests
     // ===================== Anlage nur mit Auswahl (v1.99.41 A1-A4, AK 1-6) =====================
 
     [Fact]
-    public async Task Create_NichtsAngehakt_Warnung_KeinAuftrag()
+    public async Task Create_NichtsAngehakt_AlleFreienOffen()
     {
+        // v1.99.65 B1: ohne Haken alle freien beschichteten Positionen, offen (Verpackt false)
         var c = Ctrl();
 
         var r = (RedirectToActionResult)await c.Create(HauptFa, "Index", null, new[] { " " }, new[] { "" }, new[] { "" });
 
-        (r.ControllerName, r.ActionName).Should().Be(("FaHierarchyBeschichtung", "Index"));
-        Warnung(c).Should().Be("Keine Position angehakt — nichts angelegt.");
-        _db.Beschichtungsauftraege.Should().BeEmpty();
+        r.ActionName.Should().Be("Details", Warnung(c));
+        var a = Laden((int)r.RouteValues!["id"]!);
+        a.Positionen.Should().HaveCount(3).And.OnlyContain(p => !p.Verpackt);
+        (Warnung(c) ?? "").Should().NotContain("Keine Position angehakt");
     }
 
     [Fact]
@@ -340,6 +342,21 @@ public class BeschichtungsauftraegeControllerTests
         ok.Should().Be(fehlerText is null);
         if (fehlerText is null) frei.Should().Equal(new FreiePosition(5, 3m));
         else fehler.Should().Contain(fehlerText);
+    }
+
+    [Fact]
+    public async Task Bearbeiten_Uebergeben_VerpackteEntfernen_Warnung_NichtsGeaendert()
+    {
+        // v1.99.65 (Antwort R-2): in Uebergeben nur nicht verpackte Positionen entfernbar
+        var a = await Status(await Anlegen(), BeschichtungsauftragStatus.Uebergeben);
+        var p1 = a.Positionen.First();
+        var c = Ctrl();
+
+        await c.Bearbeiten(a.Id, null, null, null, null, null, new[] { p1.Id }, Rv(a), nurPositionen: true, hakenGesendet: true,
+            verpackt: a.Positionen.Where(p => p.Id != p1.Id).Select(p => p.Id).ToArray());
+
+        Warnung(c).Should().Contain("nur nicht verpackte");
+        Laden(a.Id).Positionen.Should().HaveCount(3).And.OnlyContain(p => p.Verpackt);
     }
 
     [Fact]

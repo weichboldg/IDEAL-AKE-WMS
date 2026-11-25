@@ -3,7 +3,7 @@
    Auftraege (Erst- und Reklamationsauftraege, Status ≠ Storniert) als Links; Button „Aus Vorschlagsliste erstellen" nur
    mit Schreibrecht UND freien Positionen — bei Teilvergabe Nummer(n) und Button. Geteilt von Index.cshtml und Summiert.cshtml.
    v1.99.41 A1-A4: Formular-Id besch-create-{HauptFA}; die Haken der Zeilen (letzte Spalte) und die Zeilen „Position ohne FA“
-   gehoeren ueber form="…" dazu. Angelegt wird nur, was angehakt ist. *@
+   gehoeren ueber form="…" dazu. Angehakt = nur diese, verpackt; v1.99.65 B1: ohne Haken alle freien Positionen, offen. *@
 @if (Model.Info.Auftraege.Any())
 {
     <span class="ms-2">
@@ -25,7 +25,7 @@
         <input type="hidden" name="hauptFa" value="@Model.HauptFA" />
         <input type="hidden" name="zurueck" value="@Model.Zurueck" />
         <button type="submit" class="btn btn-sm btn-primary py-0"
-                title="Auftrag im Entwurf mit den angehakten Positionen (Spalte „Verpackt“) und den Positionen ohne FA von HauptFA @Model.HauptFA anlegen">Aus Vorschlagsliste erstellen</button>
+                title="Auftrag im Entwurf für HauptFA @Model.HauptFA anlegen: mit den angehakten Positionen (verpackt) — ohne Haken mit allen freien Positionen (offen) — plus Positionen ohne FA">Aus Vorschlagsliste erstellen</button>
     </form>
     <div class="mt-1">
         <partial name="_BeschichtungFreiePositionen" model="formId" />

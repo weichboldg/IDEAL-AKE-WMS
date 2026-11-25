@@ -1433,16 +1433,20 @@
                 <ol>
                     <li><em>Beschichtung &rarr; Vorschlagsliste</em> öffnen.</li>
                     <li>Den HauptFA suchen, z.&nbsp;B. über den Spaltenfilter <em>HauptFA</em>.</li>
-                    <li>In der letzten Spalte <strong>Verpackt</strong> die Positionen anhaken, die mitgehen (seit v1.99.41). Teile ohne
-                        Fertigungsauftrag über <strong>&bdquo;+ Position ohne FA&ldquo;</strong> im Gruppenkopf dazunehmen (Artikel suchen,
+                    <li>Wahlweise in der letzten Spalte <strong>Verpackt</strong> die Positionen anhaken, die mitgehen (seit v1.99.41). Teile
+                        ohne Fertigungsauftrag über <strong>&bdquo;+ Position ohne FA&ldquo;</strong> im Gruppenkopf dazunehmen (Artikel suchen,
                         Menge eingeben).</li>
                     <li>Im Gruppenkopf <strong>&bdquo;Aus Vorschlagsliste erstellen&ldquo;</strong> klicken &mdash; der neue Auftrag
-                        öffnet sich als <em>Entwurf</em> mit genau den angehakten Positionen (alle verpackt).</li>
+                        öffnet sich als <em>Entwurf</em>. Mit Haken enthält er genau die angehakten Positionen (alle verpackt). Seit v1.99.65
+                        geht es auch <strong>ohne Haken</strong>: dann stehen alle freien Positionen des HauptFA im Entwurf, alle
+                        &bdquo;offen&ldquo; &mdash; beim Packen im Entwurf abhaken (der Entwurf ist die Packliste).</li>
                     <li>Lackierer aus der Liste wählen (oder Freitext), RAL, Start, Retour und Mengen prüfen und
                         <strong>&bdquo;Speichern&ldquo;</strong>.</li>
                     <li><strong>&bdquo;Auf &bdquo;Übergeben&ldquo; setzen&ldquo;</strong> klicken. Seit v1.99.56 speichert der Status-Knopf die
-                        Eingaben mit &mdash; vorher Speichern oder ENTER ist nicht nötig. Scheitert nur der Statuswechsel (z.&nbsp;B.
-                        Dienstleister leer, nicht alles verpackt), ist trotzdem gespeichert und ein gelber Hinweis nennt den Grund.
+                        Eingaben mit &mdash; vorher Speichern oder ENTER ist nicht nötig. Sind noch Positionen nicht verpackt, fragt das WMS
+                        (seit v1.99.65): <strong>&bdquo;Positionen ohne Verpackt-Kennzeichen entfernen und übergeben&ldquo;</strong> oder
+                        <strong>&bdquo;Nicht verpackt beibehalten und übergeben&ldquo;</strong> (oder Abbrechen). Scheitert nur der
+                        Statuswechsel (z.&nbsp;B. Dienstleister leer), ist trotzdem gespeichert und ein gelber Hinweis nennt den Grund.
                         Drucken/PDF fragen nach, wenn Eingaben noch nicht gespeichert sind.</li>
                     <li><strong>Drucken</strong> oder <strong>PDF</strong> &mdash; das Dokument geht mit den Teilen zum Lackierer.</li>
                     <li>Sind alle Positionen verpackt (Haken gesetzt): <strong>Versendet</strong> setzen.</li>
@@ -1475,8 +1479,11 @@
                         zeigt jeden Schritt mit Zeit und Benutzer. Übergeben &rarr; Erledigt direkt geht nicht mehr.</li>
                     <li><strong>Haken &bdquo;Verpackt&ldquo;:</strong> In der Vorschlagsliste wählt der Haken aus, was in den Auftrag kommt
                         (er wird nicht gespeichert; Neuladen oder der Schalter &bdquo;auch kommissionierte zeigen&ldquo; setzt ihn zurück).
-                        Am Auftrag ist er gespeichert: was aus dem Vorschlag kommt, ist verpackt; später hinzugefügte und reklamierte
-                        Positionen sind &bdquo;offen&ldquo;.</li>
+                        Am Auftrag ist er gespeichert: angehakt aus dem Vorschlag übernommene Positionen sind verpackt; ohne Haken
+                        angelegte (v1.99.65), später hinzugefügte und reklamierte Positionen sind &bdquo;offen&ldquo;.</li>
+                    <li><strong>Verpackt oder Entfernen</strong> (seit v1.99.65): je Position nur eines. Wer &bdquo;Entfernen&ldquo; anhakt,
+                        sieht &bdquo;Verpackt&ldquo; derselben Zeile abgehakt und gesperrt; Entfernen lösen gibt es wieder frei. Kommt
+                        beides trotzdem an, lehnt das WMS die Änderung ab und nennt die Position.</li>
                     <li><strong>Position ohne FA:</strong> ein Artikel ohne Fertigungsauftrag mit eigener Menge; Maße an der AKE aus dem
                         Sage-Artikel (mm), an der IDEAL 0 mit Hinweis. Sie zählt nie als &bdquo;vergeben&ldquo; &mdash; derselbe Artikel
                         darf in mehreren Aufträgen stehen.</li>
@@ -1486,8 +1493,10 @@
                         hinzufügen&ldquo; stehen die freien Positionen des HauptFA, darunter &bdquo;Positionen ohne FA&ldquo;. An der IDEAL
                         ist der Lackierer vorbelegt, wenn der Sage-Dienstleister genau dem Kurznamen eines aktiven Beschichters
                         entspricht; sonst steht ein Hinweis. Weicht der Dienstleister von Sage ab, steht der Sage-Wert darunter.</li>
-                    <li><strong>Übergeben:</strong> nur mit Dienstleister. Kopf (Lackierer, RAL, Termine) ist fest; Positionen (Haken, Menge,
-                        Entfernen, Hinzufügen) lassen sich noch ändern. Seit v1.99.42: hat der Auftrag noch keinen Kreditor (ältere Aufträge),
+                    <li><strong>Übergeben:</strong> nur mit Dienstleister; offene Positionen erst nach der Rückfrage (entfernen oder
+                        beibehalten). Kopf (Lackierer, RAL, Termine) ist fest; Haken, Menge und Hinzufügen lassen sich noch ändern.
+                        <strong>Entfernen nur noch bei nicht verpackten Positionen</strong> (seit v1.99.65) &mdash; verpackte zeigen
+                        &bdquo;nicht entfernbar&ldquo;. Seit v1.99.42: hat der Auftrag noch keinen Kreditor (ältere Aufträge),
                         steht unter Dienstleister &bdquo;Lackierer (Kreditor) nachtragen&ldquo; &ndash; einmal wählen und speichern, dann ist er fest.</li>
                     <li><strong>Versendet:</strong> nur wenn alle Positionen verpackt sind &mdash; sonst nennt die Meldung die offenen
                         Positionen. Ab hier sind nur noch Status und Bemerkung änderbar.</li>
@@ -1534,8 +1543,13 @@
                         ausgeschaltet &mdash; an den Admin wenden.</li>
                     <li><strong>&bdquo;Dienstleister fehlt &hellip;&ldquo;:</strong> Dienstleister eintragen, speichern, dann
                         übergeben.</li>
-                    <li><strong>&bdquo;Keine Position angehakt &mdash; nichts angelegt.&ldquo;:</strong> In der Spalte <em>Verpackt</em>
-                        mindestens eine Position anhaken oder eine Position ohne FA eintragen.</li>
+                    <li><strong>Übergeben fragt &bdquo;Nicht alle Positionen verpackt&ldquo;:</strong> Die Liste nennt die offenen Positionen.
+                        Abbrechen und anhaken, oder entfernen bzw. beibehalten wählen. Beibehaltene müssen vor <em>Versendet</em> angehakt
+                        oder (in Übergeben) entfernt werden.</li>
+                    <li><strong>&bdquo;&hellip; ist verpackt &mdash; in Übergeben lassen sich nur nicht verpackte Positionen entfernen&ldquo;:</strong>
+                        Eine verpackte Position bleibt im übergebenen Auftrag; nichts wurde gespeichert.</li>
+                    <li><strong>&bdquo;&hellip; &bdquo;Verpackt&ldquo; und &bdquo;Entfernen&ldquo; zugleich angehakt&ldquo;:</strong> Bei der
+                        genannten Position nur eines wählen, erneut speichern; nichts wurde gespeichert.</li>
                     <li><strong>Versendet abgelehnt:</strong> Die Meldung nennt die offenen Positionen &mdash; Haken setzen, speichern,
                         erneut versenden.</li>
                     <li><strong>Lackierer-Liste leer:</strong> Kein aktiver Kreditor ist als &bdquo;Beschichter&ldquo; gekennzeichnet &mdash;

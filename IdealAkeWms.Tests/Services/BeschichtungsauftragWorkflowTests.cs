@@ -371,12 +371,45 @@ public class BeschichtungsauftragWorkflowTests
     // ===== Versendet (v1.99.41, Spec 2026-11-18-beschichtungsauftrag-ausbau A5/A6) =====
 
     [Fact]
-    public async Task Anlegen_PositionenAusVorschlag_SindVerpackt()
+    public async Task Anlegen_OhneAuswahl_AlleFreienOffen()
     {
+        // v1.99.65 B1: Pfad null = alle freien, offen
         var fx = new Fx();
         fx.Standard();
         var a = await fx.Anlegen();
-        a.Positionen.Should().OnlyContain(p => p.Verpackt && !p.OhneFa);
+        a.Positionen.Should().HaveCount(3).And.OnlyContain(p => !p.Verpackt && !p.OhneFa);
+    }
+
+    [Fact]
+    public async Task Anlegen_LeereAuswahl_AlleFreienOffen_HinweisVergebene()
+    {
+        // v1.99.65 B1 / AK 1-3: leere Auswahl wie null; Teilvergabe nimmt nur die freien, Hinweis nennt die vergebenen
+        var fx = new Fx();
+        fx.Standard();
+        var erster = await fx.Wf.AnlegenAsync(HauptFa, new VorschlagAuswahl(
+            new[] { new PositionsSchluessel(100, 0, 1) }, Array.Empty<string>(), Array.Empty<FreiePosition>()));
+        erster.Auftrag!.Positionen.Should().ContainSingle().Which.Verpackt.Should().BeTrue("mit Haken bleibt A3: verpackt");
+
+        var r = await fx.Wf.AnlegenAsync(HauptFa, new VorschlagAuswahl(
+            Array.Empty<PositionsSchluessel>(), Array.Empty<string>(), Array.Empty<FreiePosition>()));
+
+        r.Fehler.Should().BeEmpty();
+        r.Auftrag!.Positionen.Select(p => p.Position).Should().BeEquivalentTo(new int?[] { 2, 3 });
+        r.Auftrag.Positionen.Should().OnlyContain(p => !p.Verpackt);
+        r.Hinweise.Should().ContainSingle(h => h.Contains(erster.Auftrag.Nummer));
+    }
+
+    [Fact]
+    public async Task Uebergeben_MitOffenenPositionen_Erlaubt_SperreErstBeiVersendet()
+    {
+        // v1.99.65 Antwort R-1: beim Uebergeben fragt die Maske; die harte Sperre greift erst bei Versendet
+        var fx = new Fx();
+        fx.Standard();
+        var a = await fx.Anlegen();
+
+        (await fx.Wf.StatusWechselnAsync(a.Id, BeschichtungsauftragStatus.Uebergeben, a.RowVersion)).Fehler.Should().BeEmpty();
+        (await fx.Wf.StatusWechselnAsync(a.Id, BeschichtungsauftragStatus.Versendet, a.RowVersion)).Fehler.Single()
+            .Should().Contain("nicht verpackt (3)");
     }
 
     [Fact]
@@ -427,12 +460,15 @@ public class BeschichtungsauftragWorkflowTests
         var fx = new Fx();
         fx.Standard();
         var a = await fx.Anlegen();
-        await fx.Status(a, BeschichtungsauftragStatus.Uebergeben);
-        var neu = PositionsSchluessel.Von(fx.Node(100, 0, 5, artnr: "A5"));
-        var art = Artikel(fx, "F-1", "Blech frei");
         var p1 = a.Positionen.Single(p => p.Position == 1);
         var p2 = a.Positionen.Single(p => p.Position == 2);
         var p3 = a.Positionen.Single(p => p.Position == 3);
+        // v1.99.65: Anlage ohne Auswahl ist offen; p1/p2 verpackt, p3 offen (in Uebergeben nur offene entfernbar)
+        p1.Verpackt = p2.Verpackt = true;
+        await fx.Db.SaveChangesAsync();
+        await fx.Status(a, BeschichtungsauftragStatus.Uebergeben);
+        var neu = PositionsSchluessel.Von(fx.Node(100, 0, 5, artnr: "A5"));
+        var art = Artikel(fx, "F-1", "Blech frei");
         fx.Time.Now = fx.Time.Now.AddHours(1);
 
         var r = await fx.Wf.BearbeitenAsync(a.Id, null, new Dictionary<int, decimal> { [p1.Id] = 7m }, new[] { p3.Id }, a.RowVersion,
@@ -454,6 +490,62 @@ public class BeschichtungsauftragWorkflowTests
         var vergaben = await fx.Repo.GetVergabenAsync(HauptFa);
         vergaben.Should().NotContain(v => v.Schluessel == PositionsSchluessel.Von(p3), "entfernte Position ist sofort frei");
         vergaben.Should().HaveCount(3, "Pos 1, 2, 5 — die freie Position zaehlt nie als Vergabe");
+    }
+
+    [Fact]
+    public async Task Bearbeiten_InUebergeben_VerpackteEntfernen_Abgelehnt_NichtsGeaendert()
+    {
+        // v1.99.65 Antwort R-2: in Uebergeben nur nicht verpackte (gespeicherter Stand) entfernbar
+        var fx = new Fx();
+        fx.Standard();
+        var a = await fx.Anlegen();
+        var p1 = a.Positionen.Single(p => p.Position == 1);
+        p1.Verpackt = true;
+        await fx.Db.SaveChangesAsync();
+        await fx.Status(a, BeschichtungsauftragStatus.Uebergeben);
+
+        // Haken im selben POST geloest: zaehlt nicht, massgeblich ist der gespeicherte Stand
+        var r = await fx.Wf.BearbeitenAsync(a.Id, null, new Dictionary<int, decimal> { [p1.Id] = 9m }, new[] { p1.Id }, a.RowVersion,
+            verpacktIds: Array.Empty<int>());
+
+        r.Fehler.Single().Should().Contain("A1 (Pos. 1)").And.Contain("nur nicht verpackte");
+        a.Positionen.Should().HaveCount(3);
+        (p1.Menge, p1.Verpackt).Should().Be((2m, true));
+    }
+
+    [Fact]
+    public async Task Bearbeiten_InUebergeben_OffeneEntfernen_SofortFrei()
+    {
+        var fx = new Fx();
+        fx.Standard();
+        var a = await fx.Anlegen();
+        await fx.Status(a, BeschichtungsauftragStatus.Uebergeben);
+        var p2 = a.Positionen.Single(p => p.Position == 2);
+
+        (await fx.Wf.BearbeitenAsync(a.Id, null, KeineMengen, new[] { p2.Id }, a.RowVersion, verpacktIds: Array.Empty<int>()))
+            .Fehler.Should().BeEmpty();
+
+        a.Positionen.Should().HaveCount(2);
+        (await fx.Repo.GetVergabenAsync(HauptFa)).Should().NotContain(v => v.Schluessel == PositionsSchluessel.Von(p2));
+    }
+
+    [Theory]
+    [InlineData(BeschichtungsauftragStatus.Entwurf)]
+    [InlineData(BeschichtungsauftragStatus.Uebergeben)]
+    public async Task Bearbeiten_VerpacktUndEntfernenGleicheId_Abgelehnt_NichtsGeaendert(BeschichtungsauftragStatus status)
+    {
+        // v1.99.65 B4: entweder verpackt oder entfernen, nie beides — der Server nennt die Position
+        var fx = new Fx();
+        fx.Standard();
+        var a = await fx.Anlegen();
+        if (status == BeschichtungsauftragStatus.Uebergeben) await fx.Status(a, status);
+        var p2 = a.Positionen.Single(p => p.Position == 2);
+
+        var r = await fx.Wf.BearbeitenAsync(a.Id, null, KeineMengen, new[] { p2.Id }, a.RowVersion, verpacktIds: new[] { p2.Id });
+
+        r.Fehler.Single().Should().Contain("A2 (Pos. 2)").And.Contain("„Verpackt“ und „Entfernen“");
+        a.Positionen.Should().HaveCount(3);
+        p2.Verpackt.Should().BeFalse();
     }
 
     [Fact]

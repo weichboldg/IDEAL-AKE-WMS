@@ -106,21 +106,20 @@ public class BeschichtungsauftragWorkflow
 
     // ===================== Anlegen (Anforderungen 2, 4, 6, 7, 8) =====================
 
-    /// <summary>Legt einen Erstauftrag fuer den HauptFA an. <paramref name="auswahl"/> null = alle aktuell beschichteten FREIEN
-    /// Positionen; sonst (v1.99.41 A3) genau die angehakten Positionen, Summiert-Artnr (= ihre freien Positionen) und freien
-    /// Positionen ohne FA. Teilweise ungueltige Auswahl = nichts angelegt (keine Nummer verbraucht).</summary>
+    /// <summary>Legt einen Erstauftrag fuer den HauptFA an. <paramref name="auswahl"/> null oder leer (v1.99.65 B1) = alle aktuell
+    /// beschichteten FREIEN Positionen, offen; sonst (v1.99.41 A3) genau die angehakten Positionen, Summiert-Artnr (= ihre freien
+    /// Positionen) und freien Positionen ohne FA, verpackt. Teilweise ungueltige Auswahl = nichts angelegt (keine Nummer verbraucht).</summary>
     public Task<BeschichtungsauftragErgebnis> AnlegenAsync(int hauptFa, VorschlagAuswahl? auswahl = null) =>
-        auswahl is { IstLeer: true }
-            ? Task.FromResult(Fehler("Keine Position angehakt — nichts angelegt."))
-            : MitNummernVersuchenAsync(serializable: true, async () =>
+        MitNummernVersuchenAsync(serializable: true, async () =>
         {
             var r = new BeschichtungsauftragErgebnis();
+            var alle = auswahl is null || auswahl.IstLeer;
             var flach = await _flach.IstFlachAsync();
             var flachePositionen = flach ? await _flach.LadenAsync(new[] { hauptFa }) : null;
             var beschichtet = (flachePositionen?.Knoten ?? await _nodes.GetByHauptFaAsync(hauptFa)).Where(n => n.Beschichtet).ToList();
-            var positionen = auswahl is null
+            var positionen = alle
                 ? AlleFreien(hauptFa, beschichtet, flach, VergabenJeSchluessel(await _repo.GetVergabenAsync(hauptFa)), r)
-                : await AuswahlAsync(hauptFa, beschichtet, auswahl, r);
+                : await AuswahlAsync(hauptFa, beschichtet, auswahl!, r);
             if (!r.Erfolg) return r;
 
             var auftrag = new Beschichtungsauftrag { HauptFA = hauptFa, Status = BeschichtungsauftragStatus.Entwurf };
@@ -134,8 +133,9 @@ public class BeschichtungsauftragWorkflow
                 KopfVorbelegen(auftrag, await _infos.GetByHauptFaAsync(hauptFa), r);
                 KreditorVorbelegen(auftrag, await _repo.GetBeschichterAsync(), r);
             }
-            // A3: was aus der Vorschlagsauswahl kommt, ist verpackt (Haken = Auswahl); spaeter hinzugefuegte Positionen nicht.
-            foreach (var p in positionen) { p.Verpackt = true; auftrag.Positionen.Add(p); }
+            // A3: angehakte Auswahl ist verpackt (Haken = Auswahl). v1.99.65 B1: ohne Auswahl alle freien offen — abgehakt wird
+            // im Entwurf. Spaeter hinzugefuegte Positionen sind ebenfalls offen.
+            foreach (var p in positionen) { p.Verpackt = !alle; auftrag.Positionen.Add(p); }
             await NummerVergebenUndSpeichernAsync(auftrag);
             r.Auftrag = auftrag;
             return r;
@@ -229,9 +229,15 @@ public class BeschichtungsauftragWorkflow
 
     // ===================== Bearbeiten bis vor Versendet (Anforderung 10; v1.99.41 A7, A8) =====================
 
-    /// <summary>Status, in denen Positionen (Haken, Menge, Entfernen, Hinzufuegen) aenderbar sind (A8).</summary>
+    /// <summary>Status, in denen Positionen (Haken, Menge, Entfernen, Hinzufuegen) aenderbar sind (A8). v1.99.65: Entfernen in
+    /// Uebergeben nur fuer nicht verpackte Positionen (<see cref="Entfernbar"/>).</summary>
     public static bool PositionenAenderbar(BeschichtungsauftragStatus s) =>
         s is BeschichtungsauftragStatus.Entwurf or BeschichtungsauftragStatus.Uebergeben;
+
+    /// <summary>v1.99.65 (Antwort R-2): Entfernen im Entwurf immer, in Uebergeben nur mit gespeichertem Haken „offen“. Eine Regel
+    /// fuer Server (<see cref="BearbeitenAsync"/>) und Detailseite.</summary>
+    public static bool Entfernbar(BeschichtungsauftragStatus s, bool verpackt) =>
+        s == BeschichtungsauftragStatus.Entwurf || (s == BeschichtungsauftragStatus.Uebergeben && !verpackt);
 
     /// <summary>
     /// Ein Speichern am Auftrag (A8): Kopf (nur Entwurf, Rueckfrage 10 — <paramref name="kopf"/> null = unveraendert), Mengen,
@@ -258,6 +264,16 @@ public class BeschichtungsauftragWorkflow
             r.Fehler.Add($"Position {pid} gehört nicht zu {a.Nummer}.");
         foreach (var (pid, menge) in mengen.Where(m => m.Value <= 0))
             r.Fehler.Add($"Menge muss größer 0 sein (Position {pid}: {menge}) — zum Weglassen die Position entfernen.");
+        foreach (var p in a.Positionen.Where(p => entfernteIds.Contains(p.Id)))
+        {
+            // v1.99.65 B4: entweder verpackt oder entfernen — Widerspruch melden statt still entscheiden
+            if (verpacktIds?.Contains(p.Id) == true)
+                r.Fehler.Add($"Position {PositionBezeichnung(p)}: „Verpackt“ und „Entfernen“ zugleich angehakt — nur eines wählen.");
+            // v1.99.65 (Antwort R-2): ab Uebergeben nur nicht verpackte entfernbar; massgeblich ist der GESPEICHERTE Haken
+            else if (!Entfernbar(a.Status, p.Verpackt))
+                r.Fehler.Add($"Position {PositionBezeichnung(p)} ist verpackt — in {Anzeige(a.Status)} lassen sich nur nicht verpackte " +
+                             $"Positionen entfernen ({a.Nummer}).");
+        }
         if (kopf is not null)
             foreach (var (feld, wert) in new[] { ("Dienstleister", kopf.Dienstleister), ("RAL", kopf.Ral) })
                 if (wert?.Trim().Length > MaxKopfTextLaenge)

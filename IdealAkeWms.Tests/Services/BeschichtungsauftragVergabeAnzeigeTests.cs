@@ -108,6 +108,7 @@ public class BeschichtungsauftragVergabeAnzeigeTests
     {
         var a = await Anlegen(1);
         (await _wf.StatusWechselnAsync(a.Id, BeschichtungsauftragStatus.Uebergeben, a.RowVersion)).Fehler.Should().BeEmpty();
+        foreach (var p in a.Positionen) p.Verpackt = true;   // v1.99.65: Anlage ohne Auswahl ist offen
         (await _wf.StatusWechselnAsync(a.Id, BeschichtungsauftragStatus.Versendet, a.RowVersion)).Fehler.Should().BeEmpty();
         (await _wf.StatusWechselnAsync(a.Id, BeschichtungsauftragStatus.Erledigt, a.RowVersion)).Fehler.Should().BeEmpty();
         var pos1 = a.Positionen.First(p => p.Position == 1).Id;
