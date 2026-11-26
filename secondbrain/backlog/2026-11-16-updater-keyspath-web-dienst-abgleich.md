@@ -27,3 +27,12 @@ quelle: Koordination, Befund akenet01:4445 (Gerald, Chat 2026-11-16 10:34)
   Schutztext nicht lesen. Älter als v1.99.81, also nicht durch das Paket 21 verursacht.
 - Dateien auf akenet01 nicht lesbar (`c$` verweigert) → Prüfschritte an Gerald: KeysPath Web vs. Dienst, Leserecht des Dienstkontos,
   Status in `/ServiceSettings` der Web-Site.
+- **Ursache belegt** (2026-11-26, Freigaben `\\AKENET01\wwwroot` und `\\AKENET01\WMSService$`, nur gelesen):
+  Web `IdealAkeWMS-TEST\appsettings.Production.json` `DataProtection:KeysPath = C:\AKE\keys\test`, Dienst
+  `IDEALAKEWMSService-Test\appsettings.Production.json` `= C:\AKE\keys\dev`. Schlüssel `keys\test\key-6f06c00f-….xml` entstand
+  24.11. 15:51:58, zwei Minuten vor der Kennwort-Eingabe. Der Dienst sucht ihn in `keys\dev`, wo nur `key-4dacb266` vom 13.11. liegt.
+  Prod 4443 (Web und Dienst `keys\prod`) und 4445 (beide `keys\dev`) stimmen jeweils überein.
+- Weitere Abweichungen 4444-Dienst `appsettings.Production.json`: `MailSettings:PickupDirectory` zeigt auf
+  `C:\AKE\IDEALAKEWMSService-TestIDEAL\mail-pickup` (Ordner von 4445); `SenderName`/`FromAddress` „DEV“/`wms-dev@` überschreiben „TEST“;
+  `ErrorNotification:Enabled = false` und alle `Sync:*Enabled = false` überschreiben `appsettings.json` (wirken nur, wo kein
+  `ServiceSettings`-Wert existiert); `SageLagerbuchung:Password` noch im Klartext (Übergangsrückfall, seit DB-Wert ungenutzt).
