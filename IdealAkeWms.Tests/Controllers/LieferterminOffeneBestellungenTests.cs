@@ -178,17 +178,29 @@ public class LieferterminOffeneBestellungenTests
     }
 
     [Fact]
-    public async Task Print_SortierungNachLiefertermin_WirktImDruck_B2()
+    public void CompareLikeGui_DatumChronologisch_OhneDatumAmEnde_WieTableFilterJs_B4()
     {
-        async Task<int> PosVonA1(string dir)
+        var werte = new[] { "—", "22.08.2025 überfällig (+4)", "12.06.2026 überfällig (+8)", "ohne Termin", "16.06.2026", "03.01.2027 (+1)" };
+        var cmp = Comparer<string>.Create(WarehousePickingPrintLayout.CompareLikeGui);
+        werte.OrderBy(w => w, cmp).Should().Equal("22.08.2025 überfällig (+4)", "12.06.2026 überfällig (+8)", "16.06.2026", "03.01.2027 (+1)",
+            "—", "ohne Termin");
+        werte.OrderByDescending(w => w, cmp).Should().Equal("ohne Termin", "—", "03.01.2027 (+1)", "16.06.2026", "12.06.2026 überfällig (+8)",
+            "22.08.2025 überfällig (+4)");
+    }
+
+    [Fact]
+    public async Task Print_SortierungNachLiefertermin_ReihenfolgeWieBildschirm_B2()
+    {
+        async Task<List<string>> Folge(string dir)
         {
             var (ctrl, id) = Details(mitCache: true);
             ctrl.ControllerContext = new ControllerContext { HttpContext = new Microsoft.AspNetCore.Http.DefaultHttpContext() };
             var vm = (WarehouseRequisitionPrintViewModel)((ViewResult)await ctrl.Print(id, "liefertermin", dir)).Model!;
-            return vm.Items.FindIndex(i => i.ArticleNumber == "A-1");
+            return vm.Items.Select(i => i.ArticleNumber).ToList();
         }
-        // A-1 hat als einzige Position einen Termin; bliebe der Druck in Pos-Reihenfolge, stuende A-1 in beiden Richtungen vorn.
-        (await PosVonA1("asc")).Should().NotBe(await PosVonA1("desc"));
+        // A-1 hat einen Termin, DUMMY und C-3 „—“ (Pos 2, 3): aufsteigend Datum zuerst, absteigend zuletzt; gleiche Werte in Pos-Folge.
+        (await Folge("asc")).Should().Equal("A-1", "DUMMY", "C-3");
+        (await Folge("desc")).Should().Equal("DUMMY", "C-3", "A-1");
     }
 
     // ---- Views ----

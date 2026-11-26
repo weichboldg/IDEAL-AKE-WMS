@@ -138,13 +138,22 @@ public static class WarehousePickingPrintLayout
 
     private static readonly CultureInfo De = CultureInfo.GetCultureInfo("de-DE");
 
-    /// <summary>Numerisch wenn beide als Zahl (de-Format: Tausender '.', Dezimal ',') parsen, sonst de-String.</summary>
+    /// <summary>Wie <c>compareValues</c> in table-filter.js: Datum am Anfang (dd.MM.yyyy, auch „… überfällig (+N)“) chronologisch,
+    /// Werte ohne Datum aufsteigend ans Ende; sonst numerisch wenn beide als Zahl (de-Format) parsen, sonst de-String.</summary>
     internal static int CompareLikeGui(string a, string b)
     {
+        var da = LeadingDate(a);
+        var db = LeadingDate(b);
+        if (da != null && db != null) return da.Value.CompareTo(db.Value);
+        if (da != null) return -1;
+        if (db != null) return 1;
         if (TryNum(a, out var na) && TryNum(b, out var nb))
             return na.CompareTo(nb);
         return string.Compare(a, b, De, CompareOptions.None);
     }
+
+    private static DateTime? LeadingDate(string s)
+        => s.Length >= 10 && DateTime.TryParseExact(s[..10], "dd.MM.yyyy", CultureInfo.InvariantCulture, DateTimeStyles.None, out var d) ? d : null;
 
     private static bool TryNum(string s, out double value)
     {
