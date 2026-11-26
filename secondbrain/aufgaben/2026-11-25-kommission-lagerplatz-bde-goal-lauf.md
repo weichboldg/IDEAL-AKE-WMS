@@ -257,3 +257,94 @@ Zusätzlich für die Mail gebraucht: Seite „WMS – Fehler melden und Wünsche
 - F-16 IDEAL: Dienstkonto `AKENB\svc_idealakewms` braucht Lesezugriff auf `IDEAL_TEST_2026_05_03`, dann Artikel-Abgleich IDEAL erneut prüfen.
 - Live nicht prüfbar: F-2 (kein FA mit „Altbestand prüfen“), F-7 (Sage-Schreibschalter), F-6 Schreibtest, TS-198.6/.7, TS-201.3.3 (Benutzer ohne Terminal), TS-201.3.2 an IDEAL.
 - Manual-UAT der vier Specs, dann EIN Merge. Kein Merge, kein Push erfolgt.
+
+## UAT 2 (2026-11-26)
+
+Auftrag Gerald 2026-11-26 06:12 („nochmals UAT und kritische Prüfungen“), qa-agent, 06:13–06:40. Stand DEV: Fußzeile **v1.99.80** an AKE (8081) und
+IDEAL (8082), kein Neu-Deploy. Kein Code geändert, kein Build. Werkzeug: claude-in-chrome lieferte keine Screenshots (CDP-Zeitüberschreitung,
+Renderer eingefroren) → Ablauf mit `playwright-core` + System-Chrome headless (Windows-Anmeldung `--auth-server-allowlist=localhost`), Konto
+Gerald Weichbold (Admin). Werker IDEAL: 9901 „QA Werker B“ (op 3), 123 „Hans Guck“ (op 1); AKE: 4444 „Fred Ferdl“ (op 2).
+Screenshots: `C:\Users\gerald.weichbold\AppData\Local\Temp\claude\8eae370df6a92eae\4ec633f6-7496-4a15-ae45-04bfbae6cd66\scratchpad\uat-2026-11-26\` (Dateiname = Funktion).
+
+| # | Prüfpunkt | Standort | Ergebnis | Beleg |
+|---|---|---|---|---|
+| 1 | Fußzeile v1.99.80 | AKE, IDEAL | OK | Seitenfuß beider Sites |
+| 2 | Werker-Anmeldung mit unbekannter Nr. 99999 | IDEAL | OK | „Unbekannte oder inaktive Personalnummer: 99999“, keine Liste |
+| 3 | Anmeldung 9901 → FA-Sicht Wb 65 mit „Meine Buchungen“ | IDEAL | OK | `bde-fa-sicht-ideal.png` |
+| 4 | Pause → Mengendialog; Abbrechen gibt Knopf frei | IDEAL | AUFFÄLLIG | Knopf zeigt „wird gesendet …“, solange erst der Dialog offen ist → U-6; `bde-mengendialog-pause-ideal.png` |
+| 5 | Pause mit **leerer** Gutmenge | IDEAL | AUFFÄLLIG | als 0/0 gebucht (BdeBookingQuantities 33 an Buchung 36) → U-4 |
+| 6 | Gutmenge −1 / 0.5 | IDEAL | AUFFÄLLIG | −1 und 0.5 abgewiesen (min 0, step 1); Dezimalmengen in der FA-Sicht nicht möglich, Teileliste erlaubt sie → U-7 |
+| 7 | Fortsetzen | IDEAL | OK | „Fortgesetzt.“, Buchung 37 mit Parent 36 |
+| 8 | Teilfertig 5 bei Soll 1 | IDEAL | AUFFÄLLIG | angenommen ohne Hinweis, danach Fertig 1 → 6 Gut auf Soll 1 (Mengen 34/35) → U-3; `bde-teilfertig-ueber-soll-ideal.png` |
+| 9 | Fertig Gut 0 < Soll → eigenes Bestätigungsfenster; Abbrechen; dann Fertig 1 | IDEAL | OK | „Gutmenge 0 liegt unter der Sollmenge 1 …“, Knopf danach wieder bedienbar, „Fertig gemeldet.“; `bde-fertig-unter-soll-bestaetigung-ideal.png` |
+| 10 | Doppelklick „Produktion“ | IDEAL | OK | genau 1 POST (Server-Log), Buchung 38 |
+| 11 | Zwei Tabs: Tab B (Hans, veraltet) startet denselben AG | IDEAL | OK | Fenster „AG ist bereits in Arbeit durch QA Werker B an Entgraten Fläche seit 06:22.“, Fokus auf OK; `bde-kollision-zweiter-tab-ideal.png` |
+| 12 | Neuladen bei offenem Mengendialog; Zurück-Knopf aus Tageshistorie | IDEAL | OK | nichts gebucht, Kopf unverändert; Zurück landet auf der FA-Sicht im gleichen Zustand |
+| 13 | Tageshistorie | IDEAL | AUFFÄLLIG | Zeilen korrekt (06:21–06:21 Gut 6), aber Buchung 36 (Start 25.11. 22:46, Ende 26.11. 06:20) fehlt → U-8; `bde-tageshistorie-ideal.png` |
+| 14 | Scan „9999999“, dann Scan Haupt-FA 1060414 | IDEAL | AUFFÄLLIG | „FA „9999999“ nicht gefunden.“ OK; Auswahl 19 AG ohne laufenden/fertigen OK; alte Fehlermeldung bleibt beim nächsten Scan stehen → U-9; `bde-scan-hauptfa-auswahl-ideal.png` |
+| 15 | Produktion an zweiter Zeile starten, während eigene Produktion läuft (Standard-Einstellungen) | IDEAL | AUFFÄLLIG | „Mengen-Eingabe erforderlich – nichts gebucht.“, kein Dialog, kein Hinweis, was zu tun ist → **U-1** |
+| 16 | Tastatur: Mengendialog „0“ + Enter | IDEAL | AUFFÄLLIG | Fokus in Gutmenge OK, Enter bestätigt nicht (Dialog bleibt) → U-10 |
+| 17 | TS-198.6 Weitere aktive Buchungen (Mehrfachbuchung je AG kurz an) | IDEAL | OK | „Auf diesem Arbeitsgang arbeiten noch: Hans Guck – seit 06:29“; „Nein, nur meine“ → Hans läuft weiter; „Ja, alle beenden“ → „Fertig gemeldet. 1 weitere Buchungen beendet.“ (Buchungen 39–43); `bde-weitere-aktive-buchungen-ideal.png`. War bisher NICHT MOEGLICH |
+| 18 | TS-198.7 Alle Produktionsaufträge abschliessen (Mehrfach je Werker + gleichzeitiger Abschluss kurz an) | IDEAL | **FEHLER** | Fenster und Abbrechen OK, „2 Buchungen fertig gemeldet.“; aber beide Zeilen „1060414/EG Entgraten Fläche“ (nicht unterscheidbar), Gut mit 0 vorbelegt (eingegebene 1 verworfen), ohne Rückfrage 0/0 final gebucht (Buchungen 44/45), Tabelle rechts abgeschnitten → **U-2**; `bde-alle-produktionsauftraege-abschliessen-ideal.png` |
+| 19 | Handy 390 px FA-Sicht und Teileliste | IDEAL | AUFFÄLLIG | keine Querscrollleiste (scrollWidth 390), Touch-Knöpfe 44 px hoch; FA-Sicht als Karten 12 930 px lang, Aktion je Karte ganz unten → U-11; `bde-fa-sicht-handy-390-ideal.png`, `bde-fa-sicht-handy-390-karten-ideal.png`, `bde-teileliste-handy-390-ideal.png` |
+| 20 | Teileliste Einzeln Wb 67: Melden leer → Pflichtfeld; Teilfertig 0.5 per Doppelklick; Zurücknehmen mit Bestätigung | IDEAL | OK | 1 POST, Teilmeldung 34 (0,5), „Teilmeldung zurücknehmen? …“ → storniert; `bde-teileliste-teilgemeldet-ideal.png` |
+| 21 | Melden-Dialog Vorbelegung, Erfolgstexte | IDEAL | AUFFÄLLIG | Gut vorbelegt „1.0000“; „Gemeldet: 1.“ ohne Matchcode; „1 Zeilen“, „1 weitere Buchungen“, „Eintraege“ → U-12 |
+| 22 | AK 14: zweiter Tab meldet dieselbe Position | IDEAL | OK | „Gemeldet: 0. Bereits gemeldet: 1 – nichts geändert (… bereits gemeldet von QA Werker B um 06:35)“, keine zweite Zeile (Meldung 35); `bde-teileliste-bereits-gemeldet-zweiter-tab-ideal.png` |
+| 23 | Summiert: Haken am Matchcode → „Auswahl fertigmelden“ (Doppelklick) → Bestätigung | IDEAL | OK | „1 Zeilen mit ihrer Restmenge fertigmelden (Summe 1)?“, 1 POST, Meldung 36, danach zurückgenommen; `bde-summiert-block-bestaetigung-ideal.png` |
+| 24 | Admin-Hinweis in der Werker-Liste | IDEAL | AUFFÄLLIG | „Hinweis: 1 Meldung(en) ohne passende Strukturzeile … Prüfung durch den BDE-Admin …“ nach jeder Werker-Aktion → U-13 |
+| 25 | Lagerbestell-Zeilen (Werkbank-Option kurz an) | IDEAL | OK | Badge „Lagerbestellung #8 TS-193 QA-A“, Termin 15.12.2026 = 30.11. + 10 AT inkl. Feiertag 8.12.; nur 50001534 („KA LA“); 50002070 („SÄ IF“) und 50001536 („if“) korrekt nicht; `bde-teileliste-lagerbestellung-ideal.png` |
+| 26 | Fräsen-Pfad (`FraesenPfadAktiv` kurz an): Link, Kopieren, Pflege, Prüfungen | IDEAL | OK | Link `file://idealfs1/Daten$/Produktion/CAM/EKW%20ISO/Boden%201230-620`; Zwischenablage = UNC-Text; `Y:\…`, Text ohne `\\`, 500 Zeichen ohne Freigabe → Warnung, nichts gespeichert; mit Leerzeichen gespeichert → getrimmt, Modified* = persönliches Konto; Teileliste-Zahnrad listet „Fräsen-Pfad“; `fraesenpfad-pflege-warnung-ideal.png` |
+| 27 | Hilfetext Pflegefeld | IDEAL | AUFFÄLLIG | „UNC-Pfad, Y: = \\idealfs1\…“ liest sich wie „Y: geht“, wird aber abgewiesen → U-14 |
+| 28 | Link am Fräsen-PC öffnen; „Standard ausgeblendet“ für Konto ohne gespeicherte Spaltenwahl | IDEAL | NICHT MOEGLICH | kein Fräsen-PC; Konto 8 hat gespeicherte Wahl (UserViewPreferences 31) |
+| 29 | Blechdicke-Werte aus `USER_OSBlechdicke` | IDEAL | NICHT MOEGLICH | Sync aus + F-16 (Lesezugriff Dienstkonto); Spalte zeigt „–“ |
+| 30 | Kommissionier-Nachtrag Admin-Knopf (+ Doppelklick) | AKE, IDEAL | OK | Tooltip „Notfall …“; „0 Kommissionierauftrag/-aufträge für 0 FA angelegt; 3 (IDEAL) / 2 (AKE) FA ohne offene Restmenge.“, je 1 POST, PickingOrders unverändert (IDEAL max 6, AKE 120); `kommissionier-nachtrag-knopf-ideal.png`, `kommissionier-nachtrag-knopf-ake.png` |
+| 31 | Nachtlauf Kommissionier-Nachtrag beobachten | AKE, IDEAL | NICHT MOEGLICH | braucht `Sync:KommissionierNachtragEnabled`; keine SyncLogs „Nachtrag“; der Knopf ruft dieselbe Erzeugung (stellvertretend Zeile 30) |
+| 32 | Checkliste 8: `Sync:KommissionierNachtragUhrzeit` = 24 | IDEAL | OK | „Nicht gespeichert: … erlaubt: eine ganze Zahl von 0 bis 23.“; ServiceSettings-Abzug vorher/nachher ohne Unterschied; `servicesettings-nachtrag-uhrzeit-24-abgelehnt-ideal.png` |
+| 33 | Lagerplatz-Anlage bei Schalter aus: Knopf und direkter Aufruf `CreateInSage` | AKE, IDEAL | OK | Knopf ausgeblendet; Aufruf → Liste mit „Lagerplatz-Anlage in Sage ist ausgeschaltet (…) – es wurde nichts angelegt.“; `lagerplatz-anlage-schalter-aus-ideal.png`. Hinweis: an beiden DEV Banner „1 Lagerplatz wartet auf die Übergabe an Sage“ (QA-Rest 25.11.) |
+| 34 | Lagerplatz-Maske bis vor das Senden | AKE, IDEAL | NICHT MOEGLICH | Maske nur mit `SageLagerplatzAnlageAktiv` erreichbar (verboten) |
+| 35 | AKE: Anstempeln Rüsten/Produktion/Fertig (AK 32b) | AKE | NICHT MOEGLICH | alle 4 BDE-Werkbänke „Keine offenen Arbeitsgänge an dieser Werkbank.“ |
+| 36 | AKE: „Meine Buchungen“ Fred Ferdl → Fortsetzen | AKE | AUFFÄLLIG | 3 auto-pausierte Buchungen vom 07.07. mit „Fortsetzen“; Stanzarei → „Dieser Arbeitsgang gehört nicht zu dieser Werkbank. – nichts gebucht.“, A1 → „FA 2609192 ist bereits abgeholt — keine BDE-Buchung mehr moeglich. – nichts gebucht.“ → **U-5**; `bde-ake-fortsetzen-stanzarei.png`; Tageshistorie AKE „Noch keine Buchungen …“ OK |
+| 37 | Benutzer ohne Terminal, Android-Handy mit lokalem Konto, echte Gleichzeitigkeit zweier Geräte (AK 16) | AKE, IDEAL | NICHT MOEGLICH | ein Windows-Konto mit Terminal, kein Gerät; nur nacheinander in zwei Tabs geprüft (Zeilen 11, 22) |
+
+**Zähler:** OK 17 · FEHLER 1 · AUFFÄLLIG 13 · NICHT MOEGLICH 6 (37 Prüfpunkte).
+
+### Neue Befunde UAT 2
+- **U-1 (mittel)** FA-Sicht: Produktion/Rüsten an einer zweiten Zeile, während die eigene Produktion läuft → nur „Mengen-Eingabe erforderlich –
+  nichts gebucht.“ (`BdeBookingService.cs:102-106`, `bde-fa-sicht.js` `case 'QuantityRequired'`). Häufigster Morgenfall „AG wechseln“; der Werker
+  weiß nicht weiter. Vorschlag: Text „Es läuft noch Produktion <FA/AG> – erst Pause oder Fertig melden.“, besser gleich den Mengendialog für die
+  laufende Buchung öffnen und danach starten.
+- **U-2 (mittel, FEHLER)** Fenster „Alle Produktionsaufträge abschliessen“ (TS-198.7): Zeilen nur „FA/AG“ ohne Sub-FA (zwei gleiche Zeilen), Gut 0
+  vorbelegt statt eingegebener Menge/Rest, keine Gut-unter-Soll-Rückfrage (0/0 final gebucht, Buchungen 44/45), Tabelle bei 1400 px rechts
+  abgeschnitten (Ausschuss/„Abschl.“ halb sichtbar), „Abbrechen“ hellblau mit weißer Schrift (Kontrast geschätzt unter 3:1). Vorschlag: Sub-FA
+  und Matchcode je Zeile, Vorbelegung Rest, Rückfrage wie Einzel-Fertig, `modal-xl` + `table-responsive`, Abbrechen `btn-outline-secondary`.
+  Wirkt nur mit `BdeGleichzeitigerAbschlussBeiMehrfachStart` = an (Standard aus).
+- **U-3 (niedrig)** FA-Sicht „Teilfertig“ über der Sollmenge ohne Hinweis; die Teileliste meldet „Sollmenge erreicht – bitte Fertig melden“
+  (`BdeTeilelisteService.cs:658`) – eine Regel, zwei Masken. Vorschlag: denselben Hinweis in der FA-Sicht.
+- **U-4 (niedrig)** Mengendialog FA-Sicht: leere Gutmenge wird still 0 (`bde-fa-sicht.js` `parseFloat(gut.value || '0')`, Feld ohne `required`).
+  Bei Fertig fängt die Gut-unter-Soll-Rückfrage das ab, bei Pause/Teilfertig nicht. Vorschlag: `required` wie im Teileliste-Dialog.
+- **U-5 (mittel, AKE)** „Meine Buchungen“ zeigt alte auto-pausierte Buchungen (FA abgeholt, andere Werkbank) mit „Fortsetzen“, das nie gelingen
+  kann; die Werkbank der Buchung steht nicht da; Meldetexte uneinheitlich („moeglich“, Strich doppelt). Vorschlag: Werkbank im Kopf zeigen,
+  bei abgeholtem FA „Beenden“ statt „Fortsetzen“; Altbestand pausierter Buchungen am Testsystem/Prod per Abfrage (Status 5 je Werker) prüfen.
+- **U-6 (niedrig)** Kopf-Knopf zeigt „wird gesendet …“, während erst der Mengendialog offen ist. Vorschlag: Sperrtext erst beim Senden.
+- **U-7 (niedrig, Rückfrage)** FA-Sicht Mengen nur ganzzahlig (`_BdeDialoge.cshtml:8-9` `step="1"`, vom alten Terminal übernommen); Teileliste
+  `step="any"`. Klären, ob AG-Mengen in m/kg vorkommen.
+- **U-8 (niedrig, Rückfrage)** Tageshistorie filtert Buchungen nach Startdatum (`BdeTageshistorie.cs`, `StartedAt >= von`): eine Buchung über
+  Mitternacht fehlt am Folgetag. Gibt es Nachtschicht? Dann „Start oder Ende am Tag“.
+- **U-9 (niedrig)** Alte Meldungen bleiben stehen (Scan-Fehler neben dem nächsten Scan-Ergebnis, „Produktion gestartet.“ neben neuem Dialog).
+- **U-10 (niedrig)** Enter im Mengendialog der FA-Sicht bestätigt nicht (kein `<form>`); im Teileliste-Dialog schon. Vorschlag: Enter = Bestätigen.
+- **U-11 (niedrig)** Handy 390 px: jede AG-Karte ~470 px mit 15 Feldern, Aktion unten; 25 Karten = 12 930 px. Vorschlag: Aktion oben, auf dem
+  Handy nur FA/Sub-FA/AG/Matchcode/Status.
+- **U-12 (kosmetisch)** „1.0000“ als Vorbelegung, „Gemeldet: 1.“ ohne Matchcode, „1 Zeilen“, „1 weitere Buchungen“, „Meldung(en)“,
+  „Kommissionierauftrag/-aufträge“, „Eintraege“ (Pagination, Bestand).
+- **U-13 (niedrig)** Admin-Hinweis „Meldung(en) ohne passende Strukturzeile … BDE-Admin“ steht beim Werker nach jeder Aktion. Vorschlag: nur für
+  BDE-Admin zeigen oder einmal je Sitzung.
+- **U-14 (kosmetisch)** Hilfetext Fräsen-Pfad „Y: = \\idealfs1\Daten$\Produktion\CAM“ → „Nicht Y:\ eintragen, sondern \\idealfs1\Daten$\Produktion\CAM\…“.
+
+### Testdaten auf DEV (UAT 2)
+- **IDEAL_WMS_DEV:** BdeBookings 37–46 (op 3 „QA Werker B“, op 1 „Hans Guck“, Wb 65, AG 820/824/828/832/837/841/845/849); Buchung 36 um 06:20
+  pausiert (Menge 0/0), 38, 40 und 46 pausiert, übrige fertig/beendet, keine läuft. BdeBookingQuantities ab 33. BdeTeilMeldungen 34–36 alle
+  zurückgenommen. Article 7878 `CamPath` mit gleichem Wert neu gespeichert (Modified 06:27). AppSettings `FraesenPfadAktiv` jetzt als Zeile **false**
+  (vorher keine Zeile = Standard aus); `BdeMehrfachBuchungProArbeitsgang`, `BdeMehrfachBuchungProOperator`, `BdeGleichzeitigerAbschlussBeiMehrfachStart`
+  kurz an, wieder **false**; Wb 67 `BdeTeilelisteLagerbestellungen` kurz an, wieder **0**. Keine StockMovements, keine PickingOrders, keine Sage-Warteschlange.
+- **AKE_WMS_DEV:** keine Datenänderung (Fortsetzen abgewiesen, Nachtrag 0 angelegt).
+- Kein Sage-Schreiben, kein `Sync:*Enabled`/`Sage*Aktiv` eingeschaltet, kein Code geändert.
