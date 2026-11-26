@@ -36,3 +36,7 @@ quelle: Koordination, Befund akenet01:4445 (Gerald, Chat 2026-11-16 10:34)
   `C:\AKE\IDEALAKEWMSService-TestIDEAL\mail-pickup` (Ordner von 4445); `SenderName`/`FromAddress` „DEV“/`wms-dev@` überschreiben „TEST“;
   `ErrorNotification:Enabled = false` und alle `Sync:*Enabled = false` überschreiben `appsettings.json` (wirken nur, wo kein
   `ServiceSettings`-Wert existiert); `SageLagerbuchung:Password` noch im Klartext (Übergangsrückfall, seit DB-Wert ungenutzt).
+- **Behoben 2026-11-26:** Dienst-KeysPath von Gerald um 11:58 auf `keys\test` gestellt, Dienst läuft seit 11:58 wieder ohne Fehler.
+  Web `IdealAkeWMS-TEST\appsettings.Production.json` Absender auf „IDEAL AKE WMS TEST“/`wms-test@ake.at` (Sicherung `.bak-20261126-125853`).
+  Dienst-Datei: Schreibrecht über die Freigabe verweigert → Absender, PickupDirectory (`…-Test\mail-pickup`, Ordner angelegt) und
+  `SageLagerbuchung`-Block macht Gerald von Hand. `ErrorNotification`/`Sync:*` in appsettings wirkungslos, weil `ServiceSettings` sie überschreibt.
