@@ -177,6 +177,20 @@ public class LieferterminOffeneBestellungenTests
         vm.Columns.Select(c => c.Key).Should().NotContain("liefertermin", "der Druck zeigt die Spalte nicht");
     }
 
+    [Fact]
+    public async Task Print_SortierungNachLiefertermin_WirktImDruck_B2()
+    {
+        async Task<int> PosVonA1(string dir)
+        {
+            var (ctrl, id) = Details(mitCache: true);
+            ctrl.ControllerContext = new ControllerContext { HttpContext = new Microsoft.AspNetCore.Http.DefaultHttpContext() };
+            var vm = (WarehouseRequisitionPrintViewModel)((ViewResult)await ctrl.Print(id, "liefertermin", dir)).Model!;
+            return vm.Items.FindIndex(i => i.ArticleNumber == "A-1");
+        }
+        // A-1 hat als einzige Position einen Termin; bliebe der Druck in Pos-Reihenfolge, stuende A-1 in beiden Richtungen vorn.
+        (await PosVonA1("asc")).Should().NotBe(await PosVonA1("desc"));
+    }
+
     // ---- Views ----
 
     private static string ViewText(string ordner, string datei)

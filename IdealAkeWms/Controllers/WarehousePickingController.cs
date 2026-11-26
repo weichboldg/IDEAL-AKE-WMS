@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using IdealAkeWms.Data;
 using IdealAkeWms.Data.Repositories;
 using IdealAkeWms.Filters;
@@ -600,18 +600,21 @@ public class WarehousePickingController : Controller
 
         // Filter (live aus ?colf_*) -> Sortierung (live ?sortCol/sortDir, sonst Default-Sort) -> sichtbare Spalten.
         var columnFilters = ColumnFilterHelper.ReadFromQuery(HttpContext?.Request);
-        // v1.99.85: Spalten, die nur der Bildschirm zeigt (Liefertermin, Fräsen-Pfad), filtern im Druck mit demselben Zelltext wie dort.
+        // v1.99.85: Spalten, die nur der Bildschirm zeigt (Liefertermin, Fräsen-Pfad), filtern und sortieren im Druck mit demselben
+        // Zelltext wie dort. Geladen nur, wenn ein Filter oder die (Default-)Sortierung sie braucht.
+        bool Braucht(string key) => columnFilters.ContainsKey(key)
+            || string.Equals(string.IsNullOrWhiteSpace(sortCol) ? prefs?.DefaultSortColumn : sortCol, key, StringComparison.Ordinal);
         var colMap = new Dictionary<string, Func<WarehouseRequisitionDetailItemViewModel, string?>>(WarehousePickingPrintLayout.ColumnMap);
-        if (columnFilters.ContainsKey("liefertermin") && (await LieferterminTexteAsync(r.Items.Select(i => i.ArticleNumber))).Texte is { } lt)
+        if (Braucht("liefertermin") && (await LieferterminTexteAsync(r.Items.Select(i => i.ArticleNumber))).Texte is { } lt)
             colMap["liefertermin"] = i => lt.GetValueOrDefault(i.ArticleNumber.Trim()) ?? "—";
-        if (columnFilters.ContainsKey("fraesen-pfad") && await RequireFraesenPfadAktivFilter.IstAktivAsync(_settings))
+        if (Braucht("fraesen-pfad") && await RequireFraesenPfadAktivFilter.IstAktivAsync(_settings))
         {
             var pfade = await _articles.GetFraesenPfadeAsync();
             colMap["fraesen-pfad"] = i => pfade.GetValueOrDefault(i.ArticleNumber.Trim());
         }
         var filtered = ColumnFilterHelper.Apply(detailItems, columnFilters, colMap, ColumnFilterTypes.For("WarehousePicking/Details"));
         var sorted = WarehousePickingPrintLayout.SortItems(
-            filtered, sortCol, sortDir, prefs?.DefaultSortColumn, prefs?.DefaultSortDirection);
+            filtered, sortCol, sortDir, prefs?.DefaultSortColumn, prefs?.DefaultSortDirection, colMap);
         var columns = WarehousePickingPrintLayout.ResolveColumns(prefs);
 
         var vm = new WarehouseRequisitionPrintViewModel

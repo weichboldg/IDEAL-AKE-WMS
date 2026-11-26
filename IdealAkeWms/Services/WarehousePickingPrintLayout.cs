@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using System.Text.Json;
 using IdealAkeWms.Models;
 using IdealAkeWms.Models.ViewModels;
@@ -101,9 +101,11 @@ public static class WarehousePickingPrintLayout
     /// </summary>
     public static List<WarehouseRequisitionDetailItemViewModel> SortItems(
         IEnumerable<WarehouseRequisitionDetailItemViewModel> items,
-        string? sortCol, string? sortDir, string? defaultSortColumn, string? defaultSortDirection)
+        string? sortCol, string? sortDir, string? defaultSortColumn, string? defaultSortDirection,
+        IReadOnlyDictionary<string, Func<WarehouseRequisitionDetailItemViewModel, string?>>? colMap = null)
     {
         var list = items.ToList();
+        colMap ??= ColumnMap; // v1.99.85: Print reicht die um Bildschirm-Spalten (Liefertermin, Fräsen-Pfad) ergaenzte Map durch
 
         string col;
         string dir;
@@ -123,10 +125,10 @@ public static class WarehousePickingPrintLayout
             dir = "asc";
         }
 
-        if (!ColumnMap.ContainsKey(col)) { col = "pos"; dir = "asc"; }
+        if (!colMap.TryGetValue(col, out var text)) { col = "pos"; dir = "asc"; text = colMap["pos"]; }
 
         var cmp = Comparer<WarehouseRequisitionDetailItemViewModel>.Create((a, b) =>
-            CompareLikeGui(CellText(a, col), CellText(b, col)));
+            CompareLikeGui(text(a) ?? string.Empty, text(b) ?? string.Empty));
 
         // OrderBy ist stabil -> gleiche Werte behalten Position-Reihenfolge (Eingangsreihenfolge).
         return dir.Equals("desc", StringComparison.OrdinalIgnoreCase)
