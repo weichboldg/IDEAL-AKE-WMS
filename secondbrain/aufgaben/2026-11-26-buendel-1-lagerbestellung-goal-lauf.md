@@ -44,6 +44,13 @@ Start-Stand Worktree: v1.99.85 (c8814cdf), höchstes TS 206 (TS-205 reserviert f
 - 2026-11-26 Fotos Leitstand (ohne/mit Sub-FAs, Hinweis) + BA-12-Druck an Gerald; Brain Changelog
   [[2026-11-26-v1-99-88-leitstand-nur-hauptfa]] + feature-map. Teil 3 Etappe A gestartet.
 
+## Folgearbeit aus Befunden (Gerald 2026-11-26: „alle Befunde als Backlog, nach der Schluss-QA gleich Spec“)
+
+- [[2026-11-26-leitstand-kaskaden-zaehler-ohne-hauptfa]] (F-1), [[2026-11-26-leitstand-spaltenfilter-glas-zukauf-ohne-wirkung]] (F-2),
+  [[2026-11-26-leitstand-hinweis-vk-spalte-breit]] (F-3), [[2026-11-26-beschichtungsauftrag-druck-ohne-fa-und-matchcode-abweichung]] (Teil 1 H-1/H-2),
+  [[2026-11-26-lagerbestellung-artikelnummer-varianten]] (Spec 1 H-1..H-3).
+- **Nach der Schluss-QA (Teil 3) dieses Laufs: /spec für alle fünf** (Entwürfe nach specs/entwurf, Schranke 1 bleibt).
+
 ## Fuer spaetere Confluence-Uebernahme (geaenderte Kapitel)
 
 ## Paket
@@ -51,8 +58,8 @@ Start-Stand Worktree: v1.99.85 (c8814cdf), höchstes TS 206 (TS-205 reserviert f
 ## Offen fuer Gerald (Schranke 2)
 
 - v1.99.87: Manual-UAT TS-205 am Testsystem (Zahnrad 205.4/205.5, Browser-Druckvorschau 205.6, ◩ im Server-PDF 205.7);
-  Entscheidung H-1 („ohne FA“ bei ausgeblendeter Artnr-Spalte) – Backlog ja/nein.
+  H-1/H-2 als Backlog angelegt (Gerald 2026-11-26).
 - v1.99.88: Manual-UAT TS-208 (nicht auf DEV: 208.2 Massenfreigabe, 208.3 Artikelfilter Sub-FA-Artikel, 208.4 Kaskade+CSV,
   208.5 Seite 2, 208.6b W3 + Speicherfehler, 208.7 Banner, 208.8 Hilfe, Rechte-Negativfälle), TS-205.1/.5/.11 (N-1);
-  Entscheidung F-1 (Kaskaden-Zähler zählt HauptFA mit) und F-2 (Spaltenfilter Glas/Zukauf) – Backlog ja/nein.
+  F-1/F-2/F-3 als Backlog angelegt (Gerald 2026-11-26).
 - v1.99.86: Manual-UAT TS-207 inkl. 207.8 Stücklisten-Schnellerfassung und 207.9 Druck-Liefertermin.
