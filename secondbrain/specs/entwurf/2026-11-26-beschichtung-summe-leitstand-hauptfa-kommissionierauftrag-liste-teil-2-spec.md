@@ -19,7 +19,8 @@ affected_code:
   - IdealAkeWms/Services/LeitstandHauptFaZusammenfassung.cs (NEU, reine statische Funktion, Regel je Spalte Z1-Z6 laut Antwort 6; VK-VA-Regel eigene, nicht AgAggregieren)
   - IdealAkeWms/Models/ViewModels/PickingLeitstandViewModel.cs (NurHauptFa, MitSubFa, GruppenOhneHauptFa; PickingLeitstandRowContext.NurHauptFa; PickingLeitstandItem.SubFaAnzahl)
   - IdealAkeWms/Views/PickingLeitstand/Index.cshtml (Filterkarte Schalter, flache Darstellung, Zählzeile, Banner)
-  - IdealAkeWms/Views/PickingLeitstand/_PickingLeitstandRow.cshtml + Skript in Index.cshtml (Knopf „Alle Sub-FAs fertigmelden“ in der Zeilen-Aktion, nur HauptFA-Zeile; zusammengefasste Zellen zeigen die Zusammenfassung, schreiben die HauptFA-Zeile, Antwort 7; Sonderfälle W1-W4 nach Rückfrage 8)
+  - IdealAkeWms/Views/PickingLeitstand/_PickingLeitstandRow.cshtml + Skript in Index.cshtml (Knopf „Alle Sub-FAs fertigmelden“ in der Zeilen-Aktion, nur HauptFA-Zeile; zusammengefasste Zellen zeigen die Zusammenfassung, schreiben die HauptFA-Zeile, Antwort 7; bei SubFaBestimmt Neuladen nach Speichern + Hinweis, nur W4 gesperrt, Antwort 8)
+  - IdealAkeWms/wwwroot/js/fa-work-step-status.js (nur additiv: CustomEvent wms:fa-status-gespeichert nach resp.ok, Antwort 8; FA-Abarbeitungsliste unverändert)
   - IdealAkeWms.Tests (Repository InMemory faNrUeberSubFa, Unit-Tests Zusammenfassung, Controller)
   - IdealAkeWms/Views/Help/Index.cshtml (Abschnitt „Leitstand (Kommissionier-Freigabe)“), Changelog
   - scripts/deploy/nachlauf.psd1
@@ -32,7 +33,8 @@ open_questions:
   - "5 (entschieden Gerald 2026-11-26, abweichend von der Empfehlung: die HauptFA-Zeile zeigt die Werte des HauptFA inkl. aller Sub-FAs zusammengefasst) Spalten Lack-T, Glas, Zukauf, VK-VA zeigen an der HauptFA-Zeile nur deren eigene Werte (keine Zusammenfassung der Sub-FAs) - einverstanden?"
   - "6 (entschieden Gerald 2026-11-26: Tabelle Z1-Z6 ja, aber VK-VA gemischt = In Bearbeitung; alle fertig -> fertig, alle offen -> offen, sonst In Bearbeitung) Zusammenfassungsregel je Spalte (Tabelle Z1-Z6): Lack-T vorhanden = irgendeine Zeile, Lack-T erledigt = alle Zeilen mit Lackierteilen; Glas/Zukauf = irgendeine Zeile; VK-VA = schlechtester Stand (alle fertig -> fertig, irgendeine in Bearbeitung -> in Bearbeitung, sonst offen); stornierte Sub-FAs zählen nicht, erledigte zählen mit; alle übrigen Spalten bleiben Werte der HauptFA-Zeile - einverstanden?"
   - "7 (entschieden Gerald 2026-11-26: Variante c, ein Klick an der HauptFA-Zeile schreibt nur die HauptFA-Zeile; Sub-FA-Werte bleiben, Anzeige bleibt zusammengefasst) Bedienbarkeit der zusammengefassten Zellen (Lack-T-Haken, Glas, Zukauf, VK-VA-Auswahl schreiben heute je Zeile): nur Anzeige (gesperrt, Bearbeiten über „Sub-FAs anzeigen“), oder schreibt ein Klick an der HauptFA-Zeile auf alle Zeilen des Auftrags, oder nur auf die HauptFA-Zeile?"
-  - "8 Folge von Antwort 7 (c): Wo Sub-FAs den zusammengefassten Wert bestimmen, ist der Klick an der HauptFA-Zeile nach dem Neuladen nicht sichtbar oder wirkungslos (Fälle W1-W4 im Abschnitt Klickverhalten, z. B. Glas abwählen, während eine Sub-FA Glas trägt). Wie soll die Zelle dort aussehen: (i) gesperrt mit Text „bestimmt durch Sub-FA …“, (ii) bedienbar, nach dem Speichern sofort neu berechnet und mit Hinweis „Sub-FA bestimmt den Wert weiter“, oder (iii) bedienbar ohne besondere Behandlung?"
+  - "8 (entschieden Gerald 2026-11-26: (ii) bedienbar, nach dem Speichern Neuladen und Hinweis „Sub-FA bestimmt den Wert weiter“; nur W4 bleibt gesperrt, weil an der HauptFA-Zeile nichts schreibbar ist) Folge von Antwort 7 (c): Wo Sub-FAs den zusammengefassten Wert bestimmen, ist der Klick an der HauptFA-Zeile nach dem Neuladen nicht sichtbar oder wirkungslos (Fälle W1-W4 im Abschnitt Klickverhalten, z. B. Glas abwählen, während eine Sub-FA Glas trägt). Wie soll die Zelle dort aussehen: (i) gesperrt mit Text „bestimmt durch Sub-FA …“, (ii) bedienbar, nach dem Speichern sofort neu berechnet und mit Hinweis „Sub-FA bestimmt den Wert weiter“, oder (iii) bedienbar ohne besondere Behandlung?"
+  - "9 Folge von Antwort 8: W3 (Lack-T erledigt an einer HauptFA-Zeile ohne eigene Lackteile) wirkt nie - die Zeile zählt in Z2 nicht, der Materialisierungslauf kann den Wert zurücksetzen. (a) wie Antwort 8 bedienbar mit Neuladen und Hinweis, oder (b) nur diese Zelle sperren mit Text „Lackteile nur an Sub-FAs – ändern mit „Sub-FAs anzeigen““? (Dev-Lauf baut bis zur Antwort (a))"
 epic: false
 etappen: []
 deploy:
@@ -58,7 +60,8 @@ Freigabe eindeutig.
 - `/PickingLeitstand` zeigt standardmäßig nur HauptFA-Zeilen, eine Zeile je HauptFA ohne Gruppenkopf (Antwort 3).
 - Die HauptFA-Zeile zeigt in Lack-T, Glas, Zukauf und VK–VA die **Zusammenfassung aus HauptFA und allen Sub-FAs** (Antwort 5,
   Regel je Spalte siehe „Zusammenfassungsregel“, bestätigt mit Antwort 6). Ein Klick an der HauptFA-Zeile schreibt nur die HauptFA-Zeile
-  (Antwort 7); Zellen, deren Wert Sub-FAs bestimmen, nach Rückfrage 8.
+  (Antwort 7); bestimmen Sub-FAs den Wert mit, lädt die Seite nach dem Speichern neu und die Zelle zeigt den Hinweis „Sub-FA bestimmt
+  den Wert weiter“ (Antwort 8).
 - Schalter „Sub-FAs anzeigen“ in der Filterkarte, Standard aus (Antwort 2), stellt die heutige Gruppenansicht her.
 - Banner, wenn Aufträge keine HauptFA-Zeile haben (sonst würden sie still verschwinden).
 - Freigabe-Haken und „Freigeben“ nur an der HauptFA-Zeile, in beiden Ansichten (Antworten 1 und 3). Das ist Bestand seit v1.46.0;
@@ -160,7 +163,8 @@ Freigabe eindeutig.
   `/api/picking-status/toggle`, ohne die Seite neu zu laden; nur bei Fehler springt der Haken zurück (`Views/PickingLeitstand/Index.cshtml:525-553`,
   Endpunkt setzt `req.Value`, `PickingStatusApiController.cs:31-47`). VK–VA senden `{ faWorkStepId, status }` an
   `/api/fa-work-steps/set-status`, ebenfalls ohne Neuladen (`wwwroot/js/fa-work-step-status.js:13-29`); dieses Skript teilt sich der
-  Leitstand mit der FA-Abarbeitungsliste (`:1-2`) - nicht ändern. Die Zusammenfassung wird also erst beim nächsten Seitenaufbau neu
+  Leitstand mit der FA-Abarbeitungsliste (`:1-2`) - nicht ändern *(überholt durch Antwort 8: eine additive Ereignis-Zeile, siehe
+  „Klickverhalten“)*. Die Zusammenfassung wird also erst beim nächsten Seitenaufbau neu
   berechnet.
 - `SetCoatingPartsAsync` setzt `IsCoatingDone` zurück, wenn das Lack-Flag einer Zeile false wird (`FaMaterializationSyncService.cs:200-203`,
   „kapselt den IsCoatingDone-Reset“).
@@ -180,7 +184,7 @@ Freigabe eindeutig.
 | L7 | Flacher Modus (AKE) und FA-Liste unverändert. |
 | L8 | *(überholt durch Antwort 5: „Spalten Lack-T, Glas, Zukauf, VK-VA an der HauptFA-Zeile zeigen deren eigene Werte“)* → ersetzt durch L9. |
 | L9 | Ohne Schalter zeigt die HauptFA-Zeile in Lack-T (und damit Beschicht.-Termin), Glas, Zukauf und VK–VA die **Zusammenfassung über alle Zeilen ihres Auftrags** (HauptFA-Zeile + alle Sub-FA-Zeilen mit derselben `OrderNumber`) nach der Zusammenfassungsregel unten (Antwort 5). Die Zusammenfassung wird **vor** den Memory-Filtern gebildet und unabhängig von den Listenfiltern über alle Zeilen des Auftrags gerechnet. |
-| L10 | Zusammengefasste Zellen bleiben bedienbar; ein Klick an der HauptFA-Zeile schreibt **nur die HauptFA-Zeile** (eigene `ProductionOrderPickingStatus`-Zeile bzw. eigener `FaWorkStep`), Sub-FA-Werte bleiben unverändert, die Anzeige bleibt die Zusammenfassung (Antwort 7, Variante c). Verhalten je Fall siehe „Klickverhalten“; für die Fälle W1-W4 gilt Rückfrage 8. *(überholt: „Bis zur Antwort baut der Dev-Lauf die Empfehlung (nur Anzeige, gesperrt …)“.)* |
+| L10 | Zusammengefasste Zellen bleiben bedienbar; ein Klick an der HauptFA-Zeile schreibt **nur die HauptFA-Zeile** (eigene `ProductionOrderPickingStatus`-Zeile bzw. eigener `FaWorkStep`), Sub-FA-Werte bleiben unverändert, die Anzeige bleibt die Zusammenfassung (Antwort 7, Variante c). Verhalten je Fall siehe „Klickverhalten“: wo Sub-FAs den Wert bestimmen (W1-W3, W5), bedienbar mit Neuladen nach dem Speichern und Hinweis „Sub-FA bestimmt den Wert weiter“ (Antwort 8, Variante ii); nur W4 (kein `FaWorkStep` an der HauptFA-Zeile) gesperrt mit Begründung. *(überholt: „für die Fälle W1-W4 gilt Rückfrage 8“; überholt: „Bis zur Antwort baut der Dev-Lauf die Empfehlung (nur Anzeige, gesperrt …)“.)* |
 | L11 | Die FA-Nr.-Zelle der HauptFA-Zeile zeigt als Text, wie viele Sub-FAs eingeflossen sind („+ n Sub-FAs“, nur wenn n > 0), damit erkennbar ist, dass die Werte zusammengefasst sind (nicht nur Farbe). |
 
 ### Zusammenfassungsregel je Spalte (Antwort 5; bestätigt mit Antwort 6, VK–VA geändert)
@@ -214,15 +218,40 @@ wird neu zusammengefasst (Ist-Stand „Speichern der Zellen heute“). Daraus fo
 | W1 | Glas / Zukauf | eine Sub-FA hat Glas gesetzt; Benutzer **wählt ab** | HauptFA `HasGlass = false` (war oft schon false) | leeren Haken | wieder **gesetzt** (Sub-FA bestimmt Z3) | **widersprüchlich** - Abwählen ist an der HauptFA-Zeile unmöglich |
 | W2 | Lack-T erledigt | HauptFA hat eigene Lackteile, eine Sub-FA mit Lackteilen ist offen; Benutzer **setzt** erledigt | HauptFA `IsCoatingDone = true` | gesetzten Haken | wieder **leer** (Z2: nicht alle erledigt) | **widersprüchlich** - Wirkung unsichtbar |
 | W3 | Lack-T erledigt | HauptFA-Zeile hat **keine** eigenen Lackteile, nur Sub-FAs (Haken erscheint wegen Z1) | HauptFA `IsCoatingDone = true` an einer Zeile ohne Lackteile | gesetzten Haken | **unverändert** (Zeile zählt in Z2 nicht); beim nächsten Materialisierungslauf ggf. zurückgesetzt (`SetCoatingPartsAsync`-Reset) | **wirkungslos** |
-| W4 | VK–VA | HauptFA-Zeile hat den Arbeitsgang **nicht**, nur Sub-FAs | nichts - es gibt keinen `FaWorkStep` der HauptFA-Zeile | - | - | **technisch nicht schreibbar**: Auswahl muss gesperrt sein (keine Entscheidung, sondern Folge von (c)); Hinweistext „Arbeitsgang nur an Sub-FAs - ändern mit „Sub-FAs anzeigen““ |
-| W5 | VK–VA | HauptFA hat den Arbeitsgang, Sub-FAs weichen ab (z. B. HauptFA → Fertig, Sub-FA Offen) | HauptFA `FaWorkStep.Status` | gewählten Wert („Fertig“) | **„In Bearbeitung“** (Z5) | erwartbar, aber für den Benutzer überraschend; gehört zu Rückfrage 8 |
+| W4 | VK–VA | HauptFA-Zeile hat den Arbeitsgang **nicht**, nur Sub-FAs | nichts - es gibt keinen `FaWorkStep` der HauptFA-Zeile | - | - | **technisch nicht schreibbar**: Auswahl gesperrt, zeigt die Zusammenfassung Z5 der Sub-FA-Zeilen (keine Entscheidung, sondern Folge von (c); einziger gesperrter Fall nach Antwort 8); Hinweistext „Arbeitsgang nur an Sub-FAs - ändern mit „Sub-FAs anzeigen““ |
+| W5 | VK–VA | HauptFA hat den Arbeitsgang, Sub-FAs weichen ab (z. B. HauptFA → Fertig, Sub-FA Offen) | HauptFA `FaWorkStep.Status` | gewählten Wert („Fertig“) | **„In Bearbeitung“** (Z5) | erwartbar, aber für den Benutzer überraschend; mit Antwort 8 Neuladen + Hinweis |
 
-Für W1-W3 und W5 entscheidet Rückfrage 8, wie die Zelle aussieht. **Bis zur Antwort baut der Dev-Lauf die Empfehlung (i):** Zelle
-bedienbar genau dann, wenn **jeder** wählbare Wert, an die HauptFA-Zeile geschrieben, auch als Zusammenfassung erscheint (Checkbox: beide
-Werte; VK–VA: alle drei Status). Die reine Funktion prüft das, indem sie die Regel Z1-Z5 mit jedem möglichen HauptFA-Wert durchrechnet.
-Sonst gesperrt (deckt W1, W2, W3, W5 ab; W4 ist ohnehin gesperrt), mit `title` und sichtbarem Kurztext „bestimmt durch Sub-FA“; ändern
-über „Sub-FAs anzeigen“. In K1/K2 bleibt die Zelle bedienbar und schreibt die HauptFA-Zeile. Das gemeinsame Skript
-`fa-work-step-status.js` wird dafür **nicht** geändert (Sperre über `Disabled` im Partial).
+Die Spalten „Benutzer sieht sofort“ und „nach Neuladen“ beschreiben das Speichern ohne Neuladen von heute. Mit Antwort 8 lädt die Seite in
+W1-W3 und W5 sofort neu; der Benutzer sieht dann direkt den Wert aus „nach Neuladen“ mit dem Hinweis „Sub-FA bestimmt den Wert weiter“.
+
+*(überholt durch Antwort 8: „Bis zur Antwort baut der Dev-Lauf die Empfehlung (i): … sonst gesperrt … mit Kurztext „bestimmt durch
+Sub-FA“ … `fa-work-step-status.js` wird dafür nicht geändert“.)*
+
+**Entschieden mit Antwort 8, Variante (ii):** W1, W2, W3 und W5 bleiben **bedienbar**. Sie schreiben nur die HauptFA-Zeile (Antwort 7).
+Nach erfolgreichem Speichern wird die Seite neu geladen, damit sofort der neu zusammengefasste Wert steht.
+
+- **„Sub-FA bestimmt“** heißt: Nicht jeder Wert, den man an der HauptFA-Zeile setzen kann, erscheint danach auch als Zusammenfassung
+  (Checkbox: beide Werte; VK–VA: alle drei Status). Die reine Funktion rechnet dafür die Regel Z1-Z5 mit jedem möglichen HauptFA-Wert
+  durch und liefert je Zelle das Flag `SubFaBestimmt`.
+- **Hinweis:** Zellen mit `SubFaBestimmt` tragen sichtbar den Text „Sub-FA bestimmt den Wert weiter“ (Kurztext an der Zelle plus `title`,
+  nicht nur Farbe). Der Hinweis steht bei jedem Seitenaufbau, nicht nur nach einem Klick; damit sieht der Benutzer nach dem Neuladen,
+  warum sein Klick den angezeigten Wert nicht oder nicht ganz geändert hat (W1: Haken wieder gesetzt, W2: wieder leer, W3: unverändert,
+  W5: „In Bearbeitung“).
+- **Neuladen nur bei `SubFaBestimmt`** (`data-neu-laden="true"` an der Zelle): In K1/K2 zeigt die Zelle den geklickten Wert ohnehin
+  richtig, dort bleibt es beim heutigen Speichern ohne Neuladen. `location.reload()` behält URL, Filter, Seite und Schalter; die
+  Scrollposition geht verloren (bekannte Grenze, kein eigener Mechanismus). Bei Fehler wie heute zurück auf den alten Wert + Meldung, kein
+  Neuladen.
+- **W4 bleibt als einziger Fall gesperrt** (Begründung: an der HauptFA-Zeile gibt es keinen `FaWorkStep` für diesen Arbeitsgang, also
+  nichts, was Variante (c) schreiben könnte; einen anzulegen wäre ein neuer Schreibweg, den keine Antwort vorsieht). Angezeigt wird die
+  Zusammenfassung Z5 der Sub-FA-Zeilen in der gesperrten Auswahl, mit Text „Arbeitsgang nur an Sub-FAs – ändern mit „Sub-FAs anzeigen““.
+- **W3** ist technisch schreibbar, setzt aber `IsCoatingDone` an einer Zeile ohne Lackteile, und das zählt in Z2 nicht → Rückfrage 9.
+  Bis zur Antwort gilt Antwort 8 wörtlich: bedienbar mit Neuladen und Hinweis.
+- **Skripte:** Die Checkboxen speichern über das Leitstand-eigene Skript (`Index.cshtml:525-553`), das Neuladen kommt dort in den
+  Erfolgszweig. Für VK–VA braucht es eine additive Zeile im gemeinsamen `fa-work-step-status.js`: nach `resp.ok` ein
+  `CustomEvent('wms:fa-status-gespeichert', { bubbles: true })` am Select. Die Leitstand-Seite lädt bei diesem Ereignis neu, wenn
+  `sel.closest('[data-neu-laden]')` trifft (Attribut an der `<td>`, damit `_FaWorkStepStatusSelect` (`:3`) unverändert bleibt); die FA-Abarbeitungsliste hört nicht darauf, bei ihr ändert sich nichts. Das gemeinsame Skript wird
+  **einmal** und nur additiv angefasst (Grundsatz aus dem Gedächtnis: gemeinsames JS nur einmal anfassen). Ein Neuladen ohne dieses
+  Ereignis, etwa direkt beim `change`, würde den laufenden `fetch` abbrechen.
 
 ## Technischer Loesungsentwurf
 
@@ -252,9 +281,10 @@ vorhandener flacher View-Zweig, vorhandener Dialog. Neu sind nur ein Parameter, 
      `vm.NurHauptFa = true`, `vm.MitSubFa = mitSubFa`, `vm.GruppenOhneHauptFa = await CountGruppenOhneHauptFaAsync(showDone)`.
 3. **Reine Funktion `Services/LeitstandHauptFaZusammenfassung.cs`** (statisch, DB-frei, unit-testbar): bekommt die HauptFA-Zeile
    (`PickingLeitstandItem`) und die Statuszeilen/Pivots **aller** Zeilen ihres Auftrags, setzt `HasCoatingParts`, `IsCoatingDone`,
-   `HasGlass`, `HasExternalPurchase`, `WorkSteps` (Z1-Z5) und `SubFaAnzahl` (L11), dazu je Spalte ein Flag „bedienbar“ nach dem
-   Kriterium im Abschnitt „Klickverhalten“. VK–VA: je Kürzel Regel Z5 (Antwort 6); die zusammengefasste Zelle trägt die `FaWorkStepId`
-   der HauptFA-Zeile, damit ein Klick nur die HauptFA-Zeile schreibt (Antwort 7); fehlt sie, 0 und gesperrt (W4). Checkboxen behalten
+   `HasGlass`, `HasExternalPurchase`, `WorkSteps` (Z1-Z5) und `SubFaAnzahl` (L11), dazu je Zelle das Flag `SubFaBestimmt` nach dem
+   Kriterium im Abschnitt „Klickverhalten“ (Antwort 8). *(überholt: „je Spalte ein Flag „bedienbar““.)* VK–VA: je Kürzel Regel Z5
+   (Antwort 6); die zusammengefasste Zelle trägt die `FaWorkStepId` der HauptFA-Zeile, damit ein Klick nur die HauptFA-Zeile schreibt
+   (Antwort 7); fehlt sie, 0 und gesperrt (W4, einziger gesperrter Fall). Checkboxen behalten
    `data-id` = Id der HauptFA-Zeile. Keine zweite Sub-FA-Definition:
    „Sub-FA“ = Zeile derselben `OrderNumber`, die nicht die HauptFA-Zeile ist (`ProductionOrder.IsSubFaOf`).
 4. **View `Index.cshtml`:** Filterkarte Checkbox „Sub-FAs anzeigen“ (`name="mitSubFa"`, Muster „Erledigte anzeigen“ `:51-55`), nur bei
@@ -264,10 +294,14 @@ vorhandener flacher View-Zweig, vorhandener Dialog. Neu sind nur ein Parameter, 
 5. **Row-Partial:** Knopf `btn-cascade-done` (gleiche Klasse, `data-order-number`) in der `row-actions`-Zelle bei
    `Model.Hierarchical && isHauptFaRow && Model.CanPick && Model.NurHauptFa` (neues Feld im `PickingLeitstandRowContext`). Das Skript
    `:460-` sucht nur `.btn-cascade-done` und braucht keine Änderung; `e.stopPropagation()` ist im flachen Zweig harmlos.
-   Zusammengefasste Zellen nach L10 (Antwort 7): Wert = Zusammenfassung, `data-id`/`FaWorkStepId` = HauptFA-Zeile; gesperrt
-   (`disabled` bzw. `_FaWorkStepStatusSelect` mit `Disabled = true`) nur, wo das Flag „bedienbar“ false ist, mit Kurztext
-   „bestimmt durch Sub-FA“ und `title` „Zusammenfassung aus HauptFA und n Sub-FAs – ändern mit „Sub-FAs anzeigen““ (Rückfrage 8,
-   Empfehlung (i)). *(überholt: „Empfehlung: bei `SubFaAnzahl > 0` alle Zellen gesperrt“.)* Freigabe-Bedingungen `:23`, `:35`, `:244`
+   Zusammengefasste Zellen nach L10 (Antworten 7 und 8): Wert = Zusammenfassung, `data-id`/`FaWorkStepId` = HauptFA-Zeile, bedienbar.
+   Bei `SubFaBestimmt`: `data-neu-laden="true"` an der `<td>`, sichtbarer Kurztext „Sub-FA bestimmt den Wert weiter“ und `title`
+   „Zusammenfassung aus HauptFA und n Sub-FAs“. Gesperrt (`_FaWorkStepStatusSelect` mit `Disabled = true`) nur W4, mit Text
+   „Arbeitsgang nur an Sub-FAs – ändern mit „Sub-FAs anzeigen““. Skript: Checkbox-Handler `Index.cshtml:525-553` lädt im
+   Erfolgszweig neu, wenn die Zelle `data-neu-laden` trägt; für VK–VA ein Listener auf `wms:fa-status-gespeichert` plus die eine
+   additive Ereigniszeile in `fa-work-step-status.js` (Abschnitt „Klickverhalten“). *(überholt: „gesperrt … nur, wo das Flag
+   „bedienbar“ false ist, mit Kurztext „bestimmt durch Sub-FA“ … (Rückfrage 8, Empfehlung (i))“; überholt: „Empfehlung: bei
+   `SubFaAnzahl > 0` alle Zellen gesperrt“.)* Freigabe-Bedingungen `:23`, `:35`, `:244`
    bleiben unverändert (L4).
 6. Frontend: Skill `frontend-design` ausdrücklich aufrufen. Bootstrap-Muster der Filterkarte, Trefferflächen ≥ 24 px, Kontrast AA;
    gesperrte Zellen nicht nur über Ausgrauen kenntlich machen (Text im `title`, Zählhinweis L11).
@@ -364,13 +398,19 @@ HauptFA-Zeile über die vorhandenen Endpunkte (`/api/picking-status/toggle`, `/a
 14. VK-Spaltenfilter „fertig“ ohne Schalter trifft genau die HauptFA-Zeilen, deren **zusammengefasster** VK-Wert Fertig ist (L2).
 15. Klick an der HauptFA-Zeile (Antwort 7): In K1/K2 (z. B. HauptFA ohne Sub-FAs; Glas, wenn keine Sub-FA Glas trägt) ändert der Klick nur
     die Statuszeile bzw. den `FaWorkStep` der HauptFA-Zeile (DB-Prüfung: Sub-FA-Zeilen unverändert, `ModifiedBy` der HauptFA-Zeile gesetzt);
-    nach Neuladen zeigt die Zelle den geklickten Wert. *(überholt: „zusammengefasste Zellen einer HauptFA mit Sub-FAs sind gesperrt“.)*
-16. Fälle W1-W5 (Empfehlung (i) bis Rückfrage 8): Glas an einer Sub-FA gesetzt → Glas-Zelle der HauptFA-Zeile gesetzt, gesperrt, Text
-    „bestimmt durch Sub-FA“; Lack-T mit offener Sub-FA-Lackteilzeile → gesperrt; HauptFA ohne eigene Lackteile → gesperrt; VK nur an Sub-FAs
-    → gesperrt; VK an HauptFA und abweichend an Sub-FA → gesperrt. Lack-T, wenn alle Sub-FA-Lackteilzeilen erledigt sind und die HauptFA eigene
-    Lackteile hat → bedienbar.
-17. Unit-Tests `LeitstandHauptFaZusammenfassung`: alle Fälle aus AK 12 einzeln, „nur HauptFA-Zeile“ (= eigener Wert, bedienbar), und das
-    Flag „bedienbar“ für K1, K2, W1-W5.
+    der Klick lädt die Seite **nicht** neu, kein Hinweis „Sub-FA bestimmt den Wert weiter“; nach manuellem Neuladen zeigt die Zelle den
+    geklickten Wert. *(überholt: „zusammengefasste Zellen einer HauptFA mit Sub-FAs sind gesperrt“.)*
+16. Fälle W1-W3 und W5 (Antwort 8, Variante ii): Die Zelle ist bedienbar und trägt den sichtbaren Hinweis „Sub-FA bestimmt den Wert
+    weiter“, auch schon vor dem Klick. Nach dem Klick speichert sie nur die HauptFA-Zeile (DB-Prüfung wie AK 15) und lädt die Seite
+    sofort neu, mit gleichen Filtern, gleicher Seite und gleichem Schalter. Danach zeigt sie: W1 Glas/Zukauf abgewählt bei Sub-FA mit Glas → wieder
+    gesetzt; W2 Lack-T erledigt bei offener Sub-FA-Lackteilzeile → wieder leer; W3 Lack-T erledigt an HauptFA ohne eigene Lackteile →
+    unverändert (vorbehaltlich Rückfrage 9); W5 VK an HauptFA „Fertig“, Sub-FA Offen → „In Bearbeitung“. W4 (VK nur an Sub-FAs): Auswahl
+    gesperrt und zeigt die Zusammenfassung der Sub-FAs mit Text „Arbeitsgang nur an Sub-FAs – ändern mit „Sub-FAs anzeigen““. Speicherfehler
+    (z. B. Server-Antwort 400): alter Wert zurück, Meldung, kein Neuladen. FA-Abarbeitungsliste: Status ändern wie bisher, kein Neuladen.
+    *(überholt: „Fälle W1-W5 (Empfehlung (i) bis Rückfrage 8): … gesperrt, Text „bestimmt durch Sub-FA“ …“.)*
+17. Unit-Tests `LeitstandHauptFaZusammenfassung`: alle Fälle aus AK 12 einzeln, „nur HauptFA-Zeile“ (= eigener Wert, `SubFaBestimmt`
+    false), das Flag `SubFaBestimmt` für K1, K2 (false) und W1, W2, W3, W5 (true), W4 = `FaWorkStepId` 0 / gesperrt.
+    *(überholt: „das Flag „bedienbar“ für K1, K2, W1-W5“.)*
 18. Repository-Test InMemory: `nurHauptFa` + `faNrUeberSubFa: false` trifft mit Sub-FA-Nummer nichts, mit HauptFA-Nummer die HauptFA-Zeile;
     `faNrUeberSubFa` Default (`true`) unverändert (bestehende Tests `FaListeNurHauptFaTests` grün); `GetZeilenIdsJeAuftragAsync` liefert
     HauptFA- und Sub-FA-Zeilen ohne stornierte.
@@ -391,8 +431,11 @@ Neues Kapitel in `docs/TESTSZENARIEN.md` (Nummer beim Dev-Start prüfen; nach Te
 - **x.6** Zusammenfassung: mit Schalter Einzelwerte an den Sub-FAs setzen, Schalter aus, Werte an der HauptFA-Zeile prüfen - Fälle a) bis e)
   (AK 12, d mit gemischt Fertig/Offen → „In Bearbeitung“); VK-Spaltenfilter (AK 14).
 - **x.6b** Klick an der HauptFA-Zeile: HauptFA ohne Sub-FAs Glas setzen, Seite neu laden, Wert bleibt; per Schalter prüfen, dass keine
-  Sub-FA-Zeile sich geändert hat (AK 15). Fälle W1-W5 anlegen und Sperre plus Text „bestimmt durch Sub-FA“ prüfen; Lack-T bedienbar, wenn alle
-  Sub-FA-Lackteile erledigt sind (AK 16).
+  Sub-FA-Zeile sich geändert hat, Seite lädt dabei nicht von selbst neu (AK 15). Fälle W1, W2, W3, W5 anlegen: Hinweis „Sub-FA bestimmt den
+  Wert weiter“ sichtbar, Klick → Seite lädt sofort neu (Filter/Seite bleiben), angezeigter Wert laut AK 16; per Schalter prüfen, dass nur
+  die HauptFA-Zeile geschrieben wurde. W4: Auswahl gesperrt mit Text „Arbeitsgang nur an Sub-FAs …“. Negativ: Speicherfehler (z. B.
+  Sitzung abgelaufen) → alter Wert, Meldung, kein Neuladen; FA-Abarbeitungsliste Status ändern → kein Neuladen (AK 16).
+  *(überholt: „Fälle W1-W5 anlegen und Sperre plus Text „bestimmt durch Sub-FA“ prüfen“.)*
 - **x.7** Banner mit Auftrag ohne HauptFA-Zeile (AK 8, ggf. nur per Testdaten).
 - **Negativ:** AKE-Leitstand (AK 9); FA-Liste IDEAL (AK 10); Benutzer ohne Leitstand-Recht (AK 11); direkter `ToggleRelease`-POST mit
   Sub-FA-Id (AK 7, Entwicklerwerkzeuge oder Testfall im Controller-Test).
@@ -426,6 +469,8 @@ Neues Kapitel in `docs/TESTSZENARIEN.md` (Nummer beim Dev-Start prüfen; nach Te
 > ja/Standard aus, 3 eine Zeile je HauptFA ohne Gruppenkopf und keine Sub-FA-Freigabe, 4 Filter auf HauptFA-Zeile und Sub-FA-Nummern-Suche
 > nur mit Schalter, 5 **abweichend von der Empfehlung** Zusammenfassung HauptFA inkl. Sub-FAs. Neu offen: 6 und 7.
 > Nachtrag: 6 entschieden (Tabelle ja, VK–VA gemischt = In Bearbeitung), 7 entschieden (Variante c, nur HauptFA-Zeile schreiben). Neu offen: 8.
+> Nachtrag 2: 8 entschieden (ii) - bedienbar, Neuladen nach dem Speichern, Hinweis „Sub-FA bestimmt den Wert weiter“; nur W4 bleibt
+> gesperrt (kein `FaWorkStep` an der HauptFA-Zeile). Neu offen: 9 (W3).
 
 1. **Freigabe-Haken am HauptFA – was fehlte genau?** Der Haken und „Freigeben“ stehen seit v1.46.0 an der HauptFA-Zeile
    (`_PickingLeitstandRow.cshtml:20-31`, `:241-285`). Sie fehlen nur, wenn `LeitstandAktiv` aus ist, der Benutzer kein
@@ -469,6 +514,12 @@ Neues Kapitel in `docs/TESTSZENARIEN.md` (Nummer beim Dev-Start prüfen; nach Te
    neu geladen und die Zelle zeigt sofort den zusammengefassten Wert mit Hinweis „Sub-FA bestimmt den Wert weiter“; (iii) bedienbar ohne
    Sonderbehandlung (Klick wirkt erst beim Neuladen, ggf. scheinbar nicht). **Empfehlung:** (i) - nie ein Klick, der still verpufft;
    Kriterium „jeder wählbare Wert an der HauptFA-Zeile erscheint auch als Zusammenfassung“. Der Dev-Lauf baut (i), bis die Antwort da ist.
+9. **W3: Lack-T erledigt an einer HauptFA-Zeile ohne eigene Lackteile.** Der Haken erscheint dort nur wegen Sub-FAs (Z1). Ein Klick
+   setzt `IsCoatingDone` an einer Zeile, die in Z2 nicht zählt. Die Anzeige ändert sich also auch nach dem Neuladen nie. Der nächste
+   Materialisierungslauf kann den Wert wieder zurücksetzen (`FaMaterializationSyncService.cs:216-228`). Damit ist das ein Klick, der nie
+   wirkt, auch mit Hinweis. Antwort 8 (ii) sagt „bedienbar“; der Dev-Lauf baut das so, bis die Antwort da ist. Varianten:
+   (a) wie Antwort 8, bedienbar mit Neuladen und Hinweis; (b) nur diese Zelle wie W4 sperren, mit Text „Lackteile nur an Sub-FAs – ändern
+   mit „Sub-FAs anzeigen““. **Empfehlung:** (b), weil der Hinweis „bestimmt weiter“ hier falsch wäre (die HauptFA bestimmt gar nicht mit).
 
 ## ANTWORTEN auf Rueckfragen - Fachbereich (aus Jira)
 
@@ -489,4 +540,5 @@ Neues Kapitel in `docs/TESTSZENARIEN.md` (Nummer beim Dev-Start prüfen; nach Te
 5. Keine Zusammenfassung der Sub-FA-Werte an der HauptFA-Zeile? → **alles was für diesen hauptfa inkl subfa (logik haben wir glaube ich schon bei der kommissionierliste so)** (Gerald 2026-11-26, Chat)
 6. Zusammenfassungsregel je Spalte wie Tabelle Z1-Z6 (VK–VA gemischt fertig/offen = offen)? → **Tabelle ja, aber VK–VA gemischt fertig/offen = „In Bearbeitung“ (nicht offen)** (Gerald 2026-11-26, Chat)
 7. Bedienbarkeit zusammengefasster Zellen: (a) nur Anzeige / (b) auf alle Zeilen schreiben / (c) nur HauptFA-Zeile? → **(c) Klick schreibt nur die HauptFA-Zeile** (Gerald 2026-11-26, Chat)
-8. Zellen, in denen Sub-FAs den Wert bestimmen (W1-W5): (i) gesperrt mit „bestimmt durch Sub-FA“ / (ii) bedienbar mit Neuladen und Hinweis / (iii) bedienbar ohne Sonderbehandlung? →
+8. Zellen, in denen Sub-FAs den Wert bestimmen (W1-W5): (i) gesperrt mit „bestimmt durch Sub-FA“ / (ii) bedienbar mit Neuladen und Hinweis / (iii) bedienbar ohne Sonderbehandlung? → **(ii) bedienbar, nach dem Speichern Neuladen und Hinweis „Sub-FA bestimmt den Wert weiter“** (Gerald 2026-11-26, Chat)
+9. W3 Lack-T erledigt an HauptFA ohne eigene Lackteile: (a) wie Antwort 8 bedienbar / (b) nur diese Zelle sperren mit „Lackteile nur an Sub-FAs“? →

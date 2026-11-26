@@ -23,7 +23,7 @@ affected_code:
   - IdealAkeWms/Models/ViewModels/BomViewModels.cs (IstListe, KannListe, Summenzeilen, Arbeitsbereich, Abteilung)
   - IdealAkeWms/Views/Picking/Bom.cshtml (Umschalter im Auftragskopf Z. 47-57; Liste-Tabelle; collectPickedItems Z. 1601-1618; Druck-Reihenfolge Z. 1404-1420)
   - IdealAkeWms/Views/Picking/_AuftragListeTabelle.cshtml (NEU, Partial - thead/tbody/column-config der Liste)
-  - IdealAkeWms/Controllers/PickingController.cs (AuftragDrucken GET/POST Z. 602-613 + RenderAuftragDruckenAsync Z. 615-671 - Parameter ansicht/visibleColumns, Zweig summierter Druck)
+  - IdealAkeWms/Controllers/PickingController.cs (AuftragDrucken GET/POST Z. 602-613 + RenderAuftragDruckenAsync Z. 615-671 - Parameter ansicht/visibleColumns/pdf, Zweig summierter Druck + PDF ueber [FromServices] IRazorViewRenderer/IPdfRenderService; Auftrag: [FromServices] PdfRenderStatus fuer den Knopf)
   - IdealAkeWms/Views/Picking/PrintAuftragListe.cshtml (NEU - Aufbau/Stil wie FaHierarchyKommissionierListen/PrintSummiert.cshtml, Spalten per ShowCol)
   - IdealAkeWms/wwwroot/js/print-visible-columns.js (unveraendert wiederverwendet, data-print-link am Druckknopf der Liste)
   - IdealAkeWms/Models/ViewModels/ColumnDefinitions.cs (neue ViewConfig KommissionierauftragListe neben Bom Z. 260 + Lookup Z. 1061)
@@ -42,7 +42,7 @@ open_questions:
   - "7 (beantwortet 2026-11-26: ja) Schnitt: ein Epic in einem Lauf mit Etappe A (Umschalter + summierte Anzeige, noch ohne Buchung aus der Liste) und Etappe B (Verteil-Buchung) als zwei Commits, ein Merge - einverstanden?"
   - "8 (beantwortet 2026-11-26: weglassen) Bestellen (Bedarfsmeldung) und Lagerbestellung in der Liste: Empfehlung nicht anbieten (Spalten und Sammelknopf nur in der Stückliste) - einverstanden?"
   - "9 (beantwortet 2026-11-26, abweichend: summiert wie die Liste, Aussehen wie PDF-Druck der Kommissionierliste, eingeblendete Spalten) „Auftrag drucken“ aus der Liste: Druck bleibt je Position (PrintPicking), nur die Reihenfolge folgt der Liste; ein summierter Auftragsdruck wäre ein eigener Eintrag - einverstanden?"
-  - "10 Summierter Auftragsdruck: nur Bildschirm-/Browserdruck (wie heute „Auftrag drucken“) oder zusätzlich ein PDF-Download-Knopf wie „PDF“ der Kommissionierliste (PdfSummiert)? Empfehlung: nur Browserdruck."
+  - "10 (beantwortet 2026-11-26: zusätzlich PDF-Knopf wie PdfSummiert) Summierter Auftragsdruck: nur Bildschirm-/Browserdruck (wie heute „Auftrag drucken“) oder zusätzlich ein PDF-Download-Knopf wie „PDF“ der Kommissionierliste (PdfSummiert)? Empfehlung: nur Browserdruck."
 epic: true
 etappen:
   - "A Umschalter + summierte Anzeige (Spalten, Sortierung, BG, Arbeitsbereich/Abteilung) + summierter Auftragsdruck aus der Liste - Liste noch ohne Haken/Ist/Quell-Lagerplatz"
@@ -89,7 +89,8 @@ Drucken/Abschließen und Fotos gelten in beiden Masken.
 - Bestellen/Lagerbestellung in der Liste (Antwort 8: weglassen; nur in der Stückliste).
 - ~~Summierter Auftragsdruck; `AuftragDrucken` (v1.97.0) bleibt je Position, nur die Reihenfolge kommt aus der Liste (Rückfrage 9).~~
   *Überholt durch Antwort 9 – siehe In-Scope.*
-- PDF-Download des Auftragsdrucks (Rückfrage 10, Empfehlung: nur Browserdruck).
+- ~~PDF-Download des Auftragsdrucks (Rückfrage 10, Empfehlung: nur Browserdruck).~~ *Überholt durch Antwort 10: der PDF-Knopf
+  ist In-Scope (K11), aber nur in der Maske „Liste“.*
 - ~~Neue Buchungslogik~~ – *überholt durch Antwort 2 (summiert): die Verteilung ist neu, die Buchung je Zeile bleibt.*
 
 ## Fachliche Anforderungen
@@ -197,7 +198,7 @@ Drucken/Abschließen und Fotos gelten in beiden Masken.
 | K7 | Umschalten verliert nichts Gebuchtes (alles liegt in `PickingOrderLine`); nicht gespeicherte Haken/Ist-Eingaben gehen wie bei jedem Seitenwechsel verloren – der Umschalter fragt nach, wenn Haken gesetzt sind (vorhandenes `confirm`-Muster). Gewählte Maske wird nicht gemerkt (Antwort 5). |
 | K8 | **Verteil-Buchung** (Antwort 2 + Nachfrage zu 2): Haken an einer Summenzeile = Buchung der eingegebenen Ist-Menge auf die **offenen** Zeilen der Gruppe (Offen/Gepickt), sortiert nach `BomPosition` (`NaturalPositionComparer`), jede Zeile bis zu ihrem `SollMenge`, bis die Ist-Menge aufgebraucht ist. Unterdeckung: die zuletzt erreichte Zeile wird mit dem Rest teilgebucht (`Umgebucht`, Ist < Soll), nicht erreichte Zeilen bleiben `Offen` (beides geht beim teilweisen Abschluss wie heute in den Folgeauftrag). Überdeckung (Ist > Σ offenes Soll): abgelehnt mit Meldung, nichts gebucht – folgt aus „jede bis zu ihrem Soll“ und der vorhandenen Regel Ist ≤ Soll (`PickingTransferService.cs:68-69`). Ist ≤ 0 oder keine Zahl: abgelehnt wie heute. Gebucht wird je Zeile über die unveränderte Buchungsschleife (eine Bewegung je Zeile, eine Transaktion für die ganze Auswahl, Bestandsabzug je Zeile). |
 | K9 | Quell-Lagerplatz einer Summenzeile: ein Auswahlfeld, vorbelegt mit dem Vorschlag je Artikel (offene Zeilen haben keinen gespeicherten Platz, siehe Ist-Stand); alle verteilten Zeilen der Summenzeile bekommen diesen Platz. Reicht der Bestand nicht und ist Negativbuchung erlaubt, weicht wie heute je Zeile der Negativ-Lagerplatz ein (`PickingTransferService.cs:199-207`). |
-| K11 | **Summierter Auftragsdruck** (Antwort 9 + Nachfragen Gerald zum Druck): „Auftrag drucken“ aus der Liste druckt die Summenzeilen des KO-Auftrags – **alle** Summenzeilen des Auftrags, auch weggefilterte (wie der heutige Auftragsdruck, `Bom.cshtml:1405-1406`), in der Zeilenreihenfolge der Liste (inkl. Spaltensortierung). Spalten = die zur Klickzeit in der Liste eingeblendeten (Muster v1.47.0 „nur sichtbare Spalten“), ohne Haken; Menge Ist = gebuchte Summe, Quell-Lagerplatz = Text (gespeicherter Platz bzw. Vorschlag wie `PickingController.cs:629-632`). Aussehen wie der PDF-Druck der Kommissionierliste (`PrintSummiert.cshtml`: Stil, Banner „Summierte Ansicht“, Kopf mit Barcode, `table.positions`); Kopf mit KO-Nummer + Barcode, FA, Bereich, Status, Fälligkeit wie `PrintPicking`. Aus der Maske „Stückliste“ bleibt der Druck je Position unverändert. |
+| K11 | **Summierter Auftragsdruck** (Antwort 9 + Nachfragen Gerald zum Druck): „Auftrag drucken“ aus der Liste druckt die Summenzeilen des KO-Auftrags – **alle** Summenzeilen des Auftrags, auch weggefilterte (wie der heutige Auftragsdruck, `Bom.cshtml:1405-1406`), in der Zeilenreihenfolge der Liste (inkl. Spaltensortierung). Spalten = die zur Klickzeit in der Liste eingeblendeten (Muster v1.47.0 „nur sichtbare Spalten“), ohne Haken; Menge Ist = gebuchte Summe, Quell-Lagerplatz = Text (gespeicherter Platz bzw. Vorschlag wie `PickingController.cs:629-632`). Aussehen wie der PDF-Druck der Kommissionierliste (`PrintSummiert.cshtml`: Stil, Banner „Summierte Ansicht“, Kopf mit Barcode, `table.positions`); Kopf mit KO-Nummer + Barcode, FA, Bereich, Status, Fälligkeit wie `PrintPicking`. Aus der Maske „Stückliste“ bleibt der Druck je Position unverändert. **PDF-Knopf** (Antwort 10) neben „Auftrag drucken“ in der Liste: lädt dasselbe Dokument als PDF (dieselbe View, dieselben Summenzeilen, Reihenfolge und sichtbaren Spalten), Muster `PdfSummiert`; nur sichtbar, wenn der PDF-Dienst verfügbar ist (`PdfRenderStatus.IsAvailable`, Muster `Summiert.cshtml:106`); Fehler beim Rendern → Warnmeldung auf der Auftragsseite (Liste), kein leeres PDF. |
 | K10 | Filterfeld (`filterText`) wirkt in der Liste auf die Auftragszeilen **vor** dem Summieren (`PickingController.cs:384-393` bleibt vor der Summierung); eine Summenzeile zeigt und bucht dann nur die passenden Zeilen. |
 
 ## Technischer Loesungsentwurf
@@ -249,10 +250,21 @@ Die einzige neue Logik sind zwei reine, unit-getestete Funktionen: Summieren und
    der href; das Sortier-POST-Skript (`Bom.cshtml:1404-1426`) übernimmt `action = getAttribute('href')` schon mit Query – im Dev-Lauf
    prüfen, dass `visibleColumns` auch im POST-Fall ankommt (Reihenfolge der beiden Klick-Handler), sonst als Formularfeld setzen; bei
    Summenzeilen alle Positionen aus `data-positionen` in die `reihenfolge` übernehmen.
+6b. **PDF-Knopf (Antwort 10, Muster `PdfSummiert` `FaHierarchyKommissionierListenController.cs:333-366`):** kein neuer Endpunkt –
+   `AuftragDrucken` GET/POST bekommen zusätzlich `bool pdf = false`. Bei `pdf && ansicht == "liste"`: dasselbe ViewModel wie 6a,
+   `html = await viewRenderer.RenderToStringAsync(ControllerContext, "PrintAuftragListe", vm)`,
+   `pdfRenderService.RenderHtmlToPdfAsync(html, HttpContext.RequestAborted)`, `File(…, "application/pdf",
+   PdfFileNameBuilder.Build("Kommissionierauftrag", auftrag.Nummer, DateTime.Now))` (String-Überladung `Services/PdfFileNameBuilder.cs:13`);
+   `IRazorViewRenderer` und `IPdfRenderService` per `[FromServices]` (Controller-Konstruktor bleibt). `PdfRenderException` →
+   `TempData["WarningMessage"] = ex.UserMessage` und Redirect auf `Auftrag/{id}?ansicht=liste` (Muster `:361-366`). Knopf im Partial nur
+   bei `vm.PdfVerfuegbar` (= `PdfRenderStatus.IsAvailable`, per `[FromServices]` in `Auftrag` gelesen), mit
+   `data-print-link="KommissionierauftragListe"`; bei aktiver Sortierung denselben POST-Weg wie „Auftrag drucken“ mit `pdf=true` nehmen
+   (die Positionsliste nicht in die GET-Query – Hotfix v1.30.1 HTTP 404.15, `PickingController.cs:495-497`).
 7. **Tests A:** `KommissionierauftragListeTests` (Schlüssel inkl. Groß/Klein/Leerzeichen, Summen, gemischter Status, Sortierung mit
    leeren Werten, BG getrennt, mehrwertiger Arbeitsbereich, Reihenfolge nach Positionsliste), `PickingControllerTests` (Standard je
    Einstellung, `ansicht`-Parameter, ungültiger Wert, AKE/flach ohne Umschalter; `AuftragDrucken` mit `ansicht=liste` → View
-   `PrintAuftragListe` mit Summenzeilen und `VisibleColumns` aus dem Parameter, ohne `ansicht` → `PrintPicking` unverändert).
+   `PrintAuftragListe` mit Summenzeilen und `VisibleColumns` aus dem Parameter, ohne `ansicht` → `PrintPicking` unverändert; `pdf=true` mit gemocktem `IPdfRenderService` → `FileResult` `application/pdf`,
+   `PdfRenderException` → Redirect mit Warnung). Die echte PDF-Erzeugung ist nicht InMemory-testbar → Manual-UAT (x.7a).
 
 **Etappe B – Verteil-Buchung**
 
@@ -348,7 +360,8 @@ auditiert (`:243-249`). Abschließen und Fotos unverändert. Kommissionier-Umbuc
 10. Wagen-Konflikt aus der Liste: Konflikt-Dialog wie aus der Stückliste, „trotzdem buchen“ bucht alle verteilten Zeilen.
 11. Artikel-Scan in der Liste hakt die Summenzeile an; „Auftrag abschließen“ und Foto hochladen funktionieren aus der Liste.
 11a. „Auftrag drucken“ aus der Liste: ein Dokument im Aufbau des PDF-Drucks der Kommissionierliste (Banner „Summierte Ansicht“, Kopf mit Barcode – hier KO-Nummer –, Tabelle im selben Stil), Inhalt = alle Summenzeilen des Auftrags in der Reihenfolge der Liste (auch nach Spaltensortierung), Spalten = genau die in der Liste eingeblendeten ohne Haken (Zahnrad: z. B. Kategorie ausblenden → fehlt im Druck; Sage-Pos. einblenden → erscheint).
-11b. „Auftrag drucken“ aus der Stückliste: unverändert je Position (`PrintPicking`).
+11b. „Auftrag drucken“ aus der Stückliste: unverändert je Position (`PrintPicking`); dort kein PDF-Knopf.
+11c. PDF-Knopf in der Liste (nur bei verfügbarem PDF-Dienst): lädt eine PDF-Datei „Kommissionierauftrag-<KO-Nummer>-…“ mit demselben Inhalt, derselben Reihenfolge und denselben Spalten wie 11a; ist der PDF-Dienst nicht verfügbar, fehlt der Knopf; schlägt das Rendern fehl, steht eine Warnmeldung auf der Auftragsseite (Liste).
 12. Auftrag im Status Abgeschlossen: Liste schreibgeschützt (keine Haken/Eingaben), wie die Stückliste.
 13. Spaltenauswahl der Liste ist unabhängig von der der Stückliste (eigener View-Key).
 14. Kommissionierlisten aus (oder AKE): kein Umschalter, `?ansicht=liste` zeigt die Stückliste.
@@ -376,7 +389,10 @@ Neues Kapitel in `docs/TESTSZENARIEN.md` (Nummer beim Dev-Start prüfen; nach Te
 - **x.7a** Druck aus der Liste (AK 11a): Kommissionierliste → Summiert → „PDF“ eines HauptFA öffnen als Vergleich; im KO-Auftrag
   (Liste) per Zahnrad eine Spalte aus- und eine einblenden, nach Hauptlagerplatz sortieren, Filtertext setzen, „Auftrag drucken“ →
   gleiches Aussehen wie das PDF, alle Summenzeilen trotz Filter, Reihenfolge und Spalten wie in der Liste. Umschalten auf Stückliste,
-  „Auftrag drucken“ → Druck je Position wie bisher (AK 11b).
+  „Auftrag drucken“ → Druck je Position wie bisher (AK 11b). Zurück zur Liste, PDF-Knopf → PDF-Datei mit gleichem Inhalt,
+  Reihenfolge und Spalten wie der Browserdruck, neben das Kommissionierlisten-PDF legen (AK 11c).
+- **Negativ x.7b:** PDF-Dienst aus/nicht verfügbar (DEV: wie bei der Kommissionierliste) → kein PDF-Knopf; Fehler beim Rendern →
+  Warnmeldung, Auftragsseite bleibt in der Liste.
 - **x.8** Abgeschlossenen Auftrag öffnen (AK 12); Spaltenauswahl Liste vs. Stückliste (AK 13); Umschalter mit gesetzten Haken (AK 15).
 - **Negativ:** Einstellung aus bzw. AKE-Test: kein Umschalter, `?ansicht=liste` wirkungslos (AK 14); `/FaHierarchyKommissionierListen`
   unverändert (AK 16); Ist 0, „abc“ → Meldung, nichts gebucht.
@@ -385,7 +401,7 @@ Neues Kapitel in `docs/TESTSZENARIEN.md` (Nummer beim Dev-Start prüfen; nach Te
 
 | # | Etappe | Status | Commit |
 |---|--------|--------|--------|
-| A | Umschalter, summierte Anzeige und summierter Auftragsdruck (Schritte 1–7 inkl. 6a): Spalten, Sortierung, BG, Arbeitsbereich/Abteilung, ViewConfig, `PrintAuftragListe`; Liste noch ohne Haken/Ist/Quell-Lagerplatz. Build + Tests grün, keine Migration. AK 1–4, 11a, 11b, 12–14, 16. Rückfrage 10 (PDF-Knopf) blockiert nicht: ohne Antwort nur Browserdruck. | offen | – |
+| A | Umschalter, summierte Anzeige, summierter Auftragsdruck und PDF-Knopf (Schritte 1–7 inkl. 6a, 6b): Spalten, Sortierung, BG, Arbeitsbereich/Abteilung, ViewConfig, `PrintAuftragListe`, PDF über `IPdfRenderService`; Liste noch ohne Haken/Ist/Quell-Lagerplatz. Build + Tests grün, keine Migration. AK 1–4, 11a–11c, 12–14, 16. | offen | – |
 | B | Verteil-Buchung (Schritte 8–12): `PickingOrderVerteilung`, `PickingItemIds`, Expansion in `TransferOrderLinesAsync`, Skript + Partial-Eingaben. Build + Tests grün, keine Migration. AK 5–11, 15, 17. Hängt an keiner offenen Rückfrage. | offen | – |
 
 *Schnitt bestätigt (Antwort 7):* ein Lauf, ein Worktree (Bündel `2026-08-07-ideal-teile-1-5`), ein Merge; Etappen sind nur
@@ -445,6 +461,7 @@ Kommissionierliste mit den eingeblendeten Spalten) und in Rumpf, AK, Entwurf und
     `FaHierarchyKommissionierListenController.cs:333-361`, über `IPdfRenderService`). Der Auftragsdruck öffnet heute nur die
     Druckansicht im neuen Tab (`Bom.cshtml:488`). **Empfehlung:** nur Browserdruck (gleiches Aussehen, PDF über den Druckdialog
     möglich); ein PDF-Knopf wäre ein zweiter Weg mit `IPdfRenderService`/`PdfRenderStatus` und eigener Fehlerbehandlung.
+    *Beantwortet (Runde 3): zusätzlich PDF-Knopf wie bei der Kommissionierliste – übernommen in K11, Schritt 6b, AK 11c, x.7a/x.7b.*
 
 ## ANTWORTEN auf Rueckfragen - Fachbereich (aus Jira)
 
@@ -484,7 +501,7 @@ Kommissionierliste mit den eingeblendeten Spalten) und in Rumpf, AK, Entwurf und
 
 ## Freigabe-Antworten Runde 3 (Rückfrage 10)
 
-10. Summierter Auftragsdruck nur als Browserdruck, ohne eigenen PDF-Knopf? →
+10. Summierter Auftragsdruck nur als Browserdruck, ohne eigenen PDF-Knopf? → **Nein – zusätzlich eigener PDF-Knopf wie bei der Kommissionierliste (`PdfSummiert`-Muster)** (Gerald 2026-11-26, Chat)
 
 **Nachfragen 2026-11-26 (Gerald, Chat) zum Druck (Antwort 9):** „Der Druck soll gleich ausschauen wie der PDF-Druck auf der
 derzeitigen Kommissionierliste“ und „Halt um die Zeilen erweitert wie wir eingeblendet haben“ (gemeint: die eingeblendeten Spalten)
