@@ -56,7 +56,7 @@
     {
         case IdealAkeWms.Models.ViewModels.FaNodeIconType.Root:
             iconClass = "text-success";
-            iconTitle = "Wurzel / Endprodukt (oberste Struktur-Zeile)";
+            iconTitle = "Wurzel / Endprodukt (HauptFA-Zeile)";
             iconSvg = "<path d=\"M6.5 14.5v-3.505c0-.245.20-.495.5-.495h2c.294 0 .5.25.5.495v3.505a.5.5 0 0 0 .5.5h4a.5.5 0 0 0 .5-.5v-7a.5.5 0 0 0-.146-.354L13 5.793V2.5a.5.5 0 0 0-.5-.5h-1a.5.5 0 0 0-.5.5v1.293L8.354 1.146a.5.5 0 0 0-.708 0l-6 6A.5.5 0 0 0 1.5 7.5v7a.5.5 0 0 0 .5.5h4a.5.5 0 0 0 .5-.5\"/>";
             break;
         case IdealAkeWms.Models.ViewModels.FaNodeIconType.Assembly:
@@ -150,7 +150,7 @@
                 <span class="badge bg-danger" title="@s.ErrorMessage">Fehlerhaft</span>
             }
             @* U-4 / AK 8, 14: melden statt still — Zahl der angezeigten Knoten und der ausgeblendeten Teile. *@
-            <div class="small text-muted fa-struct-zaehler">@(s.NodeCount - s.AusgeblendeteTeile) Knoten@(s.AusgeblendeteTeile > 0 ? $" · {s.AusgeblendeteTeile} Teile ausgeblendet" : "")</div>
+            <div class="small text-muted fa-struct-zaehler">@(s.NodeCount - s.AusgeblendeteTeile) Knoten@(s.AusgeblendeteTeile > 0 ? $" · {s.AusgeblendeteTeile} {(s.AusgeblendeteTeile == 1 ? "Teil" : "Teile")} ausgeblendet" : "")</div>
         }
     </td>
     <td data-col-key="matchcode" class="fa-cell-matchcode text-muted small">@n.Matchcode</td>
@@ -205,8 +205,8 @@
        Eigene kleine Tabelle — NICHT Teil der Baum-Spaltenlogik (column-preferences laesst colspan-Zeilen stehen). *@
     <tr class="fa-structure-subhead">
         <td colspan="24">
-            <div class="table-responsive mb-1">
-                <table class="table table-sm table-plain table-bordered mb-0 fa-head-table">
+            <div class="fa-head-wrap mb-1">
+                <table class="table table-sm table-plain table-bordered mb-0 w-auto fa-head-table">
                     <thead>
                         <tr>
                             <th>Montage-Abt.</th>

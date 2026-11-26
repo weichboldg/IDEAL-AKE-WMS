@@ -123,20 +123,6 @@ body {
     padding: 0.75rem 1.25rem;
 }
 
-/* IDEAL FA-Struktur — Kopfband der Struktur (Karten-Kopf in Teil 2, Struktur-
-   Kopfzeile im Tree-Table ab Etappe 7). Kontrast-Fix (WCAG AA):
-   Die globale .card-header-Regel setzt weisse Schrift (--ake-white) auf dunkles
-   --ake-primary. Ein blosses Ueberschreiben nur des Hintergrunds auf hellgrau
-   liess die geerbte WEISSE Schrift stehen -> weiss auf hellgrau, unlesbar
-   (Funktionsausfall am Fertigungsterminal). Fix: heller Hintergrund UND passende
-   dunkle Schrift, beide aus der bestehenden --ake-*-Palette (kein neuer Farbwert).
-   Rechnerisch geprueft: #4A494A (--ake-text) auf #F5F5F5 (--ake-light-gray)
-   = 8,2:1 (>= 4,5:1 Fliesstext). */
-.fa-structure-header {
-    background-color: var(--ake-light-gray);
-    color: var(--ake-text);
-}
-
 /* Buttons */
 .btn-primary {
     background-color: var(--ake-primary);
@@ -1295,8 +1281,8 @@ th:hover .col-resize-handle {
 
 /* ===== IDEAL FA-Struktur Tree-Table (Etappe 7, OSEON-Stil) ===== */
 /* IDEAL FA-Liste-Hierarchie (Teil 7/8): Gruppen-Kopfzeile + Chevron in den tabellarischen Listen
-   (ProductionOrders u.a.). Heller Kontrast-fixer Grund (dunkle Schrift auf --ake-light-gray, wie
-   .fa-structure-header, rechnerisch >= 4,5:1). */
+   (ProductionOrders u.a.). Heller Kontrast-fixer Grund (dunkle Schrift #4A494A auf --ake-light-gray #F5F5F5,
+   rechnerisch 8,2:1). */
 .fa-liste-group-head > td.fa-liste-group-header {
     background-color: var(--ake-light-gray);
     color: var(--ake-text);
@@ -1326,6 +1312,13 @@ th:hover .col-resize-handle {
 }
 .fa-structure-subhead .fa-head-table {
     font-size: 0.82rem;
+}
+/* QA F1 (v1.99.83): die Zelle ist so breit wie alle 24 Spalten; die Kopfdaten-Tabelle bleibt so schmal wie ihr Inhalt
+   und haengt beim Querscrollen links im Sichtbereich, statt sich auf die volle Breite zu dehnen. */
+.fa-head-wrap {
+    position: sticky;
+    left: 0;
+    width: max-content;
 }
 /* Struktur-Spalte traegt ALLEIN die Einrueckung/Orientierung und wird nie komprimiert. */
 .fa-tree-table th[data-col-key="structure"],
