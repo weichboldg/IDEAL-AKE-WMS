@@ -14698,6 +14698,9 @@ Kürzel IF.
 2. Fertig mit Gut leer → Pflichtfeld, nichts gebucht. Gut + Ausschuss über dem Rest → Rückfrage „über der Sollmenge“.
 3. Teilfertig bis Soll erreicht (z. B. 10) → Meldung mit „Sollmenge erreicht – bitte Fertig melden“; danach Fertig 0/0 → angenommen.
 4. Negativ: neue Produktion ohne Teilmenge, Fertig 0/0 → abgewiesen; FA-Sicht, Gruppe und Baugruppe gleich.
+5. Werkbank mit „Nur AG-Fertigmeldung“, FA-Sicht: Arbeitsgang mit Soll 10, an dem schon 4 gut gemeldet sind (Teilmenge, z. B. über eine andere
+   Werkbank ohne die Option) → Zeilenknopf **Fertig melden**: Gut mit 6 vorbelegt, Hinweis „bisher gut gemeldet: 4, Rest: 6“; Gut 5 → Rückfrage
+   „Gutmenge 9 (mit bisher 4) liegt unter der Sollmenge 10“. Ohne bisherige Menge → Vorgabe 10 wie vor 1.99.81.
 
 **TS-202.4 Kopf und FA-Sicht (Task 4, K-1, U-1, U-6 … U-13)**
 1. Kopf einklappen → Kurzzeile mit Werker und laufender Buchung, Meldungen weiter sichtbar; Seite neu laden → bleibt eingeklappt (je Gerät);
@@ -14729,8 +14732,8 @@ Kürzel IF.
    fortgesetzten oder laufenden Buchung → „Diese Buchung ist nicht (mehr) pausiert – Seite neu laden.“ Abschließen einer **fortsetzbaren**
    eigenen Pause per Request (QA v1.99.81) → „Diese Pause ist fortsetzbar – bitte „Fortsetzen“ nutzen.“, nichts geändert.
 4. *BDE-Buchungen › Hängende Pausen* als Schichtleiter: alle nie fortgesetzten Pausen aller Werker, Filter „Pausiert bis einschließlich“,
-   Spaltenfilter (Datum, Werker …), Blättern; **kein** Knopf Abschließen. Als BDE-Admin: Abschließen → grüne Meldung „Pause abgeschlossen – ohne
-   Mengen …“, Zeile verschwindet. Negativ: ohne BDE-Rolle → kein Zugriff.
+   Spaltenfilter (Datum, Werker …), Blättern; **kein** Knopf Abschließen. Als BDE-Admin: Abschließen → Rückfrage „Pause abschließen? …“; Abbrechen →
+   nichts gebucht, Zeile bleibt; OK → grüne Meldung „Pause abgeschlossen – ohne Mengen …“, Zeile verschwindet. Negativ: ohne BDE-Rolle → kein Zugriff.
 5. Tageshistorie: Buchung 22:00–06:00 erscheint am Start- und am Folgetag mit „25.11. 22:00–26.11. 06:00“; Auftrag-Spalte mit „· Sub-FA …“.
 
 **TS-202.7 Fräsen-Pfad, Glas, CSV, SQL/169, Manifest (Task 6; IDEAL wo genannt)**

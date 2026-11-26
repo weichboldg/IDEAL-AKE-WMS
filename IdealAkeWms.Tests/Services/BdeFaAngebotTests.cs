@@ -51,4 +51,30 @@ public class BdeFaAngebotTests
         var fremd = (await svc.FaSichtAsync(wp, ids.OperatorId + 999)).Single(z => z.Op.Id == wo1.Id);
         BdeFaAngebot.Spalten["status"](fremd).Should().Be("läuft");
     }
+
+    // v1.99.81 (QA B-3, Gerald): FA-Sicht „Fertig melden“ braucht bisher Gut je AG – stornierte Buchungen zaehlen nicht, fremde AG nicht
+    [Fact]
+    public async Task BisherGut_SummeJeAg_OhneStornierte()
+    {
+        var ctx = TestDbContextFactory.Create();
+        var ids = await BdeBookingTestSeed.SeedAsync(ctx);
+        var wo2Id = await BdeBookingTestSeed.AddSecondWorkOperationAsync(ctx, ids);
+        var t = DateTime.Now.AddHours(-2);
+        var b1 = BdeBookingTestSeed.NewBooking(ids, BdeBookingType.Production, BdeBookingStatus.Paused, t, t.AddMinutes(30));
+        var b2 = BdeBookingTestSeed.NewBooking(ids, BdeBookingType.Production, BdeBookingStatus.Finished, t, t.AddMinutes(40));
+        var storniert = BdeBookingTestSeed.NewBooking(ids, BdeBookingType.Production, BdeBookingStatus.Finished, t, t.AddMinutes(50), cancelled: true);
+        ctx.BdeBookings.AddRange(b1, b2, storniert);
+        await ctx.SaveChangesAsync();
+        BdeBookingQuantity Menge(BdeBooking b, decimal gut) =>
+            new() { BdeBookingId = b.Id, BdeOperatorId = ids.OperatorId, GoodQuantity = gut, ReportedAt = t };
+        ctx.BdeBookingQuantities.AddRange(Menge(b1, 3), Menge(b2, 4), Menge(storniert, 100));
+        await ctx.SaveChangesAsync();
+        var svc = new BdeFaAngebot(ctx, Mock.Of<IWorkOperationRepository>(), Mock.Of<IBdeBookingRepository>(), new FaHierarchyOrderInfoRepository(ctx),
+            new HolidayRepository(ctx), new BusinessDayService(), new OperationConfigRepository(ctx));
+
+        var bisher = await svc.BisherGutAsync(new[] { ids.WorkOperationId, wo2Id });
+
+        bisher.Should().ContainKey(ids.WorkOperationId).WhoseValue.Should().Be(7m);
+        bisher.Should().NotContainKey(wo2Id, "ohne Mengen fehlt der AG (View nimmt 0)");
+    }
 }

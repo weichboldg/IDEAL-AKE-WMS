@@ -37,6 +37,8 @@ public class BdeTeilelisteViewModel
 
     /// <summary>v1.99.77 (E4-4): laufende und pausierte Buchungen des Werkers im Kopf (Quelle <see cref="IdealAkeWms.Services.BdeKopfBuchungen"/>).</summary>
     public IReadOnlyList<IdealAkeWms.Services.BdeKopfBuchung> KopfLaufend { get; set; } = Array.Empty<IdealAkeWms.Services.BdeKopfBuchung>();
+    /// <summary>v1.99.81 (QA B-3): bisher Gut je Arbeitsgang der sichtbaren FA-Zeilen (fehlt = 0).</summary>
+    public IReadOnlyDictionary<int, decimal> FaBisherGut { get; set; } = new Dictionary<int, decimal>();
     public IReadOnlyList<IdealAkeWms.Services.BdeKopfBuchung> KopfPausiert { get; set; } = Array.Empty<IdealAkeWms.Services.BdeKopfBuchung>();
     /// <summary>v1.99.81 (Entscheid 9): BookingId → Grund, warum die Pause an dieser Werkbank nicht fortsetzbar ist (Knopf „Abschließen“).</summary>
     public Dictionary<int, string> PausiertGesperrt { get; } = new();

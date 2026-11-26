@@ -63,7 +63,8 @@ Menü **BDE → Terminal**.
    Läuft der Arbeitsgang schon bei einem anderen Werker, öffnet sich das Fenster **„Arbeitsgang bereits in Arbeit“** mit
    „AG ist bereits in Arbeit durch <Name> an <Werkbank> seit hh:mm.“ – **OK** schliesst, gebucht wird nichts.
 4. **Werkbank „nur AG-Fertigmeldung“** (z. B. Entgraten): je Zeile nur der Knopf **Fertig melden**. Das Fenster „Mengen melden“ ist mit der
-   **Sollmenge** vorbelegt, Ausschuss 0. Liegt die Gutmenge unter der Sollmenge, fragt ein Fenster nach. Gespeichert werden Werker, Werkbank,
+   **Sollmenge** vorbelegt, Ausschuss 0; liegen am Arbeitsgang schon Teilmengen, seit 1.99.81 mit dem **Rest** (das Fenster nennt bisher
+   und Rest). Liegt die Gutmenge (mit der bisherigen) unter der Sollmenge, fragt ein Fenster nach. Gespeichert werden Werker, Werkbank,
    Zeitpunkt und Menge, aber keine Arbeitszeit. Ein zweites Melden lehnt das WMS ab: „Arbeitsgang ist bereits fertig gemeldet.“
 
 Mengen gibt man im Fenster **Mengen melden** ein:

@@ -94,9 +94,11 @@
                             @{ var bez = $"{op.ProductionOrder.OrderNumber} / {op.OperationNumber.Trim()}"; }
                             @if (!z.Zeile.LaeuftBeiMir && Model.NurAgFertigmeldung)
                             {
-                                @* E4-3 (AK 24): Mengendialog, Vorgabe Sollmenge; bei Gut < Soll Bestaetigung im Modal. *@
+                                @* E4-3 (AK 24): Mengendialog, Vorgabe Sollmenge; bei Gut < Soll Bestaetigung im Modal.
+                                   v1.99.81 (QA B-3): nach Teilmengen Vorgabe = Rest, Rueckfrage rechnet bisher Gut mit (wie der Kopf). *@
                                 <button type="button" class="btn btn-success bde-touch" data-fa-fertig data-wo-id="@op.Id"
                                         data-soll="@op.ProductionOrder.Quantity.ToString(System.Globalization.CultureInfo.InvariantCulture)" data-bez="@bez"
+                                        data-bisher="@Model.FaBisherGut.GetValueOrDefault(op.Id).ToString(System.Globalization.CultureInfo.InvariantCulture)"
                                         aria-label="Fertig melden @bez">Fertig melden</button>
                             }
                             else if (!z.Zeile.LaeuftBeiMir)

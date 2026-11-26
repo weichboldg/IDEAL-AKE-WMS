@@ -44,6 +44,15 @@ public class BdeFaAngebot
     public async Task<(List<BdeKopfBuchung> Laufend, List<BdeKopfBuchung> Pausiert)> KopfBuchungenAsync(int operatorId) =>
         (await BdeKopfBuchungen.LaufendeAsync(_ctx, operatorId), await BdeKopfBuchungen.PausierteAsync(_ctx, operatorId));
 
+    /// <summary>v1.99.81 (QA B-3, Gerald): bisher Gut je Arbeitsgang (alle nicht stornierten Mengen, gleiche Summe wie der Kopf) –
+    /// „Fertig melden“ der FA-Sicht belegt mit dem Rest vor und rechnet die Teilmengen in die Unter-Soll-Rueckfrage ein.</summary>
+    public async Task<Dictionary<int, decimal>> BisherGutAsync(IReadOnlyCollection<int> workOperationIds) =>
+        await _ctx.BdeBookingQuantities
+            .Where(m => !m.BdeBooking!.IsCancelled && m.BdeBooking.WorkOperationId != null && workOperationIds.Contains(m.BdeBooking.WorkOperationId.Value))
+            .GroupBy(m => m.BdeBooking!.WorkOperationId!.Value)
+            .Select(g => new { g.Key, Gut = g.Sum(m => m.GoodQuantity) })
+            .ToDictionaryAsync(x => x.Key, x => x.Gut);
+
     /// <summary>Terminal (<paramref name="eigeneLaufendeAusblenden"/> = true): wie vor v1.99.76 ohne die eigenen laufenden.
     /// FA-Sicht (false): eigene laufende bleiben mit <see cref="BdeFaZeile.LaeuftBeiMir"/> sichtbar. Von anderen gebuchte bleiben
     /// sichtbar als „laeuft“ (Antwort 6 = A, v1.57.0); die Startpruefung bleibt im BdeBookingService.</summary>

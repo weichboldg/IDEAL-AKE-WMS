@@ -175,6 +175,7 @@ public class BdeTeilelisteController : Controller
                 else TempData["WarningMessage"] = "Der gescannte Arbeitsgang ist mit den aktuellen Spaltenfiltern nicht sichtbar. Spaltenfilter zurücksetzen.";
             }
             vm.FaZeilen = zeilen.Skip((page - 1) * size).Take(size).ToList();
+            if (vm.NurAgFertigmeldung) vm.FaBisherGut = await _faAngebot.BisherGutAsync(vm.FaZeilen.Select(z => z.Op.Id).ToList());
             vm.Pagination = new PaginationState
             {
                 CurrentPage = page, PageSize = size, PageSizeRaw = PageSize.ResolveRaw(pageSize, userDefault), TotalCount = zeilen.Count,

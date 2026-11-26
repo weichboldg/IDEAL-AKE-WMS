@@ -321,9 +321,10 @@
         var btn = e.target.closest('[data-fa-fertig]');
         if (!btn) return;
         box.replaceChildren();  // v1.99.81 (U-9)
-        var soll = zahl(btn.dataset.soll);
-        var q = await mengen(soll, soll);
-        if (!q || !(await gutOk(q, soll, 0))) return;
+        // v1.99.81 (QA B-3): wie der Kopf – nach Teilmengen Gut mit dem Rest vorbelegen, bisher in die Rueckfrage
+        var soll = zahl(btn.dataset.soll), bisher = zahl(btn.dataset.bisher) || 0;
+        var q = await mengen(soll, bisher > 0 && soll != null ? Math.max(0, soll - bisher) : soll, bisher);
+        if (!q || !(await gutOk(q, soll, bisher))) return;
         var frei = window.wmsSperren(btn);  // v1.99.81 (U-6): erst nach dem Dialog sperren
         if (!frei) return;
         ergebnis(await post('/BdeTerminal/ReportCompletion', {

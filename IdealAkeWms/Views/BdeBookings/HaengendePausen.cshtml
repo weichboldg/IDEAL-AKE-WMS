@@ -64,7 +64,9 @@
                     <td class="text-nowrap" data-col-key="aktion">
                         @if (canAdminBde)
                         {
-                            <form method="post" asp-action="PauseAbschliessen" asp-route-id="@p.BookingId" class="d-inline">
+                            @* v1.99.81 (QA B-5, Gerald): Rueckfrage vor dem Buchen, wie am Terminal *@
+                            <form method="post" asp-action="PauseAbschliessen" asp-route-id="@p.BookingId" class="d-inline"
+                                  onsubmit="return confirm('Pause abschließen? Die Buchung wird beendet (Ende = Pausenbeginn, keine Menge). Der Arbeitsgang gilt dadurch nicht als erledigt.');">
                                 <button type="submit" class="btn btn-sm btn-outline-danger" aria-label="Pause abschließen: @p.Werker, @p.Ziel">Abschließen</button>
                             </form>
                         }
