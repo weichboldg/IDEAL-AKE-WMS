@@ -2,7 +2,7 @@
 type: spec
 title: "Kommissionierauftrag: Maske umschaltbar Stückliste / Liste (summiert je Artikel, Buchung verteilt auf Positionen), Standard „Liste“ bei aktiven Kommissionierlisten"
 slug: 2026-11-26-beschichtung-summe-leitstand-hauptfa-kommissionierauftrag-liste-teil-3-spec
-status: InUmsetzung
+status: Testbereit
 created: 2026-11-26
 updated: 2026-11-26
 source_backlog: "[[2026-11-26-beschichtung-summe-leitstand-hauptfa-kommissionierauftrag-liste]]"
@@ -49,7 +49,7 @@ etappen:
   - "B Verteil-Buchung (PickingOrderVerteilung, PickingItemIds, Service-Expansion, Skript collectPickedItems)"
 deploy:
   web: true
-  service: false
+  service: true
   migration: false
 freigabe_entscheidung: "Epic A+B, Antworten Runde 1-3 + Kritische Pruefung (Gerald 2026-11-26): Liste summiert, Verteilung in Positionsfolge, Rest teilgebuchter Position sichtbar (a), Druck und PDF summiert"
 freigabe_von: Gerald
@@ -453,11 +453,13 @@ Commits. Branch während der Arbeit mit `scripts/sync-worktree.ps1` aktuell halt
 
 ## Deploy
 
-*Vorläufig, der QA-Lauf bestätigt gegen den echten Diff.*
+*Bestätigt vom QA-Lauf 2026-11-26 gegen den echten Diff `ebb16bd7..6144f36d`.*
 
-- **Web-App:** ja
-- **Service:** nein
-- **Migration:** nein
+- **Web-App:** ja (`IdealAkeWms/` Controller, Services, Views, Modelle)
+- **Service:** ja, aber nur die Versionsnummer (`IDEALAKEWMSService/AppVersion.cs` 1.99.89) – keine Logikänderung; im Bündel ohnehin beide Komponenten
+- **Migration:** nein (keine Datei unter `*/Migrations/`, kein `SQL/`-Skript)
+- **Publish (erledigt):** `C:\Git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-07-ideal-teile-1-5\publish` (IDEALAKEWMSWeb + IDEALAKEWMSWebService + SQL + deploy, `publish-info.txt` Version 1.99.89, Commit `6144f36d`). Ablauf Mensch: publish aus dem Worktree → Testsystem (deploy\Update-IdealAkeWms.ps1) → testen → Merge. Nach dem Merge nur dann neu aus `main` publishen, wenn der Merge getestete Dateien mit parallelen `main`-Änderungen kombiniert hat.
+- Reihenfolge: kein DB-Schritt; Web + Dienst aktualisieren, danach Info-Eintrag `v1.99.89-KoAuftragListe` (Manifest vorhanden).
 - **Manifest-Einträge** (`scripts/deploy/nachlauf.psd1`):
 
 | Id | Version | Typ | Firma | Phase | Ausführung | Text |
@@ -636,3 +638,101 @@ Entwurf und Etappen nachgezogen. Die Ist-Stand-Belege stimmen in den Stichproben
 
 **Antwort Gerald 2026-11-26 (Chat) zu B-1 der Kritischen Prüfung:** „Akzeptieren, Rest anzeigen“ – teilgebuchte Position zeigt ihren
 Rest sichtbar; Nachbuchen in diesem Auftrag nicht möglich, Rest geht beim Teilabschluss in den Folgeauftrag (Variante a).
+
+## QA-Nachweis (qa-agent, 2026-11-26)
+
+Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5`, HEAD `6144f36d`, geprüfter Bereich `ebb16bd7..6144f36d` (Etappe A `98ea06fa`, Etappe B `6144f36d`). AppVersion Web + Service 1.99.89.
+
+### 1. Build und Tests
+
+- `dotnet build IdealAkeWms.slnx`: 0 Fehler, 37 Warnungen (vorbestehend).
+- `dotnet test`: IdealAkeWms.Tests 3853 bestanden / 1 übersprungen (`ProductionOrderEagerCreateAgentJobTests`, vorbestehend) / 0 Fehler; IDEALAKEWMSService.Tests 848 / 0 / 0.
+
+### 2. Code-Review (selbst, in diesem Lauf)
+
+Geprüft: `PickingController` (Auftrag, Aufteilung BomSeiteAsync/StuecklistenZeilenAsync, AuftragDrucken GET/POST, summierter Zweig + PDF), `KommissionierauftragListe`, `PickingOrderVerteilung`, `PickingTransferService` (Expansion, K12-catch), `PickingSelectionItem`, `BomViewModels`, `ColumnDefinitions`, `ColumnFilterTypes`, `FaHierarchyBomRepository`, `AppSettingDefinitions`, `Bom.cshtml` (Umschalter, Filterform, Druck-/PDF-POST, collectPickedItems, doTransfer + wmsSperren), `_AuftragListeTabelle.cshtml`, `PrintAuftragListe.cshtml`, `site.js` wmsSperren, `column-preferences.js` (Ausblenden per `style.display`), Tests.
+Fehlerklassen: `<script>`-Blöcke (`view-config`/`column-config`) nur statische Literale – ok. `hidden` nur an Knöpfen ohne `d-*`-Klasse (`btnPrintBom`, `btnExpandAll`, `btnCollapseAll`), auf DEV unsichtbar – ok. Bindung `items[i].PickingItemIds[j]` lückenlos ab 0, `data-ids` nur bei offenen Zeilen und nie leer – ok. Regeln serverseitig (Expansion: Zugehörigkeit, Status, Zahl, ≤ offenes Soll; danach unveränderte Einzelprüfung) – ok. Keine stillen Fallbacks mit Wirkung.
+
+| # | Stufe | Befund | Behandlung |
+|---|---|---|---|
+| R-1 | Hinweis | Mehrwertige Texte über `VormontageService.FormatTexte` nicht natürlich sortiert: Druck zeigt Sage-Pos. „10, 8, 9“ für Pos. 6.8/6.9/6.10 (DEV KO-2026-00004, 50000469). Nur Darstellung. | offen, nicht blockierend |
+| R-2 | Hinweis | Summenzeile trägt `data-article-number` normalisiert (Trim + groß, `KommissionierauftragListe.Norm`); der Scan vergleicht exakt (CSS-Selektor in `Bom.cshtml`). Artikelnummern mit Kleinbuchstaben würden per Scan nicht angehakt; IDEAL-Nummern sind numerisch. | offen |
+| R-3 | Hinweis | `AuftragDrucken?ansicht=liste&pdf=true` bei Auftrag ohne FA-Struktur liefert still den HTML-Druck je Position statt einer Meldung. Nur per Hand-URL (Knopf erscheint dort nicht). | offen |
+| R-4 | Hinweis | „offen“ = Offen/Gepickt steht an mehreren Stellen (`KommissionierauftragListe.Offen`, `AuftragSummenzeile.OffeneZeilenIds`, `PickingTransferService` Expansion + Einzelprüfung) – bestehendes Muster, gleiche Regel; bei Statusänderung gemeinsam ziehen. | offen |
+| R-5 | Hinweis | `GebuchtIst`/`RestHinweis` nutzen `IstMenge ?? 0m`; umgebuchte Zeilen haben `IstMenge` immer (einziger Schreibweg Buchungsschleife `PickingTransferService`) – ohne Wirkung. | keine Aktion |
+
+Keine Blocker, keine Sollte-Befunde.
+
+### 3. Beweisart je AK
+
+| AK | Beweis |
+|---|---|
+| 1–4 | `PickingControllerTests` (K2/K3) + `KommissionierauftragListeTests`; DEV IDEAL KO-2026-00004/00002 sichtbar geprüft |
+| 5, 6, 7 | `PickingOrderVerteilungTests`, `PickingTransferServiceTests` (Summenzeile_*); 5/6 zusätzlich auf DEV gebucht |
+| 8 | `KommissionierauftragListeTests` (Rest, gemischter Status); DEV Rest-Hinweis gesehen |
+| 9 | K8-Text: `PickingTransferServiceTests`; K12 echte Concurrency: **Manual-UAT** (InMemory ohne RowVersion) |
+| 10 | DEV Konflikt-Dialog + „Trotzdem buchen“ (Manual-UAT OK) |
+| 11 | Scan, Fotos: Manual-UAT offen; Abschluss-Dialog erscheint (DEV) |
+| 11a, 11b | `PickingControllerTests` (K11/K3) + DEV-Druck GET mit `visibleColumns`; POST aus dem Knopf (Browser-JS) Manual-UAT |
+| 11c | `PickingControllerTests` (gemocktes PDF); echte PDF-Erzeugung Manual-UAT |
+| 12, 13, 15, 20, 21 | Manual-UAT (Razor/Browser-JS) |
+| 14 | `PickingControllerTests` K3 + DEV AKE geprüft |
+| 16 | kein Diff an `FaHierarchyKommissionierListen*` |
+| 17 | Tests grün (Punkt 1) |
+| 18 | `KommissionierauftragListeTests` (K4c); auf DEV keine solche Zeile → Manual-UAT |
+| 19 | DEV: Doppelklick → genau eine Buchung (Manual-UAT OK) |
+| 22 | DEV IDEAL `/Picking/Bom/238`, Stückliste-Maske KO-4, AKE KO-2026-00082 ohne Umschalter, Druck je Position unverändert |
+
+### 4. Geänderte bestehende Tests
+
+- `PickingControllerTests.SetupForBom`: optionale Parameter `auftrag`/`kommissionierlisten` + zusätzliche Mock-Setups (`GetAllAsync`, Setting, `GetMitZeilenAsync`, `TempData`) – Setup-Erweiterung, bestehende Tests im Verhalten unverändert.
+- `ColumnFilterTypesDriftTests`: `clientOnly` + `Picking/_AuftragListeTabelle` – Registrierung des neuen Client-Mode-Keys (K14).
+- `VaultEnaioLinksTests`: Fundstellenliste + `_AuftragListeTabelle.cshtml` – Registrierung der neuen Vault-Link-Stelle.
+Keine Klasse „Sonstiges“.
+
+### 5. Checkliste
+
+Keine Migration/kein SQL, FreshInstall unberührt (korrekt). Version 1.99.89 in beiden `AppVersion.cs`; `Views/Help/Changelog.cshtml` + Hilfe ergänzt; `docs/TESTSZENARIEN.md` TS-209.1–209.15; Testindex Zeile 209 vorhanden; Manifest `v1.99.89-KoAuftragListe` (Info, IDEAL, Nachher) vorhanden. Kein neuer Schreibweg (Audit unverändert). ADR 0020: keine neue Einstellung, Wirkung/Verwendung von `FaHierarchyKommissionierlistenAktiv` nachgezogen. **Offen für den Lauf (nicht QA):** Brain-Changelog v1.99.89 und `feature-map.md` noch nicht angelegt.
+
+### 6. DEV-Deploy und Testlauf
+
+- Standort laut Frontmatter IDEAL; auf Auftrag zusätzlich AKE. Elevated Shell.
+- `dev-deploy.ps1 -Standort IDEAL`: Exit 0, „HTTP 200, Fusszeile v1.99.89“, DEV-Absicherung angewendet.
+- `dev-deploy.ps1 -Standort AKE`: Exit 0, „HTTP 200, Fusszeile v1.99.89“.
+- DEV-Testdaten (IDEAL_WMS_DEV, von QA angelegt): Lagerplatz `QA-LAGER-209` (Id 232, buchbar), Wagen `QA-WAGEN-209` (Id 233, IsPickingTransport; DEV IDEAL hatte vorher keinen Kommissionierwagen); Einbuchungen 5× 50000409, 3× 50000423, 2× 50000424 an QA-LAGER-209; 1× 50000416 mit FA-Text `QA-FREMD-FA` am Wagen (Konflikt).
+
+| Schritt | Ergebnis | |
+|---|---|---|
+| 209.1 | KO-2026-00004 öffnet „✓ Liste“, 44 Zeilen (58 Positionen), z. B. 50000423 Pos. 5.6, 6.7 Soll 4; BG-Badge; Sortierung Ziel → Hauptlagerplatz → Pos., leere Hauptlagerplätze zuletzt; Arbeitsbereich/Abteilung gefüllt | OK |
+| 209.2 | „Stückliste“ zeigt Baum mit Chevrons, zurück zur Liste; Rückfrage mit Haken (confirm) nicht ausgelöst | OK / Rückfrage NICHT MOEGLICH (Dialog) |
+| 209.3 | nach Ist 3 auf 50000423: Zeile grau „✓ gepickt“, Ist 3,000, „⚠ Rest 1 aus Pos. 6.7 geht beim Abschluss in den Folgeauftrag“ | OK |
+| 209.4 | keine Zeile ohne Stücklistenposition auf DEV | NICHT MOEGLICH (Testdaten) |
+| 209.5 | Textfilter bleibt auf `/Picking/Auftrag/4` in der Liste („3 Zeilen (6 Positionen)“); Spaltenauswahl nicht verstellt | OK (Teil) |
+| 209.6 | `AuftragDrucken/4?ansicht=liste&visibleColumns=…`: „(summiert)“, Banner, Barcode, genau die gewählten Spalten + Status, alle 44 Zeilen, Rest-Hinweis; ohne `ansicht` Druck je Position unverändert | OK; Knopf-POST offen |
+| 209.7 | Knopf „PDF“ sichtbar; Download nicht ausgeführt | NICHT MOEGLICH (Datei-Download) |
+| 209.8 | nicht angesehen | offen |
+| 209.9 | 50000409 Ist 2 → Zeilen 259/272 je Ist 1 `Umgebucht`, Bewegungen 9119/9120 QA-LAGER → QA-WAGEN, FA 1065036 | OK |
+| 209.10 | 50000423 Ist 3 → Pos. 5.6 = 2, Pos. 6.7 = 1, Bewegungen 9117/9118 | OK |
+| 209.11, 209.12, 209.13 | Fehlerweg zeigt `alert()`; zwei Geräte | NICHT MOEGLICH; Unit-Tests grün |
+| 209.14 | Doppelklick → genau eine Buchung; Wagen mit `QA-FREMD-FA` → Dialog „Kommissionierwagen belegt“, „Trotzdem buchen“ bucht 50000424 auf 5.4/6.4 (Bewegungen 9123/9124, FA-Text „1065036;QA-FREMD-FA“); Scan nicht geprüft | OK / Scan NICHT MOEGLICH (Kamera) |
+| 209.15 | `/Picking/Bom/238` Baum, kein Umschalter, keine Konsolenfehler; Stückliste-Maske KO-4 Baum | OK |
+| Negativ AKE | `localhost:8081/Picking/Auftrag/120?ansicht=liste` → Stückliste, kein Umschalter | OK |
+
+Keine Sage-Wirkung; DEV-Schalter nicht verändert.
+
+### 7. Publish
+
+`C:\Git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-07-ideal-teile-1-5\publish` – IDEALAKEWMSWeb + IDEALAKEWMSWebService (Exit 0, Ziel vorher geleert), `SQL\`, `deploy\`, `publish-info.txt` (Version 1.99.89, Commit 6144f36d33f0df16545a1e1de324e10ac36f3687, Erstellt 2026-11-26 21:50).
+
+### Manuelle Testliste für den Menschen (offen)
+
+1. TS-209.2 Rückfrage beim Umschalten mit gesetztem Haken.
+2. TS-209.4 Auftragszeile ohne Stücklistenposition (Banner + Zeile in Liste und Druck).
+3. TS-209.6 „Auftrag drucken“ per Knopf nach Spalten-Ein-/Ausblenden und Spaltensortierung (POST, neues Fenster).
+4. TS-209.7 PDF laden und mit Browserdruck vergleichen; Negativ ohne PDF-Dienst.
+5. TS-209.8 Hilfe, Changelog, `/Settings` Kommissionierlisten-Text.
+6. TS-209.11/209.12 Fehlermeldungen (Ist > offenes Soll, 0, „abc“, Bestand reicht nicht) – nichts gebucht.
+7. TS-209.13 zwei Browser/zwei Geräte (K8-Text, K12 „Auftrag wurde inzwischen geändert …“, kein HTTP 500).
+8. TS-209.14 Scan in der Liste, Foto-Upload, „Auftrag abschließen – teilweise“ mit Rest im Folgeauftrag (AK 6).
+9. TS-209.5/AK 20 eigene Spaltenauswahl Liste vs. Stückliste, Standardfilter, „Alle Ziele“, Leerzustand.
+10. Gesamtlauf TS-209 auf dem IDEAL-Testsystem (echte Bestände und Wagen).
