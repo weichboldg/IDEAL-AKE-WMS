@@ -506,3 +506,90 @@ Kommissionierliste mit den eingeblendeten Spalten) und in Rumpf, AK, Entwurf und
 **Nachfragen 2026-11-26 (Gerald, Chat) zum Druck (Antwort 9):** „Der Druck soll gleich ausschauen wie der PDF-Druck auf der
 derzeitigen Kommissionierliste“ und „Halt um die Zeilen erweitert wie wir eingeblendet haben“ (gemeint: die eingeblendeten Spalten)
 → K11.
+
+## Kritische Pruefung (2026-11-26)
+
+Geprüft gegen Bündel-Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5` (`AppVersion` 1.99.84). Antworten Runde 1–3 und
+Nachfragen (Gerald, Chat 2026-11-26) sind vollständig; Antworten 2/9/10 weichen von der Empfehlung ab und sind in Rumpf, K-Tabelle, AK,
+Entwurf und Etappen nachgezogen. Die Ist-Stand-Belege stimmen in den Stichproben (`PickingTransferService.cs:48-73`, `:188-260`,
+`PickingController.cs:252-442`, `:602-683`, `PickingOrderWorkflow.cs:178-245`, `print-visible-columns.js:9-24`,
+`ColumnDefinitions.cs:260`/`:1061`, `PdfFileNameBuilder.cs:13`, `PrintVisibleColumns.cs:20-22`).
+
+### BLOCKER
+
+- **B-1 Rest einer teilgebuchten Position ist in diesem Auftrag nicht mehr buchbar – gewollt?** Eine Zeile kann nur einmal gebucht
+  werden (`PickingTransferService.cs:61-62`, `:228-231`). Beispiel AK 6 „Ist 2“: Pos. 10 (Soll 3) wird mit 2 `Umgebucht`, Pos. 20 (Soll 2)
+  bleibt `Offen`. Die Summenzeile zeigt danach Soll 5, „bereits gebucht 2“, vorbelegt 2 – kommt später die fehlende Menge (3), lehnt
+  die Verteilung sie ab („größer als offenes Soll 2“), obwohl rechnerisch 3 offen sind; der Rest 1 von Pos. 10 entsteht erst beim
+  teilweisen Abschluss im Folgeauftrag (`PickingOrderWorkflow.cs:207-209`). Bei Buchung in mehreren Schritten „verliert“ die Summenzeile
+  also scheinbar Menge. **Frage an Gerald:** (a) so akzeptiert – dann zeigt die Summenzeile sichtbar „Rest x aus Pos. 10 geht beim
+  Abschluss in den Folgeauftrag“ (Melden statt still), AK 6/8 und x.3/x.5 nennen diesen Zustand; oder (b) bei Unterdeckung die
+  angebrochene Zeile **nicht** teilbuchen, nur volle Zeilen buchen (widerspricht der Nachfrage zu 2 „nur teilgeliefert“); oder
+  (c) Nachbuchung auf eine umgebuchte Zeile erlauben (zweite Bewegung je Zeile – Datenmodell-Änderung, eine `StockMovementId` je Zeile
+  `Models/PickingOrder.cs:100`, eigener Teil)? Empfehlung: (a).
+
+### SOLLTE
+
+- **S-1 Gleichzeitiger Zugriff endet als HTTP 500.** `PickingOrderLine.RowVersion` ist Concurrency-Token (`ApplicationDbContext.cs:1767ff`,
+  `IsRowVersion`), zwei gleichzeitige Buchungen (Doppelklick, zwei Geräte) buchen also nie doppelt – aber die
+  `DbUpdateConcurrencyException` wird weder im Service (`PickingTransferService.cs:256-261` wirft weiter) noch in `AuftragUmbuchen`
+  (`PickingController.cs:469` fängt nur `InvalidOperationException`) behandelt → Fehlerseite; das Skript zeigt `alert(xhr.responseText)`
+  mit HTML (`Bom.cshtml:1664-1666`). Der Umbuchen-Knopf hat keine Sperre (anders als der Abschluss mit `window.wmsSperren`). Mit
+  Summenzeilen bucht ein Klick mehrere Zeilen, das Risiko steigt. Vorschlag: in `TransferOrderLinesAsync` `DbUpdateConcurrencyException`
+  → `InvalidOperationException` „Auftrag wurde inzwischen geändert – nichts gebucht, bitte Seite neu laden“ (Muster
+  `WarehousePickingController.cs:402`, `BfAuftragWorkflow.cs:389`), Submit über `wmsSperren` sperren; AK 9 um den echten Gleichstand
+  ergänzen (Manual-UAT, nicht InMemory-testbar).
+- **S-2 Meldungstext AK 9 ≠ „vorhandene Meldung“.** Schritt 9 nennt „vorhandene Meldung ‚bereits umgebucht … bitte Seite neu laden‘“, der
+  Code sagt „… ist bereits umgebucht oder abgeschlossen.“ (`PickingTransferService.cs:62`, ohne „neu laden“). Vorschlag: in der Expansion
+  eigener Text mit „bitte Seite neu laden“, AK 9 auf genau diesen Text.
+- **S-3 Standardfilter und Filter-Skript der Stückliste für die Liste nicht entschieden.** `Bom.cshtml:1098-1320` belegt aus dem
+  Benutzerprofil still Beschaffung/Artikelgruppe/Bezeichnung 1/Komm.-Ziel vor (Spaltenschlüssel `procurement`, `article-group`,
+  `description1`, `kommissionieren`), ersetzt Komm.-Ziel durch ein Select2-Mehrfach-Dropdown mit „Alle Ziele“, zeigt Badges und einen
+  Leerzustand und klappt Baum-Äste auf. Wird „Liste“ Standard, fallen diese Filter je nach Schlüsseln im Partial still weg oder wirken
+  unerwartet auf Summenzeilen. Vorschlag: Partial nutzt dieselben `data-col-key`; Standardfilter, Badges, Komm.-Ziel-Dropdown und
+  Leerzustand gelten auch in der Liste (AK + Testschritt in x.1); `expandAncestorsOfMatching`/`updateBomVisibility` ohne
+  `data-parent-pos` ausdrücklich prüfen.
+- **S-4 `visibleColumns` im POST-Fall als Regel festlegen statt „prüfen“.** `print-visible-columns.js:11-23` ändert `a.href` im eigenen
+  Klick-Handler, das Sortier-Skript liest `getAttribute('href')` (`Bom.cshtml:1418`); wer zuerst läuft, hängt von der Registrierreihenfolge
+  ab. Vorschlag: im POST-Weg (Druck und PDF) `visibleColumns` selbst aus dem `thead` lesen und als Formularfeld senden – Muster des
+  `PrintBom`-Handlers (`Bom.cshtml:1398`, `addField('visibleColumns', …)`).
+- **S-5 Summierter Druck verliert Zeilen, die der heutige Druck zeigt.** `RenderAuftragDruckenAsync` druckt heute **alle**
+  `auftrag.Zeilen` (`PickingController.cs:654`); Schritt 6a nimmt die Items aus `BomSeiteAsync`, das nur Stücklistenpositionen mit
+  Auftragszeile kennt (`:288-293`). Zeilen ohne passende Stücklistenposition (Stückliste geschrumpft, „Stückliste kleiner“) fehlen dann
+  in Liste und summiertem Druck still. Vorschlag: solche Zeilen als eigene Summenzeilen (ohne Ziel) mitführen oder per Banner „x Zeilen
+  ohne Stücklistenposition – siehe Stückliste“ in Liste und Druck melden; AK ergänzen.
+- **S-6 Mehrwertige Werte im Druck.** K11 nennt „Quell-Lagerplatz = Text“ (Einzahl). Eine Summenzeile kann Zeilen mit verschiedenen
+  gespeicherten Quellen haben (Negativ-Ausweichplatz je Zeile, `PickingTransferService.cs:199-204`, K9). Vorschlag: Quell-Lagerplatz (und
+  Status) im Druck über `VormontageService.FormatTexte` wie die übrigen mehrwertigen Felder (K4a).
+- **S-7 Test „eine Transaktion“ ist InMemory nicht prüfbar** (InMemory ohne Transaktion, `PickingTransferService.cs:188-189`). Vorschlag
+  für `PickingTransferServiceTests`: prüfen, dass bei Fehler in der zweiten verteilten Zeile (Bestand reicht nur für die erste,
+  Negativbuchung aus) **keine** Bewegung und kein Zeilenstatus gespeichert ist.
+- **S-8 Regressions-AK für die gemeinsam genutzte View fehlt.** `Bom.cshtml` trägt auch `/Picking/Bom/{id}` (FA-Stückliste, Vorbau,
+  FA-Vervollständigung, `PrintBom`). AK 2/11b decken nur die Auftragsseite. Vorschlag: AK „`/Picking/Bom/{id}` inkl. Druck/Lagerbestellung
+  sowie Auftragsseite in ‚Stückliste‘ unverändert (Baum, Filter-Badges, Bestellen)“ und je ein Testschritt.
+
+### HINWEIS
+
+- **H-1** `NaturalPositionComparer` sortiert `null` **zuerst** (`Services/NaturalPositionComparer.cs:13`); K4 verlangt „leere zuletzt“ –
+  `Summiere` muss das selbst regeln; `Verteile` bucht Zeilen ohne Position zuerst (bei FaHierarchie praktisch ausgeschlossen).
+- **H-2** `zeileByKey` nimmt je (Artnr, Pos.) die erste Zeile (`PickingController.cs:288-290`); zwei Stücklisten-Items mit gleichem
+  Schlüssel ergäben doppeltes Soll und dieselbe Id zweimal (→ „mehrfach ausgewählt“, `PickingTransferService.cs:55-56`). Im
+  FaHierarchie-Pfad macht `Unique` die Positionen eindeutig (`FaHierarchyBomRepository.cs:92`, `:144`) – billige Absicherung: in
+  `Summiere` je `PickingItemId` deduplizieren, ein Testfall.
+- **H-3** Rückfrage 3 begründet die Sortierung mit „Laufweg wie Kommissionierliste“ – nicht belegt: die Liste sortiert über den
+  Struktur-Builder je HauptFA/Position, Summiert nach Artnr → Ziel (`KommissionierListenService.cs:270-272`). „Gleiche Sortierung wie
+  gehabt“ ist im Stil der Antworten 4/5 („wie gehabt“ = einverstanden) als Zustimmung zur Empfehlung gelesen – plausibel, aber gedeutet.
+- **H-4** Bestandsmeldung nennt „Benötigt“ je verteilter Zeile, nicht die Summe (`PickingTransferService.cs:202-203`); das
+  Negativ-Ausweichen geschieht ganzzeilig, nicht anteilig – in x.2/x.3 erwähnen.
+- **H-5** Doppelausführung nacheinander ist sicher: die zweite Anfrage liest frisch und scheitert am Zeilenstatus (`:61-62`); Abschluss
+  gegen Umbuchung ist über `RowVersion` der Zeilen geschützt (`PickingOrderWorkflow.cs:199-205` ändert die offenen Zeilen) – Folge nur S-1.
+- **H-6** `depends_on` Teil 2 (Leitstand) ohne gemeinsame Dateien laut `affected_code` – nur Reihenfolge im Bündel.
+- **H-7** Größe: rund 15 Dateien plus der große Skriptteil von `Bom.cshtml`; als Epic A/B in einem Lauf machbar, Hauptrisiko ist das
+  geteilte Seiten-Skript (S-3, S-8).
+- **H-8** Deploy (Web ja, Service/Migration nein, Info-Manifest) plausibel. Testbuchungen erzeugen echte WMS-Bewegungen auf dem
+  IDEAL-Testsystem (keine Sage-Wirkung, `PickingTransferService.cs:14-15`) – in der Vorbedingung erwähnen.
+
+**NACHBESSERUNG NOETIG: B-1 (Rest teilgebuchter Position bei schrittweiser Buchung) mit Gerald klären; S-1, S-3, S-5 in Rumpf und AK übernehmen.**
+
+**Antwort Gerald 2026-11-26 (Chat) zu B-1 der Kritischen Prüfung:** „Akzeptieren, Rest anzeigen“ – teilgebuchte Position zeigt ihren
+Rest sichtbar; Nachbuchen in diesem Auftrag nicht möglich, Rest geht beim Teilabschluss in den Folgeauftrag (Variante a).

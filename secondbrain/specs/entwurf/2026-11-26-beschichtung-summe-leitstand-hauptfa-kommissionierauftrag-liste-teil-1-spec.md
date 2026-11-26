@@ -248,3 +248,69 @@ haben. Sind 10 Zeilen 1-10“ — also Druck summiert, Pos. = laufende Nummer je
 
 **Nachfrage 2026-11-26 (Gerald, Chat) zu 3:** Auslegung bestätigt – „Korrekt, es sollte immer das gleiche Maß sein, somit sollte das
 nie ein Problem werden“: eine Summenzeile je Artikel, bei Abweichung Hinweis „Maße uneinheitlich“, keine eigene Zeile je Maß.
+
+## Kritische Pruefung (2026-11-26)
+
+Geprüft gegen den Bündel-Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5` (AppVersion 1.99.84). Zeilenangaben der Spec
+stichprobenartig nachgeprüft und zutreffend: `Controller :297-318/:320-338/:332`, `ViewModels.cs:118-145`, `Print.cshtml:70-108`,
+`BeschichtungsauftragService.cs:209-242`, Test `:502-511`. `BeschichtungsauftragPrintViewModel` wird nur von Controller, View und
+diesem einen Test benutzt (Suche über `.cs`/`.cshtml`), die Umbenennung `Positionen` → `Zeilen` hat also keine weiteren Leser.
+
+**Antworten:** alle fünf beantwortet; die knappen Antworten 1 („positionsnummerierung beibehalten“) und 3 („muss immer einheitlich
+sein. Ansonsten gern uneinheitlich“) sind durch die zwei Nachfragen eindeutig gemacht und in S1-S5, AK 1-14 und Out-of-Scope
+eingearbeitet. Kein Widerspruch zwischen Antwortblock und Rumpf gefunden.
+
+### BLOCKER
+
+- keine. Begründung: Alle Rückfragen sind entschieden und im Rumpf angekommen, kein Schema, kein Fremdsystem, nur eine View plus eine
+  reine Funktion; die Befunde unten lassen sich im Dev-Lauf oder mit einer kurzen Ergänzung klären.
+
+### SOLLTE
+
+1. **Leere Artnr nicht zusammenfassen (Frage an Gerald).** S1 übernimmt „leer = ein Schlüssel“ aus `AggregateSummiert`. `Artnr` ist
+   nullable (`BeschichtungsauftragPosition.cs:28`, `FaHierarchyNode.cs:36`). Im Brief an den Lackierer würden so verschiedene Teile
+   ohne Artnr zu einer Zeile mit Mengensumme und dem Matchcode der ersten verschmelzen. Vorschlag: Positionen mit leerer Artnr
+   bleiben je eine eigene Zeile (Schlüssel = Positions-Id). Frage: **Einverstanden, oder sollen leere Artnr bewusst zusammengefasst
+   werden?**
+2. **Vorlage aus `b1ce8608^` taugt nicht.** Die frühere `Summiere` (`git show b1ce8608^:…/BeschichtungsauftraegeViewModels.cs:141-149`)
+   war nur ein Adapter auf `AggregateSummiert`: Schlüssel `(HauptFA, Artnr)` ohne `OhneFa`, kein Verpackt, Reihenfolge alphabetisch
+   nach Artnr (`OrderBy(a => a.Artnr)`, `Service.cs:240-241`) statt nach erster Position. Wer sie zurückholt, verletzt S1, S3, S4 und
+   AK 4. Vorschlag: den Satz „der Dev-Lauf kann sie aus dem Commit davor als Vorlage holen“ streichen oder mit „nicht als Vorlage,
+   Reihenfolge und Schlüssel weichen ab“ ersetzen.
+3. **TS-Nummer veraltet.** „nächste freie TS-203“ stimmt nicht mehr: TS-203 (v1.99.82) und TS-204 (v1.99.83) sind in
+   `docs/TESTSZENARIEN.md:14760/:14819` schon vergeben. Vorschlag: „nächste freie Nummer beim Dev-Start (Stand 2026-11-26: TS-205)“;
+   Teil 2 und 3 laufen parallel, die Nummer erst im Dev-Lauf festlegen.
+4. **Weitere Stellen mit „je Position“ nachziehen.** Nicht in affected_code: `docs/anwender/15-beschichtung-beschichtungsauftrag.md:126`
+   („eine Zeile je Position“), `Views/Help/Index.cshtml:1600` („Seit v1.99.41 eine Zeile je Position“), sowie zwei Querverweise in
+   `docs/TESTSZENARIEN.md:9494` und `:12610` („Druck (je Position) TS-162“). Vorschlag: in affected_code aufnehmen (DoD verlangt den
+   `docs/anwender`-Nachzug ohnehin).
+5. **Singular in der Summenzeile.** AK 2 nennt nur „(4 Positionen)“. Ein Auftrag mit einer Position druckt sonst „(1 Positionen)“.
+   Vorschlag: AK 2 ergänzen „bei m = 1: (1 Position)“.
+6. **Ort des Hinweises „Maße uneinheitlich“ eindeutig festlegen.** Lösungsentwurf 5 sagt „unter den Maßen bzw. am Artnr.“. Sind
+   Breite/Höhe/Tiefe **und** Artnr per Zahnrad ausgeblendet, hat der Hinweis keinen Platz und verschwindet still (gegen „Melden
+   statt still behandeln“). Vorschlag: fester Ort in einer immer sichtbaren Spalte, z. B. in der Verpackt-Zelle oder in der Pos.-Zelle
+   als zweite Zeile; AK 5 um den Fall „Maße-Spalten ausgeblendet“ ergänzen.
+7. **Glyphe „◩“ im PDF prüfen.** ☑/☐ sind im Headless-Edge-PDF erprobt, U+25E9 nicht. Fehlt sie in der Schrift, steht im PDF ein
+   Kästchen. Vorschlag: AK 3/AK 8 ausdrücklich „im PDF lesbar“ prüfen lassen; der Text „2 von 3 verpackt“ trägt die Bedeutung ohnehin.
+
+### HINWEIS
+
+- Gruppierung ist wie bei `AggregateSummiert` (Tupel-Gleichheit, `Service.cs:221`) groß/klein-sensitiv; „ab-1“ und „AB-1“ wären zwei
+  Zeilen. In der Praxis kommt die Artnr aus Sage bzw. dem Artikelstamm, Schreibweise einheitlich zu erwarten.
+- `HauptFA` steht nicht im Schlüssel. Belegt unkritisch: alle Schreibwege setzen die Positions-HauptFA auf die des Auftrags
+  (`BeschichtungsauftragWorkflow.cs:125/213/470/698/710`).
+- Matchcode und Haupt-Artnr kommen aus der ersten Position; bei gleicher Artnr innerhalb eines HauptFA sind beide gleich zu erwarten,
+  ein Abweichen wird nicht gemeldet (bewusst nur Maße, Antwort 3).
+- Leerer Auftrag im Druck ist praktisch ausgeschlossen (Übergeben/Versendet ohne Positionen abgewiesen, `Workflow.cs:515-521`;
+  Entfernen auf 0 Positionen geprüft, `:280`). Summenzeile „0 (0 Positionen)“ wäre trotzdem korrekt.
+- Ab Übergeben sind Haken und Menge noch änderbar (Hilfe `Index.cshtml:1576-1578`); der Druck zeigt den gespeicherten Stand zum
+  Druckzeitpunkt, also kann „n von m verpackt“ auf einem früheren Ausdruck anders lauten. Kein Handlungszwang.
+- Größe: 4 Code-Dateien + Tests + Hilfe/Changelog/Doku, eine Schicht (Darstellung). Gut in einem Dev-Lauf schaffbar.
+- Deploy: nur Web, keine Migration, kein Manifest - plausibel. Kein Schreibzugriff, keine echten Daten entstehen; der Brief geht
+  allerdings an einen externen Lackierer, AKE-Briefe ändern sich mit (Antwort 4, so gewollt).
+- Version für die Änderung ist nicht genannt (Bündel bei v1.99.84, Teil 2/3 parallel) - im Dev-Lauf vergeben.
+
+**Empfehlung:** BEREIT ZUR FREIGABE (SOLLTE 1 vorher kurz beantworten; SOLLTE 2-7 kann der Dev-Lauf ohne Rückfrage einarbeiten).
+
+**Antwort Gerald 2026-11-26 (Chat) zur Kritischen Prüfung (Positionen ohne Artnr):** „Je Position eigene Zeile“ – Positionen ohne
+Artikelnummer werden nicht summiert, jede bleibt eine eigene Zeile.

@@ -557,3 +557,100 @@ Neues Kapitel in `docs/TESTSZENARIEN.md` (Nummer beim Dev-Start prüfen; nach Te
 7. Bedienbarkeit zusammengefasster Zellen: (a) nur Anzeige / (b) auf alle Zeilen schreiben / (c) nur HauptFA-Zeile? → **(c) Klick schreibt nur die HauptFA-Zeile** (Gerald 2026-11-26, Chat)
 8. Zellen, in denen Sub-FAs den Wert bestimmen (W1-W5): (i) gesperrt mit „bestimmt durch Sub-FA“ / (ii) bedienbar mit Neuladen und Hinweis / (iii) bedienbar ohne Sonderbehandlung? → **(ii) bedienbar, nach dem Speichern Neuladen und Hinweis „Sub-FA bestimmt den Wert weiter“** (Gerald 2026-11-26, Chat)
 9. W3 Lack-T erledigt an HauptFA ohne eigene Lackteile: (a) wie Antwort 8 bedienbar / (b) nur diese Zelle sperren mit „Lackteile nur an Sub-FAs“? → **(b) nur diese Zelle sperren mit „Lackteile nur an Sub-FAs“** (Gerald 2026-11-26, Chat)
+
+## Kritische Pruefung (2026-11-26)
+
+Geprüft gegen den Bündel-Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5` (AppVersion 1.99.84, HEAD 7268dcb6). Alle neun
+Freigabe-Antworten sind beantwortet. Rumpf, L-Tabelle, Klickverhalten, Lösungsentwurf und AK 12-18 sind nach den Antworten 5-9
+nachgezogen. Zwischen Antwortblock und Rumpf habe ich keinen Widerspruch gefunden. Stichproben belegt: `nurHauptFa`-Zweig
+`ProductionOrderRepository.cs:108-120`/`:168-174`, `CountGruppenOhneHauptFaAsync` `:184-190`, Aufruf ohne `nurHauptFa`
+`PickingLeitstandController.cs:208-209`, Zellen `_PickingLeitstandRow.cshtml:102-156`, Checkbox-Handler ohne Neuladen
+(`Index.cshtml`, `.toggle-field`-Block), `fa-work-step-status.js` mit genau zwei Einbindungen (`FaWorklist/Index.cshtml:217`,
+`PickingLeitstand/Index.cshtml:457`).
+
+### BLOCKER
+
+- **B-1 Lack-T erledigt an Sub-FAs geht nur noch über den Schalter. Ist das der Normalfall?** Belegt: `IsCoatingDone = true`
+  schreibt nur der Toggle `/api/picking-status/toggle` (`ProductionOrderPickingStatusRepository.cs:58`). Der Toggle wird nur in
+  `Views/PickingLeitstand` verwendet (Suche `picking-status/toggle` in `Views`/`wwwroot/js`: nur Leitstand und Changelog). Sonst setzen
+  nur Resets den Wert (`:188`, `IDEALAKEWMSService/Services/CoatingDetectionService.cs:204`). Lack-T wird je Sub-FA abgeleitet
+  (`FaMaterializationCoating.cs:9-30`). Hat die HauptFA-Zeile keine eigenen Lackteile, ist der Haken an der HauptFA-Zeile nach
+  Antwort 9 (b) gesperrt (W3). Dann setzt man „Lack-T erledigt“ im ganzen WMS nur noch über „Sub-FAs anzeigen“. Dasselbe gilt für
+  Glas/Zukauf einzelner Sub-FAs. Antwort 2 sagt aber: „wird eigentlich nicht benötigt werden“. Ist W3 der häufige Fall, bleibt die
+  tägliche Lack-T-Pflege hinter einem Schalter, den Gerald für überflüssig hält.
+  **Frage an Gerald:** Bitte vor der Freigabe P-5 auf der WMS-DB IDEAL ausführen (Testsystem, nur lesen). Ist „nur Sub-FAs (W3)“ der
+  überwiegende Fall: Soll es bei 9 (b) bleiben, also Pflege über den Schalter (dann Hilfetext und Manifest-Info ausdrücklich so)? Oder
+  soll der Haken an der HauptFA-Zeile in W3 **alle** Sub-FA-Lackteilzeilen des Auftrags erledigt setzen? Das wäre Variante 7 (b) nur
+  für Lack-T, mit neuem Sammel-Schreibweg und Audit-Feldern, und eine neue Entscheidung.
+
+```sql
+-- P-5 (Vorschlag Pruefung, WMS-DB IDEAL, nur lesen): offene Auftraege mit Lackteilen an Sub-FAs - hat die HauptFA-Zeile eigene?
+SELECT CASE WHEN hps.HasCoatingParts = 1 THEN N'HauptFA hat eigene Lackteile (W2/K1)'
+            ELSE N'nur Sub-FAs (W3, gesperrt)' END AS Fall,
+       COUNT(*) AS Auftraege
+FROM dbo.ProductionOrders h
+JOIN dbo.ProductionOrderPickingStatus hps ON hps.ProductionOrderId = h.Id
+WHERE (h.SubOrderNumber = N'' OR h.SubOrderNumber = h.OrderNumber)
+  AND h.IsDone = 0 AND h.IsCancelled = 0 AND hps.IsDonePicking = 0
+  AND EXISTS (SELECT 1 FROM dbo.ProductionOrders s
+              JOIN dbo.ProductionOrderPickingStatus sps ON sps.ProductionOrderId = s.Id
+              WHERE s.OrderNumber = h.OrderNumber AND s.Id <> h.Id AND s.IsCancelled = 0 AND sps.HasCoatingParts = 1)
+GROUP BY CASE WHEN hps.HasCoatingParts = 1 THEN N'HauptFA hat eigene Lackteile (W2/K1)' ELSE N'nur Sub-FAs (W3, gesperrt)' END;
+```
+
+### SOLLTE
+
+- **S-1 HauptFA erledigt: Der ganze Auftrag verschwindet still, mit seinen offenen Sub-FAs.** Belegt: `showDone = false` filtert
+  die HauptFA-Zeile über `IsDone`/`IsCancelled`/`IsDonePicking` (`ProductionOrderRepository.cs:158-159`). Das Banner zählt nur Aufträge
+  **ganz ohne** HauptFA-Zeile, denn `mitHauptFa` wird ungefiltert über alle Zeilen gebildet (`:186`). Heute bleiben in der Gruppenansicht
+  die offenen Sub-FA-Zeilen mit Lack-T/VK–VA sichtbar, auch nach „Als erledigt markieren“ an der HauptFA-Zeile. Dieser Knopf setzt
+  `IsDonePicking` (`PickingController.cs:197-207`) und steht in jeder Zeile (`_PickingLeitstandRow.cshtml:218`). Nach dieser Spec sind
+  die offenen Sub-FAs ohne Meldung weg. Die FA-Liste hat dasselbe als Q-4 festgehalten: DEV 1035235/1037045/1039413/1043153, dort
+  „Mensch bestätigt fachlich“, noch offen.
+  **Vorschlag:** Out-of-Scope ausdrücklich um diesen Satz ergänzen: „Ist die HauptFA-Zeile erledigt, fertig kommissioniert oder
+  storniert, verschwindet der Auftrag ohne Banner, auch wenn Sub-FAs offen sind; sichtbar mit „Erledigte anzeigen“.“ Gerald soll ihn
+  für den Leitstand bestätigen, oder das Banner zählt diese Aufträge mit.
+  Dazu passt P-3 / Manifest `Pruefung/LeitstandOhneHauptFaZeile` nicht zum Banner. P-3 filtert die Zeilen nur über
+  `IsDone = 0 AND IsCancelled = 0` und ohne `IsDonePicking`, `CountGruppenOhneHauptFaAsync(false)` zieht `IsDonePicking` mit ab. Die
+  Zahlen können also auseinanderlaufen. Vorschlag: P-3 um
+  `LEFT JOIN dbo.ProductionOrderPickingStatus ps ON ps.ProductionOrderId = po.Id … AND ISNULL(ps.IsDonePicking, 0) = 0` ergänzen.
+- **S-2 Sub-FA-Nummer ohne Schalter: stilles „Keine … gefunden“ (melden statt still).** Antwort 4 lässt die Suche nach einer
+  Sub-FA-Nummer ohne Schalter leer ausgehen. Sie entsteht auch per QR-Scan: Der Scanner der FA-Nr. sendet das Formular sofort ab
+  (`Index.cshtml:512-515`). Vom Werkstattpapier gescannt ist das eine Sub-FA-Nummer, und der Bediener sieht nur eine leere Liste.
+  **Vorschlag:** Neues AK: Ist der FA-Nr.-Filter gesetzt und sind ohne Schalter 0 Treffer da, zeigt die Seite `alert-info`
+  „Keine HauptFA mit dieser Nummer – Sub-FA-Nummern findet „Sub-FAs anzeigen““ mit Link auf dieselbe URL und `mitSubFa=true`.
+  Kosten: eine Bedingung im View. Das ist keine Gegenentscheidung zu Antwort 4, nur ein Hinweis.
+- **S-3 Bestehende Tests brechen, und die Spec nennt sie nicht.** Ein weiterer optionaler Parameter an `GetForLeitstandGroupedAsync`
+  bricht alle Moq-Setups/Verifies mit 8 `It.IsAny`. Optionale Argumente sind in Expression Trees nicht erlaubt (CS0854):
+  `PickingLeitstandControllerTests.cs:172`, `:230`, `:246`, `:1050`, `ProductionOrdersControllerTests.cs:118`, `:678`. Dazu werten
+  Controller-Tests `vm.Groups` aus (`PickingLeitstandControllerTests.cs:185`, `:242`, `:269`). Mit Default `mitSubFa = false` liefert
+  der Controller künftig `Items`, die Tests werden also rot.
+  **Vorschlag:** affected_code und AK 18/19 ergänzen. Diese Tests werden auf den neuen Parameter angepasst. Tests, die die
+  Gruppenansicht prüfen, rufen `Index(..., mitSubFa: true)` auf, damit sie „Schalter an = heute“ (AK 6) absichern. Ein neuer Test prüft
+  `nurHauptFa: true, faNrUeberSubFa: false` im Verify. `mitSubFa` gehört als **letzter** Parameter an `Index`, sonst verschieben sich
+  die Positionsaufrufe (z. B. `_controller.Index(null, null, "Mustermann", false, 1, null)`).
+- **S-4 „+ n Sub-FAs“ und den Kaskaden-Knopf genauer festlegen.** n zählt nach der Basis der Zusammenfassungsregel nicht stornierte
+  Zeilen **inklusive erledigter**. Das heutige Badge zählt dagegen die gefilterten `group.Items` (`Index.cshtml:213`), das kann der
+  Bediener verwechseln. Der Kaskaden-Knopf erscheint nach L3 an jeder HauptFA-Zeile, auch ohne Sub-FAs.
+  **Vorschlag:** AK 13 bekommt den Zusatz „n = nicht stornierte Sub-FA-Zeilen inkl. erledigter“. L3 bekommt den Zusatz „Knopf nur bei
+  n > 0“. Die FA-Nr.-Zelle bekommt `data-csv-value` mit der FA-Nummer, sonst landet „+ 2 Sub-FAs“ in der CSV-Spalte FA-Nr.
+  (`csv-export.js:85`, `:98`).
+
+### HINWEIS
+
+- **H-1 Verdeckter Eigenwert der HauptFA-Zeile (W2).** In W2 steht `IsCoatingDone = true` an der HauptFA-Zeile, die Zelle zeigt aber
+  „leer“. Zurücknehmen geht an der HauptFA-Zeile nicht, ein Klick setzt erneut true. Das ist Folge von Antwort 7 (c) und akzeptabel.
+  Es sollte in den Hilfetext: „Eigenwert der HauptFA nur mit „Sub-FAs anzeigen“ sichtbar“.
+- **H-2 `GetByProductionOrderIdsAsync` arbeitet ohne Blöcke** (`ProductionOrderPickingStatusRepository.cs:23-30`, `ids.Contains`).
+  Der Detail-Pivot dagegen ist in Blöcke geteilt (`IFaWorkStepRepository.cs:22-26`). Die Id-Liste wächst um die Sub-FA- und erledigten
+  Zeilen. Bei aktiven Memory-Filtern (alle Gruppen geladen, `PickingLeitstandController.cs:206-209`) hat das Risiko schon heute
+  dieselbe Größenordnung, neu ist es also nicht. Im QA-Lauf mit einem VK-Spaltenfilter auf DEV IDEAL einmal ausprobieren.
+- **H-3 Version/TS:** Die Übersicht nennt v1.99.83 / TS-204, der Worktree steht schon auf 1.99.84. Der Dev-Lauf nimmt die nächste
+  freie Nummer (voraussichtlich v1.99.85) und klärt die Reihenfolge mit Teil 3.
+- **H-4 Ist-Stand, Absatz „Hierarchischer Zweig“:** Dort stehen noch die alten Repository-Zeilen (`:54-92`, `:107-111`). Die Notiz
+  darüber kennzeichnet sie als überholt. Der Dev-Lauf soll die aktuellen Zeilen aus der Notiz nehmen.
+- **H-5 Umfang/Größe/Deploy:** etwa 10 Anwendungsdateien plus 3-4 Testdateien, keine Migration, nur Web. Das passt in einen Dev-Lauf,
+  ein Split ist nicht nötig. Deploy (web ja, service/migration nein) ist plausibel. Die Test-Checkliste x.1-x.7 kann man abarbeiten.
+  Für x.6/x.6b braucht es per Schalter angelegte Testdaten. Dabei entstehen echte Statusänderungen auf dem Testsystem, nicht auf Prod.
+
+NACHBESSERUNG NOETIG: B-1 (Lack-T erledigt an Sub-FAs nur noch über „Sub-FAs anzeigen“ – Häufigkeit mit P-5 klären, 9 (b) bestätigen); S-1 Abgrenzung „HauptFA erledigt“ bestätigen.
