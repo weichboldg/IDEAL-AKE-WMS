@@ -52,7 +52,13 @@
                 var requestedInt = (int)Math.Round(i.QuantityRequested, MidpointRounding.AwayFromZero);
                 <tr data-item-id="@i.Id" data-article="@i.ArticleNumber">
                     <td>@i.Position</td>
-                    <td>@i.ArticleNumber</td>
+                    <td>
+                        @i.ArticleNumber
+                        @if (Model.FehlteilHinweise?.TryGetValue(i.ArticleNumber.Trim(), out var fehlteilHinweis) == true)
+                        {
+                            <div class="small text-warning-emphasis">@fehlteilHinweis</div>
+                        }
+                    </td>
                     <td>@i.ArticleDescription</td>
                     <td>
                         @if (isDraft)

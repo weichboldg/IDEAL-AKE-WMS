@@ -43,7 +43,7 @@ public class WarehouseRequisitionDetailViewModel
     /// <summary>v1.99.72 (F13): Artikelnummer (getrimmt) → Fraesen-Pfad; null = Schalter FraesenPfadAktiv aus (keine Spalte).</summary>
     public Dictionary<string, string>? FraesenPfade { get; set; }
 
-    /// <summary>v1.99.85: Artikelnummer (getrimmt, Gross/Klein egal) → Zelltext „Liefertermin“ (WarehousePickingController.LieferterminZelle);
+    /// <summary>v1.99.85: Artikelnummer (getrimmt, Gross/Klein egal) → Zelltext „Liefertermin“ (LieferterminTexte.Zelle);
     /// fehlender Eintrag = „—“. null = Cache offener Sage-Bestellungen leer (keine Spalte).</summary>
     public Dictionary<string, string>? Liefertermine { get; set; }
     public DateTime? LieferterminStand { get; set; }

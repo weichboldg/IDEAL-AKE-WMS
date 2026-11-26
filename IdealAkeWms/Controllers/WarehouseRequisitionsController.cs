@@ -17,6 +17,8 @@ public class WarehouseRequisitionsController : Controller
     private readonly ICurrentUserService _user;
     private readonly IAppSettingRepository _settings;
     private readonly IArticleRepository _articles;
+    private readonly ISagePurchaseOrderLineRepository _poLines;
+    private readonly IPurchaseOrderReceiptRepository _receipts;
 
     public WarehouseRequisitionsController(
         IWarehouseRequisitionRepository repo,
@@ -24,9 +26,12 @@ public class WarehouseRequisitionsController : Controller
         IOrderRecipientRepository groups,
         ICurrentUserService user,
         IAppSettingRepository settings,
-        IArticleRepository articles)
+        IArticleRepository articles,
+        ISagePurchaseOrderLineRepository poLines,
+        IPurchaseOrderReceiptRepository receipts)
     {
         _repo = repo; _workplaces = workplaces; _groups = groups; _user = user; _settings = settings; _articles = articles;
+        _poLines = poLines; _receipts = receipts;
     }
 
     /// <summary>
@@ -187,7 +192,44 @@ public class WarehouseRequisitionsController : Controller
                 new WarehouseRequisitionEditItemViewModel(i.Id, i.Position, i.ArticleNumber, i.ArticleDescription, i.Unit, i.QuantityRequested)).ToList(),
             FraesenPfade = await RequireFraesenPfadAktivFilter.IstAktivAsync(_settings) ? await _articles.GetFraesenPfadeAsync() : null,
         };
+        if (r.Status == WarehouseRequisitionStatus.Draft)
+            vm.FehlteilHinweise = await FehlteilHinweiseAsync(r, userId);
         return View(vm);
+    }
+
+    /// <summary>v1.99.86 (Spec 2026-11-26-lagerbestellung-hinweis-fehlteil-bereits-bestellt F1/F4): Artikelnummer → Hinweis fuer
+    /// Positionen, die fuer den Benutzer schon offene Fehlteile sind. Regel 1:1 wie „Meine Fehlteile“ (eigene Werkbaenke, gleicher Typ,
+    /// <see cref="IWarehouseRequisitionRepository.GetMissingPartsAsync"/>). null = kein Hinweis.</summary>
+    private async Task<Dictionary<string, string>?> FehlteilHinweiseAsync(WarehouseRequisition r, int userId)
+    {
+        var nummern = r.Items.Select(i => i.ArticleNumber.Trim())
+            .Where(n => n.Length > 0 && !string.Equals(n, Article.DummyArticleNumber, StringComparison.OrdinalIgnoreCase))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        if (nummern.Count == 0) return null;
+        var wpIds = (await _workplaces.GetByUserIdAsync(userId)).Select(w => w.Id).ToList();
+        if (wpIds.Count == 0) return null;
+        // ponytail: alle Fehlteile der eigenen Werkbaenke laden und im Speicher filtern; Artikel-Bedingung im Repository erst bei messbar grosser Menge.
+        var (rows, _) = await _repo.GetMissingPartsAsync(ShortageStatus.WillBeRestocked, r.Type, wpIds, null, null, null, 1, int.MaxValue);
+        var treffer = rows.Where(x => nummern.Contains(x.ArticleNumber.Trim()))
+            .GroupBy(x => x.ArticleNumber.Trim(), StringComparer.OrdinalIgnoreCase).ToList();
+        if (treffer.Count == 0) return null;
+        var (stand, texte) = await LieferterminTexte.JeArtikelAsync(_poLines, _receipts, treffer.Select(g => g.Key));
+        // rows kommen nach Abschlussdatum absteigend (Repository) – Distinct behaelt die Reihenfolge.
+        return treffer.ToDictionary(g => g.Key,
+            g => FehlteilHinweis(g.Select(x => x.RequisitionId).Distinct().ToList(), r.Type, stand, texte?.GetValueOrDefault(g.Key)),
+            StringComparer.OrdinalIgnoreCase);
+    }
+
+    /// <summary>v1.99.86 F1/E4/E5: Hinweistext. Listen neueste zuerst, hoechstens drei, danach „und N weitere“.</summary>
+    internal static string FehlteilHinweis(IReadOnlyList<int> listenIdsNeuesteZuerst, WarehouseRequisitionType typ, DateTime? stand, string? zelltext)
+    {
+        var art = typ == WarehouseRequisitionType.Glas ? "Glasbestellung" : "Lagerbestellung";
+        var listen = string.Join(", ", listenIdsNeuesteZuerst.Take(3).Select(id => $"#{id}")) +
+                     (listenIdsNeuesteZuerst.Count > 3 ? $" und {listenIdsNeuesteZuerst.Count - 3} weitere" : "");
+        var termin = stand == null ? "Liefertermin unbekannt (offene Bestellungen werden nicht aus Sage gelesen)."
+            : string.IsNullOrEmpty(zelltext) || zelltext == "—" ? "Keine offene Bestellung in Sage."
+            : $"Nächster Liefertermin: {zelltext}.";
+        return $"Hinweis: bereits als Fehlteil bestellt mit {art} {listen} (wird nachgeliefert). {termin}";
     }
 
     [HttpPost, ValidateAntiForgeryToken]

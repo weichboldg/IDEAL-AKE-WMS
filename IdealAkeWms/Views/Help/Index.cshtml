@@ -2473,6 +2473,19 @@
                     <li>Artikel ueber das Suchfeld auswaehlen, Menge anpassen.</li>
                     <li>"Abschicken" sendet die Liste an den Default-Lagerbestellempfaenger (max. 15 Min Verzoegerung).</li>
                 </ol>
+                <p><strong>Hinweis &bdquo;bereits als Fehlteil bestellt&ldquo; (seit v1.99.86):</strong> Ist ein Artikel der Liste an einer Ihrer
+                    Werkbänke schon als Fehlteil offen (&bdquo;wird nachgeliefert&ldquo;), steht im Entwurf unter der Artikelnummer z.&nbsp;B.
+                    &bdquo;Hinweis: bereits als Fehlteil bestellt mit Lagerbestellung #45, #38 (wird nachgeliefert). Nächster Liefertermin: 12.12.2026 (+1).&ldquo;</p>
+                <ul>
+                    <li>Regel wie die Karte &bdquo;Meine Fehlteile&ldquo;: Fehlteile aller Werkbänke, denen Sie zugeordnet sind, auch von Kollegen erfasste,
+                        mit demselben Bestelltyp (Glasbestellung zeigt nur Glas-Fehlteile, Lagerbestellung nur Lager-Fehlteile). Ohne Werkbank-Zuordnung gibt es keinen Hinweis.</li>
+                    <li>Höchstens drei Listennummern, die zuletzt abgeschlossene zuerst, danach &bdquo;und N weitere&ldquo;. Positionen <code>DUMMY</code> bekommen keinen Hinweis.</li>
+                    <li>Liefertermin wie die Spalte &bdquo;Liefertermin&ldquo; im Lager: frühester Termin der offenen Sage-Bestellungen, &bdquo;überfällig&ldquo; bei Termin vor heute,
+                        &bdquo;(+N)&ldquo; = N weitere offene Bestellpositionen. &bdquo;Keine offene Bestellung in Sage.&ldquo; ohne offene Bestellung, &bdquo;Liefertermin unbekannt&ldquo;,
+                        wenn am Standort keine offenen Bestellungen aus Sage gelesen werden.</li>
+                    <li>Der Hinweis blockiert nichts: Menge ändern, entfernen und abschicken gehen wie bisher. Er erscheint nur im Entwurf, auch für
+                        Positionen aus der Stücklisten-Schnellerfassung, sobald Sie den Entwurf öffnen. Er verschwindet, sobald das Lager das Fehlteil zurücksetzt.</li>
+                </ul>
 
                 <h6 class="mt-3">Lager-Workflow</h6>
                 <p>Hauptmenue &rarr; Bestellungen &rarr; Lager: Eingehende Listen. Detail oeffnen, kommissionieren, "Drucken" fuer den Pickup-Druck, dann mit Pro-Position-Ist-Mengen "Abschliessen". Storno mit optionalem Grund moeglich.</p>

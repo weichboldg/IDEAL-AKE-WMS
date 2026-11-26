@@ -262,37 +262,10 @@ public class WarehousePickingController : Controller
         };
         // v1.99.85 (Spec 2026-11-26-liefertermin-offene-bestellungen F2): naechster Liefertermin je Artikel, feste Zahl Abfragen
         // (Stand, Positionen, Erfasst) unabhaengig von der Positionszahl. Cache leer = null = keine Spalte.
-        (vm.LieferterminStand, vm.Liefertermine) = await LieferterminTexteAsync(r.Items.Select(i => i.ArticleNumber));
+        (vm.LieferterminStand, vm.Liefertermine) = await LieferterminTexte.JeArtikelAsync(_poLines, _receipts, r.Items.Select(i => i.ArticleNumber));
         if (vm.Liefertermine != null)
             vm.ArtikelinfoLink = await _user.HasMasterDataReadAccessAsync();
         return View(vm);
-    }
-
-    /// <summary>v1.99.85: Zelltext „Liefertermin“ je Artikelnummer (Details und Druck-Filter). Cache leer = (null, null).</summary>
-    private async Task<(DateTime? Stand, Dictionary<string, string>? Texte)> LieferterminTexteAsync(IEnumerable<string> artikelnummern)
-    {
-        var stand = await _poLines.GetStandAsync();
-        if (stand == null) return (null, null);
-        var nummern = artikelnummern.Select(n => n.Trim())
-            .Where(n => !string.Equals(n, Article.DummyArticleNumber, StringComparison.OrdinalIgnoreCase)).ToList();
-        var lines = await _poLines.GetByArtikelnummernAsync(nummern);
-        var erfasst = await _receipts.GetErfasstJeBelPosAsync(lines.Select(l => l.BelPosId).ToList());
-        var heute = DateTime.Today;
-        return (stand, lines.GroupBy(l => l.Artikelnummer.Trim(), StringComparer.OrdinalIgnoreCase).ToDictionary(g => g.Key,
-            g => LieferterminZelle(g.Select(l => (l.Liefertermin, erfasst.GetValueOrDefault(l.BelPosId, ErfasstJeBelPos.Leer).Rest(l))), heute),
-            StringComparer.OrdinalIgnoreCase));
-    }
-
-    /// <summary>v1.99.85 F2.3: Zelltext „Liefertermin“ aus den offenen Positionen eines Artikels. Nur Rest &gt; 0 zaehlt; frueheste Termin
-    /// (ueberfaellige zaehlen mit, Zusatz „ überfällig“), nur ohne Termin → „ohne Termin“, weitere Positionen → „ (+N)“, keine → „—“.</summary>
-    internal static string LieferterminZelle(IEnumerable<(DateTime? Liefertermin, decimal Offen)> positionen, DateTime heute)
-    {
-        var offen = positionen.Where(p => p.Offen > 0).ToList();
-        if (offen.Count == 0) return "—";
-        var text = offen.Min(p => p.Liefertermin) is { } t
-            ? t.ToString("dd.MM.yyyy", CultureInfo.InvariantCulture) + (t.Date < heute.Date ? " überfällig" : "")
-            : "ohne Termin";
-        return offen.Count > 1 ? $"{text} (+{offen.Count - 1})" : text;
     }
 
     /// <summary>Eingaben je Position (Index-gleich zu <paramref name="itemIds"/>). Leeres Ist-Feld bindet als null am selben Index
@@ -605,7 +578,7 @@ public class WarehousePickingController : Controller
         bool Braucht(string key) => columnFilters.ContainsKey(key)
             || string.Equals(string.IsNullOrWhiteSpace(sortCol) ? prefs?.DefaultSortColumn : sortCol, key, StringComparison.Ordinal);
         var colMap = new Dictionary<string, Func<WarehouseRequisitionDetailItemViewModel, string?>>(WarehousePickingPrintLayout.ColumnMap);
-        if (Braucht("liefertermin") && (await LieferterminTexteAsync(r.Items.Select(i => i.ArticleNumber))).Texte is { } lt)
+        if (Braucht("liefertermin") && (await LieferterminTexte.JeArtikelAsync(_poLines, _receipts, r.Items.Select(i => i.ArticleNumber))).Texte is { } lt)
             colMap["liefertermin"] = i => lt.GetValueOrDefault(i.ArticleNumber.Trim()) ?? "—";
         if (Braucht("fraesen-pfad") && await RequireFraesenPfadAktivFilter.IstAktivAsync(_settings))
         {

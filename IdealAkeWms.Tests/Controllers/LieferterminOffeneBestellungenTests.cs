@@ -42,7 +42,7 @@ public class LieferterminOffeneBestellungenTests
     [Fact]
     public void LieferterminZelle_Faelle_AK9()
     {
-        string Z(params (DateTime? T, decimal O)[] p) => WarehousePickingController.LieferterminZelle(p, Heute);
+        string Z(params (DateTime? T, decimal O)[] p) => LieferterminTexte.Zelle(p, Heute);
         Z().Should().Be("—");
         Z((new DateTime(2026, 12, 12), 3m)).Should().Be("12.12.2026");
         Z((new DateTime(2026, 12, 20), 1m), (new DateTime(2026, 12, 12), 3m)).Should().Be("12.12.2026 (+1)");

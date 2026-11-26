@@ -15,4 +15,8 @@ public class WarehouseRequisitionEditViewModel
 
     /// <summary>v1.99.72 (F13, Antwort 24): Artikelnummer (getrimmt) → Fraesen-Pfad; null = Schalter FraesenPfadAktiv aus (keine Spalte).</summary>
     public Dictionary<string, string>? FraesenPfade { get; set; }
+
+    /// <summary>v1.99.86 (Spec 2026-11-26-lagerbestellung-hinweis-fehlteil-bereits-bestellt): Artikelnummer (getrimmt, Gross/Klein egal)
+    /// → Hinweis „bereits als Fehlteil bestellt“. null/leer = kein Hinweis; nur im Entwurf gesetzt.</summary>
+    public Dictionary<string, string>? FehlteilHinweise { get; set; }
 }

@@ -42,7 +42,8 @@ public class WarehouseRequisitionsControllerTests
         var requisitions = new WarehouseRequisitionRepository(ctx);
         var groups = new OrderRecipientRepository(ctx);
 
-        var ctrl = new WarehouseRequisitionsController(requisitions, workplaces, groups, currentUser.Object, settings.Object, new ArticleRepository(ctx));
+        var ctrl = new WarehouseRequisitionsController(requisitions, workplaces, groups, currentUser.Object, settings.Object, new ArticleRepository(ctx),
+            Mock.Of<ISagePurchaseOrderLineRepository>(), Mock.Of<IPurchaseOrderReceiptRepository>());
         ctrl.TempData = new Microsoft.AspNetCore.Mvc.ViewFeatures.TempDataDictionary(
             new Microsoft.AspNetCore.Http.DefaultHttpContext(),
             Mock.Of<Microsoft.AspNetCore.Mvc.ViewFeatures.ITempDataProvider>());
