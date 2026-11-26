@@ -18,3 +18,12 @@ quelle: Koordination, Befund akenet01:4445 (Gerald, Chat 2026-11-16 10:34)
 - Prüfung „DEV-Pfad auf Nicht-DEV-System“ (`D:\Dev\`, `localhost`) in den appsettings.
 - Betriebshandbuch 07 (Zeile 44) um diesen Fall ergänzen.
 - Offen (Gerald): eigener Schlüsselordner je Instanz statt `C:\AKE\keys\dev` (4444/4445 teilen ihn ggf.)?
+
+## Zweiter Fall: akenet01:4444 (Befund 2026-11-26, Hauptsession, nur lesend per SQL auf `IDEAL_AKE_WMS_Test`)
+- `SyncLogs`: „SData-Kennwort nicht entschlüsselbar“ seit **2026-11-24 15:54:23**, bis 2026-11-26 11:51 insgesamt 1758 Einträge
+  (SageLagerbuchung, SageWareneingang, Article, Kreditoren, Debitoren, ArtikelLieferant, EinkaufBestellungen).
+- Bis 15:54:03 lief der Dienst mit Warnung „Zugangsdaten aus appsettings“, also war `SData:Username` leer. Seitdem stehen
+  `SData:Username = sage` und `SData:Password = dp1:…` in `ServiceSettings` (in der Web-Maske eingegeben), und der Dienst kann den
+  Schutztext nicht lesen. Älter als v1.99.81, also nicht durch das Paket 21 verursacht.
+- Dateien auf akenet01 nicht lesbar (`c$` verweigert) → Prüfschritte an Gerald: KeysPath Web vs. Dienst, Leserecht des Dienstkontos,
+  Status in `/ServiceSettings` der Web-Site.
