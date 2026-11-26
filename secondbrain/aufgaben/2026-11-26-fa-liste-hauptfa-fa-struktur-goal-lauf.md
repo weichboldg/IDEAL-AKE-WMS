@@ -60,8 +60,8 @@ letztes Paket 21. Main-Tag `backup/main-vor-fa-liste-hauptfa-2026-11-26` (d653b9
 ## Paket 23
 
 - `publish\paket23-v1.99.84.zip` (Publish 2bde92f9): 237704459 Bytes, SHA-256 `5BC1FE062ED0DDB06D59AB00D834160EE5A330590DFB486172F5ABD52EED4707`.
-- `\AKENET01.ake.at\Installsourcen\paket23-v1.99.84.zip`: Groesse und SHA-256 identisch – OK.
-- `\IDEALWEB01.ideal.ideal-ake.at\InstallSourcen\paket23-v1.99.84.zip`: Groesse und SHA-256 identisch – OK.
+- `\\AKENET01.ake.at\Installsourcen\paket23-v1.99.84.zip`: Groesse und SHA-256 identisch – OK.
+- `\\IDEALWEB01.ideal.ideal-ake.at\InstallSourcen\paket23-v1.99.84.zip`: Groesse und SHA-256 identisch – OK.
 
 ## Offen fuer Gerald (Schranke 2)
 
