@@ -262,20 +262,25 @@ public class WarehousePickingController : Controller
         };
         // v1.99.85 (Spec 2026-11-26-liefertermin-offene-bestellungen F2): naechster Liefertermin je Artikel, feste Zahl Abfragen
         // (Stand, Positionen, Erfasst) unabhaengig von der Positionszahl. Cache leer = null = keine Spalte.
-        vm.LieferterminStand = await _poLines.GetStandAsync();
-        if (vm.LieferterminStand != null)
-        {
-            var nummern = r.Items.Select(i => i.ArticleNumber.Trim())
-                .Where(n => !string.Equals(n, Article.DummyArticleNumber, StringComparison.OrdinalIgnoreCase)).ToList();
-            var lines = await _poLines.GetByArtikelnummernAsync(nummern);
-            var erfasst = await _receipts.GetErfasstJeBelPosAsync(lines.Select(l => l.BelPosId).ToList());
-            var heute = DateTime.Today;
-            vm.Liefertermine = lines.GroupBy(l => l.Artikelnummer.Trim(), StringComparer.OrdinalIgnoreCase).ToDictionary(g => g.Key,
-                g => LieferterminZelle(g.Select(l => (l.Liefertermin, erfasst.GetValueOrDefault(l.BelPosId, ErfasstJeBelPos.Leer).Rest(l))), heute),
-                StringComparer.OrdinalIgnoreCase);
+        (vm.LieferterminStand, vm.Liefertermine) = await LieferterminTexteAsync(r.Items.Select(i => i.ArticleNumber));
+        if (vm.Liefertermine != null)
             vm.ArtikelinfoLink = await _user.HasMasterDataReadAccessAsync();
-        }
         return View(vm);
+    }
+
+    /// <summary>v1.99.85: Zelltext „Liefertermin“ je Artikelnummer (Details und Druck-Filter). Cache leer = (null, null).</summary>
+    private async Task<(DateTime? Stand, Dictionary<string, string>? Texte)> LieferterminTexteAsync(IEnumerable<string> artikelnummern)
+    {
+        var stand = await _poLines.GetStandAsync();
+        if (stand == null) return (null, null);
+        var nummern = artikelnummern.Select(n => n.Trim())
+            .Where(n => !string.Equals(n, Article.DummyArticleNumber, StringComparison.OrdinalIgnoreCase)).ToList();
+        var lines = await _poLines.GetByArtikelnummernAsync(nummern);
+        var erfasst = await _receipts.GetErfasstJeBelPosAsync(lines.Select(l => l.BelPosId).ToList());
+        var heute = DateTime.Today;
+        return (stand, lines.GroupBy(l => l.Artikelnummer.Trim(), StringComparer.OrdinalIgnoreCase).ToDictionary(g => g.Key,
+            g => LieferterminZelle(g.Select(l => (l.Liefertermin, erfasst.GetValueOrDefault(l.BelPosId, ErfasstJeBelPos.Leer).Rest(l))), heute),
+            StringComparer.OrdinalIgnoreCase));
     }
 
     /// <summary>v1.99.85 F2.3: Zelltext „Liefertermin“ aus den offenen Positionen eines Artikels. Nur Rest &gt; 0 zaehlt; frueheste Termin
@@ -595,7 +600,16 @@ public class WarehousePickingController : Controller
 
         // Filter (live aus ?colf_*) -> Sortierung (live ?sortCol/sortDir, sonst Default-Sort) -> sichtbare Spalten.
         var columnFilters = ColumnFilterHelper.ReadFromQuery(HttpContext?.Request);
-        var filtered = ColumnFilterHelper.Apply(detailItems, columnFilters, WarehousePickingPrintLayout.ColumnMap, ColumnFilterTypes.For("WarehousePicking/Details"));
+        // v1.99.85: Spalten, die nur der Bildschirm zeigt (Liefertermin, Fräsen-Pfad), filtern im Druck mit demselben Zelltext wie dort.
+        var colMap = new Dictionary<string, Func<WarehouseRequisitionDetailItemViewModel, string?>>(WarehousePickingPrintLayout.ColumnMap);
+        if (columnFilters.ContainsKey("liefertermin") && (await LieferterminTexteAsync(r.Items.Select(i => i.ArticleNumber))).Texte is { } lt)
+            colMap["liefertermin"] = i => lt.GetValueOrDefault(i.ArticleNumber.Trim()) ?? "—";
+        if (columnFilters.ContainsKey("fraesen-pfad") && await RequireFraesenPfadAktivFilter.IstAktivAsync(_settings))
+        {
+            var pfade = await _articles.GetFraesenPfadeAsync();
+            colMap["fraesen-pfad"] = i => pfade.GetValueOrDefault(i.ArticleNumber.Trim());
+        }
+        var filtered = ColumnFilterHelper.Apply(detailItems, columnFilters, colMap, ColumnFilterTypes.For("WarehousePicking/Details"));
         var sorted = WarehousePickingPrintLayout.SortItems(
             filtered, sortCol, sortDir, prefs?.DefaultSortColumn, prefs?.DefaultSortDirection);
         var columns = WarehousePickingPrintLayout.ResolveColumns(prefs);

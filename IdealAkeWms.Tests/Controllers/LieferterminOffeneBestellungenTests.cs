@@ -163,6 +163,20 @@ public class LieferterminOffeneBestellungenTests
         DetailVm(await ctrl2.Details(id2)).ArtikelinfoLink.Should().BeFalse();
     }
 
+    [Fact]
+    public async Task Print_SpaltenfilterLiefertermin_FiltertWieDerBildschirm_NichtGegenLeerenText()
+    {
+        var (ctrl, id) = Details(mitCache: true);
+        var http = new Microsoft.AspNetCore.Http.DefaultHttpContext();
+        http.Request.QueryString = new Microsoft.AspNetCore.Http.QueryString("?colf_liefertermin=" + DateTime.Today.AddDays(10).ToString("dd.MM.yyyy"));
+        ctrl.ControllerContext = new ControllerContext { HttpContext = http };
+
+        var vm = (WarehouseRequisitionPrintViewModel)((ViewResult)await ctrl.Print(id)).Model!;
+
+        vm.Items.Select(i => i.ArticleNumber).Should().Equal("A-1");
+        vm.Columns.Select(c => c.Key).Should().NotContain("liefertermin", "der Druck zeigt die Spalte nicht");
+    }
+
     // ---- Views ----
 
     private static string ViewText(string ordner, string datei)
