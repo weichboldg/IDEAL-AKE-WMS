@@ -54,4 +54,14 @@ public class BdeFaSichtViewTests
         fn.Should().Contain("i.required = true").And.Contain("i.step = '1'").And.Contain("subOrderNumber").And.Contain("workplaceName")
             .And.Contain("window.bdeBestaetigen").And.Contain("letzteFertig");
     }
+
+    // v1.99.81 (Entscheid 4, U-4): Gut Pflicht, Kopfzeile traegt die bisher gemeldete Menge, Fertig belegt mit dem Rest vor
+    [Fact]
+    public void FertigDialog_GutPflicht_RestVorbelegt()
+    {
+        Read("Views", "Shared", "_BdeDialoge.cshtml").Should().MatchRegex(@"id=""inputGood""[^>]*required");
+        Read("Views", "BdeTeileliste", "_KopfBuchungen.cshtml").Should().Contain("data-bisher=");
+        var js = Read("wwwroot", "js", "bde-fa-sicht.js");
+        js.Should().Contain("Math.max(0, soll - bisher)").And.Contain("über der Sollmenge");
+    }
 }

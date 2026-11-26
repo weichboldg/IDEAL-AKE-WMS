@@ -73,7 +73,7 @@
         switch (json.outcome) {
             case 'Success':
                 if (json.otherActiveBookings && json.otherActiveBookings.length) { andereBeenden(json, okText); return; }
-                neuLaden(okText); return;
+                neuLaden(json.message ? okText + ' ' + json.message : okText); return;  // v1.99.81 U-3: z. B. „Sollmenge erreicht“
             case 'CollisionOtherOperator':
                 document.getElementById('collisionText').textContent = 'AG ist bereits in Arbeit durch ' + (json.collidingOperator || 'einen anderen Werker')
                     + ' an ' + (json.collidingWorkplace || 'einer anderen Werkbank') + ' seit ' + zeit(json.collidingSince) + '.';
@@ -93,11 +93,13 @@
     }
 
     // Mengendialog (#quantityModal): Promise mit {gut, aus} oder null (Abbrechen/Schliessen). Fokus auf Gutmenge.
-    function mengen(soll, vorgabe) {
+    // v1.99.81 (Entscheid 4, U-4): Gut ist Pflicht; mit bisher gemeldeter Menge zeigt der Hinweis Soll, bisher und Rest.
+    function mengen(soll, vorgabe, bisher) {
         return new Promise(function (fertig) {
             var el = document.getElementById('quantityModal'), m = modal('quantityModal');
             var hint = document.getElementById('qty-sollmenge-hint');
-            hint.textContent = soll != null ? 'Sollmenge: ' + fmt(soll) : '';
+            hint.textContent = soll == null ? '' : 'Sollmenge: ' + fmt(soll)
+                + (bisher > 0 ? ', bisher gut gemeldet: ' + fmt(bisher) + ', Rest: ' + fmt(Math.max(0, soll - bisher)) : '');
             hint.classList.toggle('d-none', soll == null);
             var gut = document.getElementById('inputGood'), aus = document.getElementById('inputScrap');
             gut.value = vorgabe != null ? vorgabe : '';
@@ -105,7 +107,7 @@
             var wert = null;
             document.getElementById('btnQtyOk').onclick = function () {
                 if (!gut.reportValidity() || !aus.reportValidity()) return;
-                wert = { gut: parseFloat(gut.value || '0'), aus: parseFloat(aus.value || '0') };
+                wert = { gut: parseFloat(gut.value), aus: parseFloat(aus.value || '0') };
                 m.hide();
             };
             document.getElementById('btnQtyCancel').onclick = function () { m.hide(); };
@@ -116,11 +118,19 @@
     }
 
     // E4-6 / #13: Gut < Soll → Bestaetigung im Modal (statt des Browser-Dialogs im alten Terminal).
-    function gutOk(gut, soll) {
+    // v1.99.81 (Entscheid 4): gerechnet mit der bisher gemeldeten Menge; Gut + Ausschuss ueber dem Rest → Rueckfrage „über Soll“.
+    function gutOk(q, soll, bisher) {
+        bisher = bisher || 0;
         return new Promise(function (ja) {
-            if (soll == null || !(gut < soll)) { ja(true); return; }
-            window.bdeBestaetigen('Gutmenge ' + fmt(gut) + ' liegt unter der Sollmenge ' + fmt(soll) + '. Wirklich als fertig melden?',
-                'Fertig melden', function () { ja(true); }, function () { ja(false); });
+            var text = null;
+            if (soll != null && bisher + q.gut + q.aus > soll)
+                text = 'Gut ' + fmt(q.gut) + ' + Ausschuss ' + fmt(q.aus) + (bisher > 0 ? ' + bisher ' + fmt(bisher) : '')
+                    + ' liegt über der Sollmenge ' + fmt(soll) + '. Trotzdem als fertig melden?';
+            else if (soll != null && bisher + q.gut < soll)
+                text = 'Gutmenge ' + fmt(bisher + q.gut) + (bisher > 0 ? ' (mit bisher ' + fmt(bisher) + ')' : '') + ' liegt unter der Sollmenge '
+                    + fmt(soll) + '. Wirklich als fertig melden?';
+            if (!text) { ja(true); return; }
+            window.bdeBestaetigen(text, 'Fertig melden', function () { ja(true); }, function () { ja(false); });
         });
     }
 
@@ -228,19 +238,21 @@
         var btn = e.target.closest('[data-kopf-aktion]');
         if (!btn) return;
         var z = btn.closest('.bde-kopf-zeile');
-        var id = z.dataset.bookingId, soll = zahl(z.dataset.soll);
+        var id = z.dataset.bookingId, soll = zahl(z.dataset.soll), bisher = zahl(z.dataset.bisher) || 0;
         var frei = window.wmsSperren(btn);
         if (!frei) return;
         var q, r, ok;
         switch (btn.dataset.kopfAktion) {
             case 'pause':
-                if (!(q = await mengen(soll, null))) return frei();
+                if (!(q = await mengen(soll, null, bisher))) return frei();
                 r = await post('/BdeTerminal/Pause', { bookingId: id, operatorId: operatorId, terminalId: terminalId, goodQty: q.gut, scrapQty: q.aus }); ok = 'Pausiert.'; break;
             case 'teilfertig':
-                if (!(q = await mengen(soll, null))) return frei();
+                if (!(q = await mengen(soll, null, bisher))) return frei();
                 r = await post('/BdeTerminal/ReportPartial', { bookingId: id, operatorId: operatorId, terminalId: terminalId, goodQty: q.gut, scrapQty: q.aus }); ok = 'Teilmenge gemeldet.'; break;
             case 'fertig':
-                if (!(q = await mengen(soll, null)) || !(await gutOk(q.gut, soll))) return frei();
+                // v1.99.81 (Entscheid 4): nach Teilmengen Gut mit dem Rest vorbelegen (0, wenn Soll schon erreicht)
+                if (!(q = await mengen(soll, bisher > 0 && soll != null ? Math.max(0, soll - bisher) : null, bisher))
+                    || !(await gutOk(q, soll, bisher))) return frei();
                 letzteFertig = { id: id, gut: q.gut, aus: q.aus };
                 r = await post('/BdeTerminal/Finish', { bookingId: id, operatorId: operatorId, terminalId: terminalId, goodQty: q.gut, scrapQty: q.aus }); ok = 'Fertig gemeldet.'; break;
             case 'ruesten-fertig': r = await post('/BdeTerminal/Finish', { bookingId: id, operatorId: operatorId, terminalId: terminalId }); ok = 'Rüsten beendet.'; break;
@@ -273,7 +285,7 @@
         if (!frei) return;
         var soll = zahl(btn.dataset.soll);
         var q = await mengen(soll, soll);
-        if (!q || !(await gutOk(q.gut, soll))) return frei();
+        if (!q || !(await gutOk(q, soll, 0))) return frei();
         ergebnis(await post('/BdeTerminal/ReportCompletion', {
             operatorId: operatorId, workOperationId: btn.dataset.woId, workplaceId: workplaceId, terminalId: terminalId, goodQty: q.gut, scrapQty: q.aus
         }), 'Fertig gemeldet: ' + btn.dataset.bez + '.', frei);

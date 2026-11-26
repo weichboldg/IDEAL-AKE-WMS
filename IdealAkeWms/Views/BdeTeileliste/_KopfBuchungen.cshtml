@@ -36,7 +36,7 @@
             {
                 var was = Was(b);
                 <li class="bde-kopf-zeile bde-kopf-laeuft" data-booking-id="@b.BookingId" data-wo-id="@b.WorkOperationId"
-                    data-soll="@b.TargetQuantity?.ToString(inv)" data-bez="@was">
+                    data-soll="@b.TargetQuantity?.ToString(inv)" data-bisher="@b.BisherGut.ToString(inv)" data-bez="@was">
                     <span class="bde-kopf-art">@Art(b) läuft</span>
                     <span class="bde-kopf-was">@was</span>
                     <span class="bde-kopf-detail">Start @b.StartedAt.ToString("HH:mm"), Laufzeit <span class="bde-laufzeit" data-sekunden="@((long)Math.Max(0, (jetzt - b.StartedAt).TotalSeconds))">@BdeKopfBuchungen.Laufzeit(b.StartedAt, jetzt)</span>,
