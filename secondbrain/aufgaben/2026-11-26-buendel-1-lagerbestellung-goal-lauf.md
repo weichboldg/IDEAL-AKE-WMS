@@ -37,6 +37,8 @@ Start-Stand Worktree: v1.99.85 (c8814cdf), höchstes TS 206 (TS-205 reserviert f
 - 2026-11-26 Gerald zu den Fotos: „Warum 6 (4 Positionen)?“ → Freigabe-Nachtrag N-1 Teil 1 „Nur Teilesumme“ (563cbc4f).
 - 2026-11-26 Teil 2 umgesetzt (5d7639dc): Build 0 Fehler, Tests 3820/1 skip + 848; TS-208. N-1 eingebaut (a89d98cc, v1.99.88,
   Tests grün), Index 0e9d7d01. qa-agent für Teil 2 + N-1 gemeinsam gestartet.
+- 2026-11-26 21:0x QA Teil 2 + N-1 abgebrochen (von außen gestoppt, kein Ergebnis) nach Fix-Commit ebb16bd7 → nicht Testbereit;
+  QA neu gestartet (prüft 5d7639dc + a89d98cc + ebb16bd7).
 
 ## Fuer spaetere Confluence-Uebernahme (geaenderte Kapitel)
 
