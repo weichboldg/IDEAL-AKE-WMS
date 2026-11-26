@@ -217,6 +217,10 @@ Gezählt wird nur, was noch kommt: Im WMS schon vollständig erfasste Wareneing�
 zeigen den Rest. Die Daten kommen aus dem Lauf „Offene Bestellungen (Sage)“; liest ein Standort keine offenen Bestellungen, fehlt die
 Spalte und die Artikelinfo zeigt einen Hinweis.
 
+![Lager-Detailseite mit eingeblendeter Spalte Liefertermin: „überfällig“, „(+N)“ und „—“](bilder/03-10-lager-details-liefertermin.jpg)
+
+![Artikelinfo: Karte „Offene Bestellungen“ mit Beleg, Lieferant, offener Menge und Liefertermin, „überfällig“ unter dem Termin](bilder/03-11-artikelinfo-offene-bestellungen.jpg)
+
 ## Hinweise und Stolperfallen
 
 **Bekannte Fehler (Stand 14.11.2026, Behebung geplant):**
