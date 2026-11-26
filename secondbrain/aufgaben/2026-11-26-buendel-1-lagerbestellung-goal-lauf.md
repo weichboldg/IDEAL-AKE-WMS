@@ -13,7 +13,7 @@ Start-Stand Worktree: v1.99.85 (c8814cdf), höchstes TS 206 (TS-205 reserviert f
 
 | Spec | Typ | SQL-Block | Version | TS | Status | Commits | Blocker |
 |---|---|---|---|---|---|---|---|
-| [[2026-11-26-lagerbestellung-hinweis-fehlteil-bereits-bestellt-spec]] | Spec | – | 1.99.86 (geplant) | | InUmsetzung | | |
+| [[2026-11-26-lagerbestellung-hinweis-fehlteil-bereits-bestellt-spec]] | Spec | – | 1.99.86 | 207 | **Testbereit** | 300dbf25, QA b7704475 | |
 | [[2026-11-26-beschichtung-summe-leitstand-hauptfa-kommissionierauftrag-liste-teil-1-spec]] | Spec | – | 1.99.87 (geplant) | 205 | InUmsetzung | | |
 | [[2026-11-26-beschichtung-summe-leitstand-hauptfa-kommissionierauftrag-liste-teil-2-spec]] | Spec | – | 1.99.88 (geplant) | | InUmsetzung | | |
 | [[2026-11-26-beschichtung-summe-leitstand-hauptfa-kommissionierauftrag-liste-teil-3-spec]] | Epic (A+B) | – | 1.99.89 (geplant) | | InUmsetzung | | |
@@ -25,9 +25,15 @@ Start-Stand Worktree: v1.99.85 (c8814cdf), höchstes TS 206 (TS-205 reserviert f
 
 ## Protokoll
 - 2026-11-26 Start, alle vier Specs auf InUmsetzung.
+- 2026-11-26 Lagerbestellung-Hinweis umgesetzt (300dbf25): Build 0 Fehler, Tests 3794/1 skip + 848; TS-207, Index 6ee2a764.
+- 2026-11-26 qa-agent: **Testbereit** (b7704475), keine Blocker/Sollte, H-1..H-3 belassen; DEV AKE :8081 + IDEAL :8082 v1.99.86;
+  207.8 (Stücklisten-Schnellerfassung) und 207.9 (Druck) nicht im Browser – Manual-UAT. Foto Entwurf #90 an Gerald.
+- 2026-11-26 Brain: Changelog [[2026-11-26-v1-99-86-lagerbestellung-hinweis-fehlteil]], feature-map v1.99.86. Teil 1 gestartet.
 
 ## Fuer spaetere Confluence-Uebernahme (geaenderte Kapitel)
 
 ## Paket
 
 ## Offen fuer Gerald (Schranke 2)
+
+- v1.99.86: Manual-UAT TS-207 inkl. 207.8 Stücklisten-Schnellerfassung und 207.9 Druck-Liefertermin.
