@@ -191,6 +191,7 @@ public sealed class FaHierarchyBomRepository : IBomRepository, IBomCacheReposito
             IsWaise = isWaise,
             PositionsKollision = collided,
             Matchcode = string.IsNullOrWhiteSpace(node.Matchcode) ? null : node.Matchcode.Trim(),
+            Arbeitsbereich = node.Arbeitsbereich,
         };
     }
 

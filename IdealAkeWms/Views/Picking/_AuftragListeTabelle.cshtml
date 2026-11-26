@@ -1,0 +1,190 @@
+@model BomViewModel
+@*
+    v1.99.89 (Spec 2026-11-26 Teil 3, K4/K5/K14): Maske „Liste“ des Kommissionierauftrags – eine Zeile je Artikel + Komm.-Ziel (+ BG),
+    flach (kein data-parent-pos, kein Chevron, kein Einruecken). Gleiche Tabellen-Id und dieselben data-col-key wie Bom.cshtml, damit
+    Filter-, Spalten-, Badge- und Druck-Skript der Seite unveraendert greifen. Eigener View-Key = eigene Spaltenauswahl (AK 13).
+    Etappe A: noch ohne Haken/Ist-Eingabe/Quell-Lagerplatz – gebucht wird in der Maske „Stückliste“ (Etappe B: Verteil-Buchung).
+*@
+@{
+    var de = System.Globalization.CultureInfo.GetCultureInfo("de-DE");
+    var spalten = 17 + (Model.ReadOnly ? 0 : 2) + (Model.FullStructure ? 2 : 0);
+}
+
+@if (Model.OhneStuecklistenposition > 0)
+{
+    <div class="alert alert-warning py-2 mb-2" role="alert">
+        <strong>@Model.OhneStuecklistenposition Auftragszeile@(Model.OhneStuecklistenposition == 1 ? "" : "n") ohne Stücklistenposition</strong>
+        – die Stückliste hat sich seit der Auftragserzeugung geändert. Diese Zeilen stehen mit dem Kennzeichen „ohne Stückliste“ in der Liste.
+    </div>
+}
+@if (!Model.ReadOnly)
+{
+    <div class="alert alert-info py-2 mb-2" role="note">
+        Umbuchen vorerst in der Maske
+        <a href="@Url.Action("Auftrag", new { id = Model.Auftrag!.Id, ansicht = "stueckliste", filterText = Model.FilterText })" class="alert-link maske-umschalter">Stückliste</a>.
+    </div>
+}
+
+<div class="table-responsive">
+    <table class="table table-striped mb-0 table-sm filterable-table" id="bomTable" data-view-key="KommissionierauftragListe" data-csv-filter-source="attribute">
+        <thead>
+            <tr>
+                @if (!Model.ReadOnly)
+                {
+                    <th style="width: 40px;" data-col-key="pick-control"></th>
+                }
+                <th data-filterable data-col-key="kommissionieren">Komm.-Ziel</th>
+                <th data-filterable data-col-key="hauptlagerplatz">Hauptlagerplatz</th>
+                <th data-filterable data-col-key="position">Pos.</th>
+                <th data-filterable data-col-key="resource-number">Artnr.</th>
+                <th data-filterable data-col-key="matchcode">Matchcode</th>
+                <th data-filterable data-col-key="description1">Bezeichnung 1</th>
+                <th class="text-end" data-filterable data-filter-type="number" data-col-key="quantity">Menge Soll</th>
+                <th class="text-end" data-col-key="ist-menge">Menge Ist</th>
+                <th data-filterable data-col-key="storage-location">Lagerplatz</th>
+                @if (!Model.ReadOnly)
+                {
+                    <th data-col-key="source-location">Quell-Lagerplatz</th>
+                }
+                <th data-filterable data-col-key="arbeitsbereich">Arbeitsbereich</th>
+                <th data-filterable data-col-key="montage-abteilung">Abteilung</th>
+                <th data-filterable data-col-key="description2">Bezeichnung 2</th>
+                <th data-filterable data-col-key="article-group">Artikelgruppe</th>
+                <th data-filterable data-col-key="procurement">Beschaffung</th>
+                <th data-filterable data-col-key="category">Kategorie</th>
+                <th data-filterable data-col-key="assembly-group">Baugruppe</th>
+                <th data-filterable data-col-key="sage-position" title="Position laut Sage-Stückliste">Sage-Pos.</th>
+                @if (Model.FullStructure)
+                {
+                    <th class="text-end" data-filterable data-col-key="ebene">Ebene</th>
+                    <th data-filterable data-col-key="vater-sub-fa">Vater-Sub-FA</th>
+                }
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var s in Model.Summenzeilen)
+            {
+                <tr class="@(s.Erledigt ? "table-secondary" : "")"
+                    data-article-number="@s.Ressourcenummer"
+                    data-position="@s.Positionen.FirstOrDefault()"
+                    data-positionen="@string.Join(",", s.Positionen)">
+                    @if (!Model.ReadOnly)
+                    {
+                        <td>
+                            @if (s.Erledigt)
+                            {
+                                <span class="text-muted small" title="@s.StatusText">&#10003; @s.StatusText</span>
+                            }
+                        </td>
+                    }
+                    <td>@s.Kommissionieren</td>
+                    <td>@s.Hauptlagerplatz</td>
+                    <td>
+                        @s.PositionenText
+                        @if (s.IsBaugruppe) { <span class="badge text-bg-secondary ms-1" title="Baugruppe">BG</span> }
+                        @if (s.OhneStuecklistenposition) { <span class="badge text-bg-warning ms-1" title="Auftragszeile ohne Position in der aktuellen Stückliste">ohne Stückliste</span> }
+                    </td>
+                    <td>
+                        <strong>@s.Ressourcenummer</strong>
+                        @await Html.PartialAsync("_VaultLink", new VaultLinkViewModel(s.Ressourcenummer))
+                    </td>
+                    <td>@s.Matchcode</td>
+                    <td>@s.Bezeichnung1</td>
+                    <td class="text-end">@s.SollSumme.ToString("N3")</td>
+                    <td class="text-end" data-csv-value="@(s.GebuchtIst?.ToString("N3"))">
+                        @if (s.Erledigt)
+                        {
+                            @s.GebuchtIst?.ToString("N3")
+                        }
+                        else if (s.GebuchtIst.HasValue)
+                        {
+                            <span class="small text-body-secondary">bereits gebucht @s.GebuchtIst.Value.ToString("N3")</span>
+                        }
+                        @if (s.RestHinweis != null)
+                        {
+                            <div class="small text-warning-emphasis text-start" role="note">⚠ @s.RestHinweis</div>
+                        }
+                    </td>
+                    @* Lagerplatz wie Bom.cshtml (v1.62.0): hoechstens MaxSichtbareLagerplaetze, Rest per Popover (Skript der Seite). *@
+                    <td data-csv-value="@(s.StockLocations.Any() ? string.Join(", ", s.StockLocations.Select(sl => $"{sl.Code} ({sl.Quantity:N3})")) : null)">
+                        @if (s.StockLocations.Any())
+                        {
+                            @string.Join(", ", s.StockLocations.Take(BomItemViewModel.MaxSichtbareLagerplaetze).Select(sl => $"{sl.Code} ({sl.Quantity:N3})"))
+                            @if (s.StockLocations.Count > BomItemViewModel.MaxSichtbareLagerplaetze)
+                            {
+                                <a tabindex="0" role="button" class="badge text-bg-secondary ms-1 bom-lagerplatz-mehr"
+                                   data-bs-toggle="popover" data-anzahl="@s.StockLocations.Count"
+                                   aria-label="Alle @s.StockLocations.Count Lagerplätze anzeigen">+@(s.StockLocations.Count - BomItemViewModel.MaxSichtbareLagerplaetze) weitere</a>
+                                <ul class="d-none bom-lagerplatz-alle">
+                                    @foreach (var sl in s.StockLocations)
+                                    {
+                                        <li>@sl.Code (@sl.Quantity.ToString("N3"))@if (sl.IsPrimaryStorageLocation) {<text> – </text><strong>Hauptlagerplatz</strong>}</li>
+                                    }
+                                </ul>
+                            }
+                        }
+                        else
+                        {
+                            <span class="text-muted">-</span>
+                        }
+                    </td>
+                    @if (!Model.ReadOnly)
+                    {
+                        <td></td>
+                    }
+                    <td>@s.Arbeitsbereich</td>
+                    <td>@s.Abteilung</td>
+                    <td>@s.Bezeichnung2</td>
+                    <td>@s.Artikelgruppe</td>
+                    <td>@s.Beschaffungsartikel</td>
+                    <td>@s.KategorieName</td>
+                    <td>@s.Baugruppe</td>
+                    <td>@s.SagePosition</td>
+                    @if (Model.FullStructure)
+                    {
+                        <td class="text-end">@s.Ebene</td>
+                        <td>@s.VaterSubFa</td>
+                    }
+                </tr>
+            }
+            @if (!Model.Summenzeilen.Any())
+            {
+                <tr>
+                    <td colspan="@spalten" class="text-center text-muted py-4">Keine Auftragszeilen gefunden.</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+<script type="application/json" id="view-config">
+{ "viewKey": "KommissionierauftragListe", "supportsReorder": true, "supportsSortDefault": false }
+</script>
+<script type="application/json" id="column-config">
+[
+    @if (!Model.ReadOnly) { <text>{ "key": "pick-control", "label": "", "locked": true, "defaultWidth": 40 },</text> }
+    { "key": "kommissionieren", "label": "Komm.-Ziel", "locked": false, "defaultWidth": null },
+    { "key": "hauptlagerplatz", "label": "Hauptlagerplatz", "locked": false, "defaultWidth": null },
+    { "key": "position", "label": "Pos.", "locked": false, "defaultWidth": null },
+    { "key": "resource-number", "label": "Artnr.", "locked": false, "defaultWidth": null },
+    { "key": "matchcode", "label": "Matchcode", "locked": false, "defaultWidth": null },
+    { "key": "description1", "label": "Bezeichnung 1", "locked": false, "defaultWidth": null },
+    { "key": "quantity", "label": "Menge Soll", "locked": false, "defaultWidth": null },
+    { "key": "ist-menge", "label": "Menge Ist", "locked": false, "defaultWidth": 100 },
+    { "key": "storage-location", "label": "Lagerplatz", "locked": false, "defaultWidth": null },
+    @if (!Model.ReadOnly) { <text>{ "key": "source-location", "label": "Quell-Lagerplatz", "locked": false, "defaultWidth": null },</text> }
+    { "key": "arbeitsbereich", "label": "Arbeitsbereich", "locked": false, "defaultWidth": null },
+    { "key": "montage-abteilung", "label": "Abteilung", "locked": false, "defaultWidth": null },
+    { "key": "description2", "label": "Bezeichnung 2", "locked": false, "defaultWidth": null },
+    { "key": "article-group", "label": "Artikelgruppe", "locked": false, "defaultWidth": null },
+    { "key": "procurement", "label": "Beschaffung", "locked": false, "defaultWidth": null },
+    { "key": "category", "label": "Kategorie", "locked": false, "defaultWidth": null },
+    { "key": "assembly-group", "label": "Baugruppe", "locked": false, "defaultWidth": null, "defaultHidden": true },
+    { "key": "sage-position", "label": "Sage-Pos.", "locked": false, "defaultWidth": null, "defaultHidden": true }
+    @if (Model.FullStructure)
+    {
+        <text>,{ "key": "ebene", "label": "Ebene", "locked": false, "defaultWidth": 60, "defaultHidden": true },
+    { "key": "vater-sub-fa", "label": "Vater-Sub-FA", "locked": false, "defaultWidth": null, "defaultHidden": true }</text>
+    }
+]
+</script>

@@ -1869,8 +1869,17 @@
                         „Vorkommissionierung“ wird mit dem Vorkommissionier-Vorlauf fällig. Es gibt höchstens einen Standardbereich: wer einen zweiten
                         speichert, bekommt „Es gibt bereits einen Standardbereich (…). Zuerst dort abwählen.“ Zum Wechseln den bisherigen abwählen (ohne
                         Standard legt die Kommissionierung keine Aufträge an), dann den neuen setzen.</dd>
+                    <dt>Maske „Liste“ (IDEAL)</dt>
+                    <dd>Sind die Kommissionierlisten eingeschaltet und kommt die Stückliste aus der FA-Struktur, öffnet der Auftrag in der Maske „Liste“: eine Zeile je
+                        Artikel und Kommissionierziel (Baugruppen getrennt), Sollmenge summiert, alle Positionen in der Spalte „Pos.“, sortiert nach Kommissionierziel,
+                        Hauptlagerplatz und erster Position. Umschalten über „Stückliste | Liste“ oben im Auftrag (nicht gespeichert; nicht gespeicherte Haken und
+                        Ist-Mengen gehen dabei nach Rückfrage verloren). Umgebucht wird vorerst in der Maske „Stückliste“. „bereits gebucht“ nennt die schon
+                        umgebuchte Menge; ein Hinweis „Rest … geht beim Abschluss in den Folgeauftrag“ zeigt Reste teilgebuchter Positionen. Zeilen, deren
+                        Position in der aktuellen Stückliste fehlt, tragen „ohne Stückliste“ und werden oben gemeldet. Die Liste hat eine eigene Spaltenauswahl.</dd>
                     <dt>Druck</dt>
-                    <dd>Auf der Auftragsseite „Auftrag drucken“: Kopf mit Nummer, FA, Bereich, Fälligkeit und Barcode der Auftragsnummer, Zeilen mit Soll, Ist und Lagerplatz. Ist die Stückliste sortiert, druckt er die Zeilen in dieser Reihenfolge (immer alle Zeilen des Auftrags, Filter wirken nicht), sonst nach Position.</dd>
+                    <dd>Auf der Auftragsseite „Auftrag drucken“: Kopf mit Nummer, FA, Bereich, Fälligkeit und Barcode der Auftragsnummer, Zeilen mit Soll, Ist und Lagerplatz. Ist die Stückliste sortiert, druckt er die Zeilen in dieser Reihenfolge (immer alle Zeilen des Auftrags, Filter wirken nicht), sonst nach Position.
+                        Aus der Maske „Liste“ druckt er summiert je Artikel und Kommissionierziel, mit den eingeblendeten Spalten und in der Reihenfolge der Liste
+                        (immer alle Zeilen); daneben „PDF“, wenn die PDF-Erzeugung eingerichtet ist.</dd>
                 </dl>
             </div>
         </div>

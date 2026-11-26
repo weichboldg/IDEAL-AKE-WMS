@@ -64,6 +64,7 @@ public static class ColumnFilterTypes
             ["FaWorklist/Index"] = L(("quantity", N), ("coating-date", D), ("bg-date", D), ("picking-date", D), ("production-date", D)),
             ["PartRequisitions/Index"] = L(("quantity", N), ("ordered-at", D)),
             ["Picking/Bom"] = L(("quantity", N)),
+            ["Picking/_AuftragListeTabelle"] = L(("quantity", N)), // v1.99.89 Maske „Liste“ des Kommissionierauftrags (Client-Mode wie Bom)
             ["Picking/Index"] = L(("priority", N), ("picking-date", D)), // v1.88.0 Auftragsliste (Faelligkeit = picking-date)
             ["PickingLeitstand/Index"] = L(("coating-date", D), ("bg-date", D), ("picking-date", D), ("production-date", D), ("delivery-date", D)),
             ["ProductionOrders/Index"] = L(("prio", N), ("konstruktions-termin", D), ("coating-date", D), ("bg-date", D),

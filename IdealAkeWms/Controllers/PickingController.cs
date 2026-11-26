@@ -249,15 +249,19 @@ public class PickingController : Controller
     }
 
     /// <summary>v1.88.0 E3 (AK 11): Auftragsseite = Stueckliste im Auftragsmodus, nur die Zeilen dieses Auftrags.</summary>
+    /// v1.99.89 (Spec 2026-11-26 Teil 3, K1–K3): <paramref name="ansicht"/> = <c>stueckliste</c> | <c>liste</c>; ohne/ungueltig = Standard
+    /// („Liste“, wenn Kommissionierlisten an und Quelle FA-Struktur, sonst Stueckliste).
     [RequirePickingAccess]
-    public async Task<IActionResult> Auftrag(int id, string? filterText)
+    public async Task<IActionResult> Auftrag(int id, string? filterText, string? ansicht,
+        [FromServices] IFaHierarchyOrderInfoRepository orderInfos, [FromServices] PdfRenderStatus pdfStatus)
     {
         var auftrag = await _pickingOrderRepository.GetMitZeilenAsync(id);
         if (auftrag?.ProductionOrder == null) return NotFound();
-        return await BomSeiteAsync(auftrag.ProductionOrder, auftrag, filterText);
+        return await BomSeiteAsync(auftrag.ProductionOrder, auftrag, filterText, ansicht, orderInfos, pdfStatus);
     }
 
-    private async Task<IActionResult> BomSeiteAsync(ProductionOrder order, PickingOrder? auftrag, string? filterText)
+    private async Task<IActionResult> BomSeiteAsync(ProductionOrder order, PickingOrder? auftrag, string? filterText,
+        string? ansicht = null, IFaHierarchyOrderInfoRepository? orderInfos = null, PdfRenderStatus? pdfStatus = null)
     {
         var id = order.Id;
         // User-Defaults für client-seitige Spaltenfilter laden
@@ -280,6 +284,105 @@ public class PickingController : Controller
             }
         }
 
+        var (bomResult, viewItems, allStorageLocations, targetStorageLocations) = await StuecklistenZeilenAsync(order, auftrag);
+        // v1.99.89 (K4c): vor dem Textfilter – sonst saehe eine weggefilterte Zeile wie eine ohne Stuecklistenposition aus.
+        var ohneStueckliste = auftrag == null ? new List<PickingOrderLine>()
+            : KommissionierauftragListe.OhneStuecklistenposition(auftrag.Zeilen, viewItems);
+
+        if (!string.IsNullOrWhiteSpace(filterText))
+        {
+            viewItems = viewItems.Where(i =>
+                (i.Ressourcenummer != null && i.Ressourcenummer.Contains(filterText, StringComparison.OrdinalIgnoreCase)) ||
+                (i.Bezeichnung1 != null && i.Bezeichnung1.Contains(filterText, StringComparison.OrdinalIgnoreCase)) ||
+                (i.Bezeichnung2 != null && i.Bezeichnung2.Contains(filterText, StringComparison.OrdinalIgnoreCase)) ||
+                (i.Baugruppe != null && i.Baugruppe.Contains(filterText, StringComparison.OrdinalIgnoreCase)) ||
+                (i.Position != null && i.Position.Contains(filterText, StringComparison.OrdinalIgnoreCase))
+            ).ToList();
+        }
+
+        var vm = new BomViewModel
+        {
+            ProductionOrderId = id,
+            OrderNumber = order.OrderNumber,
+            SubOrderNumber = order.SubOrderNumber,
+            ArticleNumber = order.ArticleNumber,
+            Description1 = order.Description1,
+            Items = viewItems,
+            FilterText = filterText,
+            DefaultFilterBeschaffung = defaultFilterBeschaffung,
+            DefaultFilterArtikelgruppe = defaultFilterArtikelgruppe,
+            DefaultFilterBomDescription1 = defaultFilterBomDescription1,
+            DefaultFilterBomKommissionierziel = defaultFilterBomKommissionierziel,
+            AllStorageLocations = allStorageLocations,
+            TargetStorageLocations = targetStorageLocations,
+            DataSource = bomResult.DataSource,
+            RecursiveFilterSearch = recursiveFilterSearch,
+            Hierarchical = bomResult.DataSource == BomDataSources.FaHierarchie,
+            FullStructure = bomResult.DataSource == BomDataSources.FaHierarchie && BomScopes.ForOrder(order) == BomScope.FullStructure,
+            // v1.88.0: interaktiv nur im Auftragsmodus mit offenem/in Arbeit befindlichem Auftrag; FA-Stueckliste lesend + Auftragsliste
+            ReadOnly = auftrag == null || auftrag.Status is not (PickingOrderStatus.Offen or PickingOrderStatus.InArbeit),
+            BackController = "Picking",
+            BackText = "Zurück zur Kommissionierung",
+            Auftrag = auftrag,
+            FaAuftraege = auftrag == null ? await _pickingOrderRepository.GetByProductionOrderAsync(id) : new List<PickingOrder>(),
+            // v1.99.70 (F8): gegen die UNGEFILTERTE Stueckliste (vor Auftrags-/Textfilter), dieselbe Regel wie der Nachtlauf
+            StuecklisteKleiner = PickingOrderRestmengen.Ueberdeckt(PickingOrderWorkflow.SollListe(bomResult, order),
+                await _pickingOrderRepository.GetAktiveZeilenAsync(id)),
+        };
+
+        // v1.99.89 (K2/K3): Umschalter nur am Auftrag mit Stueckliste aus der FA-Struktur und aktiven Kommissionierlisten (AKE unveraendert).
+        if (auftrag != null && vm.Hierarchical && await KommissionierlistenAktivAsync())
+        {
+            vm.KannListe = true;
+            vm.IstListe = !string.Equals(ansicht, "stueckliste", StringComparison.OrdinalIgnoreCase);
+        }
+        if (vm.IstListe)
+        {
+            // K10: der Textfilter wirkt vor dem Summieren – auch auf die Zeilen ohne Stuecklistenposition (Artikel/Position).
+            var ohne = string.IsNullOrWhiteSpace(filterText) ? ohneStueckliste : ohneStueckliste.Where(z =>
+                z.ArticleNumber.Contains(filterText, StringComparison.OrdinalIgnoreCase)
+                || (z.BomPosition?.Contains(filterText, StringComparison.OrdinalIgnoreCase) ?? false)).ToList();
+            vm.Summenzeilen = KommissionierauftragListe.Summiere(viewItems, auftrag!.Zeilen, ohne,
+                orderInfos == null ? null : await AbteilungAsync(order, orderInfos), AuftragOffen(auftrag));
+            vm.OhneStuecklistenposition = ohneStueckliste.Count;
+            vm.PdfVerfuegbar = pdfStatus?.IsAvailable == true;
+        }
+
+        // Bedarfsmeldungen: Feature-Toggle + offene Meldungen laden
+        var bestellungenAktiv = (await _settingRepository.GetValueAsync(AppSettingKeys.BestellungenAktiv))?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
+        ViewBag.BestellungenAktiv = bestellungenAktiv;
+        var openRequisitions = bestellungenAktiv
+            ? await _partRequisitionRepository.GetByProductionOrderAsync(id)
+            : new List<PartRequisition>();
+        ViewBag.OpenRequisitions = openRequisitions;
+
+        // Lagerbestellung-Button (v1.25.0): Master-Schalter (Default true: nur "false" sperrt)
+        // + Order-Recht (Lager ODER Glas). Unabhaengig von Bedarfsmeldungen (BestellungenAktiv).
+        var lagerbestellungAktivRaw = await _settingRepository.GetValueAsync(AppSettingKeys.LagerbestellungAktiv);
+        ViewBag.LagerbestellungAktiv = !string.Equals(lagerbestellungAktivRaw, "false", StringComparison.OrdinalIgnoreCase);
+        ViewBag.CanOrderWarehouse = await _currentUserService.CanOrderLagerAsync()
+            || await _currentUserService.CanOrderGlasAsync();
+
+        // QA Q1: auch die Action „Auftrag“ rendert die Stuecklisten-View (sonst sucht MVC „Auftrag.cshtml“ → HTTP 500).
+        return View("Bom", vm);
+    }
+
+    private async Task<bool> KommissionierlistenAktivAsync() =>
+        (await _settingRepository.GetValueAsync(AppSettingKeys.FaHierarchyKommissionierlistenAktiv))
+            ?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
+
+    private static bool AuftragOffen(PickingOrder auftrag) => auftrag.Status is PickingOrderStatus.Offen or PickingOrderStatus.InArbeit;
+
+    /// <summary>K4a: Abteilung des HauptFA (fuer alle Summenzeilen gleich), Muster Kommissionierliste.</summary>
+    private static async Task<string?> AbteilungAsync(ProductionOrder order, IFaHierarchyOrderInfoRepository orderInfos) =>
+        int.TryParse(order.OrderNumber, out var hauptFa)
+            ? KommissionierListenService.AbteilungJeHauptFa(await orderInfos.GetByHauptFaAsync(hauptFa)).GetValueOrDefault(hauptFa)
+            : null;
+
+    /// <summary>v1.99.89 (Schritt 6a): Zeilen-Aufbereitung der Stuecklisten-/Auftragsseite, geteilt mit dem summierten Auftragsdruck.</summary>
+    private async Task<(BomQueryResult BomResult, List<BomItemViewModel> Items, List<StorageLocation> AllStorageLocations,
+        List<StorageLocation> TargetStorageLocations)> StuecklistenZeilenAsync(ProductionOrder order, PickingOrder? auftrag)
+    {
         var bomResult = await _bomRepository.GetBomItemsAsync(BomKey.ForOrder(order), BomScopes.ForOrder(order));
         var bomItems = bomResult.Items;
 
@@ -375,70 +478,13 @@ public class PickingController : Controller
                 // Umgebucht, entfallen oder in den Folgeauftrag uebertragen: nicht mehr bearbeitbar
                 IsTransferred = picking != null && picking.Status is not (PickingOrderLineStatus.Offen or PickingOrderLineStatus.Gepickt),
                 IstMenge = picking?.IstMenge,
-                ZeilenStatus = picking?.Status
+                ZeilenStatus = picking?.Status,
+                Arbeitsbereich = (bom as FaHierarchyBomItem)?.Arbeitsbereich,
             };
         })
         .OrderBy(v => v.Position, new NaturalPositionComparer())
         .ToList();
-
-        if (!string.IsNullOrWhiteSpace(filterText))
-        {
-            viewItems = viewItems.Where(i =>
-                (i.Ressourcenummer != null && i.Ressourcenummer.Contains(filterText, StringComparison.OrdinalIgnoreCase)) ||
-                (i.Bezeichnung1 != null && i.Bezeichnung1.Contains(filterText, StringComparison.OrdinalIgnoreCase)) ||
-                (i.Bezeichnung2 != null && i.Bezeichnung2.Contains(filterText, StringComparison.OrdinalIgnoreCase)) ||
-                (i.Baugruppe != null && i.Baugruppe.Contains(filterText, StringComparison.OrdinalIgnoreCase)) ||
-                (i.Position != null && i.Position.Contains(filterText, StringComparison.OrdinalIgnoreCase))
-            ).ToList();
-        }
-
-        var vm = new BomViewModel
-        {
-            ProductionOrderId = id,
-            OrderNumber = order.OrderNumber,
-            SubOrderNumber = order.SubOrderNumber,
-            ArticleNumber = order.ArticleNumber,
-            Description1 = order.Description1,
-            Items = viewItems,
-            FilterText = filterText,
-            DefaultFilterBeschaffung = defaultFilterBeschaffung,
-            DefaultFilterArtikelgruppe = defaultFilterArtikelgruppe,
-            DefaultFilterBomDescription1 = defaultFilterBomDescription1,
-            DefaultFilterBomKommissionierziel = defaultFilterBomKommissionierziel,
-            AllStorageLocations = allStorageLocations,
-            TargetStorageLocations = targetStorageLocations,
-            DataSource = bomResult.DataSource,
-            RecursiveFilterSearch = recursiveFilterSearch,
-            Hierarchical = bomResult.DataSource == BomDataSources.FaHierarchie,
-            FullStructure = bomResult.DataSource == BomDataSources.FaHierarchie && BomScopes.ForOrder(order) == BomScope.FullStructure,
-            // v1.88.0: interaktiv nur im Auftragsmodus mit offenem/in Arbeit befindlichem Auftrag; FA-Stueckliste lesend + Auftragsliste
-            ReadOnly = auftrag == null || auftrag.Status is not (PickingOrderStatus.Offen or PickingOrderStatus.InArbeit),
-            BackController = "Picking",
-            BackText = "Zurück zur Kommissionierung",
-            Auftrag = auftrag,
-            FaAuftraege = auftrag == null ? await _pickingOrderRepository.GetByProductionOrderAsync(id) : new List<PickingOrder>(),
-            // v1.99.70 (F8): gegen die UNGEFILTERTE Stueckliste (vor Auftrags-/Textfilter), dieselbe Regel wie der Nachtlauf
-            StuecklisteKleiner = PickingOrderRestmengen.Ueberdeckt(PickingOrderWorkflow.SollListe(bomResult, order),
-                await _pickingOrderRepository.GetAktiveZeilenAsync(id)),
-        };
-
-        // Bedarfsmeldungen: Feature-Toggle + offene Meldungen laden
-        var bestellungenAktiv = (await _settingRepository.GetValueAsync(AppSettingKeys.BestellungenAktiv))?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
-        ViewBag.BestellungenAktiv = bestellungenAktiv;
-        var openRequisitions = bestellungenAktiv
-            ? await _partRequisitionRepository.GetByProductionOrderAsync(id)
-            : new List<PartRequisition>();
-        ViewBag.OpenRequisitions = openRequisitions;
-
-        // Lagerbestellung-Button (v1.25.0): Master-Schalter (Default true: nur "false" sperrt)
-        // + Order-Recht (Lager ODER Glas). Unabhaengig von Bedarfsmeldungen (BestellungenAktiv).
-        var lagerbestellungAktivRaw = await _settingRepository.GetValueAsync(AppSettingKeys.LagerbestellungAktiv);
-        ViewBag.LagerbestellungAktiv = !string.Equals(lagerbestellungAktivRaw, "false", StringComparison.OrdinalIgnoreCase);
-        ViewBag.CanOrderWarehouse = await _currentUserService.CanOrderLagerAsync()
-            || await _currentUserService.CanOrderGlasAsync();
-
-        // QA Q1: auch die Action „Auftrag“ rendert die Stuecklisten-View (sonst sucht MVC „Auftrag.cshtml“ → HTTP 500).
-        return View("Bom", vm);
+        return (bomResult, viewItems, allStorageLocations, targetStorageLocations);
     }
 
     /// <summary>v1.88.0 E3 (AK 11, 12): gewaehlte Zeilen des Auftrags mit Ist-Menge umbuchen (Server prueft Menge, Status, Bestand).</summary>
@@ -599,20 +645,33 @@ public class PickingController : Controller
     /// v1.88.0 (E4, AK 18): Druck je Kommissionierauftrag – Kopf mit Nummer, FA, Bereich, Faelligkeit und Barcode der Auftragsnummer
     /// (<see cref="IBarcodeService"/> wie die Kommissionierlisten), Zeilen mit Soll/Ist/Lagerplatz. Ersetzt den FA-Druck aus PickingItems.
     /// </summary>
+    /// v1.99.89 (K11): <c>ansicht=liste</c> druckt summiert (<c>PrintAuftragListe</c>) mit den sichtbaren Spalten der Liste, <c>pdf=true</c>
+    /// liefert dasselbe Dokument als PDF. Ohne <c>ansicht=liste</c> (oder ohne Liste-Maske, K3) unveraendert je Position.
     [HttpGet]
     [RequirePickingAccess]
-    public Task<IActionResult> AuftragDrucken(int id, [FromServices] IBarcodeService barcode)
-        => RenderAuftragDruckenAsync(id, reihenfolge: null, barcode);
+    public Task<IActionResult> AuftragDrucken(int id, [FromServices] IBarcodeService barcode,
+        [FromServices] IFaHierarchyOrderInfoRepository orderInfos, [FromServices] IUserViewPreferenceRepository viewPrefs,
+        [FromServices] IRazorViewRenderer viewRenderer, [FromServices] IPdfRenderService pdfRenderService,
+        string? ansicht = null, string? visibleColumns = null, bool pdf = false)
+        => RenderAuftragDruckenAsync(id, reihenfolge: null, barcode, new(orderInfos, viewPrefs, viewRenderer, pdfRenderService), ansicht, visibleColumns, pdf);
 
     /// <summary>v1.97.0: wie <see cref="AuftragDrucken"/>, aber in der Reihenfolge der sortierten Ansicht (Positionen per POST wie beim
     /// Stuecklisten-Druck, Hotfix v1.30.1/v1.30.3). Es werden immer alle Zeilen des Auftrags gedruckt; Zeilen ohne Position in der Liste stehen
     /// am Ende in Positions-Reihenfolge.</summary>
     [HttpPost, ValidateAntiForgeryToken, ActionName("AuftragDrucken")]
     [RequirePickingAccess]
-    public Task<IActionResult> AuftragDruckenPost(int id, [FromForm] string? reihenfolge, [FromServices] IBarcodeService barcode)
-        => RenderAuftragDruckenAsync(id, reihenfolge, barcode);
+    public Task<IActionResult> AuftragDruckenPost(int id, [FromForm] string? reihenfolge, [FromServices] IBarcodeService barcode,
+        [FromServices] IFaHierarchyOrderInfoRepository orderInfos, [FromServices] IUserViewPreferenceRepository viewPrefs,
+        [FromServices] IRazorViewRenderer viewRenderer, [FromServices] IPdfRenderService pdfRenderService,
+        [FromForm] string? ansicht = null, [FromForm] string? visibleColumns = null, [FromForm] bool pdf = false)
+        => RenderAuftragDruckenAsync(id, reihenfolge, barcode, new(orderInfos, viewPrefs, viewRenderer, pdfRenderService), ansicht, visibleColumns, pdf);
 
-    private async Task<IActionResult> RenderAuftragDruckenAsync(int id, string? reihenfolge, IBarcodeService barcode)
+    /// <summary>Nur zum Durchreichen der <c>[FromServices]</c>-Dienste des summierten Drucks (Controller-Konstruktor bleibt).</summary>
+    private sealed record DruckDienste(IFaHierarchyOrderInfoRepository OrderInfos, IUserViewPreferenceRepository ViewPrefs,
+        IRazorViewRenderer ViewRenderer, IPdfRenderService PdfRenderService);
+
+    private async Task<IActionResult> RenderAuftragDruckenAsync(int id, string? reihenfolge, IBarcodeService barcode, DruckDienste dienste,
+        string? ansicht, string? visibleColumns, bool pdf)
     {
         var auftrag = await _pickingOrderRepository.GetMitZeilenAsync(id);
         if (auftrag?.ProductionOrder == null) return NotFound();
@@ -641,7 +700,7 @@ public class PickingController : Controller
                     order.ProductionWorkplace?.OverridePrePickingDays, await _settingRepository.GetIntValueAsync("VorkommissionierTage", 1)), holidays);
         }
 
-        return View("PrintPicking", new PrintPickingViewModel
+        var kopf = new PrintPickingViewModel
         {
             AuftragNummer = auftrag.Nummer,
             AuftragBarcode = barcode.EncodeCode128Base64(auftrag.Nummer),
@@ -657,17 +716,55 @@ public class PickingController : Controller
             PickedBy = auftrag.AssignedPickerName,
             Matchcode = (await MatchcodeLookup.BuildAsync(_articleRepository, new[] { order.ArticleNumber }, _logger, "Auftrag-Druck"))
                 .GetValueOrDefault(order.ArticleNumber ?? string.Empty),   // v1.99.8
-            Items = SortiereZeilen(auftrag.Zeilen, reihenfolge).Select(z => new PrintPickingItem
+        };
+
+        // v1.99.89 (K11): summierter Druck nur, wenn die Seite die Liste zeigen darf (K3) – sonst wie bisher je Position.
+        if (string.Equals(ansicht, "liste", StringComparison.OrdinalIgnoreCase) && await KommissionierlistenAktivAsync())
+        {
+            var (bomResult, items, _, _) = await StuecklistenZeilenAsync(order, auftrag);
+            if (bomResult.DataSource == BomDataSources.FaHierarchie)
             {
-                Artikelnummer = z.ArticleNumber,
-                Position = z.BomPosition,
-                Bezeichnung1 = bezeichnung.GetValueOrDefault(z.ArticleNumber),
-                Menge = z.SollMenge,
-                IstMenge = z.IstMenge,
-                Lagerplatz = QuellPlatz(z) is { } sl ? plaetze.GetValueOrDefault(sl) : null,
-                Status = PickingOrderListItem.ZeilenStatusText(z.Status),
-            }).ToList()
-        });
+                var ohne = KommissionierauftragListe.OhneStuecklistenposition(auftrag.Zeilen, items);
+                // Alle Summenzeilen des Auftrags (Filter wirken nicht), Reihenfolge der Liste
+                var summen = KommissionierauftragListe.NachReihenfolge(KommissionierauftragListe.Summiere(items, auftrag.Zeilen, ohne,
+                    await AbteilungAsync(order, dienste.OrderInfos), AuftragOffen(auftrag)), reihenfolge);
+                foreach (var sz in summen)
+                    sz.QuellLagerplatzText = VormontageService.FormatTexte(sz.Zeilen.Select(z => QuellPlatz(z) is { } q ? plaetze.GetValueOrDefault(q) : null));
+                var vm = new PrintAuftragListeViewModel
+                {
+                    Kopf = kopf,
+                    Zeilen = summen,
+                    OhneStuecklistenposition = ohne.Count,
+                    FullStructure = BomScopes.ForOrder(order) == BomScope.FullStructure,
+                    VisibleColumns = await PrintVisibleColumns.ResolveAsync(visibleColumns, ColumnDefinitions.KommissionierauftragListe.ViewKey,
+                        ColumnDefinitions.KommissionierauftragListe.Columns, _currentUserService, dienste.ViewPrefs),
+                };
+                if (!pdf) return View("PrintAuftragListe", vm);
+                try
+                {
+                    var html = await dienste.ViewRenderer.RenderToStringAsync(ControllerContext, "PrintAuftragListe", vm);
+                    var bytes = await dienste.PdfRenderService.RenderHtmlToPdfAsync(html, HttpContext?.RequestAborted ?? default);
+                    return File(bytes, "application/pdf", PdfFileNameBuilder.Build("Kommissionierauftrag", auftrag.Nummer, DateTime.Now));
+                }
+                catch (PdfRenderException ex)
+                {
+                    TempData["WarningMessage"] = ex.UserMessage;
+                    return RedirectToAction(nameof(Auftrag), new { id, ansicht = "liste" });
+                }
+            }
+        }
+
+        kopf.Items = SortiereZeilen(auftrag.Zeilen, reihenfolge).Select(z => new PrintPickingItem
+        {
+            Artikelnummer = z.ArticleNumber,
+            Position = z.BomPosition,
+            Bezeichnung1 = bezeichnung.GetValueOrDefault(z.ArticleNumber),
+            Menge = z.SollMenge,
+            IstMenge = z.IstMenge,
+            Lagerplatz = QuellPlatz(z) is { } sl ? plaetze.GetValueOrDefault(sl) : null,
+            Status = PickingOrderListItem.ZeilenStatusText(z.Status),
+        }).ToList();
+        return View("PrintPicking", kopf);
     }
 
     /// <summary>v1.97.0: Zeilen in der Reihenfolge der Positionsliste (Anzeige-Reihenfolge), ohne Liste nach Position.</summary>

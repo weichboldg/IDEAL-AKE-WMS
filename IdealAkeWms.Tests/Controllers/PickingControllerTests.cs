@@ -101,7 +101,8 @@ public class PickingControllerTests
     /// Controller fuer die Bom-Action: alle Listen-/Dictionary-Rueckgaben explizit leer gemockt
     /// (Moq liefert fuer konkrete List/Dictionary sonst null), Benutzer ohne App-Id, alle Toggles aus.
     /// </summary>
-    private static PickingController SetupForBom(ProductionOrder order, BomQueryResult bomResult)
+    private static PickingController SetupForBom(ProductionOrder order, BomQueryResult bomResult, PickingOrder? auftrag = null,
+        bool kommissionierlisten = false)
     {
         var orders = new Mock<IProductionOrderRepository>();
         orders.Setup(r => r.GetByIdAsync(order.Id)).ReturnsAsync(order);
@@ -122,6 +123,7 @@ public class PickingControllerTests
         locations.Setup(r => r.GetActiveOrderedExcludingPickingTransportAsync()).ReturnsAsync(new List<StorageLocation>());
         locations.Setup(r => r.GetActivePickingTransportLocationsAsync()).ReturnsAsync(new List<StorageLocation>());
         locations.Setup(r => r.GetByCodeAsync("NAN")).ReturnsAsync((StorageLocation?)null);
+        locations.Setup(r => r.GetAllAsync()).ReturnsAsync(new List<StorageLocation>());
 
         var current = new Mock<ICurrentUserService>();
         current.Setup(s => s.GetCurrentAppUserId()).Returns((int?)null);
@@ -133,9 +135,11 @@ public class PickingControllerTests
         var settings = new Mock<IAppSettingRepository>();
         settings.Setup(s => s.GetValueAsync(It.IsAny<string>())).ReturnsAsync((string?)null);
         settings.Setup(s => s.GetValueAsync(AppSettingKeys.LeitstandAktiv)).ReturnsAsync("true"); // v1.88.0: sonst legt Bom Auftraege an
+        settings.Setup(s => s.GetValueAsync(AppSettingKeys.FaHierarchyKommissionierlistenAktiv)).ReturnsAsync(kommissionierlisten ? "true" : "false");
         var po = new Mock<IPickingOrderRepository>();
         po.Setup(r => r.GetByProductionOrderAsync(It.IsAny<int>())).ReturnsAsync(new List<PickingOrder>());
         po.Setup(r => r.GetAktiveZeilenAsync(It.IsAny<int>())).ReturnsAsync(new List<PickingOrderLine>()); // F-1: Repo liefert nie null
+        if (auftrag != null) po.Setup(r => r.GetMitZeilenAsync(auftrag.Id)).ReturnsAsync(auftrag);
 
         var serviceSetting = new Mock<IServiceSettingRepository>();
         serviceSetting.Setup(s => s.GetValueAsync(It.IsAny<string>())).ReturnsAsync((string?)null);
@@ -162,6 +166,7 @@ public class PickingControllerTests
             null!, // PickingOrderWorkflow: in diesen Tests nicht aufgerufen
             NullLogger<PickingController>.Instance);
         ctrl.ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() };
+        ctrl.TempData = new TempDataDictionary(new DefaultHttpContext(), Mock.Of<ITempDataProvider>());
         return ctrl;
     }
 
@@ -402,5 +407,140 @@ public class PickingControllerTests
             .Should().Be(3, "nicht buchbarer Hauptlagerplatz zaehlt nicht, sonst hoechste Menge");
         QuellLagerplatzVorschlag.Waehle(new[] { L(2, 0, haupt: true), L(4, 7) }, buchbar, 99).Should().Be(99, "ohne buchbaren Bestand NAN");
         QuellLagerplatzVorschlag.Waehle(Array.Empty<StockLocationInfo>(), buchbar, null).Should().BeNull("ohne NAN-Platz nichts");
+    }
+
+    // ---------- v1.99.89 Kommissionierauftrag Maske „Liste“ (Spec 2026-11-26 Teil 3, Etappe A) ----------
+
+    private static (PickingOrder Auftrag, BomQueryResult Bom) AuftragMitStueckliste(string dataSource = BomDataSources.FaHierarchie)
+    {
+        var order = OrderH("1035235", "1035235"); order.Id = 101; order.ArticleNumber = "ART";
+        PickingOrderLine L(int id, string art, string pos, decimal soll) => new()
+        {
+            Id = id, ArticleNumber = art, BomPosition = pos, SollMenge = soll, ProductionOrderId = 101, CreatedBy = "t", CreatedByWindows = "t",
+        };
+        var auftrag = new PickingOrder
+        {
+            Id = 55, Nummer = "KO-2026-00055", ProductionOrderId = 101, ProductionOrder = order, Status = PickingOrderStatus.Offen,
+            PickingArea = new PickingArea { Name = "Lager", CreatedBy = "t", CreatedByWindows = "t" }, CreatedBy = "t", CreatedByWindows = "t",
+            Zeilen = { L(1, "R1", "10", 3), L(2, "R1", "20", 2), L(3, "R2", "5", 1), L(4, "R9", "99", 7) },   // R9: ohne Stuecklistenposition (K4c)
+        };
+        var items = new List<BomItem>
+        {
+            new FaHierarchyBomItem { Ressourcenummer = "R1", Position = "10", Menge = 3, Kommissionieren = "K-01", Arbeitsbereich = "Biegen" },
+            new FaHierarchyBomItem { Ressourcenummer = "R1", Position = "20", Menge = 2, Kommissionieren = "K-01", Arbeitsbereich = "Schweissen" },
+            new FaHierarchyBomItem { Ressourcenummer = "R2", Position = "5", Menge = 1, Kommissionieren = "K-01" },
+        };
+        return (auftrag, new BomQueryResult(items, dataSource, MengeIstAuftragsmenge: true));
+    }
+
+    private static PdfRenderStatus PdfStatus() => new(new Microsoft.Extensions.Configuration.ConfigurationBuilder().Build(),
+        NullLogger<PdfRenderStatus>.Instance);
+
+    private static async Task<BomViewModel> AuftragSeite(bool kommissionierlisten, string? ansicht, string dataSource = BomDataSources.FaHierarchie)
+    {
+        var (auftrag, bom) = AuftragMitStueckliste(dataSource);
+        var ctrl = SetupForBom(auftrag.ProductionOrder, bom, auftrag, kommissionierlisten);
+        var infos = new Mock<IFaHierarchyOrderInfoRepository>();
+        infos.Setup(r => r.GetByHauptFaAsync(1035235)).ReturnsAsync(new List<FaHierarchyOrderInfo>
+        {
+            new() { HauptFA = 1035235, MontageAbteilung = "Montage 2" },
+        });
+        var result = await ctrl.Auftrag(55, null, ansicht, infos.Object, PdfStatus());
+        var view = result.Should().BeOfType<ViewResult>().Subject;
+        view.ViewName.Should().Be("Bom");
+        return view.Model.Should().BeOfType<BomViewModel>().Subject;
+    }
+
+    [Theory]
+    [InlineData(null, true)]
+    [InlineData("liste", true)]
+    [InlineData("LISTE", true)]
+    [InlineData("quatsch", true)]      // K2: ungueltiger Wert = Standard
+    [InlineData("stueckliste", false)]
+    public async Task Auftrag_KommissionierlistenAn_StandardListe_K2(string? ansicht, bool istListe)
+    {
+        var vm = await AuftragSeite(kommissionierlisten: true, ansicht);
+        vm.KannListe.Should().BeTrue();
+        vm.IstListe.Should().Be(istListe);
+        if (!istListe) { vm.Summenzeilen.Should().BeEmpty(); return; }
+
+        vm.Summenzeilen.Select(s => (s.Ressourcenummer, s.SollSumme, s.PositionenText)).Should().Equal(
+            ("R2", 1m, "5"), ("R1", 5m, "10, 20"), ("R9", 7m, "99"));   // K4: erste Position natuerlich (5 vor 10), leeres Ziel zuletzt
+        vm.Summenzeilen[1].Arbeitsbereich.Should().Be("Biegen, Schweissen");
+        vm.Summenzeilen[1].Abteilung.Should().Be("Montage 2");
+        vm.Summenzeilen[2].OhneStuecklistenposition.Should().BeTrue();
+        vm.OhneStuecklistenposition.Should().Be(1);
+    }
+
+    [Theory]
+    [InlineData(false, BomDataSources.FaHierarchie)]   // Kommissionierlisten aus
+    [InlineData(true, "SAGE")]                         // AKE/flach: Quelle nicht FA-Struktur
+    public async Task Auftrag_OhneListe_KeinUmschalter_AnsichtIgnoriert_K3(bool kommissionierlisten, string dataSource)
+    {
+        var vm = await AuftragSeite(kommissionierlisten, "liste", dataSource);
+        vm.KannListe.Should().BeFalse();
+        vm.IstListe.Should().BeFalse();
+        vm.Summenzeilen.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task AuftragDrucken_Liste_Summiert_SpaltenUndReihenfolge_K11()
+    {
+        var (auftrag, bom) = AuftragMitStueckliste();
+        var ctrl = SetupForBom(auftrag.ProductionOrder, bom, auftrag, kommissionierlisten: true);
+        var barcode = Mock.Of<IBarcodeService>();
+
+        var view = (await ctrl.AuftragDruckenPost(55, "5,20,10", barcode, Mock.Of<IFaHierarchyOrderInfoRepository>(),
+                Mock.Of<IUserViewPreferenceRepository>(), Mock.Of<IRazorViewRenderer>(), Mock.Of<IPdfRenderService>(),
+                "liste", "resource-number,quantity", false))
+            .Should().BeOfType<ViewResult>().Subject;
+        view.ViewName.Should().Be("PrintAuftragListe");
+        var vm = view.Model.Should().BeOfType<PrintAuftragListeViewModel>().Subject;
+
+        vm.Zeilen.Select(z => z.Ressourcenummer).Should().Equal("R2", "R1", "R9");
+        vm.VisibleColumns.Should().Equal("resource-number", "quantity");
+        vm.OhneStuecklistenposition.Should().Be(1);
+        vm.Kopf.AuftragNummer.Should().Be("KO-2026-00055");
+
+        // ohne ansicht unveraendert je Position (AK 11b)
+        (await ctrl.AuftragDrucken(55, barcode, Mock.Of<IFaHierarchyOrderInfoRepository>(), Mock.Of<IUserViewPreferenceRepository>(),
+                Mock.Of<IRazorViewRenderer>(), Mock.Of<IPdfRenderService>()))
+            .Should().BeOfType<ViewResult>().Which.ViewName.Should().Be("PrintPicking");
+    }
+
+    [Fact]
+    public async Task AuftragDrucken_ListeBeiAusgeschalteterKommissionierliste_JePosition_K3()
+    {
+        var (auftrag, bom) = AuftragMitStueckliste();
+        var ctrl = SetupForBom(auftrag.ProductionOrder, bom, auftrag, kommissionierlisten: false);
+        (await ctrl.AuftragDrucken(55, Mock.Of<IBarcodeService>(), Mock.Of<IFaHierarchyOrderInfoRepository>(), Mock.Of<IUserViewPreferenceRepository>(),
+                Mock.Of<IRazorViewRenderer>(), Mock.Of<IPdfRenderService>(), ansicht: "liste"))
+            .Should().BeOfType<ViewResult>().Which.ViewName.Should().Be("PrintPicking");
+    }
+
+    [Fact]
+    public async Task AuftragDrucken_Pdf_LiefertDatei_FehlerMitWarnung_K11()
+    {
+        var (auftrag, bom) = AuftragMitStueckliste();
+        var ctrl = SetupForBom(auftrag.ProductionOrder, bom, auftrag, kommissionierlisten: true);
+        var renderer = new Mock<IRazorViewRenderer>();
+        renderer.Setup(r => r.RenderToStringAsync(It.IsAny<ControllerContext>(), "PrintAuftragListe", It.IsAny<object>())).ReturnsAsync("<html/>");
+        var pdf = new Mock<IPdfRenderService>();
+        pdf.Setup(p => p.RenderHtmlToPdfAsync("<html/>", It.IsAny<CancellationToken>())).ReturnsAsync(new byte[] { 1, 2 });
+
+        var file = (await ctrl.AuftragDrucken(55, Mock.Of<IBarcodeService>(), Mock.Of<IFaHierarchyOrderInfoRepository>(),
+                Mock.Of<IUserViewPreferenceRepository>(), renderer.Object, pdf.Object, ansicht: "liste", pdf: true))
+            .Should().BeOfType<FileContentResult>().Subject;
+        file.ContentType.Should().Be("application/pdf");
+        file.FileDownloadName.Should().StartWith("Kommissionierauftrag");
+
+        var kaputt = new Mock<IPdfRenderService>();
+        kaputt.Setup(p => p.RenderHtmlToPdfAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())).ThrowsAsync(PdfRenderException.NotConfigured());
+        var redirect = (await ctrl.AuftragDrucken(55, Mock.Of<IBarcodeService>(), Mock.Of<IFaHierarchyOrderInfoRepository>(),
+                Mock.Of<IUserViewPreferenceRepository>(), renderer.Object, kaputt.Object, ansicht: "liste", pdf: true))
+            .Should().BeOfType<RedirectToActionResult>().Subject;
+        redirect.ActionName.Should().Be("Auftrag");
+        redirect.RouteValues!["ansicht"].Should().Be("liste");
+        ctrl.TempData["WarningMessage"].Should().Be(PdfRenderException.NotConfiguredMessage);
     }
 }

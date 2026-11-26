@@ -29,4 +29,6 @@ public sealed class FaHierarchyBomItem : BomItem
     /// <summary>Matchcode des Strukturknotens (getrimmt, leer = null). Die Stueckliste zeigt ihn an IDEAL vor dem
     /// Artikelstamm (Spec 2026-10-16-stueckliste-matchcode-lagerplatz-limit, Variante B) — wie Kommissionierliste/Vormontage.</summary>
     public string? Matchcode { get; set; }
+    /// <summary>v1.99.89: Arbeitsbereich des Strukturknotens (<c>FaHierarchyNode.Arbeitsbereich</c>) fuer die Maske „Liste“ des Kommissionierauftrags.</summary>
+    public string? Arbeitsbereich { get; set; }
 }

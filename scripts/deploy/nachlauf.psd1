@@ -722,5 +722,8 @@ WHERE NOT EXISTS (SELECT 1 FROM dbo.Roles r WHERE r.[Key] = v.k);'
 @{ Id='v1.99.88-LeitstandNurHauptFa'; Version='1.99.88'; Typ='Info'; Firma='IDEAL'; Phase='Nachher'; Ausfuehrung='anzeigen'
    Text='Leitstand-Benutzer informieren: Der Leitstand zeigt nur noch HauptFA-Zeilen. Lack-T, Glas, Zukauf und VK-VA fassen dort HauptFA und alle Sub-FAs zusammen. Sub-FAs ueber den Schalter "Sub-FAs anzeigen" in der Filterkarte; die FA-Nr.-Suche nach Sub-FA-Nummern nur dort. Steht bei Lack-T "Lackteile nur an Sub-FAs", wird Lack-T erledigt nur ueber "Sub-FAs anzeigen" gesetzt. Ist die HauptFA erledigt, verschwindet der Auftrag auch mit offenen Sub-FAs. "Alle Sub-FAs fertigmelden" steht jetzt in der Zeile.'
    Quelle='2026-11-26-beschichtung-summe-leitstand-hauptfa-kommissionierauftrag-liste-teil-2-spec' }
+@{ Id='v1.99.89-KoAuftragListe'; Version='1.99.89'; Typ='Info'; Firma='IDEAL'; Phase='Nachher'; Ausfuehrung='anzeigen'
+   Text='Kommissionierauftraege oeffnen bei aktiven Kommissionierlisten in der Maske Liste: je Artikel summiert, die Ist-Menge wird in Positionsreihenfolge auf die Positionen verteilt (bei zu wenig bleibt die letzte erreichte Position teilgeliefert). Auftrag drucken aus der Liste druckt summiert mit den eingeblendeten Spalten. Umschalten auf Stueckliste oben im Auftrag.'
+   Quelle='2026-11-26-beschichtung-summe-leitstand-hauptfa-kommissionierauftrag-liste-teil-3-spec' }
 )
 }

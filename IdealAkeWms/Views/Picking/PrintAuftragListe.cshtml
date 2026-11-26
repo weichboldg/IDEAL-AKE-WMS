@@ -1,0 +1,156 @@
+@model PrintAuftragListeViewModel
+@using System.Globalization
+@*
+    v1.99.89 (Spec 2026-11-26 Teil 3, K11): summierter Auftragsdruck aus der Maske „Liste“ – Bildschirmdruck und PDF (dieselbe View).
+    Alle Summenzeilen des Auftrags in der Reihenfolge der Liste, Spalten = die in der Liste eingeblendeten (ohne Haken).
+*@
+@{
+    Layout = null;
+    var de = CultureInfo.GetCultureInfo("de-DE");
+    var k = Model.Kopf;
+    bool ShowCol(string key) => !Model.VisibleColumns.Any() || Model.VisibleColumns.Contains(key);
+}
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="utf-8" />
+    <title>Kommissionierauftrag @k.AuftragNummer (summiert) - FA @k.OrderNumber</title>
+    @* ponytail: Stil aus FaHierarchyKommissionierListen/PrintSummiert.cshtml kopiert (Antwort 6: PrintSummiert bleibt unangetastet);
+       gemeinsames Partial, sobald sich beide aendern. *@
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Arial, sans-serif; color: #000; background: #fff; padding: 20px; font-size: 11px; }
+        .screen-controls { padding: 15px; text-align: center; background: #053153; color: #fff; margin: -20px -20px 20px -20px; }
+        .screen-controls button { background: #fff; color: #053153; border: none; padding: 8px 24px; font-size: 16px; cursor: pointer; border-radius: 4px; margin: 0 5px; }
+        .sum-banner { border: 1px solid #053153; background: #eaf1fb; color: #053153; padding: 8px 10px; margin-bottom: 8px; font-size: 10px; }
+        .filter-banner { border: 1px solid #b8860b; background: #fff8e1; color: #7a5900; padding: 8px 10px; margin-bottom: 8px; font-size: 10px; }
+        .group-head { border-bottom: 2px solid #053153; padding-bottom: 8px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: flex-start; gap: 20px; }
+        .group-head h1 { font-size: 18px; color: #053153; }
+        .group-head p { margin-top: 3px; font-size: 12px; }
+        .barcode { text-align: right; flex-shrink: 0; }
+        .barcode img { height: 22mm; max-width: 100%; }
+        table.positions { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        table.positions th, table.positions td { border: 1px solid #888; padding: 4px 6px; text-align: left; vertical-align: top; }
+        table.positions th { background: #f0f0f0; }
+        .text-end { text-align: right !important; }
+        .hinweis { font-size: 10px; color: #7a5900; }
+        @@media print { .screen-controls { display: none; } body { padding: 0; } }
+    </style>
+</head>
+<body>
+    <div class="screen-controls">
+        <button onclick="window.print()">Drucken</button>
+        <button onclick="window.close()">Schliessen</button>
+    </div>
+
+    <div class="sum-banner">
+        <strong>Summierte Ansicht</strong> — je Artikelnummer und Kommissionierziel summierte Sollmenge; die Positionen stehen in der Spalte „Pos.“.
+    </div>
+    @if (Model.OhneStuecklistenposition > 0)
+    {
+        <div class="filter-banner">
+            <strong>@Model.OhneStuecklistenposition Auftragszeile@(Model.OhneStuecklistenposition == 1 ? "" : "n") ohne Stücklistenposition</strong>
+            — die Stückliste hat sich seit der Auftragserzeugung geändert; diese Zeilen sind mit „ohne Stückliste“ gekennzeichnet.
+        </div>
+    }
+
+    <div class="group-head">
+        <div>
+            <h1>Kommissionierauftrag @k.AuftragNummer (summiert) — FA @k.OrderNumber</h1>
+            <p><strong>Bereich:</strong> @k.Bereich &nbsp; <strong>Status:</strong> @k.Status
+                @if (k.Faelligkeit.HasValue) { <text>&nbsp; <strong>Fällig:</strong> @k.Faelligkeit.Value.ToString("dd.MM.yyyy")</text> }
+            </p>
+            @if (!string.IsNullOrEmpty(k.ArticleNumber))
+            {
+                <p><strong>Artikel:</strong> @k.ArticleNumber - @k.Description1 @if (!string.IsNullOrEmpty(k.Matchcode)) { <text>(@k.Matchcode)</text> }</p>
+            }
+            <p><strong>Gedruckt:</strong> @DateTime.Now.ToString("dd.MM.yyyy HH:mm") @if (!string.IsNullOrEmpty(k.PrintedBy)) { <text>von @k.PrintedBy</text> }
+                @if (k.ProductionDate.HasValue) { <text>&nbsp; <strong>Fertigungstermin:</strong> @k.ProductionDate.Value.ToString("dd.MM.yyyy")</text> }
+            </p>
+        </div>
+        <div class="barcode">
+            @if (!string.IsNullOrEmpty(k.AuftragBarcode))
+            {
+                <img src="data:image/png;base64,@k.AuftragBarcode" alt="Barcode @k.AuftragNummer" />
+            }
+        </div>
+    </div>
+
+    @if (!Model.Zeilen.Any())
+    {
+        <p style="padding: 20px; text-align: center; color: #555;">Keine Auftragszeilen — nichts zu drucken.</p>
+    }
+    else
+    {
+        <table class="positions">
+            <thead>
+                <tr>
+                    @if (ShowCol("kommissionieren")) { <th>Komm.-Ziel</th> }
+                    @if (ShowCol("hauptlagerplatz")) { <th>Hauptlagerplatz</th> }
+                    @if (ShowCol("position")) { <th>Pos.</th> }
+                    @if (ShowCol("resource-number")) { <th>Artnr.</th> }
+                    @if (ShowCol("matchcode")) { <th>Matchcode</th> }
+                    @if (ShowCol("description1")) { <th>Bezeichnung 1</th> }
+                    @if (ShowCol("quantity")) { <th class="text-end">Menge Soll</th> }
+                    @if (ShowCol("ist-menge")) { <th class="text-end">Menge Ist</th> }
+                    @if (ShowCol("storage-location")) { <th>Lagerplatz</th> }
+                    @if (ShowCol("source-location")) { <th>Quell-Lagerplatz</th> }
+                    @if (ShowCol("arbeitsbereich")) { <th>Arbeitsbereich</th> }
+                    @if (ShowCol("montage-abteilung")) { <th>Abteilung</th> }
+                    @if (ShowCol("description2")) { <th>Bezeichnung 2</th> }
+                    @if (ShowCol("article-group")) { <th>Artikelgruppe</th> }
+                    @if (ShowCol("procurement")) { <th>Beschaffung</th> }
+                    @if (ShowCol("category")) { <th>Kategorie</th> }
+                    @if (ShowCol("assembly-group")) { <th>Baugruppe</th> }
+                    @if (ShowCol("sage-position")) { <th>Sage-Pos.</th> }
+                    @if (Model.FullStructure && ShowCol("ebene")) { <th class="text-end">Ebene</th> }
+                    @if (Model.FullStructure && ShowCol("vater-sub-fa")) { <th>Vater-Sub-FA</th> }
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var s in Model.Zeilen)
+                {
+                    <tr>
+                        @if (ShowCol("kommissionieren")) { <td>@s.Kommissionieren</td> }
+                        @if (ShowCol("hauptlagerplatz")) { <td>@s.Hauptlagerplatz</td> }
+                        @if (ShowCol("position"))
+                        {
+                            <td>@s.PositionenText@if (s.IsBaugruppe) { <text> (BG)</text> }@if (s.OhneStuecklistenposition) { <text> (ohne Stückliste)</text> }</td>
+                        }
+                        @if (ShowCol("resource-number")) { <td>@s.Ressourcenummer</td> }
+                        @if (ShowCol("matchcode")) { <td>@s.Matchcode</td> }
+                        @if (ShowCol("description1")) { <td>@s.Bezeichnung1</td> }
+                        @if (ShowCol("quantity")) { <td class="text-end">@s.SollSumme.ToString("N3", de)</td> }
+                        @if (ShowCol("ist-menge")) { <td class="text-end">@s.GebuchtIst?.ToString("N3", de)</td> }
+                        @if (ShowCol("storage-location"))
+                        {
+                            <td>@(s.StockLocations.Any() ? string.Join(", ", s.StockLocations.Select(sl => $"{sl.Code} ({sl.Quantity.ToString("N3", de)})")) : "—")</td>
+                        }
+                        @if (ShowCol("source-location")) { <td>@s.QuellLagerplatzText</td> }
+                        @if (ShowCol("arbeitsbereich")) { <td>@s.Arbeitsbereich</td> }
+                        @if (ShowCol("montage-abteilung")) { <td>@s.Abteilung</td> }
+                        @if (ShowCol("description2")) { <td>@s.Bezeichnung2</td> }
+                        @if (ShowCol("article-group")) { <td>@s.Artikelgruppe</td> }
+                        @if (ShowCol("procurement")) { <td>@s.Beschaffungsartikel</td> }
+                        @if (ShowCol("category")) { <td>@s.KategorieName</td> }
+                        @if (ShowCol("assembly-group")) { <td>@s.Baugruppe</td> }
+                        @if (ShowCol("sage-position")) { <td>@s.SagePosition</td> }
+                        @if (Model.FullStructure && ShowCol("ebene")) { <td class="text-end">@s.Ebene</td> }
+                        @if (Model.FullStructure && ShowCol("vater-sub-fa")) { <td>@s.VaterSubFa</td> }
+                        <td>
+                            @StatusTexte(s)
+                            @if (s.RestHinweis != null) { <div class="hinweis">@s.RestHinweis</div> }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+</body>
+</html>
+@functions {
+    // S-6: verschiedene Zeilenstatus der Summenzeile „, “-getrennt (Druck), Seite zeigt den zusammengefassten Statustext.
+    private static string? StatusTexte(IdealAkeWms.Models.ViewModels.AuftragSummenzeile s) =>
+        IdealAkeWms.Services.VormontageService.FormatTexte(s.Zeilen.Select(z => IdealAkeWms.Models.ViewModels.PickingOrderListItem.ZeilenStatusText(z.Status)));
+}

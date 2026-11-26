@@ -292,6 +292,40 @@ public static class ColumnDefinitions
     };
 
     /// <summary>
+    /// v1.99.89 (Spec 2026-11-26 Teil 3, K5/K14): Maske „Liste“ des Kommissionierauftrags (Partial Picking/_AuftragListeTabelle),
+    /// eigener View-Key, dieselben data-col-key wie <see cref="Bom"/> plus arbeitsbereich/montage-abteilung. Kein Bestellen/Lagerbestellung
+    /// (Antwort 8). Conditional: pick-control/source-location nur !ReadOnly, ebene/vater-sub-fa nur bei voller Struktur.
+    /// </summary>
+    public static readonly ViewConfig KommissionierauftragListe = new("KommissionierauftragListe", "Kommissionierauftrag (Liste)",
+        SupportsReorder: true, SupportsSortDefault: false)
+    {
+        Columns =
+        [
+            new ColumnDef("pick-control",      "",                Locked: true,  DefaultWidth: 40),
+            new ColumnDef("kommissionieren",   "Komm.-Ziel",      Locked: false),
+            new ColumnDef("hauptlagerplatz",   "Hauptlagerplatz", Locked: false),
+            new ColumnDef("position",          "Pos.",            Locked: false),
+            new ColumnDef("resource-number",   "Artnr.",          Locked: false),
+            new ColumnDef("matchcode",         "Matchcode",       Locked: false),
+            new ColumnDef("description1",      "Bezeichnung 1",   Locked: false),
+            new ColumnDef("quantity",          "Menge Soll",      Locked: false),
+            new ColumnDef("ist-menge",         "Menge Ist",       Locked: false, DefaultWidth: 100),
+            new ColumnDef("storage-location",  "Lagerplatz",      Locked: false),
+            new ColumnDef("source-location",   "Quell-Lagerplatz",Locked: false),
+            new ColumnDef("arbeitsbereich",    "Arbeitsbereich",  Locked: false),
+            new ColumnDef("montage-abteilung", "Abteilung",       Locked: false),
+            new ColumnDef("description2",      "Bezeichnung 2",   Locked: false),
+            new ColumnDef("article-group",     "Artikelgruppe",   Locked: false),
+            new ColumnDef("procurement",       "Beschaffung",     Locked: false),
+            new ColumnDef("category",          "Kategorie",       Locked: false),
+            new ColumnDef("assembly-group",    "Baugruppe",       Locked: false, DefaultHidden: true),
+            new ColumnDef("sage-position",     "Sage-Pos.",       Locked: false, DefaultHidden: true),
+            new ColumnDef("ebene",             "Ebene",           Locked: false, DefaultWidth: 60, DefaultHidden: true),
+            new ColumnDef("vater-sub-fa",      "Vater-Sub-FA",    Locked: false, DefaultHidden: true),
+        ]
+    };
+
+    /// <summary>
     /// BdeBookings/Index.cshtml columns.
     /// Conditional columns:
     ///   - "actions" : rendered only when canAdminBde
@@ -1060,6 +1094,7 @@ public static class ColumnDefinitions
         "Picking"          => Picking,
         "OseonTracking"    => OseonTracking,
         "Bom"              => Bom,
+        "KommissionierauftragListe" => KommissionierauftragListe,
         "BdeBookings"      => BdeBookings,
         "WarehousePickingDetails" => WarehousePickingDetails,
         "FaHierarchyKommissionierListen" => FaHierarchyKommissionierListen,

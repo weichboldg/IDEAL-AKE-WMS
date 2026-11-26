@@ -1,6 +1,6 @@
 # 01 – Kommissionierung
 
-Stand: Version 1.99.79 (Hinweis „Altbestand geprüft“), 1.99.70 (Abschnitt „Weitere Knöpfe“, Hinweise) bzw. 1.99.58 · Standorte AKE und IDEAL · Bilder aus dem AKE-Testsystem (IDEAL-Bild extra gekennzeichnet)
+Stand: Version 1.99.89 (IDEAL: Maske „Liste“ und summierter Auftragsdruck, Text; Fotos folgen), 1.99.79 (Hinweis „Altbestand geprüft“), 1.99.70 (Abschnitt „Weitere Knöpfe“, Hinweise) bzw. 1.99.58 · Standorte AKE und IDEAL · Bilder aus dem AKE-Testsystem (IDEAL-Bild extra gekennzeichnet)
 
 ## Zweck
 
@@ -140,6 +140,21 @@ Oben stehen FA, Artikel und der Kasten **Kommissionierauftrag KO-… · Bereich 
 - Steht oben ein blaues Kästchen **„Gefiltert: …“**, wirkt ein persönlicher Standardfilter (aus dem Profil). Mit dem **×** im Kästchen
   wird er für diese Seite aufgehoben.
 
+#### IDEAL: Maske „Liste“ (summiert je Artikel)
+
+Sind die Kommissionierlisten eingeschaltet, öffnet der Auftrag bei IDEAL in der Maske **Liste**. Oben im Auftrag wechselt
+**Stückliste | Liste** zwischen beiden Masken (die aktive trägt einen Haken; beim nächsten Öffnen kommt wieder die Liste).
+
+- Eine Zeile je **Artikel und Kommissionierziel**; Baugruppen stehen getrennt (Kennzeichen **BG**). **Menge Soll** ist die Summe aller
+  Positionen, die Spalte **Pos.** nennt sie alle (z. B. „9, 10“).
+- Sortiert nach Kommissionierziel, Hauptlagerplatz und Position – so geht man die Ziele und Lagerplätze der Reihe nach ab.
+- **bereits gebucht x** zeigt, was schon umgebucht ist. Der Hinweis **„⚠ Rest … aus Pos. … geht beim Abschluss in den Folgeauftrag“** nennt
+  Reste teilgebuchter Positionen. Ganz umgebuchte Zeilen sind grau mit „✓ gepickt“.
+- Zeilen mit **„ohne Stückliste“** gehören zum Auftrag, ihre Position fehlt aber in der aktuellen Stückliste (oben gelb gemeldet).
+- **Umgebucht wird vorerst in der Maske „Stückliste“** (Link im blauen Hinweis). Wer dort Haken gesetzt oder Ist-Mengen geändert hat und
+  umschaltet, wird vorher gefragt – ungespeicherte Eingaben gehen sonst verloren.
+- Die Liste hat eine eigene Spaltenauswahl (Zahnrad), unabhängig von der Stückliste.
+
 ### 5. Zeilen anhaken, Ist-Menge und Quell-Lagerplatz prüfen
 
 1. Bei jedem geholten Teil das Häkchen setzen (oder Artikel scannen). Die Zeile wird grün; noch ist **nichts** gebucht.
@@ -205,6 +220,9 @@ Auf der Auftragsseite **Auftrag drucken** öffnet eine Druckansicht in einem neu
   Soll, Ist, Status (z. B. „offen“, „gepickt“, „in Folgeauftrag“).
 - Gedruckt werden **immer alle Zeilen** des Auftrags, auch wenn auf der Seite ein Filter aktiv ist. Ist die Seite nach einer Spalte
   sortiert, druckt er in dieser Reihenfolge.
+- **IDEAL, Maske „Liste“:** „Auftrag drucken“ druckt **summiert** („Kommissionierauftrag … (summiert)“, Banner „Summierte Ansicht“) –
+  eine Zeile je Artikel und Kommissionierziel, genau mit den in der Liste eingeblendeten Spalten, in der Reihenfolge der Liste.
+  Daneben lädt **PDF** dasselbe Dokument als PDF-Datei (nur sichtbar, wenn die PDF-Erzeugung eingerichtet ist).
 
 ### 9. Fehlteile: Bedarfsmeldung aus dem Auftrag
 

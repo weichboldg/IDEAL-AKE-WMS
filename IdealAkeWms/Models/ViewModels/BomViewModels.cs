@@ -84,6 +84,54 @@ public class BomItemViewModel
     public decimal? IstMenge { get; set; }
     /// <summary>v1.88.0: Status der Auftragszeile (Text in der Zeile, Farbe nie allein); null ohne Auftrag.</summary>
     public PickingOrderLineStatus? ZeilenStatus { get; set; }
+    /// <summary>v1.99.89: Arbeitsbereich aus der FA-Struktur (nur Maske „Liste“ des Kommissionierauftrags).</summary>
+    public string? Arbeitsbereich { get; set; }
+}
+
+/// <summary>
+/// v1.99.89 (Spec 2026-11-26 Teil 3, K4): eine Zeile der Maske „Liste“ des Kommissionierauftrags = Summe der Auftragszeilen je
+/// Ressourcenummer + Komm.-Ziel + BG-Kennzeichen. Gebaut von <see cref="IdealAkeWms.Services.KommissionierauftragListe.Summiere"/>.
+/// </summary>
+public class AuftragSummenzeile
+{
+    public string Ressourcenummer { get; set; } = string.Empty;
+    public string? Kommissionieren { get; set; }
+    public bool IsBaugruppe { get; set; }
+    /// <summary>Auftragszeilen der Gruppe (je Zeile eine Position).</summary>
+    public List<PickingOrderLine> Zeilen { get; set; } = new();
+    /// <summary>Alle Positionen, natuerlich sortiert, leere zuletzt.</summary>
+    public List<string> Positionen { get; set; } = new();
+    public string PositionenText => string.Join(", ", Positionen);
+    public decimal SollSumme { get; set; }
+    /// <summary>Σ Soll der offenen Zeilen (Offen/Gepickt) – Vorbelegung der Ist-Menge (Etappe B).</summary>
+    public decimal OffenSoll { get; set; }
+    /// <summary>Σ Ist der umgebuchten Zeilen; null, wenn keine umgebucht ist.</summary>
+    public decimal? GebuchtIst { get; set; }
+    /// <summary>Keine Zeile mehr offen: keine Eingaben, <see cref="StatusText"/> zeigen (K4b).</summary>
+    public bool Erledigt { get; set; }
+    /// <summary>Zeilenstatus als Text: ein Status = <c>ZeilenStatusText</c>, gemischt mit Umgebucht = „teilweise umgebucht (n von m Pos.)“.</summary>
+    public string StatusText { get; set; } = string.Empty;
+    /// <summary>K4b: „Rest x aus Pos. y geht beim Abschluss in den Folgeauftrag“, sonst null.</summary>
+    public string? RestHinweis { get; set; }
+    /// <summary>K4c: Auftragszeile(n) ohne Position in der aktuellen Stueckliste – Artikeleigenschaften leer.</summary>
+    public bool OhneStuecklistenposition { get; set; }
+
+    public string? Matchcode { get; set; }
+    public string? Bezeichnung1 { get; set; }
+    public string? Bezeichnung2 { get; set; }
+    public string? Beschaffungsartikel { get; set; }
+    public string? Artikelgruppe { get; set; }
+    public string? KategorieName { get; set; }
+    public string? Hauptlagerplatz { get; set; }
+    public List<StockLocationInfo> StockLocations { get; set; } = new();
+    public string? Baugruppe { get; set; }
+    public string? SagePosition { get; set; }
+    public string? Ebene { get; set; }
+    public string? VaterSubFa { get; set; }
+    public string? Arbeitsbereich { get; set; }
+    public string? Abteilung { get; set; }
+    /// <summary>Nur Druck (K11/S-6): Quell-Lagerplatz je Zeile (gespeichert bzw. Vorschlag), verschiedene „, “-getrennt.</summary>
+    public string? QuellLagerplatzText { get; set; }
 }
 
 public class BomViewModel
@@ -157,6 +205,26 @@ public class BomViewModel
     public List<PickingOrder> FaAuftraege { get; set; } = new();
     /// <summary>v1.99.70 (F8): live berechnete Ueberdeckung (Stueckliste kleiner als offene Kommissionierzeilen); leer = kein Hinweis.</summary>
     public List<IdealAkeWms.Services.PickingOrderRestmengen.Ueberdeckung> StuecklisteKleiner { get; set; } = new();
+
+    /// <summary>v1.99.89 (K2/K3): Umschalter „Stückliste | Liste“ sichtbar (Auftrag, Quelle FA-Struktur, Kommissionierlisten an).</summary>
+    public bool KannListe { get; set; }
+    /// <summary>v1.99.89: Maske „Liste“ aktiv (summiert je Artikel, Partial <c>_AuftragListeTabelle</c>).</summary>
+    public bool IstListe { get; set; }
+    public List<AuftragSummenzeile> Summenzeilen { get; set; } = new();
+    /// <summary>K4c: Anzahl Auftragszeilen ohne Stuecklistenposition (Banner).</summary>
+    public int OhneStuecklistenposition { get; set; }
+    /// <summary>K11: PDF-Knopf in der Liste nur bei verfuegbarem PDF-Dienst.</summary>
+    public bool PdfVerfuegbar { get; set; }
+}
+
+/// <summary>v1.99.89 (K11): summierter Auftragsdruck aus der Maske „Liste“ (View <c>PrintAuftragListe</c>, auch als PDF).</summary>
+public class PrintAuftragListeViewModel
+{
+    public PrintPickingViewModel Kopf { get; set; } = new();
+    public List<AuftragSummenzeile> Zeilen { get; set; } = new();
+    public int OhneStuecklistenposition { get; set; }
+    public bool FullStructure { get; set; }
+    public IReadOnlyList<string> VisibleColumns { get; set; } = Array.Empty<string>();
 }
 
 public class PrintPickingViewModel

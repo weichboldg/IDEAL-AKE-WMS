@@ -41,6 +41,7 @@ public class VaultEnaioLinksTests
             "Views/StockMovements/Index.cshtml", "Views/Picking/Bom.cshtml", "Views/Shared/_FaDocumentLinks.cshtml",
             "Views/ProductionOrders/_ProductionOrderRow.cshtml", "Views/PickingLeitstand/_PickingLeitstandRow.cshtml",
             "Views/FaCompletion/_FaCompletionRow.cshtml", "Views/FaWorklist/_FaWorklistRow.cshtml",
+            "Views/Picking/_AuftragListeTabelle.cshtml", // v1.99.89 Maske „Liste“
         };
         Quellen("*.cshtml").Where(q => q.Text.Contains("PartialAsync(\"_VaultLink\"")).Select(q => q.Pfad).Should().BeEquivalentTo(stellen);
         File.ReadAllText(Path.Combine(Web, "Views", "Picking", "Bom.cshtml"))
