@@ -2352,3 +2352,13 @@ Code: `hardware-scanner.js` Block „Scannen ohne Feld“, CSS `.hw-scan-bereit`
   (Moq `DefaultValue.Empty` füllt nur Arrays/Schnittstellen wie `IEnumerable<T>`, nicht `List<T>`).
 - **Regel:** Den Mock aufsetzen (`ReturnsAsync(new List<T>())`), nicht den Produktionscode mit `??` „absichern“.
 - **Warum:** Der Fallback verdeckte im Code einen Zustand, den es nur im Test gibt; die Negativaussage „nie null“ ist über den Repository-Weg belegt.
+
+## 72. Keine Kommentare in `appsettings*.json` der Zielsysteme – das Update-Skript bricht ab (2026-11-26, akenet01:4444)
+
+- **Problem:** .NET liest `appsettings*.json` mit `//`-Kommentaren klaglos. Das Update-Skript `scripts/deploy/Update-IdealAkeWms.ps1` läuft aber
+  unter Windows PowerShell 5.1 und liest die Dateien mit `ConvertFrom-Json` (Zeile 149, auch `Set-Startkennwort.ps1:48`,
+  `Install-IdealAkeWms.ps1:348`); 5.1 kennt keine Kommentare → `Stop-Mit "… ist kein gueltiges JSON"`, Update abgebrochen.
+- **Regel:** Nicht benötigte Einträge **löschen** (vorher `.bak-<Zeitstempel>` sichern), nicht auskommentieren. Nicht geladene Dateien
+  (`appsettings.Development.json` bei Umgebung `Production`) mit Präfix `xxx_` umbenennen – das passt nicht auf `appsettings*.json`
+  (Schutzstand, robocopy `/XF`), robocopy ohne `/PURGE` legt sie nicht neu an und löscht nichts.
+- **Warum:** Die Dateien sind vom Kopieren ausgenommen und gehören dem Betrieb; ein Kommentar fällt erst beim nächsten Update auf.

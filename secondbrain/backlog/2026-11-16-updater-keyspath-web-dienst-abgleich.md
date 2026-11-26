@@ -40,3 +40,5 @@ quelle: Koordination, Befund akenet01:4445 (Gerald, Chat 2026-11-16 10:34)
   Web `IdealAkeWMS-TEST\appsettings.Production.json` Absender auf „IDEAL AKE WMS TEST“/`wms-test@ake.at` (Sicherung `.bak-20261126-125853`).
   Dienst-Datei: Schreibrecht über die Freigabe verweigert → Absender, PickupDirectory (`…-Test\mail-pickup`, Ordner angelegt) und
   `SageLagerbuchung`-Block macht Gerald von Hand. `ErrorNotification`/`Sync:*` in appsettings wirkungslos, weil `ServiceSettings` sie überschreibt.
+- 2026-11-26 13:0x: Web `appsettings.Development.json` → `xxx_appsettings.Development.json` (nicht geladen, Umgebung Production).
+  Dienst-Ordner: Umbenennen ebenfalls verweigert → Gerald. Auskommentieren verworfen, siehe Fallstrick 72.
