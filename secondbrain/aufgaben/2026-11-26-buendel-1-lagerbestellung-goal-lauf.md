@@ -15,7 +15,7 @@ Start-Stand Worktree: v1.99.85 (c8814cdf), höchstes TS 206 (TS-205 reserviert f
 |---|---|---|---|---|---|---|---|
 | [[2026-11-26-lagerbestellung-hinweis-fehlteil-bereits-bestellt-spec]] | Spec | – | 1.99.86 | 207 | **Testbereit** | 300dbf25, QA b7704475 | |
 | [[2026-11-26-beschichtung-summe-leitstand-hauptfa-kommissionierauftrag-liste-teil-1-spec]] | Spec | – | 1.99.87 | 205 | **Testbereit** | e67e9f6f, QA 9da4b0af | |
-| [[2026-11-26-beschichtung-summe-leitstand-hauptfa-kommissionierauftrag-liste-teil-2-spec]] | Spec | – | 1.99.88 (geplant) | | InUmsetzung | | |
+| [[2026-11-26-beschichtung-summe-leitstand-hauptfa-kommissionierauftrag-liste-teil-2-spec]] | Spec | – | 1.99.88 | 208 | InUmsetzung (QA läuft) | 5d7639dc; N-1 Teil 1 a89d98cc | |
 | [[2026-11-26-beschichtung-summe-leitstand-hauptfa-kommissionierauftrag-liste-teil-3-spec]] | Epic (A+B) | – | 1.99.89 (geplant) | | InUmsetzung | | |
 
 ## Vorprüfung
@@ -34,6 +34,9 @@ Start-Stand Worktree: v1.99.85 (c8814cdf), höchstes TS 206 (TS-205 reserviert f
   Artnr-Spalte (Altbestand seit v1.99.41, Backlog offen), H-2 bewusst; DEV AKE + IDEAL v1.99.87; ◩ im PDF auf DEV ok.
   Fotos BA-12 (QA) + BA-7 (echt) an Gerald. Brain: Changelog [[2026-11-26-v1-99-87-beschichtungsauftrag-druck-summiert]], feature-map.
   Teil 2 gestartet.
+- 2026-11-26 Gerald zu den Fotos: „Warum 6 (4 Positionen)?“ → Freigabe-Nachtrag N-1 Teil 1 „Nur Teilesumme“ (563cbc4f).
+- 2026-11-26 Teil 2 umgesetzt (5d7639dc): Build 0 Fehler, Tests 3820/1 skip + 848; TS-208. N-1 eingebaut (a89d98cc, v1.99.88,
+  Tests grün), Index 0e9d7d01. qa-agent für Teil 2 + N-1 gemeinsam gestartet.
 
 ## Fuer spaetere Confluence-Uebernahme (geaenderte Kapitel)
 
