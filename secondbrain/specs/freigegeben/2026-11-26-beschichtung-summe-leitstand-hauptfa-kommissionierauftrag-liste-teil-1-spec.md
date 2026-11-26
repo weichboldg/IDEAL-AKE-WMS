@@ -2,7 +2,7 @@
 type: spec
 title: "Beschichtungsauftrag: Druck/PDF immer summiert je Artikel, Summenzeile „Summe Teile im Auftrag“"
 slug: 2026-11-26-beschichtung-summe-leitstand-hauptfa-kommissionierauftrag-liste-teil-1-spec
-status: InUmsetzung
+status: Testbereit
 created: 2026-11-26
 updated: 2026-11-26
 source_backlog: "[[2026-11-26-beschichtung-summe-leitstand-hauptfa-kommissionierauftrag-liste]]"
@@ -214,13 +214,20 @@ Querverweise `:9494` und `:12610` („Druck (je Position) TS-162“) auf das neu
 
 ## Deploy
 
-*Vorläufig, der QA-Lauf bestätigt gegen den echten Diff.*
+*Final (QA 2026-11-26) aus dem echten Diff `e67e9f6f`: geändert nur `IdealAkeWms/` (Controller, ViewModel, `Print.cshtml`, Hilfe,
+Changelog, AppVersion), `IDEALAKEWMSService/AppVersion.cs` (nur Versionsnummer), Tests, `docs/`. Keine Datei unter `*/Migrations/`, kein `SQL/`.*
 
-- **Web-App:** ja
-- **Service:** nein
+- **Web-App:** ja (fachlich die einzige Komponente)
+- **Service:** nein (nur Versionsnummer 1.99.87; im Bündel trotzdem gemeinsam ausgerollt)
 - **Migration:** nein
-- **Manifest-Einträge:** keine.
-- **Publish-Befehle:** `dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWMSWeb` (im Worktree).
+- **Manifest-Einträge (`scripts/deploy/nachlauf.psd1`):** keine nötig - kein SQL, kein Einmal-Skript, keine Einstellung, keine Leitstand-Aktion.
+- **Publish:** erledigt im QA-Lauf nach `C:\Git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-07-ideal-teile-1-5\publish\`
+  (IDEALAKEWMSWeb + IDEALAKEWMSWebService + SQL + deploy, `publish-info.txt` Version 1.99.87, Commit `e67e9f6f`).
+  Ablauf Mensch: Publish aus dem Worktree → Testsystem (`deploy\Update-IdealAkeWms.ps1`) → testen → Merge.
+- Nach dem Merge nur dann neu aus `main` publishen, wenn der Merge getestete Dateien mit parallelen main-Änderungen kombiniert hat:
+  `dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWMSWeb` und
+  `dotnet publish IDEALAKEWMSService/IDEALAKEWMSService.csproj -c Release -o .\publish\IDEALAKEWMSWebService`.
+- Reihenfolge: keine Besonderheit (kein Backup-Zwang durch diese Spec, keine DB-Änderung).
 
 ## Offene Rueckfragen
 
@@ -336,3 +343,115 @@ eingearbeitet. Kein Widerspruch zwischen Antwortblock und Rumpf gefunden.
 
 **Antwort Gerald 2026-11-26 (Chat) zur Kritischen Prüfung (Positionen ohne Artnr):** „Je Position eigene Zeile“ – Positionen ohne
 Artikelnummer werden nicht summiert, jede bleibt eine eigene Zeile.
+
+## QA-Nachweis (qa-agent, 2026-11-26)
+
+Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5`, Branch `feature/2026-08-07-ideal-teile-1-5`, geprüfter Commit-Bereich
+`300dbf25..e67e9f6f` (ein Commit `e67e9f6f`), AppVersion 1.99.87 (Web + Service). Build und Tests über den ganzen Worktree.
+
+### 1. Build und Tests
+
+- `dotnet build IdealAkeWms.slnx`: **0 Fehler**, 33 Warnungen (vorbestehend, u. a. CS8620 in `SageLagerplatzAnlageControllerTests`).
+- `dotnet test`: **IdealAkeWms.Tests 3799 bestanden / 1 übersprungen / 0 Fehler (3800)**; **IDEALAKEWMSService.Tests 848 / 0 / 0 (848)**.
+
+### 2. Code-Review (selbst, in diesem Lauf)
+
+Gelesen: Diff `e67e9f6f` komplett (Controller `PrintModelAsync`, `BeschichtungsauftraegeDruck.Summiert` + Record `BeschichtungsauftragDruckZeile`,
+`Print.cshtml` inkl. `thead`/`tfoot`/colspan, Hilfe, Changelog, Tests, `docs/`), dazu `PrintVisibleColumns.ResolveAsync`, `Details.cshtml:289`
+(nutzt weiter `Sortiert`), Entität `BeschichtungsauftragPosition` (Menge/Maße `decimal` nicht nullable, `Artnr` nullable).
+
+- Gruppenschlüssel `object`: Positions-Referenz (leere Artnr) bzw. geboxtes `(string, bool)`-Tupel - `GroupBy` nutzt `Equals` des geboxten
+  ValueTuple, also Wertgleichheit; ein Referenz-Schlüssel ist nie gleich einem Tupel. Korrekt (Unit-Tests + DEV belegen).
+- colspan: `vorMenge` = Pos. + sichtbare der sechs Spalten vor Menge; mit Menge: `vorMenge` + Menge-Zelle + leere Verpackt-Zelle, ohne Menge:
+  `vorMenge` + leere Zelle - Spaltenzahl stimmt in beiden Fällen mit `thead` überein (gleiche `ShowCol`-Reihenfolge). Auf DEV beide Varianten bündig.
+- Regel an einem Ort: Summierung nur in `Summiert`; Summe/Positionen als berechnete Properties aus den Zeilen, keine zweite Implementierung (JS/SQL).
+- Fehlerklassen der Agent-Checkliste: kein `<script>`-Embedding, kein `hidden`+`d-*`, kein stiller Fallback (`Artnr?.Trim()` nur Anzeige,
+  Menge nicht nullable), keine Model-Bindung/Arrays, keine Browser-only-Validierung (reine Lese-Ansicht).
+
+**Befunde:** keine Blocker, keine Sollte.
+- *Hinweis H-1 (vorbestehend, nicht behoben):* Ist die Spalte Artnr. ausgeblendet, fehlt auch das Badge „ohne FA“ (sitzt seit v1.99.41 in der
+  Artnr-Zelle). Die freie Zeile ist dann nur über die Reihenfolge (zuletzt) von einer gleichnamigen FA-Zeile zu unterscheiden (DEV AKE BA-2026-00005
+  mit `visibleColumns=hauptartnr,matchcode,menge`: Zeilen 1 und 5 beide „QA Teil A“). Kein Spec-Verstoß (S1-S8 fordern das nicht); bei Bedarf Backlog.
+- *Hinweis H-2:* Abweichende Matchcodes/Haupt-Artnr. innerhalb einer Summenzeile werden nicht gemeldet - in der Spec bewusst so (Kritische Prüfung, HINWEIS 3).
+
+### 3. Nachweisart je AK
+
+| AK | Nachweis |
+|---|---|
+| 1 | automatisiert `Druck_Summiert_GruppiertJeArtnr_ReihenfolgeErstePosition`, `Print_Uebergeben_Summiert_…`; DEV OK |
+| 2 | Summe/Positionen automatisiert (`Print_Uebergeben_Summiert_…`); Text „(1 Position)“/„(7 Positionen)“ ist Razor → Manual-UAT, DEV OK |
+| 3 | Verpackt-Zählung automatisiert (`Druck_Summiert_VerpacktZaehlung`); Zelltext + ◩ im PDF Manual-UAT, DEV OK |
+| 4 | automatisiert `Druck_Summiert_FreiePositionGetrenntUndZuletzt`; Badge Manual-UAT, DEV OK |
+| 5 | `MasseUneinheitlich` automatisiert; Ort in der Verpackt-Zelle bei ausgeblendeten Spalten Manual-UAT, DEV OK |
+| 6, 7, 8, 12, 13 | Manual-UAT (View/Druck/PDF), DEV OK (13: Vorschlagsliste-Views nicht im Diff, kein `tfoot`) |
+| 9 | Manual-UAT, DEV OK (Detail zeigt 7 Einzelpositionen) |
+| 10 | automatisiert (`Druck_Summiert_*`, 5 Tests) |
+| 11 | Build/Tests grün (s. o.) |
+| 14 | Manual-UAT, DEV OK (Auftrag mit 45 Zeilen, Positionsnummern 10..450 → Pos. 1..45) |
+| 15 | automatisiert `Druck_Summiert_OhneArtnr_JePositionEigeneZeile`; DEV OK |
+
+### 4. Geänderte bestehende Tests
+
+- `Print_Uebergeben_JePosition_Reihenfolge_BarcodeNummer` → `Print_Uebergeben_Summiert_Reihenfolge_BarcodeNummer`: **Verhalten bewusst durch
+  die Spec geändert** (S1-S3/AK 1, hebt v1.99.41 A11 auf). Fixture `Anlegen` unverändert; die neue Erwartung (A1 4 Stück aus 2 Positionen,
+  Maße uneinheitlich wegen Tiefe 3/4) folgt aus der bestehenden Fixture. Sonst nur neue Tests.
+
+### 5. Checkliste CLAUDE.md / 5a ADR 0020
+
+- Migration/SQL/FreshInstall/AgentJobs: nicht betroffen (kein Schema). Audit-Felder: nicht betroffen (nur lesen).
+- Version 1.99.87 in **beiden** `AppVersion.cs`, Anwender-Changelog `Views/Help/Changelog.cshtml` ergänzt, Hilfe `Index.cshtml` nachgezogen.
+- `docs/TESTSZENARIEN.md` TS-205 (205.1-205.11 + Negativfälle), TS-162.14 als überholt markiert, Querverweise TS-84/TS-145 nachgezogen;
+  `docs/anwender/15-…` + `docs/anwender/README.md` Stand-Version. Testindex Zeile 205 im Hauptcheckout vorhanden.
+- Brain-Changelog/feature-map: nicht Teil dieses QA-Commits (macht der Bündel-Lauf, wie bei v1.99.86).
+- ADR 0020: keine neue oder geänderte Einstellung im Diff.
+
+### 6. DEV-Deploy und Testlauf
+
+`standort: beide` (Frontmatter vorhanden). Deploy in erhöhter Shell, Quelle = Worktree, Web + Dienst:
+- **AKE:** `dev-deploy.ps1 -Standort AKE` → „HTTP 200, Fusszeile v1.99.87“, „Fertig: AKE v1.99.87 auf http://localhost:8081/“, Exit 0.
+- **IDEAL:** `dev-deploy.ps1 -Standort IDEAL` → „HTTP 200, Fusszeile v1.99.87“, „Fertig: IDEAL v1.99.87 auf http://localhost:8082/“, Exit 0.
+
+Testdaten (DEV-DB per SQL, Bemerkung „QA TS-205 …“, CreatedBy `QA`): je Standort ein Szenario-Auftrag im Status Übergeben
+(QA-ART-A ×3 Mengen 2/3/5, Haken 2 von 3, Tiefe 3/4/3; QA-ART-B 1 verpackt; zwei Positionen ohne Artnr (NULL und Leerzeichen) Mengen 2/3;
+freie Position QA-ART-A 1) und ein langer Auftrag (45 Artikel, Positionsnummern 10..450, Mengen 1..45).
+AKE: **BA-2026-00005** (Id 5, Szenario), **BA-2026-00006** (Id 6, lang). IDEAL: **BA-2026-00012** (Id 12), **BA-2026-00013** (Id 13).
+
+| Schritt | Durchgeführt | Ergebnis | Status |
+|---|---|---|---|
+| 205.1 | Print/5 (AKE), Print/12 (IDEAL) | QA-ART-A einmal Menge 10, QA-ART-B 1, Pos. 1-5, fett „Summe Teile im Auftrag 17 (7 Positionen)“ unter Menge | OK |
+| 205.2 | dto. | „◩ 2 von 3 verpackt“, „☑ verpackt“, „☐ offen“ | OK |
+| 205.3 | dto. | freie QA-ART-A als Pos. 5 zuletzt mit Badge „ohne FA“ | OK |
+| 205.4 | Print/5 normal und `?visibleColumns=hauptartnr,matchcode,menge` | „Maße uneinheitlich“ umrandet als 2. Zeile in Verpackt, auch ohne Artnr-/Maß-Spalten; QA-ART-B ohne Hinweis | OK (Ausblenden per Query-Parameter; Zahnrad-Weg nutzt denselben `ResolveAsync`, bleibt Mensch) |
+| 205.5 | Print/5 `?visibleColumns=hauptartnr,artnr,matchcode,breite,hoehe,tiefe` | „Summe Teile im Auftrag 17 (7 Positionen)“ in der Beschriftungszelle, Tabelle bündig | OK |
+| 205.6 | PDF BA-6 (AKE) / BA-13 (IDEAL), 2 Seiten, per Windows.Data.Pdf gerendert | Kopfzeile auf Seite 1 und 2, Summenzeile nur einmal am Ende von Seite 2 („1035 (45 Positionen)“ = 45·46/2) | OK (PDF); Browser-Druckvorschau Mensch |
+| 205.7 | PDF BA-5 (AKE), BA-12 (IDEAL) gerendert | gleiche Zeilen und Summe wie Bildschirmdruck; ☑ ☐ **◩ korrekt dargestellt** (eingebettet aus Segoe UI Symbol, ToUnicode 25E9), kein Ersatzkästchen | OK |
+| 205.8 | Print/PDF BA-6/BA-13 | Pos. 1..45 lückenlos trotz Positionsnummern 10..450 | OK |
+| 205.9 | AKE + IDEAL | identisches Druckbild (nur Briefkopf/Empfänger standortabhängig) | OK |
+| 205.10 | BA-5/BA-12 | „QA ohne Artnr X“ 2 und „QA ohne Artnr Y“ 3 als eigene Zeilen, zählen in 17 mit | OK |
+| 205.11 | Print/4 (AKE), Print/11 (IDEAL) | „2 (1 Position)“ bzw. „1 (1 Position)“ | OK |
+| Neg. Entwurf | kein Entwurf-Auftrag auf DEV; automatisiert `Print_Entwurf_Warnung_RedirectDetail` (unverändert) | Abweisung per Test belegt | OK (Test), Browser Mensch |
+| Neg. Detailseite | Details/5 (AKE) | 7 Einzelpositionen mit eigenem Haken | OK |
+| Neg. gleiche Maße | BA-5 Zeile QA-ART-B, IDEAL BA-7 | kein Hinweis | OK |
+| Neg. Vorschlagsliste | `FaHierarchyBeschichtung/*` nicht im Diff, kein `tfoot`/„Summe Teile“ in den Views | unverändert | OK (Code); Sichtprüfung Mensch |
+| Neg. Schwarzweiß | PDF-Render | Hinweis und Verpackt-Stand als Text, Badges mit Rahmen | OK |
+
+Keine DEV-Schalter berührt, nichts gebucht, kein Sage-Zugriff.
+
+### 7. Publish
+
+`C:\Git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-07-ideal-teile-1-5\publish\` neu befüllt (Ziele vorher geleert): `IDEALAKEWMSWeb`,
+`IDEALAKEWMSWebService` (beide Exit 0), `SQL`, `deploy`; `publish-info.txt`: Version 1.99.87, Commit `e67e9f6ff215ca14862ae457bf8955518db7ee8c`,
+Branch `feature/2026-08-07-ideal-teile-1-5`, Erstellt 2026-11-26 20:28, Komponenten IDEALAKEWMSWeb + IDEALAKEWMSWebService.
+Manifest: kein Eintrag nötig (keine Deploy-Schritte).
+
+**Ergebnis: Testbereit.**
+
+### Manuelle Test-Checkliste (Mensch)
+
+1. TS-205.4/205.5 über das **Zahnrad der Detailseite** (gespeicherte Spaltenauswahl) statt Query-Parameter wiederholen.
+2. TS-205.6 **Browser-Druckvorschau** (Edge und Chrome) mit BA-2026-00006 (AKE) bzw. BA-2026-00013 (IDEAL): Kopf je Seite, Summe einmal.
+3. TS-205.7 PDF auf dem **Testsystem-Server** (anderer Headless-Edge/andere Schriften): ◩ lesbar, sonst Fallback laut S4.
+4. Negativfall Entwurf im Browser (Auftrag im Entwurf → Drucken/PDF abgewiesen).
+5. Vorschlagsliste `/FaHierarchyBeschichtung/Print` und `/PrintSummiert` kurz ansehen: ohne Summenzeile.
+6. TS-205 komplett am Testsystem AKE und IDEAL mit echten Aufträgen, Brief an den Lackierer gegenlesen.
+7. Optional H-1 entscheiden (Badge „ohne FA“ bei ausgeblendeter Artnr-Spalte).
