@@ -758,7 +758,9 @@ FROM dbo.ProductionOrders po
 WHERE po.IsDone = 0 AND po.IsCancelled = 0
   AND NOT EXISTS (SELECT 1 FROM dbo.ProductionOrders h
                   WHERE h.OrderNumber = po.OrderNumber
-                    AND (h.SubOrderNumber = N'' OR h.SubOrderNumber = h.OrderNumber));
+                    AND (h.SubOrderNumber = N'' OR h.SubOrderNumber = h.OrderNumber))
+  AND NOT EXISTS (SELECT 1 FROM dbo.ProductionOrderPickingStatus ps
+                  WHERE ps.ProductionOrderId = po.Id AND ps.IsDonePicking = 1);
 
 -- HauptFA mit mehreren Auftragskoepfen (Zeichen „mehrdeutig (Kombigeraet)“ / „n Auftragskoepfe“, Kopfspalten leer)
 SELECT HauptFA, COUNT(*) AS Koepfe
@@ -768,7 +770,7 @@ GROUP BY HauptFA HAVING COUNT(*) > 1 ORDER BY Koepfe DESC;
 -- Teile (SubFA = 0) mit Arbeitsschritten: bleiben in der FA-Struktur auch bei „Teile ausblenden“ sichtbar
 SELECT HauptFA, Artnr, Arbeitsschritte
 FROM dbo.FaHierarchyNodes
-WHERE SubFA = 0 AND NULLIF(LTRIM(RTRIM(Arbeitsschritte)), N'') IS NOT NULL AND VerschwundenSeit IS NULL;
+WHERE SubFA = 0 AND NULLIF(LTRIM(RTRIM(Arbeitsschritte)), N'') IS NOT NULL;
 ```
 
 - **Zweck:** Rückfragen „Auftrag fehlt in der FA-Liste“, „Kopfspalten leer“ und „Kaufteil trotz Teile ausblenden sichtbar“ eingrenzen.

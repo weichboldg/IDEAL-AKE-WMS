@@ -5,7 +5,7 @@ Stand: Version **1.99.83** (26.11.2026).
 
 ## FA-Liste: eine Zeile je Auftrag (ab 1.99.82)
 
-*Produktion/BDE › FA-Liste* zeigt je Auftrag genau **eine Zeile**, die des HauptFA. Sub-FAs stehen nicht mehr in der
+*Fertigungsaufträge › FA-Liste* (Seitentitel „Fertigungsaufträge“) zeigt je Auftrag genau **eine Zeile**, die des HauptFA. Sub-FAs stehen nicht mehr in der
 Liste; sie sehen Sie über den Knopf **FA-Struktur** in der Zeile (öffnet die FA-Struktur dieses HauptFA im selben Fenster).
 
 ![FA-Liste IDEAL: je Auftrag eine Zeile, Knopf FA-Struktur, Zeichen Kombigerät](bilder/20-01-fa-liste-hauptfa.jpg)
@@ -23,7 +23,7 @@ Liste; sie sehen Sie über den Knopf **FA-Struktur** in der Zeile (öffnet die F
 
 ## FA-Struktur: je HauptFA eine Zeile (ab 1.99.83)
 
-*Produktion/BDE › FA-Struktur* zeigt je HauptFA **eine Zeile** – die oberste Zeile der Struktur. Daneben stehen die Auftragsdaten als
+*Fertigungsaufträge › FA-Struktur* zeigt je HauptFA **eine Zeile** – die oberste Zeile der Struktur. Daneben stehen die Auftragsdaten als
 Spalten: Kunde, PPS-Status, KO-Termin, Fert.-Termin, Montage-Abt., AB-Nr., Prio, Liefertermin, AB-Pos., Beschichter, RAL,
 Beschicht. retour, Neuer PT (PPS), Montage-Std., Bemerkung/Uhrzeit. Alle sind sichtbar; über das Zahnrad blenden Sie aus, was Sie
 nicht brauchen. **Struktur** und **Matchcode** bleiben beim Querscrollen links stehen.
