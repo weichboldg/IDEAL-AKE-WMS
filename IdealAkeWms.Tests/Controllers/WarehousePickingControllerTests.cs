@@ -38,7 +38,7 @@ public class WarehousePickingControllerTests
         viewPrefs.Setup(p => p.GetByUserAndViewAsync(It.IsAny<int>(), It.IsAny<string>()))
                  .ReturnsAsync((UserViewPreference?)null); // Default: keine Prefs
 
-        var ctrl = new WarehousePickingController(repo, workplaces, stock.Object, current.Object, viewPrefs.Object, new ArticleRepository(ctx), new StorageLocationRepository(ctx), new AppSettingRepository(ctx), new ServiceSettingRepository(ctx), ctx);
+        var ctrl = new WarehousePickingController(repo, workplaces, stock.Object, current.Object, viewPrefs.Object, new ArticleRepository(ctx), new StorageLocationRepository(ctx), new AppSettingRepository(ctx), new ServiceSettingRepository(ctx), ctx, new SagePurchaseOrderLineRepository(ctx), new PurchaseOrderReceiptRepository(ctx));
         ctrl.TempData = new Microsoft.AspNetCore.Mvc.ViewFeatures.TempDataDictionary(
             new Microsoft.AspNetCore.Http.DefaultHttpContext(),
             Mock.Of<Microsoft.AspNetCore.Mvc.ViewFeatures.ITempDataProvider>());
@@ -130,7 +130,7 @@ public class WarehousePickingControllerTests
         viewPrefs.Setup(p => p.GetByUserAndViewAsync(It.IsAny<int>(), It.IsAny<string>()))
                  .ReturnsAsync((UserViewPreference?)null);
 
-        var ctrl = new WarehousePickingController(repo.Object, workplaces, stock.Object, current.Object, viewPrefs.Object, new ArticleRepository(ctx), new StorageLocationRepository(ctx), new AppSettingRepository(ctx), new ServiceSettingRepository(ctx), ctx);
+        var ctrl = new WarehousePickingController(repo.Object, workplaces, stock.Object, current.Object, viewPrefs.Object, new ArticleRepository(ctx), new StorageLocationRepository(ctx), new AppSettingRepository(ctx), new ServiceSettingRepository(ctx), ctx, new SagePurchaseOrderLineRepository(ctx), new PurchaseOrderReceiptRepository(ctx));
         ctrl.TempData = new Microsoft.AspNetCore.Mvc.ViewFeatures.TempDataDictionary(
             new Microsoft.AspNetCore.Http.DefaultHttpContext(),
             Mock.Of<Microsoft.AspNetCore.Mvc.ViewFeatures.ITempDataProvider>());
@@ -174,7 +174,7 @@ public class WarehousePickingControllerTests
         viewPrefs.Setup(p => p.GetByUserAndViewAsync(It.IsAny<int>(), It.IsAny<string>()))
                  .ReturnsAsync((UserViewPreference?)null);
 
-        var ctrl = new WarehousePickingController(repo.Object, workplaces, stock.Object, current.Object, viewPrefs.Object, new ArticleRepository(ctx), new StorageLocationRepository(ctx), new AppSettingRepository(ctx), new ServiceSettingRepository(ctx), ctx);
+        var ctrl = new WarehousePickingController(repo.Object, workplaces, stock.Object, current.Object, viewPrefs.Object, new ArticleRepository(ctx), new StorageLocationRepository(ctx), new AppSettingRepository(ctx), new ServiceSettingRepository(ctx), ctx, new SagePurchaseOrderLineRepository(ctx), new PurchaseOrderReceiptRepository(ctx));
         var httpCtx = new Microsoft.AspNetCore.Http.DefaultHttpContext();
         ctrl.ControllerContext = new Microsoft.AspNetCore.Mvc.ControllerContext
         {

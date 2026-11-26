@@ -18,6 +18,9 @@ public interface ISagePurchaseOrderLineRepository
     Task<List<(int BelId, string Belegnummer)>> GetBelIdsByBelegnummerAsync(string belegnummer);
     /// <summary>Zeitpunkt des letzten erfolgreichen Abgleichs (max <c>SyncedAt</c>); null = Cache leer.</summary>
     Task<DateTime?> GetStandAsync();
+    /// <summary>v1.99.85: Positionen zu Artikelnummern (getrimmt; Gross/Klein macht die CI-Kollation der DB), EINE Abfrage fuer Artikelinfo
+    /// und Lagerbestellung-Details. Leere Eingabe = leere Liste ohne Abfrage.</summary>
+    Task<List<SagePurchaseOrderLine>> GetByArtikelnummernAsync(IReadOnlyCollection<string> artikelnummern);
 }
 
 public class SagePurchaseOrderLineRepository : ISagePurchaseOrderLineRepository
@@ -44,4 +47,11 @@ public class SagePurchaseOrderLineRepository : ISagePurchaseOrderLineRepository
 
     public async Task<DateTime?> GetStandAsync() =>
         await _db.SagePurchaseOrderLines.AsNoTracking().Select(l => (DateTime?)l.SyncedAt).MaxAsync();
+
+    public async Task<List<SagePurchaseOrderLine>> GetByArtikelnummernAsync(IReadOnlyCollection<string> artikelnummern)
+    {
+        var nummern = artikelnummern.Select(n => n.Trim()).Where(n => n.Length > 0).Distinct().ToList();
+        if (nummern.Count == 0) return new();
+        return await _db.SagePurchaseOrderLines.AsNoTracking().Where(l => nummern.Contains(l.Artikelnummer)).ToListAsync();
+    }
 }

@@ -335,6 +335,7 @@ public static class ColumnDefinitions
             new ColumnDef("picked",         "Ist",             Locked: false),
             new ColumnDef("unit",           "ME",              Locked: false),
             new ColumnDef("storage",        "Lagerplatz",      Locked: false),
+            new ColumnDef("liefertermin",   "Liefertermin",    Locked: false, DefaultHidden: true), // v1.99.85, nur bei gefuelltem Bestell-Cache in der View
             new ColumnDef("note-lager",     "Notiz Lager",     Locked: false),
             new ColumnDef("note-ek",        "Notiz EK",        Locked: false),
             new ColumnDef("shortage",       "Fehlteil-Status", Locked: false),

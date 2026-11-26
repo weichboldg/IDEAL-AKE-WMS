@@ -1,3 +1,4 @@
+using System.Globalization;
 using IdealAkeWms.Data;
 using IdealAkeWms.Data.Repositories;
 using IdealAkeWms.Filters;
@@ -23,6 +24,8 @@ public class WarehousePickingController : Controller
     private readonly IAppSettingRepository _settings;
     private readonly IServiceSettingRepository _serviceSettings;
     private readonly ApplicationDbContext _db;
+    private readonly ISagePurchaseOrderLineRepository _poLines;
+    private readonly IPurchaseOrderReceiptRepository _receipts;
 
     public WarehousePickingController(
         IWarehouseRequisitionRepository repo,
@@ -34,7 +37,9 @@ public class WarehousePickingController : Controller
         IStorageLocationRepository locations,
         IAppSettingRepository settings,
         IServiceSettingRepository serviceSettings,
-        ApplicationDbContext db) // v1.99.53: nur fuer die Transaktion Abschluss + Ausbuchungen (wie BdeBookingsController)
+        ApplicationDbContext db, // v1.99.53: nur fuer die Transaktion Abschluss + Ausbuchungen (wie BdeBookingsController)
+        ISagePurchaseOrderLineRepository poLines,
+        IPurchaseOrderReceiptRepository receipts)
     {
         _repo = repo;
         _workplaces = workplaces;
@@ -46,6 +51,8 @@ public class WarehousePickingController : Controller
         _settings = settings;
         _serviceSettings = serviceSettings;
         _db = db;
+        _poLines = poLines;
+        _receipts = receipts;
     }
 
     /// <summary>
@@ -253,7 +260,34 @@ public class WarehousePickingController : Controller
             VerbrauchsbuchungAktiv = aktiv,
             FraesenPfade = await RequireFraesenPfadAktivFilter.IstAktivAsync(_settings) ? await _articles.GetFraesenPfadeAsync() : null,
         };
+        // v1.99.85 (Spec 2026-11-26-liefertermin-offene-bestellungen F2): naechster Liefertermin je Artikel, feste Zahl Abfragen
+        // (Stand, Positionen, Erfasst) unabhaengig von der Positionszahl. Cache leer = null = keine Spalte.
+        vm.LieferterminStand = await _poLines.GetStandAsync();
+        if (vm.LieferterminStand != null)
+        {
+            var nummern = r.Items.Select(i => i.ArticleNumber.Trim())
+                .Where(n => !string.Equals(n, Article.DummyArticleNumber, StringComparison.OrdinalIgnoreCase)).ToList();
+            var lines = await _poLines.GetByArtikelnummernAsync(nummern);
+            var erfasst = await _receipts.GetErfasstJeBelPosAsync(lines.Select(l => l.BelPosId).ToList());
+            var heute = DateTime.Today;
+            vm.Liefertermine = lines.GroupBy(l => l.Artikelnummer.Trim(), StringComparer.OrdinalIgnoreCase).ToDictionary(g => g.Key,
+                g => LieferterminZelle(g.Select(l => (l.Liefertermin, erfasst.GetValueOrDefault(l.BelPosId, ErfasstJeBelPos.Leer).Rest(l))), heute),
+                StringComparer.OrdinalIgnoreCase);
+            vm.ArtikelinfoLink = await _user.HasMasterDataReadAccessAsync();
+        }
         return View(vm);
+    }
+
+    /// <summary>v1.99.85 F2.3: Zelltext „Liefertermin“ aus den offenen Positionen eines Artikels. Nur Rest &gt; 0 zaehlt; frueheste Termin
+    /// (ueberfaellige zaehlen mit, Zusatz „ überfällig“), nur ohne Termin → „ohne Termin“, weitere Positionen → „ (+N)“, keine → „—“.</summary>
+    internal static string LieferterminZelle(IEnumerable<(DateTime? Liefertermin, decimal Offen)> positionen, DateTime heute)
+    {
+        var offen = positionen.Where(p => p.Offen > 0).ToList();
+        if (offen.Count == 0) return "—";
+        var text = offen.Min(p => p.Liefertermin) is { } t
+            ? t.ToString("dd.MM.yyyy", CultureInfo.InvariantCulture) + (t.Date < heute.Date ? " überfällig" : "")
+            : "ohne Termin";
+        return offen.Count > 1 ? $"{text} (+{offen.Count - 1})" : text;
     }
 
     /// <summary>Eingaben je Position (Index-gleich zu <paramref name="itemIds"/>). Leeres Ist-Feld bindet als null am selben Index

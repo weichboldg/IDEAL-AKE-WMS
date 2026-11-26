@@ -74,6 +74,11 @@
                 <th data-col-key="picked">Ist</th>
                 <th data-col-key="unit" data-filterable>ME</th>
                 <th data-col-key="storage" data-filterable>Lagerplatz</th>
+                @if (Model.Liefertermine != null)
+                {
+                    <th data-col-key="liefertermin" data-filterable
+                        title="Nächster Liefertermin offener Sage-Bestellungen (Stand @Model.LieferterminStand?.ToString("dd.MM.yyyy HH:mm"))">Liefertermin</th>
+                }
                 <th data-col-key="note-lager">Notiz Lager</th>
                 <th data-col-key="note-ek">Notiz EK</th>
                 <th data-col-key="shortage" title="Fehlteil-Status">Fehlteil-Status</th>
@@ -140,6 +145,22 @@
                             {
                                 <div class="small text-body-secondary">davon ausgebucht: @i.BereitsAusgebucht.ToString("0.###")</div>
                             }</td>
+                    }
+                    @if (Model.Liefertermine != null)
+                    {
+                        // v1.99.85 F2: naechster Liefertermin; Link im neuen Tab (Ist-Mengen dieser Seite werden nicht automatisch gespeichert).
+                        var lt = Model.Liefertermine.GetValueOrDefault(i.ArticleNumber.Trim()) ?? "—";
+                        <td data-filter-text="@lt" data-csv-value="@lt"><small>
+                            @if (lt != "—" && Model.ArtikelinfoLink)
+                            {
+                                <a asp-controller="Articles" asp-action="Info" asp-route-articleNumber="@i.ArticleNumber.Trim()" target="_blank" rel="noopener"
+                                   title="Offene Bestellungen in der Artikelinfo (neuer Tab)">@lt</a>
+                            }
+                            else
+                            {
+                                @lt
+                            }
+                        </small></td>
                     }
                     <td>
                         @if (isEditable)
@@ -247,6 +268,10 @@
     { "key": "picked", "label": "Ist", "locked": false, "defaultWidth": null },
     { "key": "unit", "label": "ME", "locked": false, "defaultWidth": null },
     { "key": "storage", "label": "Lagerplatz", "locked": false, "defaultWidth": null },
+    @if (Model.Liefertermine != null)
+    {
+        @:{ "key": "liefertermin", "label": "Liefertermin", "locked": false, "defaultWidth": null, "defaultHidden": true },
+    }
     { "key": "note-lager", "label": "Notiz Lager", "locked": false, "defaultWidth": null },
     { "key": "note-ek", "label": "Notiz EK", "locked": false, "defaultWidth": null },
     @if (Model.FraesenPfade != null)

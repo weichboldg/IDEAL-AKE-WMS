@@ -44,6 +44,12 @@ public class ArticleInfoViewModel
     public Creditor? LetzterLieferantKreditor { get; set; }
     /// <summary>v1.80.0: Artikel-Lieferanten aus Sage (unabhaengig vom Satelliten).</summary>
     public List<ArticleSupplierRow> Lieferanten { get; set; } = new();
+    /// <summary>v1.99.85: Stand des Caches offener Sage-Bestellungen; null = Cache leer (Karte zeigt Hinweis).</summary>
+    public DateTime? OffeneBestellungenStand { get; set; }
+    /// <summary>v1.99.85: offene Positionen mit Rest &gt; 0 (Rest-Regel <c>ErfasstJeBelPos.Rest</c>), nach Liefertermin sortiert.</summary>
+    public List<(SagePurchaseOrderLine Line, decimal Offen)> OffeneBestellungen { get; set; } = new();
+    /// <summary>v1.99.85: Positionen mit Rest 0 (im WMS vollstaendig erfasst) - nicht gelistet, nur gezaehlt.</summary>
+    public int OffeneBestellungenErfasst { get; set; }
     /// <summary>Z4: Anzahl distinkter HauptFAs (OrderNumber) unter <see cref="UsedInOrders"/> (Sub-FAs sind die Zeilen).</summary>
     public int UsedInHauptFaCount => UsedInOrders.Select(o => o.OrderNumber).Distinct().Count();
 }

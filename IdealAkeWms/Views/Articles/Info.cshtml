@@ -1,4 +1,4 @@
-﻿@model IdealAkeWms.Models.ViewModels.ArticleInfoViewModel?
+@model IdealAkeWms.Models.ViewModels.ArticleInfoViewModel?
 @{
     ViewData["Title"] = "Artikelinfo";
     var notFound = ViewBag.NotFound as string;
@@ -193,6 +193,68 @@
 
             @* v1.85.0 Nachbesserung 1: Sage-Zusatzfelder + Lieferanten aus dem gemeinsamen Partial (auch auf „Artikel bearbeiten“). *@
             <partial name="_ArtikelSageKarten" model="new IdealAkeWms.Models.ViewModels.ArtikelSageKartenViewModel { SageDetail = Model.SageDetail, HauptlieferantKreditor = Model.HauptlieferantKreditor, LetzterLieferantKreditor = Model.LetzterLieferantKreditor, Lieferanten = Model.Lieferanten }" />
+
+            @* v1.99.85 (Spec 2026-11-26-liefertermin-offene-bestellungen F1): offene Sage-Bestellungen mit Rest > 0, nach Liefertermin. *@
+            <div class="card mb-3">
+                <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <strong>Offene Bestellungen</strong>
+                    <small class="opacity-75">nur lesend · aus Sage@(Model.OffeneBestellungenStand is { } obStand ? $" · Stand: {obStand:dd.MM.yyyy HH:mm}" : "")</small>
+                </div>
+                @if (Model.OffeneBestellungenStand == null)
+                {
+                    <div class="card-body">
+                        <p class="mb-0 text-body-secondary">Offene Bestellungen werden nicht aus Sage gelesen. Sie kommen aus dem Lauf
+                            &bdquo;Offene Bestellungen (Sage)&ldquo; (Service-Einstellung <code>Sync:EinkaufBestellungenEnabled</code>).</p>
+                    </div>
+                }
+                else
+                {
+                    @if (Model.OffeneBestellungen.Any())
+                    {
+                        var heuteOb = DateTime.Today;
+                        <div class="table-responsive">
+                            <table class="table table-sm table-striped mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Beleg</th>
+                                        <th>Lieferant</th>
+                                        <th class="text-end">Offen</th>
+                                        <th>Liefertermin</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var (line, offen) in Model.OffeneBestellungen)
+                                    {
+                                        <tr>
+                                            <td>@line.Belegnummer@if (line.IstRahmenabruf)
+                                                {
+                                                    <span class="small text-body-secondary"> Rahmenabruf</span>
+                                                }</td>
+                                            <td>@(line.LieferantName != null ? $"{line.LieferantName} ({line.LieferantKto})" : (line.LieferantKto ?? "—"))</td>
+                                            <td class="text-end">@offen.ToString("0.###") @line.MengeBasiseinheit@if (line.EinheitAbweichend)
+                                                {
+                                                    <div class="small text-body-secondary">Einheit abweichend</div>
+                                                }</td>
+                                            <td>@IdealAkeWms.Controllers.PurchaseOrdersController.LieferterminText(line.Liefertermin)@if (line.Liefertermin < heuteOb)
+                                                {
+                                                    <span class="text-danger fw-semibold"> überfällig</span>
+                                                }</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="card-body"><p class="mb-0 text-body-secondary">Keine offene Bestellung für diesen Artikel.</p></div>
+                    }
+                    @if (Model.OffeneBestellungenErfasst > 0)
+                    {
+                        <div class="card-footer text-muted"><small>@Model.OffeneBestellungenErfasst Position(en) im WMS bereits vollständig erfasst – nicht angezeigt</small></div>
+                    }
+                }
+            </div>
 
             @if (Model.UsedInOrders.Any())
             {

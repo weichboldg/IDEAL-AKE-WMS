@@ -1,6 +1,6 @@
 # 03 – Lagerbestellung und Glasbestellung
 
-Stand: Version 1.99.79 (Abschnitt 8 Fräsen-Pfad seit 1.99.72), 1.99.57 (Bilder aus dem AKE-Testsystem, Stand 1.99.29 – Foto zu „Entnahme aus“ folgt nach Einschalten des Schalters) · Standorte AKE und IDEAL
+Stand: Version 1.99.85 (Abschnitt 9 Liefertermin seit 1.99.85, Abschnitt 8 Fräsen-Pfad seit 1.99.72), 1.99.57 (Bilder aus dem AKE-Testsystem, Stand 1.99.29 – Foto zu „Entnahme aus“ folgt nach Einschalten des Schalters) · Standorte AKE und IDEAL
 
 ## Zweck
 
@@ -197,6 +197,25 @@ Isolierungsfräse erscheinen außerdem in der BDE-Teileliste der Fräse ([Kapite
 ändert an der Lagerbestellung nichts. Der Druck der Lager-Detailseite zeigt den Pfad nicht.
 
 ![Bestellseite: Zahnrad „Spalten konfigurieren“ mit der Spalte Fräsen-Pfad (Standard aus)](bilder/03-09-besteller-zahnrad-fraesenpfad.jpg)
+
+### 9. Spalte Liefertermin und Artikelinfo „Offene Bestellungen“ (seit 1.99.85)
+
+Auf der Lager-Detailseite (*Lager: Eingehende Listen* → Detail) lässt sich über das **Zahnrad** die Spalte **Liefertermin** einblenden
+(Standard ausgeblendet). Sie zeigt je Position, wann die nächste offene Sage-Bestellung des Artikels kommen soll:
+
+| Anzeige | Bedeutung |
+|---|---|
+| `12.12.2026` | eine offene Bestellung mit diesem Termin |
+| `12.12.2026 (+1)` | nächster Termin, dazu eine weitere offene Bestellung |
+| `05.11.2026 überfällig` | der Termin ist schon vorbei, die Ware ist noch nicht da |
+| `ohne Termin` | offene Bestellung ohne Liefertermin |
+| `—` | keine offene Bestellung |
+
+Wer Stammdaten lesen darf, kann den Termin anklicken: Die **Artikelinfo** öffnet sich in einem neuen Tab, eingetragene Ist-Mengen bleiben
+stehen. Die Artikelinfo zeigt in der Karte **Offene Bestellungen** alle offenen Positionen mit Beleg, Lieferant, offener Menge und Termin.
+Gezählt wird nur, was noch kommt: Im WMS schon vollständig erfasste Wareneingänge fehlen (die Fußzeile nennt ihre Anzahl), teilgelieferte
+zeigen den Rest. Die Daten kommen aus dem Lauf „Offene Bestellungen (Sage)“; liest ein Standort keine offenen Bestellungen, fehlt die
+Spalte und die Artikelinfo zeigt einen Hinweis.
 
 ## Hinweise und Stolperfallen
 

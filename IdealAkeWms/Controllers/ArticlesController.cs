@@ -19,6 +19,8 @@ public class ArticlesController : Controller
     private readonly IStorageLocationRepository _storageLocationRepository;
     private readonly ICreditorRepository _creditorRepository;
     private readonly IAppSettingRepository _appSettings;
+    private readonly ISagePurchaseOrderLineRepository _poLines;
+    private readonly IPurchaseOrderReceiptRepository _receipts;
 
     public ArticlesController(
         IArticleRepository articleRepository,
@@ -29,9 +31,13 @@ public class ArticlesController : Controller
         IPlannedConsumptionService plannedConsumption,
         IStorageLocationRepository storageLocationRepository,
         ICreditorRepository creditorRepository,
-        IAppSettingRepository appSettings)
+        IAppSettingRepository appSettings,
+        ISagePurchaseOrderLineRepository poLines,
+        IPurchaseOrderReceiptRepository receipts)
     {
         _appSettings = appSettings;
+        _poLines = poLines;
+        _receipts = receipts;
         _articleRepository = articleRepository;
         _stockMovementRepository = stockMovementRepository;
         _currentUserService = currentUserService;
@@ -361,6 +367,19 @@ public class ArticlesController : Controller
         vm.Lieferanten = karten.Lieferanten;
         vm.HauptlieferantKreditor = karten.HauptlieferantKreditor;
         vm.LetzterLieferantKreditor = karten.LetzterLieferantKreditor;
+        // v1.99.85 (Spec 2026-11-26-liefertermin-offene-bestellungen F1): offene Sage-Bestellungen, Rest nach der EINEN Rest-Regel;
+        // Rest 0 (im WMS schon vollstaendig erfasst) nicht listen, nur zaehlen (Antwort 2: nur offene oder teilgelieferte).
+        vm.OffeneBestellungenStand = await _poLines.GetStandAsync();
+        if (vm.OffeneBestellungenStand != null)
+        {
+            var lines = await _poLines.GetByArtikelnummernAsync(new[] { article.ArticleNumber });
+            var erfasst = await _receipts.GetErfasstJeBelPosAsync(lines.Select(l => l.BelPosId).ToList());
+            var mitRest = lines.Select(l => (Line: l, Offen: erfasst.GetValueOrDefault(l.BelPosId, ErfasstJeBelPos.Leer).Rest(l))).ToList();
+            vm.OffeneBestellungen = mitRest.Where(x => x.Offen > 0)
+                .OrderBy(x => x.Line.Liefertermin == null).ThenBy(x => x.Line.Liefertermin).ThenBy(x => x.Line.Belegnummer).ThenBy(x => x.Line.BelPosId)
+                .ToList();
+            vm.OffeneBestellungenErfasst = mitRest.Count - vm.OffeneBestellungen.Count;
+        }
         return View(vm);
     }
 

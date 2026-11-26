@@ -49,7 +49,7 @@ public class WarehousePickingVerbrauchsbuchungTests
         user.Setup(u => u.GetWindowsUserName()).Returns("DOMAIN\\stocker");
         var ctrl = new WarehousePickingController(new WarehouseRequisitionRepository(db), new ProductionWorkplaceRepository(db),
             new StockMovementRepository(db), user.Object, Mock.Of<IUserViewPreferenceRepository>(), new ArticleRepository(db),
-            new StorageLocationRepository(db), new AppSettingRepository(db), new ServiceSettingRepository(db), db);
+            new StorageLocationRepository(db), new AppSettingRepository(db), new ServiceSettingRepository(db), db, new SagePurchaseOrderLineRepository(db), new PurchaseOrderReceiptRepository(db));
         var http = new DefaultHttpContext();
         ctrl.ControllerContext = new ControllerContext { HttpContext = http };
         var url = new Mock<IUrlHelper>();

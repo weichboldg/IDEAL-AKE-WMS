@@ -14,7 +14,8 @@ namespace IdealAkeWms.Tests.Controllers;
 /// <summary>Spec 2026-11-08-artikeldetails-lieferanten-anzeigen (v1.80.0): AK 1-3, 8-9.</summary>
 public class ArtikelinfoLieferantenTests
 {
-    private static (ArticlesController ctrl, Mock<IArticleRepository> article, Mock<ICreditorRepository> creditors) Build(ArticleSageDetail? sd)
+    internal static (ArticlesController ctrl, Mock<IArticleRepository> article, Mock<ICreditorRepository> creditors) Build(ArticleSageDetail? sd,
+        ISagePurchaseOrderLineRepository? poLines = null, IPurchaseOrderReceiptRepository? receipts = null)
     {
         var article = new Mock<IArticleRepository>();
         article.Setup(a => a.GetByArticleNumberAsync("00722001")).ReturnsAsync(new Article { Id = 5, ArticleNumber = "00722001" });
@@ -35,7 +36,8 @@ public class ArtikelinfoLieferantenTests
                 Mock.Of<IPurchaseProposalRepository>(r => r.GetOffeneLagerbestellungenAsync() == Task.FromResult(new List<OffenerBedarf>())
                     && r.GetOffeneBedarfsmeldungenAsync() == Task.FromResult(new List<OffenerBedarf>())),
                 Mock.Of<IAppSettingRepository>(), Mock.Of<IServiceSettingRepository>()),
-            Mock.Of<IStorageLocationRepository>(), creditors.Object, Mock.Of<IAppSettingRepository>())
+            Mock.Of<IStorageLocationRepository>(), creditors.Object, Mock.Of<IAppSettingRepository>(), poLines ?? Mock.Of<ISagePurchaseOrderLineRepository>(),
+            receipts ?? Mock.Of<IPurchaseOrderReceiptRepository>())
         {
             ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() }
         };

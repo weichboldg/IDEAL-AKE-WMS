@@ -92,7 +92,7 @@ public class FraesenPfadTests
         var ctrl = new ArticlesController(new ArticleRepository(db), Mock.Of<IStockMovementRepository>(), user.Object,
             Mock.Of<IArticleAttributeRepository>(), Mock.Of<IArticleCategoryRepository>(), Mock.Of<IPlannedConsumptionService>(),
             Mock.Of<IStorageLocationRepository>(), Mock.Of<ICreditorRepository>(),
-            Mock.Of<IAppSettingRepository>(s => s.GetValueAsync(AppSettingKeys.FraesenPfadAktiv) == Task.FromResult<string?>(fraesenAktiv ? "true" : null)));
+            Mock.Of<IAppSettingRepository>(s => s.GetValueAsync(AppSettingKeys.FraesenPfadAktiv) == Task.FromResult<string?>(fraesenAktiv ? "true" : null)), Mock.Of<ISagePurchaseOrderLineRepository>(), Mock.Of<IPurchaseOrderReceiptRepository>());
         var http = new DefaultHttpContext();
         ctrl.ControllerContext = new ControllerContext { HttpContext = http };
         ctrl.TempData = new TempDataDictionary(http, Mock.Of<ITempDataProvider>());

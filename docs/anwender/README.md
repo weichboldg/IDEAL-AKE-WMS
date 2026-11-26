@@ -67,6 +67,7 @@ Stand der Anleitungen: Version **1.99.84** (26.11.2026) für Kapitel 20 (neu, FA
 | 1.99.43 | IDEAL-Kommissionierliste: Ziele gemerkt, Summiert als Standard, Abteilung und Lagerplätze, nur nach Leitstand-Freigabe | [01](01-kommissionierung.md), [16](16-ideal-kommissionierliste.md) |
 | 1.99.44 | Kommissionierliste: Ziel-Kästchen wieder nebeneinander; Menü *Stammdaten → Empfänger* auch bei Lager-/Glasbestellung und Blechfertigung | [14](14-blechfertigung-bf-auftraege.md), [16](16-ideal-kommissionierliste.md) |
 | 1.99.45 | Startseite nach Bereichen und Berechtigung (wie das Menü), *Stammdaten → Artikelinfo* im Menü; Artikelinfo und Lagerbestellung: Bestand nur des gesuchten Artikels; Lagerplatz-Angabe der Lagerbestellung Hauptlagerplatz zuerst, ohne Kommissionierwagen; BF-Warenkorb: Vorschläge beim Tippen | [03](03-lagerbestellung-glasbestellung.md), [14](14-blechfertigung-bf-auftraege.md), [18](18-startseite-und-menue.md) |
+| 1.99.85 | Lagerbestellung (Lager-Detail): Spalte Liefertermin; Artikelinfo: Karte Offene Bestellungen | [03](03-lagerbestellung-glasbestellung.md) |
 | 1.99.46 | Startseite: Kacheln wieder mit Symbolen | [18](18-startseite-und-menue.md) |
 | 1.99.47 | Lagerplatz ausbuchen: FA-Nummer filtert, Rest bleibt am Platz/Wagen, gemischte Zeilen werden abgefragt | [09](09-einbuchen-ausbuchen-umbuchen.md), [01](01-kommissionierung.md) |
 | 1.99.50 | Startseite: jedes Symbol nur einmal, Symbolfamilien Rahmen/Blatt/Tropfen | [18](18-startseite-und-menue.md) |

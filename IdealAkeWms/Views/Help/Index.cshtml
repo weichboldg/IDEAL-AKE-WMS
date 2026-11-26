@@ -587,6 +587,15 @@
                         und die Rolle <em>Fraesen-Pfad pflegen</em> &ndash; diese braucht zusaetzlich <em>Stammdaten lesen</em>, sonst ist die
                         Artikelinfo nicht erreichbar.</dd>
 
+                    <dt>Offene Bestellungen (seit v1.99.85)</dt>
+                    <dd>Offene Sage-Bestellpositionen des Artikels (Bestellungen und Rahmenabrufe, aus dem Lauf &bdquo;Offene Bestellungen (Sage)&ldquo;):
+                        Beleg (Rahmenabruf mit Zusatz), Lieferant, offene Menge in der Basiseinheit und Liefertermin mit KW, sortiert nach Termin,
+                        ohne Termin zuletzt. Ein Termin vor heute traegt den Zusatz &bdquo;überfällig&ldquo;. Die offene Menge ist die Menge laut Sage
+                        abzueglich der im WMS schon erfassten, noch nicht an Sage uebergebenen Wareneingaenge (dieselbe Regel wie
+                        &bdquo;Wareneingang zu Bestellung&ldquo;); vollstaendig erfasste Positionen fehlen und werden in der Fusszeile gezaehlt.
+                        Kopf &bdquo;Stand&ldquo; = letzter Abgleich. Wird der Abgleich am Standort nicht betrieben
+                        (Service-Einstellung <code>Sync:EinkaufBestellungenEnabled</code>), steht statt der Tabelle ein Hinweis.</dd>
+
                     <dt>Fertigungsauftraege (BOM-Cache)</dt>
                     <dd>Wenn der BOM-Cache aktiv ist, zeigt die Artikelinfo eine Tabelle
                         &bdquo;Teil enthalten in folgenden Fertigungsauftraegen&ldquo; — diese listet alle offenen
@@ -2468,6 +2477,11 @@
                 <h6 class="mt-3">Lager-Workflow</h6>
                 <p>Hauptmenue &rarr; Bestellungen &rarr; Lager: Eingehende Listen. Detail oeffnen, kommissionieren, "Drucken" fuer den Pickup-Druck, dann mit Pro-Position-Ist-Mengen "Abschliessen". Storno mit optionalem Grund moeglich.</p>
                 <ul>
+                    <li><strong>Spalte Liefertermin (seit v1.99.85):</strong> ueber das Zahnrad einblendbar (Standard aus). Zeigt je Position den
+                        naechsten Liefertermin offener Sage-Bestellungen des Artikels, &bdquo;(+N)&ldquo; bei weiteren offenen Bestellungen,
+                        &bdquo;überfällig&ldquo; bei Termin vor heute, &bdquo;ohne Termin&ldquo; bzw. &bdquo;&mdash;&ldquo; ohne offene Bestellung.
+                        Mit Rolle Stammdaten lesen ist der Termin ein Link auf die Artikelinfo (neuer Tab, eingetragene Ist-Mengen bleiben stehen).
+                        Ohne Abgleich der offenen Bestellungen am Standort gibt es die Spalte nicht. Der Druck zeigt sie nicht.</li>
                     <li><strong>Mengenfeld INT (seit v1.14.0):</strong> Ist-Menge ist ganzzahlig &mdash;
                         keine Komma-Eingabe mehr. Damit verschwindet das alte Culture-Problem, dass
                         die Aktion &bdquo;SOLL = IST&ldquo; eine bestellte Menge von 4 als 4000 buchte.</li>

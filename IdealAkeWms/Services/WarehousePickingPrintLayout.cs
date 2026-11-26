@@ -42,8 +42,8 @@ public static class WarehousePickingPrintLayout
 
     public static List<PrintColumn> ResolveColumns(PrintPrefs? prefs)
     {
-        // v1.99.72: der Druck kennt keinen Fraesen-Pfad (F13 nennt nur die Bildschirm-Spalte)
-        var defs = ColumnDefinitions.WarehousePickingDetails.Columns.Where(d => d.Key != "fraesen-pfad").ToList();
+        // v1.99.72: der Druck kennt keinen Fraesen-Pfad (F13 nennt nur die Bildschirm-Spalte); v1.99.85 ebenso keinen Liefertermin
+        var defs = ColumnDefinitions.WarehousePickingDetails.Columns.Where(d => d.Key is not ("fraesen-pfad" or "liefertermin")).ToList();
         if (prefs?.Columns == null || prefs.Columns.Count == 0)
             return defs.Select(d => new PrintColumn(d.Key, d.Label)).ToList();
 
