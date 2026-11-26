@@ -16,20 +16,22 @@ standort: IDEAL
 affected_code:
   - "IdealAkeWms/Data/Repositories/IProductionOrderRepository.cs + ProductionOrderRepository.cs (GetForLeitstandGroupedAsync/BuildLeitstandQuery: Parameter nurHauptFa, identisch zur Leitstand-Spec 2026-11-26 ...-teil-2; FA-Nr.-Filter trifft auch Sub-FA-Nummer per Subquery; Zaehlung Auftraege ohne HauptFA-Zeile)"
   - "IdealAkeWms/Data/Repositories/IFaHierarchyNodeRepository.cs + FaHierarchyNodeRepository.cs + CachedFaHierarchyNodeRepository.cs (neu: GetRootsByHauptFaKeysAsync, ein Batch je Seite)"
-  - "IdealAkeWms/Controllers/ProductionOrdersController.cs (Index hierarchischer Zweig: nurHauptFa, Zeilen als Items, neue Kopf-/Wurzelfelder in MapItem, neue Postfilter-Keys)"
-  - "IdealAkeWms/Models/ViewModels/ProductionOrderListViewModel.cs (ProductionOrderListItem: neue Anzeige-Felder; ViewModel: NurHauptFa, OhneHauptFaZeile)"
-  - "IdealAkeWms/Views/ProductionOrders/Index.cshtml (flacher Zweig auch im hierarchischen Modus, neue <th>/#column-config, Zaehlzeile, Banner)"
+  - "IdealAkeWms/Controllers/ProductionOrdersController.cs (Index hierarchischer Zweig: nurHauptFa, Zeilen als Items, 17 neue Kopf-/Wurzelfelder in MapItem, Matchcode-Rueckfall auf die Strukturwurzel, neue Postfilter-Keys)"
+  - "IdealAkeWms/Models/ViewModels/ProductionOrderListViewModel.cs (ProductionOrderListItem: neue Anzeige-Felder + IsAmbiguous; ViewModel: OhneHauptFaZeile)"
+  - "IdealAkeWms/Views/ProductionOrders/Index.cshtml (Gruppen-Zweig :134-219 und Script-Includes :279-284 entfallen, flacher Zweig auch im hierarchischen Modus, neue <th>/#column-config, Zaehlzeile, Banner)"
+  - "IdealAkeWms/wwwroot/js/fa-liste-wiederholung.js (entfaellt, einziger Verbraucher war ProductionOrders/Index.cshtml:284) + Leseverweis IdealAkeWms.Tests/Helpers/TableScriptScopedSelectorTests.cs:63"
   - "IdealAkeWms/Views/ProductionOrders/_ProductionOrderRow.cshtml (neue Zellen nur bei Hierarchical, Knopf FA-Struktur in row-actions)"
-  - "IdealAkeWms/Models/ViewModels/ColumnDefinitions.cs (ProductionOrders: neue Spalten, DefaultHidden)"
+  - "IdealAkeWms/Models/ViewModels/ColumnDefinitions.cs (ProductionOrders: 17 neue Spalten, alle DefaultHidden)"
   - "IdealAkeWms/Services/ColumnFilterSyntax.cs (Register ProductionOrders/Index: neue Datums-/Zahl-Keys)"
-  - "IdealAkeWms.Tests (Repository nurHauptFa, Postfilter neue Keys, ViewKey-Drift-Waechter ProductionOrders)"
+  - "IdealAkeWms.Tests (Repository nurHauptFa, Postfilter neue Keys, Matchcode-Rueckfall, ViewKey-Drift-Waechter ProductionOrders)"
   - "docs/TESTSZENARIEN.md, Views/Help/Index.cshtml + Changelog.cshtml, docs/anwender (FA-Liste)"
 open_questions:
-  - "1. Sub-FA-Zeilen in der FA-Liste ganz weg (Empfehlung) oder Schalter „Sub-FAs anzeigen“ wie in der Leitstand-Spec (L6)? Hebt fuer die FA-Liste die Gruppenansicht aus [[2026-08-18-fa-liste-hierarchie-anzeige-spec]] auf."
-  - "2. Welche Strukturfelder aus der Mapping-Tabelle sollen ins Zahnrad (Spalte „Vorschlag“ = ja/nein bestaetigen), und alle neuen per Default ausgeblendet (Empfehlung) oder einzelne sichtbar?"
-  - "3. Matchcode der HauptFA-Zeile: bleibt Artikelstamm (Fallstrick „Listen lesen Article.Matchcode“), oder bei leerem Artikelstamm-Treffer Rueckfall auf den Matchcode der Strukturwurzel (wie Stueckliste Variante B)? Fehlende Endgeraete im Artikelstamm sind ein bekannter Mangel."
-  - "4. Kopf-Status (FAInfos.Status): eigene Spalte „PPS-Status“ (Empfehlung) oder in die bestehende Spalte „Sage-Status“ (heute aus FAZusatzinformationen) einspielen? Haengt an Pruefabfrage S-1."
-  - "5. AKE-Spalten ohne IDEAL-Quelle (Werkbank, Kaeltemittel, Ventil, Ausfuehrung E/Z, Maschine, ggf. Sage-Status): im hierarchischen Modus unveraendert lassen (Empfehlung) oder ausblenden?"
+  - "1. (beantwortet Gerald 2026-11-26: ganz weg) Sub-FA-Zeilen in der FA-Liste ganz weg (Empfehlung) oder Schalter „Sub-FAs anzeigen“ wie in der Leitstand-Spec (L6)? Hebt fuer die FA-Liste die Gruppenansicht aus [[2026-08-18-fa-liste-hierarchie-anzeige-spec]] auf."
+  - "2. (beantwortet Gerald 2026-11-26: 16 ja-Spalten + Material, Artikeltyp/BxHxT nein, alle Default ausgeblendet) Welche Strukturfelder aus der Mapping-Tabelle sollen ins Zahnrad (Spalte „Vorschlag“ = ja/nein bestaetigen), und alle neuen per Default ausgeblendet (Empfehlung) oder einzelne sichtbar?"
+  - "3. (beantwortet Gerald 2026-11-26: Rueckfall auf Strukturwurzel; Reihenfolge siehe Rueckfrage 6) Matchcode der HauptFA-Zeile: bleibt Artikelstamm (Fallstrick „Listen lesen Article.Matchcode“), oder bei leerem Artikelstamm-Treffer Rueckfall auf den Matchcode der Strukturwurzel (wie Stueckliste Variante B)? Fehlende Endgeraete im Artikelstamm sind ein bekannter Mangel."
+  - "4. (beantwortet Gerald 2026-11-26: eigene Spalte PPS-Status, Sage-Status unveraendert) Kopf-Status (FAInfos.Status): eigene Spalte „PPS-Status“ (Empfehlung) oder in die bestehende Spalte „Sage-Status“ (heute aus FAZusatzinformationen) einspielen? Haengt an Pruefabfrage S-1."
+  - "5. (beantwortet Gerald 2026-11-26: unveraendert) AKE-Spalten ohne IDEAL-Quelle (Werkbank, Kaeltemittel, Ventil, Ausfuehrung E/Z, Maschine, ggf. Sage-Status): im hierarchischen Modus unveraendert lassen (Empfehlung) oder ausblenden?"
+  - "6. Konflikt Antwort 3 vs. Code: Die Antwort sagt „Artikelstamm zuerst, Strukturwurzel als Rueckfall“, die genannte Stueckliste v1.62.0 macht es umgekehrt (Strukturknoten zuerst, Artikelstamm als Rueckfall, PickingController.cs:353, :555). Spec baut nach dem Wortlaut der Antwort — so lassen oder Reihenfolge wie Stueckliste? (Wirkt nur, wenn beide Quellen befuellt sind und sich unterscheiden; nicht blockierend.)"
 epic: false
 etappen: []
 deploy:
@@ -53,9 +55,14 @@ dann an genau einem Ort (FA-Struktur), statt doppelt.
 **In-Scope** (nur hierarchischer Modus, Master `ProduktionsauftragHierarchisch` = true, also IDEAL):
 
 - FA-Liste `/ProductionOrders` zeigt nur HauptFA-Zeilen (`ProductionOrder.IsHauptFa`), Paginierung und
-  Zaehler ueber HauptFA-Zeilen.
-- Neue, per Default ausgeblendete Spalten aus Auftragskopf (`FaHierarchyOrderInfo`) und Strukturwurzel
-  (`FaHierarchyNode`, `SubFA == HauptFA`) gemaess Mapping-Tabelle, je mit Server-Spaltenfilter.
+  Zaehler ueber HauptFA-Zeilen. Sub-FA-Zeilen sind ganz weg, kein Schalter (Freigabe-Antwort 1); die
+  Gruppenansicht der FA-Liste entfaellt.
+- 17 neue, per Default ausgeblendete Spalten aus Auftragskopf (`FaHierarchyOrderInfo`) und Strukturwurzel
+  (`FaHierarchyNode`, `SubFA == HauptFA`) gemaess Mapping-Tabelle (16 „ja“ + Material, Freigabe-Antwort 2),
+  je mit Server-Spaltenfilter.
+- Matchcode der HauptFA-Zeile: Artikelstamm, bei fehlendem/leerem Treffer Rueckfall auf den Matchcode der
+  Strukturwurzel (Freigabe-Antwort 3).
+- Eigene Spalte „PPS-Status“ (`pps-status`) aus dem Auftragskopf; „Sage-Status“ bleibt unveraendert (Freigabe-Antwort 4).
 - Knopf je Zeile „FA-Struktur“ → `/FaHierarchy?filterHauptFa=<HauptFA>`.
 - Banner fuer Auftraege ohne HauptFA-Zeile (melden statt still verschwinden lassen).
 
@@ -63,6 +70,8 @@ dann an genau einem Ort (FA-Struktur), statt doppelt.
 
 - Flacher Modus (AKE): bit-identisch (Zweig `ProductionOrdersController.cs:398-464` unberuehrt, neue Zellen
   strukturell an `Model.Hierarchical` gebunden wie die K1-Spalten, `ColumnDefinitions.cs:16-21`).
+- AKE-Spalten ohne IDEAL-Quelle (Werkbank, Kaeltemittel, Ventil, Ausfuehrung E/Z, Maschine, Sage-Status) bleiben
+  auch im hierarchischen Modus unveraendert (Freigabe-Antwort 5) — kein Ausblenden, kein Umbau.
 - Leitstand: eigene Spec [[2026-11-26-beschichtung-summe-leitstand-hauptfa-kommissionierauftrag-liste-teil-2-spec]]
   (paralleler Entwurf, gleicher Repository-Parameter, siehe Uebersicht). Die vier uebrigen Ansichten aus
   [[2026-08-18-fa-liste-hierarchie-anzeige-spec]] (FaCompletion, Picking, FaWorklist, Tracking) bleiben.
@@ -98,6 +107,20 @@ dann an genau einem Ort (FA-Struktur), statt doppelt.
 - Kaeltemittel/Ventil/Ausfuehrung/Maschine/Sage-Status kommen aus `ProductionOrderExtraInfo`, geschrieben von
   `FaZusatzinfoSyncService` fuer jede `ProductionOrder` mit `OrderNumber == WaNummer` (`FaZusatzinfoSyncService.cs:83-97`,
   `:127-139`); ob die View `vw_IDEAL_AKE_WMS_FAZusatzinformationen` in der IDEAL-Sage existiert, ist **unbelegt** (S-1).
+  Mit Freigabe-Antworten 4 und 5 haengt keine Entscheidung mehr an S-1 (Spalten bleiben unveraendert); S-1 erklaert
+  nur, ob diese Spalten an der IDEAL befuellt sind.
+- Matchcode-Muster Stueckliste v1.62.0 (Variante B): `PickingController.cs:353` und `:555` nehmen
+  `(bom as FaHierarchyBomItem)?.Matchcode ?? matchcodes.GetValueOrDefault(bom.Ressourcenummer ?? "")` — dort
+  **Strukturknoten zuerst**, Artikelstamm als Rueckfall; `FaHierarchyBomItem.Matchcode` ist getrimmt, leer = null
+  (`Models/FaHierarchyBomItem.cs:29-31`). `MatchcodeLookup.BuildAsync` liefert null fuer „kein Treffer“ und „leerer
+  Matchcode“ (`Services/MatchcodeLookup.cs:14-20`). `FaHierarchyNode`-Werte sind roh/ungetrimmt (`Models/FaHierarchyNode.cs:11`).
+- Der Matchcode-Spaltenfilter ist ein C#-Postfilter auf `item.Matchcode` (`ProductionOrdersController.cs:486`, `:527`),
+  laeuft also auf dem angezeigten Wert nach `MapItem`.
+- `Material` an `FaHierarchyNode` (`Models/FaHierarchyNode.cs:48`) schreibt der Sage-View-Leser aus Spalte `Material`
+  (`IDEALAKEWMSService/Services/SageFaStrukturReader.cs:126`, `:156`) bzw. der SData-Leser aus `USER_OSMaterial`
+  (`IDEALAKEWMSService/Services/Sdata/SdataFaStrukturReader.cs:266`). Spalten-Key `material`/Label „Material“ ist im
+  Projekt schon eingefuehrt (`Services/BdeTeilelisteService.cs:208`, `Services/KommissionierListenService.cs:118`,
+  `Views/BdeTeileliste/Index.cshtml:135`); in `ColumnDefinitions.ProductionOrders` gibt es ihn noch nicht (`ColumnDefinitions.cs:25-61`).
 - Zugriff: `ProductionOrdersController` und `FaHierarchyController` haben denselben Klassenfilter
   `[RequirePickingOrTrackingOrLeitstandAccess]` (`ProductionOrdersController.cs:13`, `FaHierarchyController.cs:24`);
   FaHierarchy zusaetzlich `[RequireHierarchischeStrukturAktiv]` (`:25`). Wer die FA-Liste sieht, darf in die Struktur.
@@ -110,12 +133,15 @@ dann an genau einem Ort (FA-Struktur), statt doppelt.
 |---|---|
 | F1 | Hierarchischer Modus: je HauptFA genau eine Zeile (`IsHauptFa`). Keine Gruppen-Kopfzeile, keine Varianten-Tabelle. Paginierung und Zaehlzeile „n Auftraege“ ueber HauptFA-Zeilen. |
 | F2 | Filterkarte, Spaltenfilter und C#-Postfilter wirken auf die HauptFA-Zeile. Ausnahme FA-Nr. (Filterkarte und Spalte `order-number`): eine **Sub-FA-Nummer** findet ihren HauptFA (Links von aussen, z. B. `StockApiController.cs:85`, uebergeben auch Sub-FA-Nummern). |
-| F3 | Neue Spalten laut Mapping-Tabelle (nach Rueckfrage 2), Default ausgeblendet, je `data-col-key` + Server-Spaltenfilter. Werte nur angezeigt, nie materialisiert. Kombigeraet (mehrere Koepfe): Kopf-Spalten leer, wie heute bei K1 (kein stilles Auswaehlen). |
+| F3 | Die 17 Spalten der Mapping-Tabelle „Neu“ mit Entscheidung „ja“ (Freigabe-Antwort 2), alle Default ausgeblendet (`DefaultHidden: true`), per Zahnrad einblendbar, je `data-col-key` + Server-Spaltenfilter. Werte nur angezeigt, nie materialisiert. Kombigeraet (mehrere Koepfe): Kopf-Spalten leer, wie heute bei K1 (kein stilles Auswaehlen). |
 | F4 | Kombigeraet-Zeile traegt in der FA-Nr.-Zelle das Badge „mehrdeutig (Kombigeraet)“ (heute in der Gruppen-Kopfzeile, `Index.cshtml:167`); die Kopfvarianten zeigt die FA-Struktur (Kopfdaten-Tabelle, `FaHierarchy/Index.cshtml:219-247`). |
 | F5 | Knopf „FA-Struktur“ in `row-actions` jeder Zeile, nur `Model.Hierarchical`; Ziel `/FaHierarchy?filterHauptFa=<OrderNumber>`, gleicher Tab. Beschriftung per `title`/`aria-label`, Trefferflaeche wie die Nachbarknoepfe (`btn-sm`). |
 | F6 | Banner `alert-warning` mit Text, wenn offene Auftraege ohne HauptFA-Zeile existieren: „n Auftraege ohne HauptFA-Zeile werden in der FA-Liste nicht angezeigt – Struktur unter FA-Struktur.“ Gezaehlt mit demselben `showDone`-Filter. |
 | F7 | Spalte „Uebergeordnete Sub-FA“ (`parent-sub-order-number`) entfaellt im hierarchischen Modus (an der HauptFA-Zeile immer leer). |
 | F8 | AKE (Master false): Liste, Spalten, Zahnrad-Inhalt und gespeicherte Praeferenzen unveraendert. |
+| F9 | Matchcode (`matchcode`) der HauptFA-Zeile: Artikelstamm-Wert (`MatchcodeLookup`); ist er null/leer, der getrimmte `Matchcode` der Strukturwurzel (leer → null). Der Spaltenfilter `matchcode` wirkt auf diesen angezeigten Wert. Reihenfolge nach Wortlaut Freigabe-Antwort 3 (Konflikt zur Stueckliste siehe Rueckfrage 6). |
+| F10 | Kopf-`Status` als eigene Spalte „PPS-Status“ (`pps-status`); die Spalte „Sage-Status“ (`sage-status`, `ExtraInfo.SageStatus`) bleibt in Quelle, Label und Default unveraendert (Freigabe-Antwort 4). |
+| F11 | AKE-Spalten Werkbank, Kaeltemittel, Ventil, Ausfuehrung E/Z, Maschine, Sage-Status bleiben im hierarchischen Modus unveraendert (Freigabe-Antwort 5). |
 
 ### Mapping-Tabelle Strukturfeld → FA-Listen-Spalte
 
@@ -134,11 +160,11 @@ W = Strukturwurzel `FaHierarchyNode` mit `SubFA == HauptFA` (`Models/FaHierarchy
 | W `Artnr`, `Bezeichnung1/2`, `Sollmenge` | `article-number`, `description1/2`, `quantity` | materialisiert, `FaMaterializationSyncService.cs:154-157` |
 | W `Beschichtet` (selbst oder direktes Kind) | `coating-part` (Lack-T) | `FaMaterializationCoating.Derive`, Lack-Flag `:216-228` |
 
-**Neu (Vorschlag, Rueckfrage 2):**
+**Neu (entschieden, Freigabe-Antwort 2 — alle 17 „ja“-Zeilen `DefaultHidden: true`):**
 
-| Strukturfeld | neue Spalte (`data-col-key`, Label) | Filtertyp | Vorschlag |
+| Strukturfeld | neue Spalte (`data-col-key`, Label) | Filtertyp | Entscheidung |
 |---|---|---|---|
-| K `Status` | `pps-status`, „PPS-Status“ | Text | ja (Rueckfrage 4) |
+| K `Status` | `pps-status`, „PPS-Status“ | Text | ja (eigene Spalte, Freigabe-Antwort 4) |
 | K `Pos` | `ab-position`, „AB-Pos.“ | Text | ja |
 | K `Dienstleister` | `dienstleister`, „Beschichter“ | Text | ja |
 | K `RAL` | `ral`, „RAL“ | Text | ja |
@@ -154,16 +180,22 @@ W = Strukturwurzel `FaHierarchyNode` mit `SubFA == HauptFA` (`Models/FaHierarchy
 | W `BemerkungPN` | `bemerkung`, „Bemerkung“ | Text | ja |
 | W `FertigungsInfoPN` | `fertigungsinfo`, „Fertigungsinfo“ | Text | ja |
 | W `Arbeitsschritte` | `arbeitsschritte`, „Arbeitsschritte“ (Rohtext, keine Status-Symbole) | Text | ja |
-| W `Material` | `material`, „Material“ | Text | offen |
-| W `Artikeltyp` | `artikeltyp`, „Artikeltyp“ | Text | offen |
-| W `Breite`/`Hoehe`/`Tiefe` | `abmessungen`, „B × H × T“ (eine Zelle) | Text | offen |
-| W `VMBedarf`, `EKBedarf`, `Beschaffungsartikel` | — | — | nein (Stuecklisten-Merkmale der Position, an der Wurzel ohne Auftragsbedeutung; unbelegt, deshalb nur Vorschlag) |
-| W `HauptArtnr`, `Matchcode` | — | — | nein (`HauptArtnr` an der Wurzel = Artikel des Geraets, unbelegt; Matchcode siehe Rueckfrage 3) |
+| W `Material` | `material`, „Material“ (Key/Label wie BDE-Teileliste/Kommissionierliste, siehe Ist-Stand) | Text (enthaelt/NOT, Server-Postfilter wie die anderen Text-Keys) | ja (aus „offen“, Freigabe-Antwort 2) |
+| W `Artikeltyp` | — | — | nein (Freigabe-Antwort 2) |
+| W `Breite`/`Hoehe`/`Tiefe` | — | — | nein (Freigabe-Antwort 2) |
+| W `VMBedarf`, `EKBedarf`, `Beschaffungsartikel` | — | — | nein (Stuecklisten-Merkmale der Position, an der Wurzel ohne Auftragsbedeutung) |
+| W `HauptArtnr` | — | — | nein (`HauptArtnr` an der Wurzel = Artikel des Geraets, unbelegt) |
+| W `Matchcode` | keine neue Spalte | — | nein als Spalte — dient als Rueckfall der bestehenden Spalte `matchcode` (F9, Freigabe-Antwort 3) |
 
-Die Bedeutung der neuen Kopf-/Wurzelfelder ist in dieser Spec **nur aus den Namen** abgeleitet (Sage-View-Felder,
+Reihenfolge im Zahnrad/`<th>`: die 17 neuen Spalten in Tabellenreihenfolge oben, hinter den bestehenden hierarchischen
+Spalten und vor `row-actions` (per Zahnrad umsortierbar, `SupportsReorder: true`, `ColumnDefinitions.cs:23`).
+
+~~Die Bedeutung der neuen Kopf-/Wurzelfelder ist in dieser Spec **nur aus den Namen** abgeleitet (Sage-View-Felder,
 nicht gegen die View-Definition geprueft); `Dienstleister` wird z. B. im Beschichtungsauftrag gelesen
 (`BeschichtungsauftraegeController.cs:132-139`). Die Labels sind deshalb Vorschlaege fuer die Bestaetigung in
-Rueckfrage 2 und gelten bis dahin als **unverifiziert**.
+Rueckfrage 2 und gelten bis dahin als **unverifiziert**.~~ *(ueberholt: Labels und Auswahl von Gerald bestaetigt,
+Freigabe-Antwort 2.)* Die Werte selbst sind nur aus den Sage-View-Feldern durchgereicht; ob sie an der IDEAL befuellt
+sind, zeigt Pruefabfrage W-3 (Testdaten fuer die Abnahme, keine Entscheidung haengt mehr daran).
 
 ## Technischer Loesungsentwurf
 
@@ -182,16 +214,27 @@ Kopfdaten-Abfrage, ein neuer Batch-Read, vorhandenes Postfilter-Muster.
    `FaHierarchyOrderInfoRepository.GetByHauptFaKeysAsync` (`:39-47`). Decorator `CachedFaHierarchyNodeRepository`
    reicht ohne Cache durch (Schluesselmenge je Seite verschieden). Mehr als eine Wurzel je HauptFA: erste nehmen
    **und** `LogWarning` einmal je Seitenaufbau (melden statt still); Pruefabfrage W-1 klaert die Datenlage vorab.
-3. **Controller `Index`, hierarchischer Zweig**: `nurHauptFa: true` an `:246`. Ergebnis-Zeilen wie heute mappen;
-   `MapItem` bekommt Kopf und Wurzel durchgereicht und setzt die neuen Felder nur bei eindeutigem Kopf (Kopf-Felder)
-   bzw. vorhandener Wurzel. `vm.Items = listGroups.SelectMany(g => g.Items)`, `vm.Hierarchical = true` bleibt
-   (FA-Nr.-Zelle, Badges), neu `vm.NurHauptFa = true`, `vm.OhneHauptFaZeile = n`, `IsAmbiguous` je Item fuer F4.
+3. **Controller `Index`, hierarchischer Zweig**: `nurHauptFa: true` an `:246`. Wurzel-Batch (Schritt 2) direkt nach
+   `GetByHauptFaKeysAsync` (`:263`) ueber dieselben `hauptFaKeys` — also **vor** `MapItem` und vor den Postfiltern
+   (bei Postfiltern ueber alle Gruppen, `:240-241`). Ergebnis-Zeilen wie heute mappen; `MapItem` bekommt Kopf und
+   Wurzel durchgereicht und setzt die neuen Felder nur bei eindeutigem Kopf (Kopf-Felder) bzw. vorhandener Wurzel.
+   Matchcode (F9): `matchcodes.GetValueOrDefault(r.ArticleNumber ?? "")`, bei null/leer `root?.Matchcode?.Trim()`
+   (leer → null) — nach dem Postfilter-Muster `:527` filtert `matchcode` dann den angezeigten Wert.
+   `vm.Items = listGroups.SelectMany(g => g.Items)`, `vm.Hierarchical = true` bleibt
+   (FA-Nr.-Zelle, Badges), neu `vm.OhneHauptFaZeile = n`, `IsAmbiguous` je Item fuer F4. ~~neu `vm.NurHauptFa = true`~~
+   *(ueberholt: ohne Schalter ist hierarchisch = nur HauptFA, kein eigenes Flag; Freigabe-Antwort 1)*.
    Neue Text-Keys in `FaListComputedColumnKeys` + `MatchFaListComputedFilter` (`:484-533`), neue Datums-Keys in
    `FaListDateColumnKeys` + `MatchFaListDateFilter` (`:474-514`), Zahl-/Datums-Typen im Register
    `ColumnFilterSyntax.cs:69`. Gruppen-Postfilter-Schleife bleibt (je Gruppe eine Zeile).
-4. **View `Index.cshtml`**: Zweigwahl `Model.Hierarchical && !Model.NurHauptFa` → Gruppen (dann nur noch fuer den
-   Fall Rueckfrage 1 = Schalter), sonst flacher Zweig. `data-hierarchical` nur bei Gruppenansicht `true`, damit
-   `fa-liste-gruppierung.js`/`fa-liste-wiederholung.js` nichts tun. Neue `<th data-filterable data-col-key>` und
+4. **View `Index.cshtml`**: ~~Zweigwahl `Model.Hierarchical && !Model.NurHauptFa` → Gruppen (dann nur noch fuer den
+   Fall Rueckfrage 1 = Schalter), sonst flacher Zweig.~~ *(ueberholt, Freigabe-Antwort 1)* Der Gruppen-Zweig
+   (`Index.cshtml:134-219`) entfaellt ganz; die Tabelle rendert immer den flachen Zweig. `data-hierarchical` (`:77`)
+   und die Script-Includes `fa-liste-gruppierung.js`/`fa-liste-wiederholung.js` (`:279-284`) entfallen auf dieser Seite.
+   `fa-liste-wiederholung.js` hat danach keinen Verbraucher mehr (einziger Include `:284`) → Datei loeschen und den
+   Leseverweis `IdealAkeWms.Tests/Helpers/TableScriptScopedSelectorTests.cs:63` mitnehmen; `fa-liste-gruppierung.js`
+   bleibt (FaCompletion, FaWorklist, PickingLeitstand). `ProductionOrderListViewModel.Groups`/`HierarchicalRowCount`
+   entfallen nur, wenn danach kein Leser bleibt (Typ `ProductionOrderListGroup` nutzen andere Ansichten weiter).
+   Neue `<th data-filterable data-col-key>` und
    `#column-config`-Eintraege mit `"defaultHidden": true`, alle hinter `@if (Model.Hierarchical)` (Muster `:89-95`,
    `:249-252`); `colCount` entsprechend. `parent-sub-order-number` bei Hierarchical weglassen (F7). Zaehlzeile, Banner F6.
 5. **Row-Partial**: neue Zellen hinter `@if (Model.Hierarchical)` in derselben Reihenfolge wie `<th>`; Knopf F5 in
@@ -221,7 +264,7 @@ WHERE po.IsDone = 0 AND po.IsCancelled = 0
                   WHERE h.OrderNumber = po.OrderNumber
                     AND (h.SubOrderNumber = N'' OR h.SubOrderNumber = h.OrderNumber));
 
--- W-3 (WMS-DB IDEAL-Test): Fuellgrad der vorgeschlagenen Kopf-/Wurzelfelder (Entscheidungshilfe Rueckfrage 2)
+-- W-3 (WMS-DB IDEAL-Test): Fuellgrad der Kopffelder (Testdaten fuer die Abnahme; Rueckfrage 2 ist beantwortet)
 SELECT COUNT(*) AS Koepfe,
        SUM(CASE WHEN NULLIF(LTRIM(Status),'') IS NULL THEN 0 ELSE 1 END) AS mit_Status,
        SUM(CASE WHEN NULLIF(LTRIM(RAL),'') IS NULL THEN 0 ELSE 1 END) AS mit_RAL,
@@ -229,7 +272,7 @@ SELECT COUNT(*) AS Koepfe,
        SUM(CASE WHEN Neuer_PT_PPS IS NULL THEN 0 ELSE 1 END) AS mit_NeuerPT
 FROM dbo.FaHierarchyOrderInfos;
 
--- S-1 (Sage IDEAL Test, nur SELECT): gibt es die Zusatzinfo-View an der IDEAL? (Rueckfragen 4/5)
+-- S-1 (Sage IDEAL Test, nur SELECT): gibt es die Zusatzinfo-View an der IDEAL? (nur Erklaerung; Rueckfragen 4/5 beantwortet)
 SELECT OBJECT_ID(N'dbo.vw_IDEAL_AKE_WMS_FAZusatzinformationen', N'V') AS ViewId;
 ```
 
@@ -239,8 +282,8 @@ sind bis dahin **unverifiziert**.
 
 ## Einstellungen
 
-keine. „Nur HauptFA“ ist im hierarchischen Modus fest (kein Toggle), Master `ProduktionsauftragHierarchisch` unveraendert.
-Falls Rueckfrage 1 = Schalter: URL-Parameter der Seite (`mitSubFa`), keine Einstellung.
+keine. „Nur HauptFA“ ist im hierarchischen Modus fest (kein Toggle, kein URL-Parameter; Freigabe-Antwort 1), Master
+`ProduktionsauftragHierarchisch` unveraendert. ~~Falls Rueckfrage 1 = Schalter: URL-Parameter der Seite (`mitSubFa`), keine Einstellung.~~ *(ueberholt)*
 
 | Key | Typ | Erlaubte Werte | Default | Wirkung | Verwendung | Standort | Warnhinweis |
 |---|---|---|---|---|---|---|---|
@@ -257,7 +300,7 @@ Keine — reine Lese-Aenderung, keine Entitaet wird geschrieben. Spalten-Praefer
 2. Zaehlzeile „n Auftraege“; `Pagination.TotalCount` = Anzahl HauptFA-Zeilen nach Filtern; Seitengroesse wirkt auf HauptFA-Zeilen.
 3. FA-Nr.-Filter (Karte und Spalte) mit einer Sub-FA-Nummer liefert die zugehoerige HauptFA-Zeile; mit der HauptFA-Nummer ebenfalls.
 4. Artikelnummer-, Kunde-, Datums- und Matchcode-Filter wirken auf die Werte der HauptFA-Zeile.
-5. Jede in Rueckfrage 2 bestaetigte neue Spalte ist im Zahnrad vorhanden, per Default ausgeblendet, zeigt den Wert aus Kopf bzw. Wurzel und hat einen funktionierenden Spaltenfilter (Text: enthaelt/NOT; Datum: KW/Bereich; Zahl: Vergleich).
+5. Jede der 17 neuen Spalten der Mapping-Tabelle (16 bisherige „ja“ + `material`) ist im Zahnrad vorhanden, ohne gespeicherte Praeferenz ausgeblendet, zeigt eingeblendet den Wert aus Kopf bzw. Wurzel und hat einen funktionierenden Spaltenfilter (Text: enthaelt/NOT; Datum: KW/Bereich; Zahl: Vergleich). Artikeltyp und B × H × T gibt es nicht.
 6. Kombigeraet: Kopf-Spalten (alt und neu) leer, Badge „mehrdeutig (Kombigeraet)“ in der FA-Nr.-Zelle; Wurzel-Spalten befuellt.
 7. Knopf „FA-Struktur“ je Zeile oeffnet `/FaHierarchy?filterHauptFa=<HauptFA>` und zeigt dort diese Struktur.
 8. Existieren offene Auftraege ohne HauptFA-Zeile, zeigt die Liste das Banner F6 mit der Anzahl (gleich Pruefabfrage W-2); sonst kein Banner.
@@ -265,7 +308,11 @@ Keine — reine Lese-Aenderung, keine Entitaet wird geschrieben. Spalten-Praefer
 10. AKE (Master false): FA-Liste unveraendert — gleiche Spalten, gleiche Zeilen, kein FA-Struktur-Knopf, keine neuen Zahnrad-Eintraege.
 11. `ColumnDefinitions.ProductionOrders` und `#column-config` sind deckungsgleich (Drift-Waechter-Test gruen).
 12. Kein Schreibzugriff: Diff enthaelt keine Migration, keine SQL-Datei, keine Aenderung im Service-Projekt.
-13. Build + alle Tests gruen; neue Tests: Repository `nurHauptFa` (Sub-FA-Nummer findet HauptFA, Sub-FA-Zeilen ausgeschlossen), Postfilter je neuem Key-Typ.
+13. Build + alle Tests gruen; neue Tests: Repository `nurHauptFa` (Sub-FA-Nummer findet HauptFA, Sub-FA-Zeilen ausgeschlossen), Postfilter je neuem Key-Typ, Matchcode-Rueckfall (Artikelstamm-Treffer gewinnt; ohne Treffer bzw. leer → getrimmter Wurzel-Matchcode; beides leer → leer).
+14. Matchcode: HauptFA-Zeile mit Artikelstamm-Treffer zeigt den Artikelstamm-Matchcode; ohne Treffer (oder leerer Matchcode) den Matchcode der Strukturwurzel; der Spaltenfilter `matchcode` findet auch Zeilen, deren Wert aus der Wurzel kommt.
+15. Spalte „PPS-Status“ (`pps-status`) zeigt `FaHierarchyOrderInfo.Status` bei genau einem Kopf; „Sage-Status“ (`sage-status`) ist in Quelle, Label und Default-Sichtbarkeit unveraendert.
+16. Werkbank, Kaeltemittel, Ventil, Ausfuehrung E/Z, Maschine und Sage-Status sind im hierarchischen Modus unveraendert (gleiche Spalten, gleiche Quelle, gleiche Default-Sichtbarkeit wie vorher).
+17. Die Gruppenansicht der FA-Liste ist entfernt: kein `data-hierarchical`, kein Include `fa-liste-wiederholung.js`/`fa-liste-gruppierung.js` in `ProductionOrders/Index.cshtml`; FaCompletion, FaWorklist und Leitstand gruppieren unveraendert.
 
 ## Test-Szenarien
 
@@ -274,9 +321,10 @@ Index `secondbrain/tests/testszenarien-index.md`. TS-69/TS-73 (Gruppenansicht FA
 abgeloest“ kennzeichnen, nicht loeschen.
 
 - **Vorbedingung:** IDEAL-Testsystem, Master an, mind. ein normaler HauptFA, ein Kombigeraet, ein HauptFA mit Lackierteilen; Benutzer mit Picking-Recht und einer nur mit Tracking-Recht.
-- **Positiv:** nur HauptFA-Zeilen (AK 1/2); Sub-FA-Nummer suchen (AK 3); neue Spalte einblenden, Wert gegen FA-Struktur-Kopf/-Wurzel pruefen, filtern (AK 5); Knopf FA-Struktur (AK 7); Reload behaelt Zahnrad-Auswahl.
+- **Positiv:** nur HauptFA-Zeilen (AK 1/2); Sub-FA-Nummer suchen (AK 3); ohne Praeferenz sind die 17 neuen Spalten ausgeblendet, je eine K-, W-, Datums- und Zahl-Spalte sowie „Material“ einblenden, Wert gegen FA-Struktur-Kopf/-Wurzel pruefen, filtern (AK 5); PPS-Status neben unveraendertem Sage-Status (AK 15); Knopf FA-Struktur (AK 7); Reload behaelt Zahnrad-Auswahl.
+- **Matchcode:** HauptFA mit Artikelstamm-Eintrag → Artikelstamm-Wert; Endgeraet ohne Artikelstamm-Eintrag → Matchcode der Strukturwurzel, Spaltenfilter darauf trifft (AK 14). Vorab per SQL ein Endgeraet ohne Artikelstamm-Treffer suchen (`ProductionOrders` HauptFA-Zeile, `ArticleNumber` nicht in `Articles`).
 - **Kombigeraet:** AK 6.
-- **Negativ:** Auftrag ohne HauptFA-Zeile → Banner (AK 8); Filter ohne Treffer → Leerzustand mit korrektem colspan; AKE-Testsystem unveraendert (AK 10); Benutzer ohne FA-Listen-Recht → kein Zugriff wie bisher.
+- **Negativ:** Auftrag ohne HauptFA-Zeile → Banner (AK 8); Filter ohne Treffer → Leerzustand mit korrektem colspan; AKE-Spalten an der IDEAL unveraendert (AK 16); AKE-Testsystem unveraendert (AK 10); FaCompletion/FaWorklist/Leitstand gruppieren weiter (AK 17); Benutzer ohne FA-Listen-Recht → kein Zugriff wie bisher.
 
 ## Etappen (nur bei epic: true)
 
@@ -293,23 +341,27 @@ abgeloest“ kennzeichnen, nicht loeschen.
 - **Migration:** nein
 - **Manifest-Eintraege** (`scripts/deploy/nachlauf.psd1`):
   - Id `fa-liste-nur-hauptfa-info`, Version = Version des Laufs, Typ `Info`, Firma `IDEAL`, Phase `Nachher`, Ausfuehrung `anzeigen`,
-    Text „FA-Liste zeigt nur noch HauptFA-Zeilen; Sub-FAs ueber den Knopf FA-Struktur. Weitere Strukturfelder im Zahnrad.“
+    Text „FA-Liste zeigt nur noch HauptFA-Zeilen; Sub-FAs ueber den Knopf FA-Struktur. 17 weitere Strukturfelder (u. a. PPS-Status, RAL, Material) per Zahnrad einblendbar. Matchcode faellt bei fehlendem Artikelstamm auf die Strukturwurzel zurueck.“
 - **Publish-Befehle:** `dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWMSWeb` (im Worktree)
 
 ## Offene Rueckfragen
 
-1. Sub-FA-Zeilen in der FA-Liste **ganz weg** (Empfehlung: die Sub-FA-Sicht lebt dann nur in der FA-Struktur, ein Knopf entfernt) oder ein Schalter „Sub-FAs anzeigen“ wie in der Leitstand-Spec (L6), der die heutige Gruppenansicht zurueckholt? Beides hebt fuer die FA-Liste die Standard-Gruppenansicht aus [[2026-08-18-fa-liste-hierarchie-anzeige-spec]] auf; „ganz weg“ macht dort den FA-Listen-Teil (Gruppen-JS, Wiederholungswerte) fuer diese Seite tot.
-2. Mapping-Tabelle „Neu“: je Zeile ja/nein (Spalte „Vorschlag“, „offen“ = bitte entscheiden), Labels ok? Alle neuen Spalten per Default ausgeblendet (Empfehlung) oder einzelne sichtbar?
-3. Matchcode der HauptFA-Zeile: bleibt Artikelstamm (dokumentierte Festlegung fuer Listen), oder bei fehlendem Artikelstamm-Treffer Rueckfall auf den Matchcode der Strukturwurzel (wie Stueckliste Variante B seit v1.62.0)? Gefertigte Endgeraete fehlen evtl. im Artikelstamm, dann bleibt die Spalte an genau diesen Zeilen leer.
-4. Kopf-Status (`FAInfos.Status`): eigene Spalte „PPS-Status“ (Empfehlung) oder im hierarchischen Modus in die bestehende Spalte „Sage-Status“ (heute `ExtraInfo.SageStatus` aus FAZusatzinformationen)? Ergebnis von S-1 bitte dazunehmen.
-5. AKE-Spalten ohne bekannte IDEAL-Quelle (Werkbank, Kaeltemittel, Ventil, Ausfuehrung E/Z, Maschine, ggf. Sage-Status) im hierarchischen Modus unveraendert lassen (Empfehlung, kleinster Eingriff) oder ausblenden?
+1. *(beantwortet, Freigabe-Antwort 1: ganz weg)* Sub-FA-Zeilen in der FA-Liste **ganz weg** (Empfehlung: die Sub-FA-Sicht lebt dann nur in der FA-Struktur, ein Knopf entfernt) oder ein Schalter „Sub-FAs anzeigen“ wie in der Leitstand-Spec (L6), der die heutige Gruppenansicht zurueckholt? Beides hebt fuer die FA-Liste die Standard-Gruppenansicht aus [[2026-08-18-fa-liste-hierarchie-anzeige-spec]] auf; „ganz weg“ macht dort den FA-Listen-Teil (Gruppen-JS, Wiederholungswerte) fuer diese Seite tot.
+2. *(beantwortet, Freigabe-Antwort 2: 16 „ja“ + Material, Default ausgeblendet)* Mapping-Tabelle „Neu“: je Zeile ja/nein (Spalte „Vorschlag“, „offen“ = bitte entscheiden), Labels ok? Alle neuen Spalten per Default ausgeblendet (Empfehlung) oder einzelne sichtbar?
+3. *(beantwortet, Freigabe-Antwort 3: Rueckfall auf Strukturwurzel; Reihenfolge → Rueckfrage 6)* Matchcode der HauptFA-Zeile: bleibt Artikelstamm (dokumentierte Festlegung fuer Listen), oder bei fehlendem Artikelstamm-Treffer Rueckfall auf den Matchcode der Strukturwurzel (wie Stueckliste Variante B seit v1.62.0)? Gefertigte Endgeraete fehlen evtl. im Artikelstamm, dann bleibt die Spalte an genau diesen Zeilen leer.
+4. *(beantwortet, Freigabe-Antwort 4: eigene Spalte PPS-Status)* Kopf-Status (`FAInfos.Status`): eigene Spalte „PPS-Status“ (Empfehlung) oder im hierarchischen Modus in die bestehende Spalte „Sage-Status“ (heute `ExtraInfo.SageStatus` aus FAZusatzinformationen)? Ergebnis von S-1 bitte dazunehmen.
+5. *(beantwortet, Freigabe-Antwort 5: unveraendert)* AKE-Spalten ohne bekannte IDEAL-Quelle (Werkbank, Kaeltemittel, Ventil, Ausfuehrung E/Z, Maschine, ggf. Sage-Status) im hierarchischen Modus unveraendert lassen (Empfehlung, kleinster Eingriff) oder ausblenden?
+6. **Neu (Rework 2026-11-26) — Konflikt Antwort 3 vs. Code:** Antwort 3 lautet „Artikelstamm zuerst, bei fehlendem Treffer Matchcode der Strukturwurzel (wie Stueckliste v1.62.0)“. Die Stueckliste macht es aber **umgekehrt**: Strukturknoten zuerst, Artikelstamm nur als Rueckfall (`PickingController.cs:353`, `:555`). Die Spec baut nach dem Wortlaut der Antwort (F9). Soll es so bleiben, oder wie in der Stueckliste der Strukturknoten Vorrang haben? Unterschied nur, wenn beide Quellen einen Matchcode haben und sie sich unterscheiden; Umstellen waere das Tauschen der zwei Quellen in einer Zeile. Nicht blockierend.
 
 ## ANTWORTEN auf Rueckfragen - Fachbereich (aus Jira)
 
 ## Freigabe-Antworten (Mensch fuellt aus — Schranke 1)
 
-1. →
-2. →
-3. →
-4. →
-5. →
+*Antworten 1-5 im Chat gegeben und vom Orchestrator im Auftrag eingetragen.*
+
+1. → Sub-FA-Zeilen ganz weg (Empfehlung); Sub-FA-Sicht nur in der FA-Struktur ueber den Knopf je Zeile. *(Gerald 2026-11-26 Chat)*
+2. → Alle 16 „ja“-Spalten der Mapping-Tabelle mit den vorgeschlagenen Labels; von den „offen“-Zeilen nur **Material** dazu, Artikeltyp und B × H × T nicht. Neue Spalten in der FA-Liste per Default ausgeblendet, per Zahnrad holbar (Empfehlung). *(Gerald 2026-11-26 Chat)*
+3. → Rueckfall auf den Matchcode der Strukturwurzel, wenn der Artikelstamm keinen Treffer hat (Empfehlung, wie Stueckliste v1.62.0). *(Gerald 2026-11-26 Chat)*
+4. → Eigene Spalte „PPS-Status“ (Empfehlung); „Sage-Status“ bleibt unveraendert. *(Gerald 2026-11-26 Chat)*
+5. → AKE-Spalten ohne IDEAL-Quelle unveraendert lassen (Empfehlung). *(Gerald 2026-11-26 Chat)*
+6. →
