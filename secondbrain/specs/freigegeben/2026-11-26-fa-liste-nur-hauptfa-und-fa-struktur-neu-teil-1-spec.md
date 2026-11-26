@@ -2,16 +2,16 @@
 type: spec
 title: "IDEAL FA-Liste: nur HauptFA-Zeilen, Strukturfelder im Zahnrad, Sprung in die FA-Struktur"
 slug: 2026-11-26-fa-liste-nur-hauptfa-und-fa-struktur-neu-teil-1-spec
-status: Freigegeben
+status: InUmsetzung
 created: 2026-11-26
 updated: 2026-11-26
 source_backlog: "[[2026-11-26-fa-liste-nur-hauptfa-und-fa-struktur-neu]]"
 uebersicht: "[[2026-11-26-fa-liste-nur-hauptfa-und-fa-struktur-neu-uebersicht]]"
 depends_on: ""
-task: ""
+task: "[[2026-11-26-fa-liste-hauptfa-fa-struktur-goal-lauf]]"
 jira: ""
-worktree: ""
-branch: ""
+worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"
+branch: "feature/2026-08-07-ideal-teile-1-5"
 standort: IDEAL
 affected_code:
   - "IdealAkeWms/Data/Repositories/IProductionOrderRepository.cs + ProductionOrderRepository.cs (GetForLeitstandGroupedAsync/BuildLeitstandQuery: Parameter nurHauptFa, identisch zur Leitstand-Spec 2026-11-26 ...-teil-2; FA-Nr.-Filter trifft auch Sub-FA-Nummer per Subquery; Zaehlung Auftraege ohne HauptFA-Zeile)"

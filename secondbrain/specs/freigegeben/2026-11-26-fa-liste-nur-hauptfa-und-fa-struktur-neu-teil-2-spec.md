@@ -2,16 +2,16 @@
 type: spec
 title: "IDEAL FA-Struktur uebersichtlicher (Variante D: eine Zeile je HauptFA mit Kopfspalten, Baum per Chevron, Teile per Knopf)"
 slug: 2026-11-26-fa-liste-nur-hauptfa-und-fa-struktur-neu-teil-2-spec
-status: Freigegeben
+status: InUmsetzung
 created: 2026-11-26
 updated: 2026-11-26
 source_backlog: "[[2026-11-26-fa-liste-nur-hauptfa-und-fa-struktur-neu]]"
 uebersicht: "[[2026-11-26-fa-liste-nur-hauptfa-und-fa-struktur-neu-uebersicht]]"
 depends_on: "[[2026-11-26-fa-liste-nur-hauptfa-und-fa-struktur-neu-teil-1-spec]]"
-task: ""
+task: "[[2026-11-26-fa-liste-hauptfa-fa-struktur-goal-lauf]]"
 jira: ""
-worktree: ""
-branch: ""
+worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"
+branch: "feature/2026-08-07-ideal-teile-1-5"
 standort: IDEAL
 affected_code:
   - "IdealAkeWms/Views/FaHierarchy/Index.cshtml (Kopfzeile fa-structure-group-head entfaellt; Unterkopf-Zeile nur bei mehreren Auftragskoepfen oder Fehler; neue Kopf-<th>/Filter-<th>/#column-config; Knopf „Teile anzeigen“/„Teile ausblenden“ in der Toolbar; Hinweiszeile Treffer in ausgeblendeten Teilen; Legende als Popover; Hervorheben-Feld BLEIBT)"
