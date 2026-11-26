@@ -2,7 +2,7 @@
 type: spec
 title: "IDEAL-Leitstand: nur HauptFA-Zeilen anzeigen, Freigabe-Haken am HauptFA (Schalter „Sub-FAs anzeigen“)"
 slug: 2026-11-26-beschichtung-summe-leitstand-hauptfa-kommissionierauftrag-liste-teil-2-spec
-status: Entwurf
+status: Freigegeben
 created: 2026-11-26
 updated: 2026-11-26
 source_backlog: "[[2026-11-26-beschichtung-summe-leitstand-hauptfa-kommissionierauftrag-liste]]"
@@ -41,9 +41,9 @@ deploy:
   web: true
   service: false
   migration: false
-freigabe_entscheidung: ""
-freigabe_von: ""
-freigabe_am: ""
+freigabe_entscheidung: "Antworten 1-9 + Kritische Pruefung (Gerald 2026-11-26): eine Zeile je HauptFA, Schalter Sub-FAs anzeigen, Freigabe nur HauptFA, W3 gesperrt (9b), HauptFA erledigt ohne Banner"
+freigabe_von: Gerald
+freigabe_am: 2026-11-26
 ---
 
 ## Ziel / Nutzen (das Warum)

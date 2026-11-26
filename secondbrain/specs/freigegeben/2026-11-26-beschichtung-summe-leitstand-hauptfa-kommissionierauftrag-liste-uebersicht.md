@@ -1,7 +1,7 @@
 ---
 type: uebersicht
 title: "Beschichtung Summe im Druck, Leitstand nur HauptFA, Kommissionierauftrag Maske Stückliste/Liste"
-status: Entwurf
+status: Freigegeben
 created: 2026-11-26
 updated: 2026-11-26
 source_backlog: "[[2026-11-26-beschichtung-summe-leitstand-hauptfa-kommissionierauftrag-liste]]"

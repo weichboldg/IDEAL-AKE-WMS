@@ -2,7 +2,7 @@
 type: spec
 title: "Kommissionierauftrag: Maske umschaltbar Stückliste / Liste (summiert je Artikel, Buchung verteilt auf Positionen), Standard „Liste“ bei aktiven Kommissionierlisten"
 slug: 2026-11-26-beschichtung-summe-leitstand-hauptfa-kommissionierauftrag-liste-teil-3-spec
-status: Entwurf
+status: Freigegeben
 created: 2026-11-26
 updated: 2026-11-26
 source_backlog: "[[2026-11-26-beschichtung-summe-leitstand-hauptfa-kommissionierauftrag-liste]]"
@@ -51,9 +51,9 @@ deploy:
   web: true
   service: false
   migration: false
-freigabe_entscheidung: ""
-freigabe_von: ""
-freigabe_am: ""
+freigabe_entscheidung: "Epic A+B, Antworten Runde 1-3 + Kritische Pruefung (Gerald 2026-11-26): Liste summiert, Verteilung in Positionsfolge, Rest teilgebuchter Position sichtbar (a), Druck und PDF summiert"
+freigabe_von: Gerald
+freigabe_am: 2026-11-26
 ---
 
 ## Ziel / Nutzen (das Warum)

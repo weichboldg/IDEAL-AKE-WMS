@@ -2,7 +2,7 @@
 type: spec
 title: "Beschichtungsauftrag: Druck/PDF immer summiert je Artikel, Summenzeile „Summe Teile im Auftrag“"
 slug: 2026-11-26-beschichtung-summe-leitstand-hauptfa-kommissionierauftrag-liste-teil-1-spec
-status: Entwurf
+status: Freigegeben
 created: 2026-11-26
 updated: 2026-11-26
 source_backlog: "[[2026-11-26-beschichtung-summe-leitstand-hauptfa-kommissionierauftrag-liste]]"
@@ -34,9 +34,9 @@ deploy:
   web: true
   service: false
   migration: false
-freigabe_entscheidung: ""
-freigabe_von: ""
-freigabe_am: ""
+freigabe_entscheidung: "Antworten 1-5 + Nachfragen + Kritische Pruefung (Gerald 2026-11-26): immer summiert je Artikel, Pos. 1..n, ohne Artnr je Position eigene Zeile"
+freigabe_von: Gerald
+freigabe_am: 2026-11-26
 ---
 
 ## Ziel / Nutzen (das Warum)
