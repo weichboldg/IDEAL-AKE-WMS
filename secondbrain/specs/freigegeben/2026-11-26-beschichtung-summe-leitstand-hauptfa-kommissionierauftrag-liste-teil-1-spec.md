@@ -462,3 +462,15 @@ Frage Gerald: „Warum 6 (4 Positionen)? … wären meines Erachtens 2 Positione
 zählte die Auftragspositionen vor dem Summieren. Entscheidung Gerald: **„Nur Teilesumme“** — die Summenzeile zeigt nur noch
 „Summe Teile im Auftrag <Summe der Mengen>“, ohne Klammer und ohne Positionsanzahl (auch die Einzahl „(1 Position)“ entfällt).
 Geht AK 2/S5 und TS-205 vor. Umsetzung im Bündel nach Teil 2 (Version des Folge-Commits), QA zusammen mit Teil 2.
+
+### QA Nachtrag N-1 (qa-agent, 2026-11-26)
+
+- Commit a89d98cc (v1.99.88): `Print.cshtml` `summeText` nur noch `FormatMass(Model.Summe)`; `PositionenGesamt` entfernt (keine weitere
+  Verwendung, Build grün); `BeschichtungsauftraegeControllerTests` prüft nur noch `Summe` (beabsichtigte Änderung durch N-1);
+  Hilfe, Changelog, `docs/anwender/15-…`, TS-205.1/.5/.11 angepasst. PDF rendert dieselbe View `Print` (`BeschichtungsauftraegeController.Pdf`).
+  Review: keine Befunde.
+- Build/Tests: siehe QA-Nachweis Teil 2 (3820/1/0 Web, 848/0/0 Service). DEV-Deploy AKE + IDEAL v1.99.88, Exit 0.
+- DEV AKE: `/Beschichtungsauftraege/Print/6` → „Summe Teile im Auftrag 1035“ (ohne Klammer); `/Pdf/6` (pdftotext) → „Summe Teile im Auftrag 1035“. OK.
+- DEV IDEAL: `/Beschichtungsauftraege/Print/12` → „17“ ohne Klammer; `/Pdf/12` → „Summe Teile im Auftrag 17“ (das PDF von 20:27 vor N-1 zeigte
+  noch „17 (7 Positionen)“). OK.
+- Status bleibt Testbereit. Offen für den Menschen: TS-205.1/.5/.11 am Testsystem AKE und IDEAL.

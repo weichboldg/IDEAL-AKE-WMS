@@ -2,7 +2,7 @@
 type: spec
 title: "IDEAL-Leitstand: nur HauptFA-Zeilen anzeigen, Freigabe-Haken am HauptFA (Schalter „Sub-FAs anzeigen“)"
 slug: 2026-11-26-beschichtung-summe-leitstand-hauptfa-kommissionierauftrag-liste-teil-2-spec
-status: InUmsetzung
+status: Testbereit
 created: 2026-11-26
 updated: 2026-11-26
 source_backlog: "[[2026-11-26-beschichtung-summe-leitstand-hauptfa-kommissionierauftrag-liste]]"
@@ -499,12 +499,14 @@ Neues Kapitel in `docs/TESTSZENARIEN.md` (Nummer beim Dev-Start prüfen; nach Te
 
 ## Deploy
 
-*Vorläufig, der QA-Lauf bestätigt gegen den echten Diff.*
+*Final (qa-agent 2026-11-26) aus dem echten Diff `e67e9f6f..ebb16bd7` (Commits 5d7639dc, a89d98cc, ebb16bd7):*
 
-- **Web-App:** ja
-- **Service:** nein
-- **Migration:** nein
-- **Manifest-Einträge** (`scripts/deploy/nachlauf.psd1`):
+- **Web-App:** ja (`IdealAkeWms/` Controller, Repository, Service, Views, `fa-work-step-status.js`)
+- **Service:** nein (nur `IDEALAKEWMSService/AppVersion.cs` auf 1.99.88 — fachlich kein Service-Deploy nötig; das Paket enthält beide Komponenten)
+- **Migration:** nein (keine Datei unter `*/Migrations/`, kein `SQL/`)
+- **Publish erledigt:** `C:\Git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-07-ideal-teile-1-5\publish` (IDEALAKEWMSWeb + IDEALAKEWMSWebService + SQL + deploy, `publish-info.txt` Version 1.99.88, Commit ebb16bd7). Ablauf: Publish → Testsystem → Test → Merge. Nach dem Merge nur dann neu aus `main` publishen, wenn der Merge getestete Dateien mit parallelen main-Änderungen zusammengeführt hat.
+- Reihenfolge: kein Backup/DB-Schritt nötig; Web aktualisieren, danach Nachlauf (Prüfung P-3 + Info) laut Manifest.
+- **Manifest-Einträge** (`scripts/deploy/nachlauf.psd1`, beide vorhanden, Version 1.99.88):
 
 | Id | Version | Typ | Firma | Phase | Ausführung | Text |
 |---|---|---|---|---|---|---|
@@ -700,3 +702,97 @@ NACHBESSERUNG NOETIG: B-1 (Lack-T erledigt an Sub-FAs nur noch über „Sub-FAs 
   Sammel-Schreibweg. Hilfetext und Manifest-Info sagen das ausdrücklich.
 - S-1: „Ja, passt so“ – ist die HauptFA-Zeile erledigt, fertig kommissioniert oder storniert, ist der Auftrag für den Leitstand
   erledigt; kein Banner (bewusste Abgrenzung, gleich wie Q-4 der FA-Liste).
+
+## QA-Nachweis (qa-agent, 2026-11-26)
+
+Geprüft: Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5`, Branch `feature/2026-08-07-ideal-teile-1-5`, HEAD `ebb16bd7`,
+Commit-Bereich `e67e9f6f..ebb16bd7` = 5d7639dc (Teil 2), a89d98cc (Teil 1 Nachtrag N-1), ebb16bd7 (Fix aus der abgebrochenen QA,
+hier mitgeprüft). Im Hauptcheckout lagen keine unfertigen Brain-Änderungen der abgebrochenen QA (beide Spec-Dateien sauber).
+
+### 1. Build und Tests
+- `dotnet build IdealAkeWms.slnx`: 0 Fehler, 24 Warnungen (NuGet-Advisories, vorbestehend).
+- `dotnet test`: IdealAkeWms.Tests 3820 bestanden / 1 übersprungen / 0 Fehler (3821); IDEALAKEWMSService.Tests 848 / 0 / 0.
+
+### 2. Code-Review (selbst, in diesem Lauf)
+Gelesen: kompletter Diff der drei Commits plus Umfeld (`PickingLeitstandController.Index` inkl. Memory-Filter und `LeitstandMemoryText`,
+`BuildLeitstandQuery`/`ApplyLeitstandColumnFilter`, `_Pagination` + `site.js`-Navigation, `csv-export.js:85`, `CascadeDonePreview`,
+`BeschichtungsauftraegeController.Pdf` = rendert dieselbe View `Print`).
+Fehlerklassen geprüft: keine Werte in `<script>` eingebettet (`mitSubFaUrl` nur als `href`, Razor-encodiert); kein `hidden` an
+`d-*`-Elementen; keine stillen Fallbacks (W4 = `FaWorkStepId 0` wird sichtbar gesperrt, nicht verschluckt); keine Parallel-Arrays; die
+einzige reine Client-Sperre (W3) ist laut AK 16 ausdrücklich nur Oberfläche; eine Regel an einem Ort (`LeitstandHauptFaZusammenfassung.Regel`;
+die Memory-Filter lesen den bereits zusammengefassten Wert, weil `Anwenden` in `MapItem` vor den Filtern läuft). ebb16bd7: Razor rendert
+`data-*`-Attribute auch bei `null` (`data-neu-laden=""`), daher Selektor `[data-neu-laden="true"]` — korrekt, auf DEV belegt (K2 lädt nicht neu).
+Befunde:
+- **F-1 (Hinweis, vorbestehend, nicht behoben):** Kaskaden-Dialog nennt bei 1064052 „39 Sub-FA(s)“, die Zeile „+ 38 Sub-FAs“.
+  `CascadeDonePreview` zählt mit `CountByOrderNumberAsync` alle Zeilen der `OrderNumber` inkl. HauptFA-Zeile (DEV: 1 H + 38 S). Nicht
+  durch diesen Diff entstanden, steht jetzt aber direkt neben „+ n“ → Folgeaufgabe vorgeschlagen, nicht mitgebaut.
+- **F-2 (Hinweis, vorbestehend):** Spaltenfilter Glas/Zukauf (`data-filterable`, Keys `glass`/`purchase`) haben weder SQL-Prädikat
+  (`ApplyLeitstandColumnFilter` → `_ => null`) noch Memory-Filter; sie wirken nicht. L2 „Filter auf den angezeigten Wert“ ist für
+  Glas/Zukauf damit nicht erfüllbar, aber auch nicht verschlechtert.
+- **F-3 (Hinweis, Oberfläche):** Der Kurztext „Sub-FA bestimmt den Wert weiter“ macht die VK-Spalte im Nur-HauptFA-Modus breit. Kosmetik.
+Keine blockierenden Befunde.
+
+### 3. Nachweisart je AK
+| AK | Nachweis |
+|---|---|
+| 1, 13 (Anzeige) | Controller-Test `Index_Hierarchical_OhneSchalter_NurHauptFa_FlacheZeilen_Zusammengefasst` + DEV (OK); CSV `data-csv-value` nur Code |
+| 2, 5 (Ausführen), 7 (POST), 8 (Banner mit Daten), 11 | Manual-UAT |
+| 3, 18 | `FaListeNurHauptFaTests` (InMemory) + DEV (OK) |
+| 4 | Manual-UAT |
+| 6 | Controller-Test `Index_Hierarchical_MitSchalter_Gruppenansicht_OhneZusammenfassung` + DEV (OK) |
+| 9 | DEV AKE (OK) |
+| 10 | bestehende `FaListeNurHauptFaTests` grün |
+| 12, 17 | `LeitstandHauptFaZusammenfassungTests` (rein, DB-frei) |
+| 14 | DEV (OK); Memory-Filter-Pfad nicht unit-getestet |
+| 15, 16 | Browser-JS → Manual-UAT, auf DEV belegt (K2, W1, W5; W3/Fehlerfall offen) |
+| 20 | Hilfe-View im Diff geprüft, Manual-UAT |
+
+### 4. Geänderte bestehende Tests
+- `PickingLeitstandControllerTests`: Moq-Setups/Verifies um `It.IsAny<bool>()` ergänzt = Typ-Anpassung (CS0854); drei `Index(...)`-Aufrufe
+  mit `mitSubFa: true` = beabsichtigte Verhaltensänderung (AK 6/18).
+- `ProductionOrdersControllerTests`: nur Moq-Signatur = Typ-Anpassung.
+- `BeschichtungsauftraegeControllerTests`: `PositionenGesamt` entfällt = beabsichtigt (Teil 1, Nachtrag N-1).
+- `FaListeNurHauptFaTests`: nur neue Tests. Keine Kategorie „Sonstiges“.
+
+### 5. Checkliste CLAUDE.md / 5a ADR 0020
+Keine Migration, kein SQL (bestätigt). Version 1.99.88 in beiden `AppVersion.cs`, Anwender-Changelog ergänzt. TS-208 in
+`docs/TESTSZENARIEN.md` + Testindex (Hauptcheckout). Hilfe „Leitstand (Kommissionier-Freigabe)“ ergänzt. Manifest-Einträge
+`Pruefung/LeitstandOhneHauptFaZeile` und `v1.99.88-LeitstandNurHauptFa` in `scripts/deploy/nachlauf.psd1` vorhanden. Keine Einstellung → ADR 0020 entfällt.
+
+### 6. DEV-Deploy und Testlauf
+- Standort laut Frontmatter IDEAL; wegen N-1 (Teil 1, `standort: beide`) auf **AKE und IDEAL** deployt (`dev-deploy.ps1 -Standort AKE|IDEAL
+  -Quelle <worktree>`): je Exit 0, „HTTP 200, Fusszeile v1.99.88“ (AKE http://localhost:8081, IDEAL http://localhost:8082).
+- Testdaten IDEAL_WMS_DEV (aus der abgebrochenen QA): 1059463 (Subs mit Glas/Zukauf = W1), 1060414 (HauptFA + Subs mit Lackteilen = W2),
+  1064052 (VK HauptFA Fertig, Sub Offen = W5), 1065036 (VK nur an Subs = W4).
+
+| Schritt | Ergebnis | Status |
+|---|---|---|
+| 208.1 Leitstand IDEAL | „4 Aufträge (nur HauptFA)“, keine Gruppenköpfe, „+ 67/35/38/36 Sub-FAs“ | OK |
+| 208.3 FA-Nr. Sub-FA `1065208` ohne Schalter | 0 Zeilen, Hinweis „Keine HauptFA mit dieser Nummer …“; Link → `…&mitSubFa=true` zeigt Gruppe 1064052 mit Zeile 1065208 | OK |
+| 208.3 Artikelfilter mit Sub-FA-Artikel (AK 4) | nicht geprüft | NICHT MOEGLICH (Zeit) → Mensch |
+| 208.4 Kaskaden-Knopf in der Zeile | vorhanden, Dialog öffnet (abgebrochen, nicht ausgeführt); 39 vs. „+ 38“ siehe F-1 | OK mit Hinweis |
+| 208.5 Schalter | Gruppenansicht wie bisher; „Zurücksetzen“ = `/PickingLeitstand` ohne Parameter; Seitenwechsel behält Query (`site.js navigate`, nur Code) | OK |
+| 208.6 Zusammenfassung | W1 Glas/Zukauf gesetzt + Hinweis; W2 Lack-T Hinweis; W5 VK „In Bearbeitung“ + Hinweis; W4 VK gesperrt „Arbeitsgang nur an Sub-FAs …“ | OK |
+| 208.6 VK-Filter `colf_cooling=bearbeitung` | trifft 1064052 + 1065036 (zusammengefasster Wert; 1064052 selbst Fertig) | OK |
+| 208.6b K2 Glas an 1064052 setzen und zurück | POST 200, **kein** Neuladen; DB nur Zeile 199 (`ModifiedBy` gesetzt) | OK |
+| 208.6b W1 Glas an 1059463 abwählen | POST 200 + sofort GET `/PickingLeitstand`; danach wieder gesetzt; DB nur Zeile 131 | OK |
+| 208.6b W5 VK 1064052 → Fertig | POST `set-status` 200 + Neuladen; Anzeige „In Bearbeitung“; DB nur FaWorkStep 3, Sub 200 unverändert | OK |
+| 208.6b W3 | kein offener DEV-Auftrag mit Lack nur an Subs im Leitstand | NICHT MOEGLICH → Mensch |
+| 208.6b Speicherfehler | nicht provoziert (löst `alert()` aus) | NICHT MOEGLICH → Mensch |
+| 208.7 Banner | P-3 auf DEV = 0, kein Banner (konsistent) | Banner mit Daten NICHT MOEGLICH → Mensch |
+| 208.2, 208.8, Negativ ToggleRelease/Picking-Recht | nicht im Browser ausgeführt (Freigabe legt KO an; Benutzerwechsel) | NICHT MOEGLICH → Mensch |
+| Negativ AKE | Leitstand AKE ohne Schalter und ohne „nur HauptFA“ | OK |
+
+### 7. Publish
+`C:\Git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-07-ideal-teile-1-5\publish` — IDEALAKEWMSWeb + IDEALAKEWMSWebService (Release, Ordner
+vorher geleert), `SQL\`, `deploy\`, `publish-info.txt` (Version 1.99.88, Commit ebb16bd72caa92f6616f37f680380b7d9146d66c). Kein Paket-ZIP (Auftrag).
+
+### Manuelle Test-Checkliste (Mensch)
+1. TS-208.2 Massenfreigabe an einer HauptFA-Zeile, KO prüfen (Regression TS-79).
+2. TS-208.3 Artikelfilter mit Artikelnummer einer Sub-FA → keine Zeile (AK 4); QR-Scan einer Sub-FA-Nummer → Hinweis.
+3. TS-208.4 Kaskade ausführen; Zahl im Dialog (zählt HauptFA-Zeile mit, F-1) bewerten; HauptFA ohne Sub-FAs → kein Knopf; CSV FA-Nr. ohne „+ n“.
+4. TS-208.5 Seite 2 mit Schalter; Sub-FA-Zeilen ohne Freigabe-Haken.
+5. TS-208.6b W3 gesperrt mit Text; Speicherfehler → alter Wert, kein Neuladen; FA-Abarbeitungsliste Status ändern → kein Neuladen.
+6. TS-208.7 Banner mit Auftrag ohne HauptFA-Zeile; Manifest-Prüfung P-3 = Bannerzahl; HauptFA „Als erledigt markieren“ → Auftrag weg.
+7. TS-208.8 Hilfe-Abschnitt; Negativ: Benutzer nur Picking-Recht, `ToggleRelease`-POST mit Sub-FA-Id.
+8. Gesamtlauf TS-208 am Testsystem IDEAL mit echten Aufträgen.
