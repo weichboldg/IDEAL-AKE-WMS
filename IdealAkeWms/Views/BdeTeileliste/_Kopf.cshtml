@@ -40,22 +40,16 @@
 }
 <div class="collapse show" id="bdeKopfBereich">
     <div class="d-flex align-items-center flex-wrap gap-2 mb-2">
-        @if (Model.BdeAdmin)
-        {
-            @* v1.99.81 (Task 4b): nur BDE-Admin wechselt die Werkbank und behaelt den Werker (gespeicherter Filter je Werkbank bleibt). *@
-            <label for="teilelisteWerkbank" class="form-label mb-0">Werkbank</label>
-            <select id="teilelisteWerkbank" class="form-select bde-touch w-auto" data-ziel="@Url.Action("Index", "BdeTeileliste")"
-                    data-operator-id="@Model.Werker.Id">
-                @foreach (var wp in Model.Werkbaenke)
-                {
-                    <option value="@wp.Id" selected="@(wp.Id == Model.Werkbank.Id)">@wp.Name</option>
-                }
-            </select>
-        }
-        else
-        {
-            <span>Werkbank <strong>@Model.Werkbank.Name</strong></span>
-        }
+        @* v1.99.81 (Task 4b): Auswahl fuer alle wie bisher (Wechsel = Werker neu anmelden); nur der BDE-Admin behaelt beim
+           Wechsel den Werker (data-operator-id, gespeicherter Filter je Werkbank bleibt). *@
+        <label for="teilelisteWerkbank" class="form-label mb-0">Werkbank</label>
+        <select id="teilelisteWerkbank" class="form-select bde-touch w-auto" data-ziel="@Url.Action("Index", "BdeTeileliste")"
+                data-operator-id="@(Model.BdeAdmin ? Model.Werker.Id.ToString() : null)">
+            @foreach (var wp in Model.Werkbaenke)
+            {
+                <option value="@wp.Id" selected="@(wp.Id == Model.Werkbank.Id)">@wp.Name</option>
+            }
+        </select>
     </div>
 
     <div class="bde-operator-badge flex-wrap gap-2 mb-2">

@@ -1,6 +1,6 @@
 # 17 BDE-Teileliste an der Werkbank (vereinfachte Fertigmeldung)
 
-Stand: Version 1.99.81 (Glasbestellungen nicht in der Liste, CSV-Matchcode ohne Zusatztext, Werkbank wählen nur BDE-Admin; Text), 1.99.79 (Doku-Nachzug 1.99.80: Statustabelle repariert, Blechdicke „–“, Termin einstellbar; Summen-Haken kommt zurück, Text), 1.99.78 (Abschnitt 1 Verweise auf Kapitel 11, Tageshistorie, Text), 1.99.77 (Abschnitt 1 Reiter FA mit Buchungen, Text), 1.99.76 (Wer darf, Reiter, Abschnitt 1, Text), 1.99.73 (Abschnitt 2 und Handy, Text; Fotos 1.99.78), 1.99.72 (Abschnitte 8 und 9, Text; Fotos folgen) bzw. 1.99.43 · nur Standort IDEAL · Bilder aus dem IDEAL-Testsystem
+Stand: Version 1.99.81 (Glasbestellungen nicht in der Liste, CSV-Matchcode ohne Zusatztext, BDE-Admin wechselt die Werkbank ohne Werker-Wechsel; Text), 1.99.79 (Doku-Nachzug 1.99.80: Statustabelle repariert, Blechdicke „–“, Termin einstellbar; Summen-Haken kommt zurück, Text), 1.99.78 (Abschnitt 1 Verweise auf Kapitel 11, Tageshistorie, Text), 1.99.77 (Abschnitt 1 Reiter FA mit Buchungen, Text), 1.99.76 (Wer darf, Reiter, Abschnitt 1, Text), 1.99.73 (Abschnitt 2 und Handy, Text; Fotos 1.99.78), 1.99.72 (Abschnitte 8 und 9, Text; Fotos folgen) bzw. 1.99.43 · nur Standort IDEAL · Bilder aus dem IDEAL-Testsystem
 
 ## Zweck
 
@@ -57,7 +57,7 @@ an Werkbänken mit „BDE-Teileliste (vereinfacht)“ und Kürzel – diese Werk
 
 ![Werker anmelden an der BDE-Teileliste](bilder/17-02-werker-anmelden.jpg)
 
-**Werker wechseln** (rechts im dunklen Balken) meldet den Werker ab. Über **Werkbank** oben rechts lässt sich eine andere Werkbank wählen – seit 1.99.81 nur als **BDE-Admin**, der Werker bleibt angemeldet.
+**Werker wechseln** (rechts im dunklen Balken) meldet den Werker ab. Über **Werkbank** oben rechts lässt sich eine andere Werkbank wählen – danach meldet sich der Werker neu an; seit 1.99.81 bleibt beim **BDE-Admin** der Werker angemeldet.
 
 ### 2. Liste lesen – Ansicht „Einzeln“
 

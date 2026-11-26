@@ -14714,7 +14714,8 @@ Kürzel IF.
    Baugruppenzeilen und aufgeklappte Aufträge; Teile Einzeln und FA-Sicht gleich. **Offen:** der ursprünglich gemeldete Fehler war im Code nicht
    nachzustellen – bitte mit dem konkreten Wert aus der Meldung wiederholen.
 2. BDE-Admin: Auswahl „Werkbank“ im Kopf → W2 → Seite von W2, Werker bleibt angemeldet, gemerkter Filter je Werkbank.
-3. Negativ: Werker ohne Admin → keine Werkbank-Auswahl; `?workplaceId=` einer fremden Werkbank in der Adresse → Verhalten wie vor 1.99.81.
+3. Werker ohne Admin-Recht: Auswahl „Werkbank“ ist da, Wechsel → Personalnummer-Eingabe der neuen Werkbank (wie vor 1.99.81, Werker nicht
+   übernommen).
 
 **TS-202.6 Pausierte fortsetzen oder abschließen, Hängende Pausen (Task 5, Entscheid 9, Review Focus 4)**
 1. Produktion pausieren → Kopfzeile zeigt immer „<Werkbank>, seit TT.MM. hh:mm“, Knopf **Fortsetzen**.

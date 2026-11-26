@@ -79,15 +79,14 @@ public class BdeFaSichtViewTests
         k1.Should().Contain("try {").And.Contain("localStorage.getItem(KOPF)");
     }
 
-    // v1.99.81 (Task 4b, U-13): Werkbank-Auswahl und Teilmeldungen-Link nur fuer BDE-Admin; Wechsel behaelt den Werker
+    // v1.99.81 (Task 4b, U-13): Werkbank-Auswahl fuer alle wie bisher; nur beim BDE-Admin behaelt der Wechsel den Werker;
+    // Teilmeldungen-Link nur fuer BDE-Admin
     [Fact]
-    public void Kopf_WerkbankwechselUndWaisenLink_NurBdeAdmin()
+    public void Kopf_WerkbankwechselBehaeltWerkerNurBdeAdmin_WaisenLinkNurBdeAdmin()
     {
         var kopf = Read("Views", "BdeTeileliste", "_Kopf.cshtml");
-        var admin = kopf.IndexOf("@if (Model.BdeAdmin)", StringComparison.Ordinal);
-        admin.Should().BeGreaterThan(0);
-        kopf.IndexOf("id=\"teilelisteWerkbank\"", StringComparison.Ordinal).Should().BeGreaterThan(admin);
-        kopf.Should().Contain("data-operator-id=\"@Model.Werker.Id\"");
+        kopf.Should().Contain("id=\"teilelisteWerkbank\"");
+        kopf.Should().Contain("data-operator-id=\"@(Model.BdeAdmin ? Model.Werker.Id.ToString() : null)\"");
         var waisen = kopf[kopf.IndexOf("@if (Model.Waisen > 0)", StringComparison.Ordinal)..];
         waisen.Should().Contain("<details").And.Contain("BDE-Admin informieren");
         waisen.IndexOf("asp-action=\"Teilmeldungen\"", StringComparison.Ordinal).Should().BeGreaterThan(waisen.IndexOf("@if (Model.BdeAdmin)", StringComparison.Ordinal));

@@ -39,8 +39,8 @@ Menü **BDE → Terminal**.
 
 ![BDE-Seite: Anmelden mit Personalnummer](bilder/11-01-terminal-operator-angemeldet.jpg)
 
-1. Die Seite öffnet die **Werkbank des Terminals**. Eine andere BDE-aktive Werkbank wählen kann seit 1.99.81 nur der **BDE-Admin** (oben
-   rechts; der Werker bleibt dabei angemeldet).
+1. Die Seite öffnet die **Werkbank des Terminals**. Über **Werkbank** oben lässt sich eine andere BDE-aktive Werkbank wählen;
+   danach meldet sich der Werker neu an. Seit 1.99.81 bleibt beim **BDE-Admin** der Werker dabei angemeldet.
 2. **Personalnummer** scannen (Ausweis, auch mit dem Handscanner ohne Antippen) oder eintippen und **Anmelden** drücken.
 3. Der Werker-Balken zeigt Name und Personalnummer, rechts **Tageshistorie** (Abschnitt 4) und **Werker wechseln** (meldet ab, der nächste
    meldet sich an).

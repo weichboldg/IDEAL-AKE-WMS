@@ -7,7 +7,7 @@
     var sel = document.getElementById('teilelisteWerkbank');
     if (sel) {
         sel.addEventListener('change', function () {
-            // v1.99.81 (Task 4b): Werker bleibt angemeldet (nur BDE-Admin sieht die Auswahl)
+            // v1.99.81 (Task 4b): nur beim BDE-Admin traegt die Auswahl data-operator-id, dann bleibt der Werker angemeldet
             window.location.href = sel.dataset.ziel + '?workplaceId=' + encodeURIComponent(sel.value)
                 + (sel.dataset.operatorId ? '&operatorId=' + encodeURIComponent(sel.dataset.operatorId) : '');
         });
