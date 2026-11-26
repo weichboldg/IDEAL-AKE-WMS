@@ -749,6 +749,34 @@ ORDER BY CASE WHEN t.Id IS NULL THEN 1 ELSE 0 END, u.Name;
   Benutzers, z. B. nach Kontowechsel im selben Browser) eingrenzen. Werkbank mit `BdeAktiv = 0` → die Seite zeigt „Werkbank ist nicht BDE-aktiv“.
 - **Quelle:** `IdealAkeWms/Controllers/BdeTerminalController.cs:39-50,273-280`, `IdealAkeWms/Controllers/BdeTeilelisteController.cs:97-104`.
 
+### A-8.10 FA-Liste/FA-Struktur IDEAL: Aufträge ohne HauptFA-Zeile, Kombigeräte, Teile mit Arbeitsschritten (ab v1.99.82)
+
+```sql
+-- Offene Auftraege ohne HauptFA-Zeile (= Zahl im Hinweis der FA-Liste)
+SELECT COUNT(DISTINCT po.OrderNumber) AS OhneHauptFa
+FROM dbo.ProductionOrders po
+WHERE po.IsDone = 0 AND po.IsCancelled = 0
+  AND NOT EXISTS (SELECT 1 FROM dbo.ProductionOrders h
+                  WHERE h.OrderNumber = po.OrderNumber
+                    AND (h.SubOrderNumber = N'' OR h.SubOrderNumber = h.OrderNumber));
+
+-- HauptFA mit mehreren Auftragskoepfen (Zeichen „mehrdeutig (Kombigeraet)“ / „n Auftragskoepfe“, Kopfspalten leer)
+SELECT HauptFA, COUNT(*) AS Koepfe
+FROM dbo.FaHierarchyOrderInfos
+GROUP BY HauptFA HAVING COUNT(*) > 1 ORDER BY Koepfe DESC;
+
+-- Teile (SubFA = 0) mit Arbeitsschritten: bleiben in der FA-Struktur auch bei „Teile ausblenden“ sichtbar
+SELECT HauptFA, Artnr, Arbeitsschritte
+FROM dbo.FaHierarchyNodes
+WHERE SubFA = 0 AND NULLIF(LTRIM(RTRIM(Arbeitsschritte)), N'') IS NOT NULL AND VerschwundenSeit IS NULL;
+```
+
+- **Zweck:** Rückfragen „Auftrag fehlt in der FA-Liste“, „Kopfspalten leer“ und „Kaufteil trotz Teile ausblenden sichtbar“ eingrenzen.
+  Ein Auftrag, dessen HauptFA-Zeile erledigt, storniert oder fertig kommissioniert ist, fehlt in der Liste **ohne** Hinweis (die erste
+  Abfrage zählt nur Aufträge ganz ohne HauptFA-Zeile).
+- **Quelle:** `IdealAkeWms/Data/Repositories/ProductionOrderRepository.cs` (`CountGruppenOhneHauptFaAsync`),
+  `IdealAkeWms/Services/FaHierarchyTreeBuilder.cs` (`TeileAusblenden`), `IdealAkeWms/Views/FaHierarchy/_FaHierarchyNode.cshtml`.
+
 ## Verwandte Kapitel
 
 [00-index.md](00-index.md) · [01-architektur-technologie.md](01-architektur-technologie.md) · [02-systeme-umgebungen.md](02-systeme-umgebungen.md) ·
