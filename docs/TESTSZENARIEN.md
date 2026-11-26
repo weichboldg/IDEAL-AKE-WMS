@@ -14919,6 +14919,10 @@ FROM dbo.SagePurchaseOrderLines GROUP BY Artikelnummer HAVING COUNT(*) > 1 ORDER
   steht noch. Benutzer B: Termin ist reiner Text.
 - **TS-206.8 Regression Details (AK 13):** Ist-Mengen, Fehlteil-Status, Notizen, Drucken (ohne Spalte Liefertermin), Drucken und Abschließen,
   Speichern + Abschließen wie bisher.
+- **TS-206.9 Druck sortiert wie der Bildschirm (B-2/B-4):** Lagerbestellung mit mehreren Terminen (auch „überfällig (+N)“) und Positionen
+  ohne Termin („—“), Spalte Liefertermin einblenden, aufsteigend sortieren → Drucken: dieselbe Reihenfolge (Termine chronologisch, „—“ am
+  Ende); absteigend → „—“ zuerst, dann Termine vom spätesten zum frühesten. Ebenso Spaltenfilter „Liefertermin“ → der Druck enthält nur die
+  gefilterten Zeilen.
 - **Negativfälle:** Position `DUMMY` → „—“; Glasbestellung → Spalte gleich; Spaltenfilter „Liefertermin“ auf „überfällig“ filtert die Zeilen;
   CSV-Export enthält den Zelltext.
 
