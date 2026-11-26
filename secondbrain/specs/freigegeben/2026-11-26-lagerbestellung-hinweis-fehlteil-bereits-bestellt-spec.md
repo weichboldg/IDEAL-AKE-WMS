@@ -2,14 +2,14 @@
 type: spec
 title: "Lagerbestellung: Hinweis „bereits als Fehlteil bestellt“ mit nächstem Liefertermin"
 slug: 2026-11-26-lagerbestellung-hinweis-fehlteil-bereits-bestellt-spec
-status: Freigegeben
+status: InUmsetzung
 created: 2026-11-26
 updated: 2026-11-26
 source_backlog: "[[2026-11-26-lagerbestellung-hinweis-fehlteil-bereits-bestellt]]"
 task: ""
 jira: ""
-worktree: ""
-branch: ""
+worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"
+branch: "feature/2026-08-07-ideal-teile-1-5"
 standort: beide
 affected_code:
   - IdealAkeWms/Services/LieferterminTexte.cs (neu, verschoben aus WarehousePickingController)

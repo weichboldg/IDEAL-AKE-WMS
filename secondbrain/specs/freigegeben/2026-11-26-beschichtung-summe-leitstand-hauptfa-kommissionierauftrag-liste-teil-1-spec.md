@@ -2,7 +2,7 @@
 type: spec
 title: "Beschichtungsauftrag: Druck/PDF immer summiert je Artikel, Summenzeile „Summe Teile im Auftrag“"
 slug: 2026-11-26-beschichtung-summe-leitstand-hauptfa-kommissionierauftrag-liste-teil-1-spec
-status: Freigegeben
+status: InUmsetzung
 created: 2026-11-26
 updated: 2026-11-26
 source_backlog: "[[2026-11-26-beschichtung-summe-leitstand-hauptfa-kommissionierauftrag-liste]]"
@@ -10,8 +10,8 @@ uebersicht: "[[2026-11-26-beschichtung-summe-leitstand-hauptfa-kommissionierauft
 depends_on: ""
 task: ""
 jira: ""
-worktree: ""
-branch: ""
+worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"
+branch: "feature/2026-08-07-ideal-teile-1-5"
 standort: beide
 affected_code:
   - IdealAkeWms/Models/ViewModels/BeschichtungsauftraegeViewModels.cs (BeschichtungsauftraegeDruck um Summieren erweitern, BeschichtungsauftragPrintViewModel Zeilen + Summe)

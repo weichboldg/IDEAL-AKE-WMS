@@ -2,7 +2,7 @@
 type: spec
 title: "Kommissionierauftrag: Maske umschaltbar Stückliste / Liste (summiert je Artikel, Buchung verteilt auf Positionen), Standard „Liste“ bei aktiven Kommissionierlisten"
 slug: 2026-11-26-beschichtung-summe-leitstand-hauptfa-kommissionierauftrag-liste-teil-3-spec
-status: Freigegeben
+status: InUmsetzung
 created: 2026-11-26
 updated: 2026-11-26
 source_backlog: "[[2026-11-26-beschichtung-summe-leitstand-hauptfa-kommissionierauftrag-liste]]"
@@ -10,8 +10,8 @@ uebersicht: "[[2026-11-26-beschichtung-summe-leitstand-hauptfa-kommissionierauft
 depends_on: "[[2026-11-26-beschichtung-summe-leitstand-hauptfa-kommissionierauftrag-liste-teil-2-spec]]"
 task: ""
 jira: ""
-worktree: ""
-branch: ""
+worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"
+branch: "feature/2026-08-07-ideal-teile-1-5"
 standort: IDEAL
 affected_code:
   - IdealAkeWms/Controllers/PickingController.cs (Auftrag Z. 252-258 Parameter ansicht + [FromServices] IFaHierarchyOrderInfoRepository; BomSeiteAsync Z. 260-442 Summierung bei Liste; AuftragUmbuchen Z. 444-474 unveraendert)

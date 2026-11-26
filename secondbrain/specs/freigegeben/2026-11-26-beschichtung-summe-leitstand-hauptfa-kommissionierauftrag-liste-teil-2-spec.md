@@ -2,7 +2,7 @@
 type: spec
 title: "IDEAL-Leitstand: nur HauptFA-Zeilen anzeigen, Freigabe-Haken am HauptFA (Schalter „Sub-FAs anzeigen“)"
 slug: 2026-11-26-beschichtung-summe-leitstand-hauptfa-kommissionierauftrag-liste-teil-2-spec
-status: Freigegeben
+status: InUmsetzung
 created: 2026-11-26
 updated: 2026-11-26
 source_backlog: "[[2026-11-26-beschichtung-summe-leitstand-hauptfa-kommissionierauftrag-liste]]"
@@ -10,8 +10,8 @@ uebersicht: "[[2026-11-26-beschichtung-summe-leitstand-hauptfa-kommissionierauft
 depends_on: "[[2026-11-26-beschichtung-summe-leitstand-hauptfa-kommissionierauftrag-liste-teil-1-spec]]"
 task: ""
 jira: ""
-worktree: ""
-branch: ""
+worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"
+branch: "feature/2026-08-07-ideal-teile-1-5"
 standort: IDEAL
 affected_code:
   - IdealAkeWms/Data/Repositories/IProductionOrderRepository.cs + ProductionOrderRepository.cs (nurHauptFa und CountGruppenOhneHauptFaAsync gibt es seit v1.99.82 - wiederverwenden; NEU nur der optionale Parameter faNrUeberSubFa = true an GetForLeitstandGroupedAsync/BuildLeitstandQuery Z. 54-180 und eine Batch-Methode für die Zeilen-Ids der Seiten-Aufträge)
