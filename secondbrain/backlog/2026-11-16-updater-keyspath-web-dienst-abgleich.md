@@ -42,3 +42,6 @@ quelle: Koordination, Befund akenet01:4445 (Gerald, Chat 2026-11-16 10:34)
   `SageLagerbuchung`-Block macht Gerald von Hand. `ErrorNotification`/`Sync:*` in appsettings wirkungslos, weil `ServiceSettings` sie überschreibt.
 - 2026-11-26 13:0x: Web `appsettings.Development.json` → `xxx_appsettings.Development.json` (nicht geladen, Umgebung Production).
   Dienst-Ordner: Umbenennen ebenfalls verweigert → Gerald. Auskommentieren verworfen, siehe Fallstrick 72.
+- 2026-11-26 13:31 (Dienste gestoppt, Gerald hatte Schreibrecht ergänzt): Dienst `appsettings.Production.json` Absender TEST/`wms-test@`,
+  PickupDirectory `…-Test\mail-pickup`, Block `SageLagerbuchung` entfernt; `appsettings.json` Block `SageLagerbuchung` entfernt;
+  `appsettings.Development.json` → `xxx_…`. Sicherungen `.bak-20261126-125853/-132935/-133120`. JSON mit PS-`ConvertFrom-Json` geprüft.
