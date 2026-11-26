@@ -26,3 +26,4 @@ letztes Paket 21. Main-Tag `backup/main-vor-fa-liste-hauptfa-2026-11-26` (d653b9
 
 ## Protokoll
 - 2026-11-26 Start, beide Specs auf InUmsetzung.
+- 2026-11-26 Teil 1 feature-complete im Worktree (wip 557a9062): Build 0 Fehler, Tests Web 3770 / Service 848 gruen; TS-203 + Index; naechster Schritt qa-agent Teil 1.
