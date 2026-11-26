@@ -581,7 +581,7 @@ public class PickingLeitstandController : Controller
                 catch (Exception ex)
                 {
                     _logger.LogWarning(ex, "Altbestand geprueft: Auftraege fuer FA {Fa} nicht angelegt", order.OrderNumber);
-                    TempData["WarningMessage"] = $"FA {order.OrderNumber}: Kommissionieraufträge konnten nicht angelegt werden ({ex.Message}). Der Nachtlauf holt sie nach.";
+                    TempData["WarningMessage"] = $"FA {order.OrderNumber}: Kommissionieraufträge konnten nicht angelegt werden. Der Nachtlauf holt sie nach; Details im Protokoll ({DateTime.Now:HH:mm}).";
                 }
                 TempData["SuccessMessage"] = $"{geprueft} {TempData["SuccessMessage"]}".TrimEnd();
             }
@@ -618,7 +618,7 @@ public class PickingLeitstandController : Controller
         var storniert = ergebnisse.SelectMany(e => e.R.Storniert).ToList();
         var behalten = ergebnisse.Where(e => e.R.Behalten.Count > 0)
             .Select(e => $"FA {e.Fa}: {string.Join(", ", e.R.Behalten)}").ToList();
-        return (storniert.Count > 0 ? $"{storniert.Count} Kommissionierauftrag/-aufträge storniert ({string.Join(", ", storniert)})." : null,
+        return (storniert.Count > 0 ? $"{storniert.Count} {(storniert.Count == 1 ? "Kommissionierauftrag" : "Kommissionieraufträge")} storniert ({string.Join(", ", storniert)})." : null,
                 behalten.Count > 0 ? "Aufträge mit bereits gepickten oder umgebuchten Zeilen bleiben bestehen – bitte klären: " + string.Join("; ", behalten) : null);
     }
 

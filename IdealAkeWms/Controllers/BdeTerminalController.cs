@@ -53,7 +53,7 @@ public class BdeTerminalController : Controller
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> StartProductionForOrder(int operatorId, int productionOrderId, int workplaceId, int terminalId)
     {
-        if (await FremdesTerminalAsync(terminalId) is { } fremd) return fremd;
+        if (await WaechterAsync(operatorId, terminalId) is { } fremd) return fremd;
         // QA v1.63.0 (FA-a9/Antwort 12): VOR dem Anlegen des Default-AG „01" pruefen, deckungsgleich mit dem Angebot
         // (nur NurFA-Modus, nur FAs der Terminal-Werkbank) — sonst legt ein manipulierter POST einen „01"-AG an einem
         // fremden FA an der Terminal-Werkbank an und besteht danach die Familien-Pruefung im Normal-Modus.
@@ -72,7 +72,7 @@ public class BdeTerminalController : Controller
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> StartSetup(int operatorId, int workOperationId, int workplaceId, int terminalId)
     {
-        if (await FremdesTerminalAsync(terminalId) is { } fremd) return fremd;
+        if (await WaechterAsync(operatorId, terminalId) is { } fremd) return fremd;
         var result = await _bookingSvc.StartSetupAsync(operatorId, workOperationId, workplaceId, terminalId);
         return Json(MapResult(result));
     }
@@ -80,7 +80,7 @@ public class BdeTerminalController : Controller
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> StartProduction(int operatorId, int workOperationId, int workplaceId, int terminalId)
     {
-        if (await FremdesTerminalAsync(terminalId) is { } fremd) return fremd;
+        if (await WaechterAsync(operatorId, terminalId) is { } fremd) return fremd;
         var result = await _bookingSvc.StartProductionAsync(operatorId, workOperationId, workplaceId, terminalId);
         return Json(MapResult(result));
     }
@@ -88,14 +88,15 @@ public class BdeTerminalController : Controller
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> StartActivity(int operatorId, int activityId, int workplaceId, int terminalId)
     {
-        if (await FremdesTerminalAsync(terminalId) is { } fremd) return fremd;
+        if (await WaechterAsync(operatorId, terminalId) is { } fremd) return fremd;
         var result = await _bookingSvc.StartActivityAsync(operatorId, activityId, workplaceId, terminalId);
         return Json(MapResult(result));
     }
 
     [HttpPost, ValidateAntiForgeryToken]
-    public async Task<IActionResult> Pause(int bookingId, decimal? goodQty, decimal? scrapQty)
+    public async Task<IActionResult> Pause(int bookingId, int operatorId, int terminalId, decimal? goodQty, decimal? scrapQty)
     {
+        if (await FremdeBuchungAsync(bookingId, operatorId, terminalId) is { } fremd) return fremd;
         var result = await _bookingSvc.PauseAsync(bookingId, goodQty, scrapQty);
         return Json(MapResult(result));
     }
@@ -103,7 +104,7 @@ public class BdeTerminalController : Controller
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> Resume(int pausedBookingId, int operatorId, BdeBookingType resumeAs, int workplaceId, int terminalId)
     {
-        if (await FremdesTerminalAsync(terminalId) is { } fremd) return fremd;
+        if (await FremdeBuchungAsync(pausedBookingId, operatorId, terminalId) is { } fremd) return fremd;
         try
         {
             var result = await _bookingSvc.ResumeAsync(pausedBookingId, operatorId, resumeAs, workplaceId, terminalId);
@@ -113,19 +114,16 @@ public class BdeTerminalController : Controller
         {
             _logger.LogError(ex, "Resume failed for bookingId={BookingId} operatorId={OperatorId} resumeAs={ResumeAs}",
                 pausedBookingId, operatorId, resumeAs);
-            return Json(new
-            {
-                outcome = "Exception",
-                message = $"Serverfehler: {ex.GetType().Name} — {ex.Message}"
-            });
+            return Json(ServerfehlerAntwort());
         }
     }
 
     [HttpPost, ValidateAntiForgeryToken]
-    public async Task<IActionResult> Finish(int bookingId, decimal? goodQty, decimal? scrapQty)
+    public async Task<IActionResult> Finish(int bookingId, int operatorId, int terminalId, decimal? goodQty, decimal? scrapQty)
     {
         try
         {
+            if (await FremdeBuchungAsync(bookingId, operatorId, terminalId) is { } fremd) return fremd;
             // GroupFinishRequired check: only for Production bookings
             var booking = await _ctx.BdeBookings.FindAsync(bookingId);
             if (booking != null && booking.BookingType == BdeBookingType.Production)
@@ -179,7 +177,7 @@ public class BdeTerminalController : Controller
         catch (Exception ex)
         {
             _logger.LogError(ex, "Finish failed for bookingId={BookingId}", bookingId);
-            return Json(new { outcome = "Exception", message = $"Serverfehler: {ex.GetType().Name} — {ex.Message}" });
+            return Json(ServerfehlerAntwort());
         }
     }
 
@@ -189,7 +187,7 @@ public class BdeTerminalController : Controller
     public async Task<IActionResult> ReportCompletion(int operatorId, int workOperationId, int workplaceId, int terminalId,
         decimal? goodQty, decimal? scrapQty)
     {
-        if (await FremdesTerminalAsync(terminalId) is { } fremd) return fremd;
+        if (await WaechterAsync(operatorId, terminalId) is { } fremd) return fremd;
         var result = await _bookingSvc.ReportCompletionAsync(operatorId, workOperationId, workplaceId, terminalId, goodQty, scrapQty);
         return Json(MapResultWithOthers(result, await OtherActiveBookingsAsync(result)));
     }
@@ -218,10 +216,12 @@ public class BdeTerminalController : Controller
     }
 
     [HttpPost, ValidateAntiForgeryToken]
-    public async Task<IActionResult> FinishGroup(int operatorId, string entriesJson)
+    public async Task<IActionResult> FinishGroup(int operatorId, int terminalId, string entriesJson)
     {
         try
         {
+            // Besitz je Zeile prueft FinishGroupAsync (alle Buchungen muessen operatorId gehoeren)
+            if (await WaechterAsync(operatorId, terminalId) is { } fremd) return fremd;
             var entries = System.Text.Json.JsonSerializer.Deserialize<List<FinishGroupEntry>>(entriesJson,
                 new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? new();
             var serviceEntries = entries.Select(e =>
@@ -236,39 +236,60 @@ public class BdeTerminalController : Controller
         catch (Exception ex)
         {
             _logger.LogError(ex, "FinishGroup failed for operatorId={OperatorId}", operatorId);
-            return Json(new { outcome = "Exception", message = $"Serverfehler: {ex.GetType().Name} — {ex.Message}" });
+            return Json(ServerfehlerAntwort());
         }
     }
 
     [HttpPost, ValidateAntiForgeryToken]
-    public async Task<IActionResult> ReportPartial(int bookingId, decimal goodQty, decimal scrapQty)
+    public async Task<IActionResult> ReportPartial(int bookingId, int operatorId, int terminalId, decimal goodQty, decimal scrapQty)
     {
+        if (await FremdeBuchungAsync(bookingId, operatorId, terminalId) is { } fremd) return fremd;
         var result = await _bookingSvc.ReportPartialQuantityAsync(bookingId, goodQty, scrapQty);
         return Json(MapResult(result));
     }
 
-    // v1.99.77 (E4-4): Abfragen in BdeKopfBuchungen (gemeinsam mit dem Kopf der FA-Sicht); JSON-Form unveraendert.
-    [HttpGet]
-    public async Task<IActionResult> PausedBookings(int operatorId) =>
-        Ok((await BdeKopfBuchungen.PausierteAsync(_ctx, operatorId)).Select(b => new {
-            bookingId = b.BookingId, orderNumber = b.OrderNumber, operationNumber = b.OperationNumber, operationName = b.OperationName,
-            pausedAt = b.PausedAt, status = b.Status.ToString()
-        }).ToList());
+    // v1.99.81 (F-29/15A): die GETs PausedBookings/ActiveBookings sind geloescht (keine Aufrufer, kein Waechter); die FA-Sicht rendert
+    // dieselben Abfragen serverseitig (BdeKopfBuchungen).
 
-    [HttpGet]
-    public async Task<IActionResult> ActiveBookings(int operatorId) =>
-        Ok((await BdeKopfBuchungen.LaufendeAsync(_ctx, operatorId)).Select(b => new {
-            bookingId = b.BookingId, bookingType = b.Typ.ToString(), startedAt = b.StartedAt, orderNumber = b.OrderNumber,
-            operationNumber = b.OperationNumber, operationName = b.OperationName, activityName = b.ActivityName,
-            workplaceName = b.WorkplaceName, targetQuantity = b.TargetQuantity
-        }).ToList());
-
+    /// <summary>v1.99.81 (2A): andere Buchungen des AG beenden darf nur, wer auf diesem AG gerade selbst fertig gemeldet hat.</summary>
     [HttpPost, ValidateAntiForgeryToken]
-    public async Task<IActionResult> CloseOthers(int workOperationId, int operatorId)
+    public async Task<IActionResult> CloseOthers(int workOperationId, int operatorId, int terminalId)
     {
+        if (await WaechterAsync(operatorId, terminalId) is { } fremd) return fremd;
+        if (!await _ctx.BdeBookings.AnyAsync(b => b.WorkOperationId == workOperationId && b.BdeOperatorId == operatorId
+                && b.Status == BdeBookingStatus.Finished && !b.IsCancelled))
+            return Json(MapResult(BdeBookingResult.Invalid(
+                "Andere Buchungen kann nur beenden, wer diesen Arbeitsgang selbst fertig gemeldet hat.")));
         var result = await _bookingSvc.CloseOtherBookingsOnWorkOperationAsync(workOperationId, exceptOperatorId: operatorId);
         return Ok(new { closedCount = result.ClosedCount });
     }
+
+    /// <summary>v1.99.81 (2A, ADR 0039): Terminal-Waechter (F-28) + aktiver Werker. Die Personalnummer identifiziert, authentisiert nicht –
+    /// Schutzgrenze ist das Terminal-Konto. null = ok.</summary>
+    private async Task<JsonResult?> WaechterAsync(int? operatorId, int terminalId)
+    {
+        if (await FremdesTerminalAsync(terminalId) is { } fremd) return fremd;
+        var op = operatorId is int id ? await _ctx.BdeOperators.FindAsync(id) : null;
+        return op is { IsActive: true } ? null
+            : Json(MapResult(BdeBookingResult.Invalid("Dieser Werker ist nicht (mehr) aktiv – bitte neu anmelden.")));
+    }
+
+    /// <summary>v1.99.81 (2A): <see cref="WaechterAsync"/> + die Buchung gehoert dem Werker. Das Start-Terminal der Buchung zaehlt bewusst
+    /// nicht – an Terminal A gestartet, an Terminal B vom selben Werker beendet bleibt erlaubt. null = ok.</summary>
+    private async Task<JsonResult?> FremdeBuchungAsync(int bookingId, int? operatorId, int terminalId)
+    {
+        if (await WaechterAsync(operatorId, terminalId) is { } fremd) return fremd;
+        var besitzer = await _ctx.BdeBookings.Where(b => b.Id == bookingId).Select(b => (int?)b.BdeOperatorId).FirstOrDefaultAsync();
+        return besitzer == operatorId ? null
+            : Json(MapResult(BdeBookingResult.Invalid("Diese Buchung gehört nicht dem angemeldeten Werker – Seite neu laden.")));
+    }
+
+    /// <summary>H-B: fester Text statt Exception-Typ/ex.Message beim Werker; Details stehen im Log (Aufrufer loggt).</summary>
+    private static object ServerfehlerAntwort() => new
+    {
+        outcome = "Exception",
+        message = $"Serverfehler – nichts sicher gebucht. Seite neu laden und Buchung prüfen; Details im Protokoll ({DateTime.Now:HH:mm})."
+    };
 
     /// <summary>v1.99.79 F-28: <c>terminalId</c> kommt vom Client. Gueltig ist nur das Terminal des angemeldeten Benutzers – dasselbe,
     /// das die BDE-Seite in data-terminal-id rendert (BdeTeilelisteController). Sonst Ablehnung statt Buchung auf fremdes Terminal.</summary>

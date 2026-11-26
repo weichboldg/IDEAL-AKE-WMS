@@ -492,7 +492,7 @@ public class BdeBookingServiceTests
         });
 
         result.IsSuccess.Should().BeFalse();
-        result.ErrorMessage.Should().Contain("Operator");
+        result.ErrorMessage.Should().Contain("gehört nicht");
     }
 
     [Fact]

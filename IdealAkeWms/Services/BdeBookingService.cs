@@ -378,9 +378,9 @@ public class BdeBookingService : IBdeBookingService
         if (bookings.Count != entries.Count)
             return new GroupFinishResult(0, "Nicht alle Buchungen gefunden.");
         if (bookings.Any(b => b.BdeOperatorId != operatorId))
-            return new GroupFinishResult(0, "Buchung gehoert nicht diesem Operator.");
+            return new GroupFinishResult(0, "Diese Buchung gehört nicht dem angemeldeten Werker.");
         if (bookings.Any(b => b.BookingType != BdeBookingType.Production))
-            return new GroupFinishResult(0, "Gruppen-Abschluss nur fuer Production.");
+            return new GroupFinishResult(0, "Gruppen-Abschluss nur für Produktion.");
         if (bookings.Any(b => b.Status == BdeBookingStatus.Finished))
             return new GroupFinishResult(0, "Bereits beendete Buchung enthalten.");
 

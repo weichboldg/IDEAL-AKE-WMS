@@ -6,6 +6,7 @@ using IdealAkeWms.Models;
 using IdealAkeWms.Services;
 using IdealAkeWms.Tests.Helpers;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using Xunit;
@@ -47,67 +48,6 @@ public class BdeTerminalControllerTests
     }
 
     [Fact]
-    public async Task PausedBookings_ReturnsOnlyPausedForOperator()
-    {
-        var ctx = TestDbContextFactory.Create();
-        var ids = await BdeBookingTestSeed.SeedAsync(ctx);
-
-        ctx.BdeBookings.Add(BdeBookingTestSeed.NewBooking(ids, BdeBookingType.Production, BdeBookingStatus.Paused,
-            startedAt: DateTime.Now.AddHours(-2), endedAt: DateTime.Now.AddHours(-1)));
-        ctx.BdeBookings.Add(BdeBookingTestSeed.NewBooking(ids, BdeBookingType.Production, BdeBookingStatus.Running,
-            startedAt: DateTime.Now.AddMinutes(-15)));
-        await ctx.SaveChangesAsync();
-
-        var controller = CreateTerminalController(ctx);
-        var result = await controller.PausedBookings(ids.OperatorId);
-
-        var ok = result as OkObjectResult;
-        ok.Should().NotBeNull();
-        var json = System.Text.Json.JsonSerializer.Serialize(ok!.Value);
-        var parsed = System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement>(json);
-        parsed.GetArrayLength().Should().Be(1);
-    }
-
-    [Fact]
-    public async Task PausedBookings_Empty_ReturnsEmptyArray()
-    {
-        var ctx = TestDbContextFactory.Create();
-        var ids = await BdeBookingTestSeed.SeedAsync(ctx);
-        var controller = CreateTerminalController(ctx);
-
-        var result = await controller.PausedBookings(ids.OperatorId);
-
-        var ok = result as OkObjectResult;
-        ok.Should().NotBeNull();
-        var json = System.Text.Json.JsonSerializer.Serialize(ok!.Value);
-        var parsed = System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement>(json);
-        parsed.GetArrayLength().Should().Be(0);
-    }
-
-    [Fact]
-    public async Task PausedBookings_IncludesAutoPaused()
-    {
-        var ctx = TestDbContextFactory.Create();
-        var ids = await BdeBookingTestSeed.SeedAsync(ctx);
-
-        ctx.BdeBookings.Add(BdeBookingTestSeed.NewBooking(ids, BdeBookingType.Production, BdeBookingStatus.AutoPaused,
-            startedAt: DateTime.Now.AddHours(-3), endedAt: DateTime.Now.AddHours(-1)));
-        ctx.BdeBookings.Add(BdeBookingTestSeed.NewBooking(ids, BdeBookingType.Production, BdeBookingStatus.Paused,
-            startedAt: DateTime.Now.AddHours(-2), endedAt: DateTime.Now.AddMinutes(-30)));
-        await ctx.SaveChangesAsync();
-
-        var controller = CreateTerminalController(ctx);
-        var result = await controller.PausedBookings(ids.OperatorId);
-
-        var ok = result as OkObjectResult;
-        ok.Should().NotBeNull();
-        var json = System.Text.Json.JsonSerializer.Serialize(ok!.Value);
-        var parsed = System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement>(json);
-        parsed.GetArrayLength().Should().Be(2);
-        json.Should().Contain("AutoPaused");
-    }
-
-    [Fact]
     public async Task CloseOthers_DelegatesToService_ReturnsCount()
     {
         var ctx = TestDbContextFactory.Create();
@@ -118,52 +58,18 @@ public class BdeTerminalControllerTests
             BookingType = BdeBookingType.Production, Status = BdeBookingStatus.Running, StartedAt = DateTime.Now.AddMinutes(-30),
             CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t"
         });
+        // v1.99.81 (2A): schliessen darf nur, wer auf dem AG selbst fertig gemeldet hat
+        ctx.BdeBookings.Add(BdeBookingTestSeed.NewBooking(ids, BdeBookingType.Production, BdeBookingStatus.Finished,
+            DateTime.Now.AddHours(-1), DateTime.Now));
         await ctx.SaveChangesAsync();
 
         var controller = CreateTerminalController(ctx);
-        var result = await controller.CloseOthers(ids.WorkOperationId, ids.OperatorId);
+        var result = await controller.CloseOthers(ids.WorkOperationId, ids.OperatorId, ids.TerminalId);
 
         var ok = result as OkObjectResult;
         ok.Should().NotBeNull();
         var json = System.Text.Json.JsonSerializer.Serialize(ok!.Value);
         json.Should().Contain("\"closedCount\":1");
-    }
-
-    [Fact]
-    public async Task PausedBookings_ExcludesParentsAlreadyResumed()
-    {
-        var ctx = TestDbContextFactory.Create();
-        var ids = await BdeBookingTestSeed.SeedAsync(ctx);
-
-        // Pausierte Parent-Buchung
-        var parent = BdeBookingTestSeed.NewBooking(ids, BdeBookingType.Production, BdeBookingStatus.Paused,
-            startedAt: DateTime.Now.AddHours(-2), endedAt: DateTime.Now.AddHours(-1));
-        ctx.BdeBookings.Add(parent);
-        await ctx.SaveChangesAsync();
-
-        // Resumed Child-Buchung (mit ParentBookingId → parent)
-        ctx.BdeBookings.Add(new BdeBooking {
-            BdeOperatorId = ids.OperatorId,
-            WorkOperationId = ids.WorkOperationId,
-            BdeTerminalId = ids.TerminalId,
-            ProductionWorkplaceId = ids.WorkplaceId,
-            BookingType = BdeBookingType.Production,
-            Status = BdeBookingStatus.Running,
-            StartedAt = DateTime.Now.AddMinutes(-30),
-            ParentBookingId = parent.Id,
-            CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t"
-        });
-        await ctx.SaveChangesAsync();
-
-        var controller = CreateTerminalController(ctx);
-        var result = await controller.PausedBookings(ids.OperatorId);
-
-        var ok = result as OkObjectResult;
-        ok.Should().NotBeNull();
-        var json = System.Text.Json.JsonSerializer.Serialize(ok!.Value);
-        var parsed = System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement>(json);
-        // Parent sollte NICHT in der paused-list auftauchen, weil bereits resumed
-        parsed.GetArrayLength().Should().Be(0);
     }
 
     [Fact]
@@ -184,7 +90,7 @@ public class BdeTerminalControllerTests
 
         var controller = CreateTerminalController(ctx, multiMa: true);
 
-        var result = await controller.Finish(own.Id, goodQty: 5, scrapQty: 0);
+        var result = await controller.Finish(own.Id, ids.OperatorId, ids.TerminalId, goodQty: 5, scrapQty: 0);
 
         var json = System.Text.Json.JsonSerializer.Serialize((result as JsonResult)!.Value);
         json.Should().Contain("\"otherActiveBookings\"");
@@ -241,54 +147,10 @@ public class BdeTerminalControllerTests
 
         var controller = CreateTerminalController(ctx, multiMa: true);
 
-        var result = await controller.Finish(own.Id, goodQty: null, scrapQty: null);
+        var result = await controller.Finish(own.Id, ids.OperatorId, ids.TerminalId, goodQty: null, scrapQty: null);
 
         var json = System.Text.Json.JsonSerializer.Serialize((result as JsonResult)!.Value);
         json.Should().Contain("\"otherActiveBookings\":[]");
-    }
-
-    [Fact]
-    public async Task ActiveBookings_ReturnsOnlyRunningForOperator()
-    {
-        var ctx = TestDbContextFactory.Create();
-        var ids = await BdeBookingTestSeed.SeedAsync(ctx);
-        var wo2 = await BdeBookingTestSeed.AddSecondWorkOperationAsync(ctx, ids);
-
-        // 2 active (running) bookings for this operator
-        ctx.BdeBookings.Add(BdeBookingTestSeed.NewBooking(ids, BdeBookingType.Production, BdeBookingStatus.Running, DateTime.Now.AddHours(-1)));
-        ctx.BdeBookings.Add(BdeBookingTestSeed.NewBooking(ids, BdeBookingType.Production, BdeBookingStatus.Running, DateTime.Now.AddMinutes(-30), workOperationId: wo2));
-        // 1 paused + 1 finished — should NOT appear
-        ctx.BdeBookings.Add(BdeBookingTestSeed.NewBooking(ids, BdeBookingType.Production, BdeBookingStatus.Paused,
-            startedAt: DateTime.Now.AddHours(-3), endedAt: DateTime.Now.AddHours(-2)));
-        ctx.BdeBookings.Add(BdeBookingTestSeed.NewBooking(ids, BdeBookingType.Production, BdeBookingStatus.Finished,
-            startedAt: DateTime.Now.AddHours(-4), endedAt: DateTime.Now.AddHours(-3)));
-        await ctx.SaveChangesAsync();
-
-        var controller = CreateTerminalController(ctx);
-        var result = await controller.ActiveBookings(ids.OperatorId);
-
-        var ok = result as OkObjectResult;
-        ok.Should().NotBeNull();
-        var json = System.Text.Json.JsonSerializer.Serialize(ok!.Value);
-        var parsed = System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement>(json);
-        parsed.GetArrayLength().Should().Be(2);
-    }
-
-    [Fact]
-    public async Task ActiveBookings_IncludesTargetQuantity()
-    {
-        var ctx = TestDbContextFactory.Create();
-        var ids = await BdeBookingTestSeed.SeedAsync(ctx);
-        ctx.BdeBookings.Add(BdeBookingTestSeed.NewBooking(ids, BdeBookingType.Production, BdeBookingStatus.Running, DateTime.Now.AddHours(-1)));
-        await ctx.SaveChangesAsync();
-
-        var controller = CreateTerminalController(ctx);
-        var result = await controller.ActiveBookings(ids.OperatorId);
-
-        var ok = result as OkObjectResult;
-        ok.Should().NotBeNull();
-        var json = System.Text.Json.JsonSerializer.Serialize(ok!.Value);
-        json.Should().Contain("\"targetQuantity\":10");
     }
 
     [Fact]
@@ -305,7 +167,7 @@ public class BdeTerminalControllerTests
 
         var controller = CreateTerminalController(ctx, multiOp: true, groupFinish: true);
 
-        var result = await controller.Finish(b1.Id, goodQty: 5m, scrapQty: 0m);
+        var result = await controller.Finish(b1.Id, ids.OperatorId, ids.TerminalId, goodQty: 5m, scrapQty: 0m);
 
         var json = System.Text.Json.JsonSerializer.Serialize((result as JsonResult)!.Value);
         json.Should().Contain("\"outcome\":\"GroupFinishRequired\"");
@@ -391,5 +253,151 @@ public class BdeTerminalControllerTests
         var ohneUser = (await CreateTerminalController(ctx, user: Mock.Of<ICurrentUserService>()).Index(null))
             .Should().BeOfType<RedirectToActionResult>().Subject;
         (ohneUser.ControllerName, ohneUser.ActionName).Should().Be(("Account", "Login"));
+    }
+
+    // ---- v1.99.81 (Fix-Lauf, Entscheid 2A / 13A): Waechter an Pause, Finish, ReportPartial, FinishGroup, CloseOthers ----
+
+    private static System.Text.Json.JsonElement Antwort(IActionResult r) =>
+        System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement>(System.Text.Json.JsonSerializer.Serialize(
+            r is JsonResult j ? j.Value : ((ObjectResult)r).Value));
+
+    private static Task<IActionResult> Aktion(BdeTerminalController c, string aktion, int bookingId, int woId, int operatorId, int terminalId) =>
+        aktion switch
+        {
+            "Pause" => c.Pause(bookingId, operatorId, terminalId, 1, 0),
+            "Finish" => c.Finish(bookingId, operatorId, terminalId, 1, 0),
+            "ReportPartial" => c.ReportPartial(bookingId, operatorId, terminalId, 1, 0),
+            "FinishGroup" => c.FinishGroup(operatorId, terminalId, $"[{{\"bookingId\":{bookingId},\"goodQty\":1,\"scrapQty\":0,\"isFinal\":true}}]"),
+            "CloseOthers" => c.CloseOthers(woId, operatorId, terminalId),
+            _ => throw new ArgumentOutOfRangeException(nameof(aktion))
+        };
+
+    public static TheoryData<string> Aktionen => new() { "Pause", "Finish", "ReportPartial", "FinishGroup", "CloseOthers" };
+
+    /// <summary>Eigene laufende Buchung (Werker 1) + laufende Buchung eines zweiten Werkers auf demselben AG.</summary>
+    private static async Task<(BdeBookingTestSeed.Ids ids, BdeBooking eigene, BdeBooking fremde)> SeedZweiWerkerAsync(ApplicationDbContext ctx)
+    {
+        var ids = await BdeBookingTestSeed.SeedAsync(ctx);
+        var op2 = await BdeBookingTestSeed.AddSecondOperatorAsync(ctx);
+        var eigene = BdeBookingTestSeed.NewBooking(ids, BdeBookingType.Production, BdeBookingStatus.Running, DateTime.Now.AddHours(-1));
+        var fremde = BdeBookingTestSeed.NewBooking(ids, BdeBookingType.Production, BdeBookingStatus.Running, DateTime.Now.AddMinutes(-30));
+        fremde.BdeOperatorId = op2;
+        ctx.BdeBookings.AddRange(eigene, fremde);
+        await ctx.SaveChangesAsync();
+        return (ids, eigene, fremde);
+    }
+
+    private static void NichtsGeaendert(ApplicationDbContext ctx, params BdeBooking[] buchungen)
+    {
+        foreach (var b in buchungen)
+        {
+            var frisch = ctx.BdeBookings.AsNoTracking().Single(x => x.Id == b.Id);
+            frisch.Status.Should().Be(BdeBookingStatus.Running);
+            frisch.EndedAt.Should().BeNull();
+        }
+        ctx.BdeBookingQuantities.Count().Should().Be(0);
+    }
+
+    [Theory, MemberData(nameof(Aktionen))]
+    public async Task Waechter_FremdesTerminal_Abgelehnt_NichtsGeaendert(string aktion)
+    {
+        var ctx = TestDbContextFactory.Create();
+        var (ids, eigene, fremde) = await SeedZweiWerkerAsync(ctx);
+
+        var json = Antwort(await Aktion(CreateTerminalController(ctx, multiMa: true, multiOp: true), aktion, eigene.Id, ids.WorkOperationId,
+            ids.OperatorId, ids.TerminalId + 999));
+
+        json.GetProperty("message").GetString().Should().Contain("nicht dem angemeldeten Benutzer");
+        NichtsGeaendert(ctx, eigene, fremde);
+    }
+
+    [Theory]
+    [InlineData("Pause")]
+    [InlineData("Finish")]
+    [InlineData("ReportPartial")]
+    [InlineData("FinishGroup")]
+    public async Task Waechter_FremdeBuchung_Abgelehnt_NichtsGeaendert(string aktion)
+    {
+        var ctx = TestDbContextFactory.Create();
+        var (ids, eigene, fremde) = await SeedZweiWerkerAsync(ctx);
+
+        var json = Antwort(await Aktion(CreateTerminalController(ctx, multiMa: true, multiOp: true), aktion, fremde.Id, ids.WorkOperationId,
+            ids.OperatorId, ids.TerminalId));
+
+        json.GetProperty("message").GetString().Should().Contain("gehört nicht");
+        NichtsGeaendert(ctx, eigene, fremde);
+    }
+
+    [Fact]
+    public async Task CloseOthers_OhneEigeneBeendeteBuchung_Abgelehnt_NichtsGeaendert()
+    {
+        var ctx = TestDbContextFactory.Create();
+        var (ids, eigene, fremde) = await SeedZweiWerkerAsync(ctx);
+
+        var json = Antwort(await CreateTerminalController(ctx, multiMa: true).CloseOthers(ids.WorkOperationId, ids.OperatorId, ids.TerminalId));
+
+        json.GetProperty("message").GetString().Should().Contain("selbst fertig");
+        NichtsGeaendert(ctx, eigene, fremde);
+    }
+
+    [Theory, MemberData(nameof(Aktionen))]
+    public async Task Waechter_InaktiverWerker_Abgelehnt_NichtsGeaendert(string aktion)
+    {
+        var ctx = TestDbContextFactory.Create();
+        var (ids, eigene, fremde) = await SeedZweiWerkerAsync(ctx);
+        ctx.BdeBookings.Add(BdeBookingTestSeed.NewBooking(ids, BdeBookingType.Production, BdeBookingStatus.Finished, DateTime.Now.AddHours(-3), DateTime.Now.AddHours(-2)));
+        (await ctx.BdeOperators.FindAsync(ids.OperatorId))!.IsActive = false;
+        await ctx.SaveChangesAsync();
+
+        var json = Antwort(await Aktion(CreateTerminalController(ctx, multiMa: true, multiOp: true), aktion, eigene.Id, ids.WorkOperationId,
+            ids.OperatorId, ids.TerminalId));
+
+        json.GetProperty("message").GetString().Should().Contain("nicht (mehr) aktiv");
+        NichtsGeaendert(ctx, eigene, fremde);
+    }
+
+    // Review Focus 1: Besitz zaehlt, nicht das Start-Terminal
+    [Fact]
+    public async Task Finish_AnderesStartTerminal_GleicherWerker_Erlaubt()
+    {
+        var ctx = TestDbContextFactory.Create();
+        var ids = await BdeBookingTestSeed.SeedAsync(ctx);
+        var zweites = new BdeTerminal { UserId = ids.UserId, DefaultProductionWorkplaceId = ids.WorkplaceId, CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t" };
+        ctx.BdeTerminals.Add(zweites);
+        await ctx.SaveChangesAsync();
+        var b = BdeBookingTestSeed.NewBooking(ids, BdeBookingType.Production, BdeBookingStatus.Running, DateTime.Now.AddHours(-1));
+        b.BdeTerminalId = zweites.Id;   // an Terminal B gestartet
+        ctx.BdeBookings.Add(b);
+        await ctx.SaveChangesAsync();
+
+        // angemeldet ist Terminal A (das erste geseedete)
+        var json = Antwort(await CreateTerminalController(ctx).Finish(b.Id, ids.OperatorId, ids.TerminalId, 10, 0));
+
+        json.GetProperty("outcome").GetString().Should().Be("Success");
+        ctx.BdeBookings.AsNoTracking().Single(x => x.Id == b.Id).Status.Should().Be(BdeBookingStatus.Finished);
+    }
+
+    // H-B: Exception -> fester deutscher Text, kein Exception-Typ und keine ex.Message beim Werker
+    [Fact]
+    public async Task Finish_Exception_FesterText_OhneInterna()
+    {
+        var ctx = TestDbContextFactory.Create();
+        var ids = await BdeBookingTestSeed.SeedAsync(ctx);
+        var b = BdeBookingTestSeed.NewBooking(ids, BdeBookingType.Production, BdeBookingStatus.Running, DateTime.Now.AddHours(-1));
+        ctx.BdeBookings.Add(b);
+        await ctx.SaveChangesAsync();
+        var svc = new Mock<IBdeBookingService>();
+        svc.Setup(s => s.FinishAsync(It.IsAny<int>(), It.IsAny<decimal?>(), It.IsAny<decimal?>()))
+            .ThrowsAsync(new InvalidOperationException("geheimes Detail"));
+        var user = new Mock<ICurrentUserService>();
+        user.Setup(u => u.GetCurrentAppUserId()).Returns(1);
+        var terminals = new Mock<IBdeTerminalRepository>();
+        terminals.Setup(t => t.GetByUserIdAsync(1)).ReturnsAsync(() => ctx.BdeTerminals.FirstOrDefault());
+        var c = new BdeTerminalController(terminals.Object, svc.Object, user.Object, Mock.Of<IBdeDefaultWorkOperationService>(),
+            Mock.Of<IAppSettingRepository>(), ctx, NullLogger<BdeTerminalController>.Instance);
+
+        var text = Antwort(await c.Finish(b.Id, ids.OperatorId, ids.TerminalId, 1, 0)).GetProperty("message").GetString();
+
+        text.Should().StartWith("Serverfehler").And.NotContain("InvalidOperationException").And.NotContain("geheimes Detail");
     }
 }

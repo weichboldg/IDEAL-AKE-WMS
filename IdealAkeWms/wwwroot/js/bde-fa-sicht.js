@@ -85,7 +85,10 @@
             case 'GroupFinishRequired': gruppe(json); return;
             case 'QuantityRequired': melden('Mengen-Eingabe erforderlich – nichts gebucht.', 'warning'); return;
             case 'Http': melden(json.message, 'warning'); return;
-            default: melden((json.message || 'Aktion nicht möglich') + ' – nichts gebucht.', 'warning');
+            default:
+                // v1.99.81: Texte, die schon „nichts … gebucht“ sagen (Serverfehler), nicht doppelt ergaenzen
+                var t = json.message || 'Aktion nicht möglich';
+                melden(/nichts/.test(t) ? t : t + ' – nichts gebucht.', 'warning');
         }
     }
 
@@ -134,7 +137,7 @@
         ja.onclick = async function () {
             var frei = window.wmsSperren(ja);
             if (!frei) return;
-            var r = await post('/BdeTerminal/CloseOthers', { workOperationId: json.workOperationId, operatorId: operatorId });
+            var r = await post('/BdeTerminal/CloseOthers', { workOperationId: json.workOperationId, operatorId: operatorId, terminalId: terminalId });
             frei();
             text = r.closedCount != null ? okText + ' ' + r.closedCount + ' weitere Buchungen beendet.' : okText + ' Weitere Buchungen beenden fehlgeschlagen: ' + (r.message || '');
             m.hide();
@@ -178,7 +181,7 @@
                     isFinal: r.querySelector('.group-is-final').checked
                 };
             });
-            var r = await post('/BdeTerminal/FinishGroup', { operatorId: operatorId, entriesJson: JSON.stringify(eintraege) });
+            var r = await post('/BdeTerminal/FinishGroup', { operatorId: operatorId, terminalId: terminalId, entriesJson: JSON.stringify(eintraege) });
             if (r.outcome === 'Success') { neuLaden(r.closedCount + ' Buchungen fertig gemeldet.'); return; }
             frei();
             m.hide();
@@ -204,16 +207,16 @@
         switch (btn.dataset.kopfAktion) {
             case 'pause':
                 if (!(q = await mengen(soll, null))) return frei();
-                r = await post('/BdeTerminal/Pause', { bookingId: id, goodQty: q.gut, scrapQty: q.aus }); ok = 'Pausiert.'; break;
+                r = await post('/BdeTerminal/Pause', { bookingId: id, operatorId: operatorId, terminalId: terminalId, goodQty: q.gut, scrapQty: q.aus }); ok = 'Pausiert.'; break;
             case 'teilfertig':
                 if (!(q = await mengen(soll, null))) return frei();
-                r = await post('/BdeTerminal/ReportPartial', { bookingId: id, goodQty: q.gut, scrapQty: q.aus }); ok = 'Teilmenge gemeldet.'; break;
+                r = await post('/BdeTerminal/ReportPartial', { bookingId: id, operatorId: operatorId, terminalId: terminalId, goodQty: q.gut, scrapQty: q.aus }); ok = 'Teilmenge gemeldet.'; break;
             case 'fertig':
                 if (!(q = await mengen(soll, null)) || !(await gutOk(q.gut, soll))) return frei();
-                r = await post('/BdeTerminal/Finish', { bookingId: id, goodQty: q.gut, scrapQty: q.aus }); ok = 'Fertig gemeldet.'; break;
-            case 'ruesten-fertig': r = await post('/BdeTerminal/Finish', { bookingId: id }); ok = 'Rüsten beendet.'; break;
+                r = await post('/BdeTerminal/Finish', { bookingId: id, operatorId: operatorId, terminalId: terminalId, goodQty: q.gut, scrapQty: q.aus }); ok = 'Fertig gemeldet.'; break;
+            case 'ruesten-fertig': r = await post('/BdeTerminal/Finish', { bookingId: id, operatorId: operatorId, terminalId: terminalId }); ok = 'Rüsten beendet.'; break;
             case 'produktion': r = await start(z.dataset.woId, false); ok = 'Produktion gestartet.'; break;
-            case 'beenden': r = await post('/BdeTerminal/Finish', { bookingId: id }); ok = 'Tätigkeit beendet.'; break;
+            case 'beenden': r = await post('/BdeTerminal/Finish', { bookingId: id, operatorId: operatorId, terminalId: terminalId }); ok = 'Tätigkeit beendet.'; break;
             case 'fortsetzen':
                 r = await post('/BdeTerminal/Resume', { pausedBookingId: id, operatorId: operatorId, resumeAs: 2, workplaceId: workplaceId, terminalId: terminalId });
                 ok = 'Fortgesetzt.'; break;

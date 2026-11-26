@@ -10,8 +10,8 @@ public sealed record BdeKopfBuchung(int BookingId, BdeBookingType Typ, BdeBookin
     decimal? TargetQuantity, string TerminalName, string SubOrderNumber = "");
 
 /// <summary>
-/// v1.99.77 (Spec 2026-11-25-bde-masken-vereinheitlichung E4-4): die Abfragen hinter BdeTerminal <c>ActiveBookings</c>/<c>PausedBookings</c>
-/// an EINEM Ort – das Terminal liefert sie weiter als JSON, die FA-Sicht rendert sie serverseitig im Kopf.
+/// v1.99.77 (Spec 2026-11-25-bde-masken-vereinheitlichung E4-4): Abfragen der Kopf-Buchungen an EINEM Ort; die FA-Sicht rendert sie
+/// serverseitig im Kopf. v1.99.81 (F-29): die frueheren BdeTerminal-GETs ActiveBookings/PausedBookings sind geloescht.
 /// </summary>
 public static class BdeKopfBuchungen
 {
