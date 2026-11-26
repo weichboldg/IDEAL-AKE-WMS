@@ -231,9 +231,20 @@ Neues Kapitel in `docs/TESTSZENARIEN.md` (Nummer beim Dev-Start prüfen; nach Te
   Bei Varianten-Specs zusaetzlich freigabe_entscheidung im Frontmatter setzen.
 -->
 
-1. Spaltensatz der Maske „Liste“ wie Empfehlung? →
-2. Zeilen je Auftragszeile (nicht summiert)? →
-3. Sortierung Komm.-Ziel → Hauptlagerplatz → Position? →
-4. Baugruppen mit „BG“, ohne Einrücken? →
-5. Maske nicht merken? →
-6. Link Kommissionierliste → KO-Aufträge nicht in diesem Teil? →
+1. Spaltensatz der Maske „Liste“ wie Empfehlung? → **welche spalten haben wir noch? Arbeitsbereich zb,... wenn mehr Spalten verfügbar über zahnrad ein/ausblendbar** (Gerald 2026-11-26, Chat)
+2. Zeilen je Auftragszeile (nicht summiert)? → **nein, in der liste ist es summiert, sollten wir dann auch so schaffen können. Die buchung in der db darf auf positionsebene passieren** (Gerald 2026-11-26, Chat)
+3. Sortierung Komm.-Ziel → Hauptlagerplatz → Position? → **gleiche sortierung wie gehabt** (Gerald 2026-11-26, Chat)
+4. Baugruppen mit „BG“, ohne Einrücken? → **ja. Woe gehabt** (Gerald 2026-11-26, Chat)
+5. Maske nicht merken? → **wie ghabt. Nein** (Gerald 2026-11-26, Chat)
+6. Link Kommissionierliste → KO-Aufträge nicht in diesem Teil? → **siehe Nachfragen 2026-11-26 zu 6** (Gerald, Chat)
+
+**Nachfragen 2026-11-26 (Gerald, Chat):**
+- zu 1 (Spalten): zusätzlich sichtbar „Arbeitsbereich, Abteilung, Bezeichnung 2 / Artikelgruppe, Beschaffung / Kategorie“; alle
+  übrigen Spalten über das Zahnrad ein-/ausblendbar.
+- zu 2 (Ist-Menge in der summierten Liste): „Positionsfolge, wenn Restmenge sein sollte, ist diese Position nur teilgeliefert“ —
+  Verteilung je Artikel auf die `PickingOrderLine`s in Positionsreihenfolge, jede bis zu ihrem Soll; die letzte erreichte Position
+  bleibt bei Unterdeckung teilgeliefert.
+- 6 (Link Kommissionierliste ↔ KO-Auftrag): „Eigentlich umgekehrt, die neue Kommissionierliste wird vom KO-Auftrag geöffnet, der User
+  kann umschalten zwischen der neuen Liste und der bestehenden Kommissionierung. Für den ersten Implementierungsversuch wirklich die
+  bestehende Kommissionierliste bestehen lassen und neu implementieren.“ — kein Link aus `/FaHierarchyKommissionierListen`; diese
+  bleibt unverändert, die Liste-Maske wird am KO-Auftrag neu gebaut.

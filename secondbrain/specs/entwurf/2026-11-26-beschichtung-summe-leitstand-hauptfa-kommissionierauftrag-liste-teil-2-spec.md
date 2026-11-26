@@ -252,8 +252,8 @@ Neues Kapitel in `docs/TESTSZENARIEN.md` (Nummer beim Dev-Start prüfen; nach Te
   Bei Varianten-Specs zusaetzlich freigabe_entscheidung im Frontmatter setzen.
 -->
 
-1. Freigabe-Haken am HauptFA – Befund und Ergebnis P-1 bis P-3 →
-2. Schalter „Sub-FAs anzeigen“ (Standard aus)? →
-3. Eine Zeile je HauptFA ohne Gruppenkopf, Kaskaden-Knopf in der Zeile? →
-4. Filter auf HauptFA-Zeile, FA-Nr. findet auch über Sub-FA-Nummer? →
-5. Keine Zusammenfassung der Sub-FA-Werte an der HauptFA-Zeile? →
+1. Freigabe-Haken am HauptFA – Befund und Ergebnis P-1 bis P-3 → **nur noch am haupt fa weil wir ja nur noch hauptfa freigeben und anzeigen wollen** (Gerald 2026-11-26, Chat)
+2. Schalter „Sub-FAs anzeigen“ (Standard aus)? → **ja wird eigentlich nicht benötigt werden** (Gerald 2026-11-26, Chat)
+3. Eine Zeile je HauptFA ohne Gruppenkopf, Kaskaden-Knopf in der Zeile? → **ja - subfas dürfen nicht gesondert freigegeben werden. Nur noch hauptfa** (Gerald 2026-11-26, Chat)
+4. Filter auf HauptFA-Zeile, FA-Nr. findet auch über Sub-FA-Nummer? → **nur wenn checkbox welche eben eigentlich hinfällig ist** (Gerald 2026-11-26, Chat)
+5. Keine Zusammenfassung der Sub-FA-Werte an der HauptFA-Zeile? → **alles was für diesen hauptfa inkl subfa (logik haben wir glaube ich schon bei der kommissionierliste so)** (Gerald 2026-11-26, Chat)

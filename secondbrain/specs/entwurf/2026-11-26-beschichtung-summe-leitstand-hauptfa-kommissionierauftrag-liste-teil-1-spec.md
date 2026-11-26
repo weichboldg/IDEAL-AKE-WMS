@@ -212,8 +212,11 @@ kennzeichnen, nicht löschen.
   Bei Varianten-Specs zusaetzlich freigabe_entscheidung im Frontmatter setzen.
 -->
 
-1. Konflikt Antwort 11 (Spec 2026-11-18): Druck wieder immer summiert? →
-2. Summenzeile: Summe der Mengen + Anzahl Positionen? →
-3. Zellen je Summenzeile (Schlüssel, Verpackt, Pos., Maße) wie S1-S4? →
-4. Standort: AKE und IDEAL gleich? →
-5. Vorschlagsliste-Druck mitziehen? →
+1. Konflikt Antwort 11 (Spec 2026-11-18): Druck wieder immer summiert? → **ja bitte positionsnummerierung beibehalten** (Gerald 2026-11-26, Chat)
+2. Summenzeile: Summe der Mengen + Anzahl Positionen? → **ja** (Gerald 2026-11-26, Chat)
+3. Zellen je Summenzeile (Schlüssel, Verpackt, Pos., Maße) wie S1-S4? → **muss immer einheitlich sein. Ansonsten gern uneinheitlich** (Gerald 2026-11-26, Chat)
+4. Standort: AKE und IDEAL gleich? → **ja** (Gerald 2026-11-26, Chat)
+5. Vorschlagsliste-Druck mitziehen? → **nein** (Gerald 2026-11-26, Chat)
+
+**Nachfrage 2026-11-26 (Gerald, Chat) zu 1:** „Die Tabelle soll einfach eine Spalte Pos. mit laufender aufsteigender Positionsnummer
+haben. Sind 10 Zeilen 1-10“ — also Druck summiert, Pos. = laufende Nummer je Summenzeile (wie S3).
