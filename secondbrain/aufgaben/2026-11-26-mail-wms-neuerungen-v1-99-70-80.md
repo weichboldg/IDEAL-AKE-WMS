@@ -39,7 +39,7 @@ müssen. Was nur für einen Standort gilt, ist mit **(AKE)** oder **(IDEAL)** ma
 - **Fertig nach Teilmengen (seit 1.99.81).** Nach einer Teilfertigmeldung schlägt „Fertig“ die Restmenge vor; ein Teil davon kann als
   Ausschuss eingetragen werden. Ist die Sollmenge schon gemeldet, darf „Fertig“ mit 0 / 0 abschließen.
 - **Pause nicht mehr fortsetzbar (seit 1.99.81).** Ist der Auftrag inzwischen abgeholt oder abgeschlossen, zeigt „Meine Buchungen“ den Grund
-  und den Knopf „Abschließen“. Der Kopf der BDE-Seite lässt sich einklappen; die Werkbank wechselt nur noch der BDE-Admin.
+  und den Knopf „Abschließen“. Der Kopf der BDE-Seite lässt sich einklappen; als BDE-Admin wechseln Sie die Werkbank, ohne den Werker neu anzumelden.
 - **Blechdicke und Fräsen-Pfad (IDEAL).** Die Teileliste zeigt die Blechdicke (fehlt der Wert, steht „–“). Den Fräsen-Pfad können Sie über
   das Zahnrad einblenden und mit „Pfad kopieren“ übernehmen.
 

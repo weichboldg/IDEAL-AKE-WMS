@@ -20,7 +20,7 @@ Stand: feature-complete, QA (Task 8) und Paket 21 offen. Nicht gemergt.
 - **0/0 als Abschluss nur nach Teilmenge** (Finish, FinishGroup, ReportCompletionCore); Teilmenge ≥ Soll mit Hinweis „Sollmenge erreicht“.
   Fertig-Dialog: Gut Pflicht, Rest vorbelegt (`BdeKopfBuchung.BisherGut`), Rückfrage über Soll.
 - **Kopf einklappbar** (K-1, localStorage mit try/catch), laufende Produktion markiert (U-1), Sperre erst nach Dialog, Enter bestätigt,
-  Waisen-Hinweis zuklappbar, Werkbank-Auswahl nur BDE-Admin (Werker bleibt).
+  Waisen-Hinweis zuklappbar, Werkbank-Auswahl fuer alle wie bisher, beim BDE-Admin bleibt der Werker angemeldet (Korrektur 44c1011e).
 - **Pausierte abschließen** (Entscheid 9): `IBdeBookingService.FortsetzenSperreAsync` (dieselben drei Prüfungen wie Resume, ein Ort) und
   `ClosePausedAsync` (Status beendet, `EndedAt ??= Now`, Audit). Kopf zeigt „Nicht fortsetzbar: <Grund>“ + „Abschließen“; neue Admin-Liste
   `BdeBookings/HaengendePausen` (Schichtleiter lesen, `PauseAbschliessen` nur BDE-Admin), Server-Spaltenfilter + Pagination.
@@ -36,7 +36,7 @@ Stand: feature-complete, QA (Task 8) und Paket 21 offen. Nicht gemergt.
 
 - Kein Schema. SQL/169 wirkt nur, wo es noch nicht lief (AKE-Prod/IDEAL-Prod: erst mit diesem Paket).
 - IDEAL: Einmal-Skript Fräsen-Pfad im Prod-Fenster SCHARF (DB-Backup aus dem Lauf).
-- Werker, die bisher selbst die Werkbank gewechselt haben, können das nicht mehr (nur BDE-Admin) – Schichtleiter informieren.
+- Werkbank-Wechsel fuer Werker unveraendert (danach neu anmelden); nur der BDE-Admin behaelt den Werker (44c1011e).
 - Kommissionier-Nachtrag läuft beim ersten Dienststart sofort (1C, nur in Doku/Checkliste).
 
 ## Offen
