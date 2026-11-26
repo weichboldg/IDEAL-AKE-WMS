@@ -2,7 +2,7 @@
 type: spec
 title: "Lagerbestellung: Hinweis „bereits als Fehlteil bestellt“ mit nächstem Liefertermin"
 slug: 2026-11-26-lagerbestellung-hinweis-fehlteil-bereits-bestellt-spec
-status: Entwurf
+status: Freigegeben
 created: 2026-11-26
 updated: 2026-11-26
 source_backlog: "[[2026-11-26-lagerbestellung-hinweis-fehlteil-bereits-bestellt]]"
@@ -19,17 +19,16 @@ affected_code:
   - IdealAkeWms/Views/WarehouseRequisitions/Edit.cshtml
   - IdealAkeWms/Views/Help/Index.cshtml, Views/Help/Changelog.cshtml
   - IdealAkeWms.Tests (LieferterminOffeneBestellungenTests – Verweis auf LieferterminZelle; FehlteileKarteV181Tests, WarehouseRequisitionsControllerTests – nur Konstruktor; neue Tests)
-open_questions:
-  - "Stücklisten-Schnellerfassung (Bom.cshtml:1462 → quick-add): Hinweis dort nur beim späteren Öffnen des Entwurfs (Vorschlag) oder auch direkt in der Rückmeldung der Stückliste?"
+open_questions: []
 epic: false
 etappen: []
 deploy:
   web: true
   service: false
   migration: false
-freigabe_entscheidung: ""
-freigabe_von: ""
-freigabe_am: ""
+freigabe_entscheidung: "freigegeben"
+freigabe_von: "Gerald (Chat)"
+freigabe_am: "2026-11-26"
 ---
 
 ## Ziel / Nutzen (das Warum)
