@@ -16,7 +16,6 @@
     var leer = Model.KopfLaufend.Count == 0 && Model.KopfPausiert.Count == 0;
 }
 <section class="bde-kopf mb-2" aria-labelledby="bdeKopfTitel">
-    <div id="faMeldung" aria-live="polite"></div>
     <div class="d-flex align-items-center flex-wrap gap-2 mb-1">
         <h3 id="bdeKopfTitel" class="h5 mb-0">Meine Buchungen</h3>
         <div class="form-check form-switch mb-0 ms-auto bde-touch">
@@ -36,7 +35,8 @@
             {
                 var was = Was(b);
                 <li class="bde-kopf-zeile bde-kopf-laeuft" data-booking-id="@b.BookingId" data-wo-id="@b.WorkOperationId"
-                    data-soll="@b.TargetQuantity?.ToString(inv)" data-bisher="@b.BisherGut.ToString(inv)" data-bez="@was">
+                    data-soll="@b.TargetQuantity?.ToString(inv)" data-bisher="@b.BisherGut.ToString(inv)" data-bez="@was"
+                    data-start="@b.StartedAt.ToString("HH:mm")">
                     <span class="bde-kopf-art">@Art(b) läuft</span>
                     <span class="bde-kopf-was">@was</span>
                     <span class="bde-kopf-detail">Start @b.StartedAt.ToString("HH:mm"), Laufzeit <span class="bde-laufzeit" data-sekunden="@((long)Math.Max(0, (jetzt - b.StartedAt).TotalSeconds))">@BdeKopfBuchungen.Laufzeit(b.StartedAt, jetzt)</span>,

@@ -528,6 +528,8 @@ public class BdeTeilelisteService
     public sealed class MeldeErgebnis
     {
         public int Gemeldet { get; set; }
+        /// <summary>v1.99.81 (U-12): Bezeichnung der ersten gemeldeten Zeile – bei genau einer Meldung im Text statt der Zahl.</summary>
+        public string? EinzelBezeichnung { get; set; }
         public List<string> BereitsGemeldet { get; } = new();
         public List<string> Abgewiesen { get; } = new();
         public List<string> Hinweise { get; } = new();
@@ -535,7 +537,7 @@ public class BdeTeilelisteService
 
         public string Text()
         {
-            var teile = new List<string> { $"Gemeldet: {Gemeldet}." };
+            var teile = new List<string> { Gemeldet == 1 && EinzelBezeichnung != null ? $"Gemeldet: {EinzelBezeichnung}." : $"Gemeldet: {Gemeldet}." };
             if (BereitsGemeldet.Count > 0) teile.Add($"Bereits gemeldet: {BereitsGemeldet.Count} – nichts geändert ({string.Join("; ", BereitsGemeldet)}).");
             if (Abgewiesen.Count > 0) teile.Add($"Abgewiesen: {Abgewiesen.Count} ({string.Join("; ", Abgewiesen)}).");
             if (Hinweise.Count > 0) teile.Add($"Hinweis: {string.Join("; ", Hinweise)}.");
@@ -638,7 +640,7 @@ public class BdeTeilelisteService
             IstAbschliessend = a.Abschliessend, // immer ausdruecklich (DB-Default 1 nur fuer Bestand, ADR 0037)
             CreatedAt = DateTime.Now, CreatedBy = _userSvc.GetDisplayName(), CreatedByWindows = _userSvc.GetWindowsUserName(),
         };
-        if (await SpeichernAsync(meldung, bezeichnung, e, () => AbschlussAsync(LagerMeldungenAsync(itemId, kuerzel)))) e.Gemeldet++;
+        if (await SpeichernAsync(meldung, bezeichnung, e, () => AbschlussAsync(LagerMeldungenAsync(itemId, kuerzel)))) { e.Gemeldet++; e.EinzelBezeichnung ??= bezeichnung; }
     }
 
     /// <summary>v1.99.75 (E3-1, ADR 0037): Mengen je Art. Teilfertig: Gut Pflicht &gt; 0; erreicht die Summe Gut das Soll, wird gespeichert mit
@@ -760,6 +762,7 @@ public class BdeTeilelisteService
         };
         if (!await SpeichernAsync(meldung, bezeichnung, e, () => AbschlussAsync(MeldungenAsync(s, kuerzel)))) return;
         e.Gemeldet++;
+        e.EinzelBezeichnung ??= bezeichnung;
 
         if (node.SubFA == 0) return; // Blechteil: nur Teilmeldung (F10)
 

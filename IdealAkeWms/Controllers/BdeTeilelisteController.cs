@@ -126,6 +126,7 @@ public class BdeTeilelisteController : Controller
         }
         vm.Werker = await AktiverWerkerAsync(operatorId);
         if (vm.Werker == null) return View("Anmelden", vm);
+        vm.BdeAdmin = await _userSvc.CanManageBdeAdminAsync();
 
         // E5: ohne Filter-Angaben den gespeicherten Filter laden (Redirect, damit Spaltenfilter wie gewohnt aus der Query kommen),
         // sonst Antwort 7: Vorgabe aktuelle KW bis +1. Jeder Filter-Aufruf speichert.

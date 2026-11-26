@@ -12,7 +12,15 @@
     // v1.99.76 (E4-7, AK 30): Teile-Reiter nur bei Master an; ohne Teile-Sicht deaktiviert mit Hinweis.
     var teileReiter = new[] { ("einzeln", "Teile Einzeln"), ("summiert", "Teile Summiert") };
 }
-<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+@* v1.99.81 (K-1): Kopf (Werkbank, Werker, Meine Buchungen) einklappbar, Zustand je Geraet im localStorage (bde-teileliste.js).
+   Eingeklappt bleibt die Kurzzeile im Knopf sichtbar: Werkbank, Werker und – in der FA-Sicht – die laufende Buchung. *@
+@{
+    var laeuft = Model.KopfLaufend.FirstOrDefault();
+    var kurzKopf = $"{Model.Werkbank.Name}, {Model.Werker!.DisplayName}"
+        + (!Model.IstFa ? "" : laeuft == null ? ", keine laufende Buchung"
+            : $", läuft: {laeuft.OrderNumber} / {laeuft.OperationNumber.Trim()}" + (Model.KopfLaufend.Count > 1 ? $" (+{Model.KopfLaufend.Count - 1})" : ""));
+}
+<div class="d-flex align-items-center flex-wrap gap-2 mb-2">
     <h2 class="mb-0">
         @(Model.IstFa ? "BDE – Arbeitsgänge" : "BDE-Teileliste")
         @if (Model.Kuerzel != null)
@@ -20,29 +28,49 @@
             <span class="badge bg-secondary align-middle">Kürzel @Model.Kuerzel</span>
         }
     </h2>
-    <div class="d-flex align-items-center gap-2">
-        <label for="teilelisteWerkbank" class="form-label mb-0">Werkbank</label>
-        <select id="teilelisteWerkbank" class="form-select bde-touch w-auto" data-ziel="@Url.Action("Index", "BdeTeileliste")">
-            @foreach (var wp in Model.Werkbaenke)
-            {
-                <option value="@wp.Id" selected="@(wp.Id == Model.Werkbank.Id)">@wp.Name</option>
-            }
-        </select>
-    </div>
-</div>
-
-<div class="bde-operator-badge flex-wrap gap-2 mb-2">
-    <span class="fw-bold">@Model.Werker!.DisplayName</span>
-    <span class="ms-2 small">Personalnr. @Model.Werker.PersonnelNumber</span>
-    @* v1.99.78 (Etappe 5): Tageshistorie als eigene Seite (ersetzt die Karte am alten Terminal). *@
-    <a class="btn btn-outline-secondary ms-auto bde-touch" asp-action="Tageshistorie" asp-route-workplaceId="@Model.Werkbank.Id"
-       asp-route-operatorId="@Model.Werker.Id">Tageshistorie</a>
-    <a class="btn btn-outline-secondary bde-touch" asp-action="Index" asp-route-workplaceId="@Model.Werkbank.Id">Werker wechseln</a>
+    <button type="button" class="btn btn-outline-secondary bde-touch ms-auto bde-kopf-umschalter" id="bdeKopfKnopf" data-bs-toggle="collapse"
+            data-bs-target="#bdeKopfBereich" aria-expanded="true" aria-controls="bdeKopfBereich">
+        <span class="bde-kopf-umschalter-auf">Kopf einklappen</span>
+        <span class="bde-kopf-umschalter-zu">Kopf aufklappen: <span class="fw-normal">@kurzKopf</span></span>
+    </button>
 </div>
 @if (Model.IstFa)
 {
-    <partial name="_KopfBuchungen" model="Model" />
+    <div id="faMeldung" aria-live="polite"></div>
 }
+<div class="collapse show" id="bdeKopfBereich">
+    <div class="d-flex align-items-center flex-wrap gap-2 mb-2">
+        @if (Model.BdeAdmin)
+        {
+            @* v1.99.81 (Task 4b): nur BDE-Admin wechselt die Werkbank und behaelt den Werker (gespeicherter Filter je Werkbank bleibt). *@
+            <label for="teilelisteWerkbank" class="form-label mb-0">Werkbank</label>
+            <select id="teilelisteWerkbank" class="form-select bde-touch w-auto" data-ziel="@Url.Action("Index", "BdeTeileliste")"
+                    data-operator-id="@Model.Werker.Id">
+                @foreach (var wp in Model.Werkbaenke)
+                {
+                    <option value="@wp.Id" selected="@(wp.Id == Model.Werkbank.Id)">@wp.Name</option>
+                }
+            </select>
+        }
+        else
+        {
+            <span>Werkbank <strong>@Model.Werkbank.Name</strong></span>
+        }
+    </div>
+
+    <div class="bde-operator-badge flex-wrap gap-2 mb-2">
+        <span class="fw-bold">@Model.Werker.DisplayName</span>
+        <span class="ms-2 small">Personalnr. @Model.Werker.PersonnelNumber</span>
+        @* v1.99.78 (Etappe 5): Tageshistorie als eigene Seite (ersetzt die Karte am alten Terminal). *@
+        <a class="btn btn-outline-secondary ms-auto bde-touch" asp-action="Tageshistorie" asp-route-workplaceId="@Model.Werkbank.Id"
+           asp-route-operatorId="@Model.Werker.Id">Tageshistorie</a>
+        <a class="btn btn-outline-secondary bde-touch" asp-action="Index" asp-route-workplaceId="@Model.Werkbank.Id">Werker wechseln</a>
+    </div>
+    @if (Model.IstFa)
+    {
+        <partial name="_KopfBuchungen" model="Model" />
+    }
+</div>
 
 <ul class="nav nav-pills mb-1" aria-label="Ansicht">
     @if (Model.Hierarchisch)
@@ -139,8 +167,14 @@ else
 
 @if (Model.Waisen > 0)
 {
-    <div class="alert alert-warning" role="alert">
-        <strong>Hinweis:</strong> @Model.Waisen Meldung(en) ohne passende Strukturzeile – Sage hat Position oder Artikel geändert.
-        Prüfung durch den BDE-Admin unter <a asp-controller="BdeBookings" asp-action="Teilmeldungen" class="alert-link">BDE-Buchungen › Teilmeldungen</a>.
-    </div>
+    @* v1.99.81 (U-13, 12A): kurz und zuklappbar beim Werker, Link nur fuer BDE-Admin; das Signal bleibt sichtbar (melden statt still). *@
+    <details class="alert alert-warning py-2 bde-tl-waisen">
+        <summary class="bde-touch">@Model.Waisen @(Model.Waisen == 1 ? "Meldung passt" : "Meldungen passen") nicht mehr zur FA-Struktur – BDE-Admin informieren.</summary>
+        <p class="mb-0 mt-1">Sage hat Position oder Artikel geändert.
+            @if (Model.BdeAdmin)
+            {
+                <text>Prüfen unter <a asp-controller="BdeBookings" asp-action="Teilmeldungen" class="alert-link">BDE-Buchungen › Teilmeldungen</a>.</text>
+            }
+        </p>
+    </details>
 }

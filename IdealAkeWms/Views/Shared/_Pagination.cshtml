@@ -7,7 +7,7 @@
 {
     <div class="alert alert-warning py-2 px-3 my-2 small mb-0">
         <strong>Treffer auf @IdealAkeWms.Services.PageSize.AllCap.ToString("N0") begrenzt</strong> —
-        es koennen weitere Eintraege existieren. Bitte Filter eingrenzen oder spezifischere Suche.
+        es können weitere Einträge existieren. Bitte Filter eingrenzen oder spezifischere Suche.
     </div>
 }
 
@@ -27,11 +27,11 @@
     <div class="text-muted small">
         @if (Model.TotalCount == 0)
         {
-            <span>Keine Eintraege</span>
+            <span>Keine Einträge</span>
         }
         else
         {
-            <span>Eintraege @Model.FirstItemNumber&ndash;@Model.LastItemNumber von @Model.TotalCount</span>
+            <span>Einträge @Model.FirstItemNumber&ndash;@Model.LastItemNumber von @Model.TotalCount</span>
         }
     </div>
 
@@ -72,7 +72,7 @@
     }
 
     <div class="d-flex align-items-center gap-2">
-        <label class="form-label small mb-0" for="pageSizeSelect_@Guid.NewGuid().ToString("N").Substring(0, 6)">Eintraege/Seite</label>
+        <label class="form-label small mb-0" for="pageSizeSelect_@Guid.NewGuid().ToString("N").Substring(0, 6)">Einträge/Seite</label>
         <select class="form-select form-select-sm pagination-page-size" style="width: auto;">
             @foreach (var opt in new[] { 25, 50, 100, 0 })
             {

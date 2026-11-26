@@ -7,8 +7,21 @@
     var sel = document.getElementById('teilelisteWerkbank');
     if (sel) {
         sel.addEventListener('change', function () {
-            window.location.href = sel.dataset.ziel + '?workplaceId=' + encodeURIComponent(sel.value);
+            // v1.99.81 (Task 4b): Werker bleibt angemeldet (nur BDE-Admin sieht die Auswahl)
+            window.location.href = sel.dataset.ziel + '?workplaceId=' + encodeURIComponent(sel.value)
+                + (sel.dataset.operatorId ? '&operatorId=' + encodeURIComponent(sel.dataset.operatorId) : '');
         });
+    }
+
+    // v1.99.81 (K-1): Kopf ein-/ausklappen, Zustand je Geraet (nicht je Werker – das Geraet steht an einer Werkbank)
+    var kopfBereich = document.getElementById('bdeKopfBereich');
+    if (kopfBereich) {
+        var KOPF = 'wms.bdeKopfZu', kopfKnopf = document.getElementById('bdeKopfKnopf');
+        try {
+            if (localStorage.getItem(KOPF) === '1') { kopfBereich.classList.remove('show'); kopfKnopf.setAttribute('aria-expanded', 'false'); }
+        } catch (e) { /* ohne Speicher bleibt der Kopf offen */ }
+        kopfBereich.addEventListener('shown.bs.collapse', function () { try { localStorage.setItem(KOPF, '0'); } catch (e) { } });
+        kopfBereich.addEventListener('hidden.bs.collapse', function () { try { localStorage.setItem(KOPF, '1'); } catch (e) { } });
     }
 
     // v1.99.73 (E1-2): table-filter.js sortiert alle Zeilen je <tbody>; danach jede Kinderzeile wieder direkt hinter ihre Baugruppe.
@@ -94,7 +107,7 @@
     var aktualisieren = function () {
         var a = auswahl();
         knopf.disabled = a.zeilen === 0;
-        knopf.textContent = a.zeilen === 0 ? 'Auswahl fertigmelden' : 'Auswahl fertigmelden (' + a.zeilen + ' Zeilen, Summe ' + fmt(a.summe) + ')';
+        knopf.textContent = a.zeilen === 0 ? 'Auswahl fertigmelden' : 'Auswahl fertigmelden (' + a.zeilen + (a.zeilen === 1 ? ' Zeile' : ' Zeilen') + ', Summe ' + fmt(a.summe) + ')';
     };
     document.addEventListener('change', function (ev) {
         if (ev.target === alle) boxen().forEach(function (c) { c.checked = alle.checked; });
@@ -113,7 +126,7 @@
         ev.preventDefault();
         ev.stopImmediatePropagation();
         var a = auswahl();
-        bestaetigen(a.zeilen + ' Zeilen mit ihrer Restmenge fertigmelden (Summe ' + fmt(a.summe) + ')? Die Zeilen sind danach abgeschlossen.',
+        bestaetigen(a.zeilen + (a.zeilen === 1 ? ' Zeile' : ' Zeilen') + ' mit ihrer Restmenge fertigmelden (Summe ' + fmt(a.summe) + ')? Die Zeilen sind danach abgeschlossen.',
             'Fertig melden', function () { form.dataset.bestaetigt = '1'; form.requestSubmit(); delete form.dataset.bestaetigt; });
     }, true);
     aktualisieren();

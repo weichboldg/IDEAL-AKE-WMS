@@ -83,13 +83,36 @@
                 }, { once: true });
                 modal('collisionModal').show(); return;
             case 'GroupFinishRequired': gruppe(json); return;
-            case 'QuantityRequired': melden('Mengen-Eingabe erforderlich – nichts gebucht.', 'warning'); return;
+            case 'QuantityRequired': laufendZeigen(json.bookingId); return;
             case 'Http': melden(json.message, 'warning'); return;
             default:
                 // v1.99.81: Texte, die schon „nichts … gebucht“ sagen (Serverfehler), nicht doppelt ergaenzen
                 var t = json.message || 'Aktion nicht möglich';
                 melden(/nichts/.test(t) ? t : t + ' – nichts gebucht.', 'warning');
         }
+    }
+
+    // v1.99.81 (U-1, 8A): Start abgewiesen, weil die eigene Produktion noch laeuft (QuantityRequired mit deren bookingId). Klare Meldung,
+    // die Kopfzeile bekommt Rahmen + Text und wird angesprungen (Kopf aufgeklappt, K-1). Ohne passende Kopfzeile der allgemeine Text.
+    function laufendZeigen(bookingId) {
+        var z = bookingId != null && document.querySelector('.bde-kopf-zeile[data-booking-id="' + bookingId + '"]');
+        if (!z) { melden('Mengen-Eingabe erforderlich – nichts gebucht.', 'warning'); return; }
+        melden('Es läuft noch Ihre Produktion ' + z.dataset.bez + (z.dataset.start ? ' (seit ' + z.dataset.start + ')' : '')
+            + '. Solange sie läuft, kann kein zweiter Arbeitsgang starten – es wurde nichts gebucht. Oben unter „Meine Buchungen“ Pause oder Fertig'
+            + ' melden, dann hier neu starten.', 'warning');
+        document.querySelectorAll('.bde-kopf-markiert').forEach(function (x) { x.classList.remove('bde-kopf-markiert'); });
+        z.classList.add('bde-kopf-markiert');
+        if (!z.querySelector('.bde-kopf-hinweis')) {
+            var h = document.createElement('span');
+            h.className = 'bde-kopf-hinweis';
+            h.textContent = 'Zuerst hier Pause oder Fertig melden';
+            z.insertBefore(h, z.querySelector('.bde-kopf-knoepfe'));
+        }
+        var bereich = document.getElementById('bdeKopfBereich');
+        if (bereich && !bereich.classList.contains('show')) bootstrap.Collapse.getOrCreateInstance(bereich).show();
+        z.scrollIntoView({ block: 'center' });
+        var k = z.querySelector('[data-kopf-aktion]');
+        if (k) k.focus();
     }
 
     // Mengendialog (#quantityModal): Promise mit {gut, aus} oder null (Abbrechen/Schliessen). Fokus auf Gutmenge.
@@ -111,8 +134,11 @@
                 m.hide();
             };
             document.getElementById('btnQtyCancel').onclick = function () { m.hide(); };
+            // v1.99.81 (U-10): Enter bestaetigt wie „Bestätigen“ (auch Hardware-Scanner mit Enter-Suffix, wie in der Teileliste)
+            var enter = function (ev) { if (ev.key === 'Enter') { ev.preventDefault(); document.getElementById('btnQtyOk').click(); } };
+            el.addEventListener('keydown', enter);
             el.addEventListener('shown.bs.modal', function () { gut.select(); }, { once: true });
-            el.addEventListener('hidden.bs.modal', function () { fertig(wert); }, { once: true });
+            el.addEventListener('hidden.bs.modal', function () { el.removeEventListener('keydown', enter); fertig(wert); }, { once: true });
             m.show();
         });
     }
@@ -149,7 +175,7 @@
             if (!frei) return;
             var r = await post('/BdeTerminal/CloseOthers', { workOperationId: json.workOperationId, operatorId: operatorId, terminalId: terminalId });
             frei();
-            text = r.closedCount != null ? okText + ' ' + r.closedCount + ' weitere Buchungen beendet.' : okText + ' Weitere Buchungen beenden fehlgeschlagen: ' + (r.message || '');
+            text = r.closedCount != null ? okText + ' ' + r.closedCount + (r.closedCount === 1 ? ' weitere Buchung beendet.' : ' weitere Buchungen beendet.') : okText + ' Weitere Buchungen beenden fehlgeschlagen: ' + (r.message || '');
             m.hide();
         };
         el.addEventListener('hidden.bs.modal', function () { neuLaden(text); }, { once: true });  // „Nein, nur meine“: die anderen laufen weiter
@@ -239,20 +265,25 @@
         if (!btn) return;
         var z = btn.closest('.bde-kopf-zeile');
         var id = z.dataset.bookingId, soll = zahl(z.dataset.soll), bisher = zahl(z.dataset.bisher) || 0;
-        var frei = window.wmsSperren(btn);
+        box.replaceChildren();  // v1.99.81 (U-9): alte Meldung weg
+        // v1.99.81 (U-6): die drei Mengen-Aktionen sperren erst NACH dem Dialog (der offene Dialog verhindert den Doppelklick),
+        // sonst stuende „wird gesendet …“ schon waehrend der Eingabe; alle anderen sperren sofort.
+        var mitMenge = /^(pause|teilfertig|fertig)$/.test(btn.dataset.kopfAktion);
+        var frei = mitMenge ? function () { } : window.wmsSperren(btn);
         if (!frei) return;
+        var sperren = function () { var f = window.wmsSperren(btn); if (f) frei = f; return !!f; };
         var q, r, ok;
         switch (btn.dataset.kopfAktion) {
             case 'pause':
-                if (!(q = await mengen(soll, null, bisher))) return frei();
+                if (!(q = await mengen(soll, null, bisher)) || !sperren()) return frei();
                 r = await post('/BdeTerminal/Pause', { bookingId: id, operatorId: operatorId, terminalId: terminalId, goodQty: q.gut, scrapQty: q.aus }); ok = 'Pausiert.'; break;
             case 'teilfertig':
-                if (!(q = await mengen(soll, null, bisher))) return frei();
+                if (!(q = await mengen(soll, null, bisher)) || !sperren()) return frei();
                 r = await post('/BdeTerminal/ReportPartial', { bookingId: id, operatorId: operatorId, terminalId: terminalId, goodQty: q.gut, scrapQty: q.aus }); ok = 'Teilmenge gemeldet.'; break;
             case 'fertig':
                 // v1.99.81 (Entscheid 4): nach Teilmengen Gut mit dem Rest vorbelegen (0, wenn Soll schon erreicht)
                 if (!(q = await mengen(soll, bisher > 0 && soll != null ? Math.max(0, soll - bisher) : null, bisher))
-                    || !(await gutOk(q, soll, bisher))) return frei();
+                    || !(await gutOk(q, soll, bisher)) || !sperren()) return frei();
                 letzteFertig = { id: id, gut: q.gut, aus: q.aus };
                 r = await post('/BdeTerminal/Finish', { bookingId: id, operatorId: operatorId, terminalId: terminalId, goodQty: q.gut, scrapQty: q.aus }); ok = 'Fertig gemeldet.'; break;
             case 'ruesten-fertig': r = await post('/BdeTerminal/Finish', { bookingId: id, operatorId: operatorId, terminalId: terminalId }); ok = 'Rüsten beendet.'; break;
@@ -281,11 +312,12 @@
     document.addEventListener('click', async function (e) {
         var btn = e.target.closest('[data-fa-fertig]');
         if (!btn) return;
-        var frei = window.wmsSperren(btn);
-        if (!frei) return;
+        box.replaceChildren();  // v1.99.81 (U-9)
         var soll = zahl(btn.dataset.soll);
         var q = await mengen(soll, soll);
-        if (!q || !(await gutOk(q, soll, 0))) return frei();
+        if (!q || !(await gutOk(q, soll, 0))) return;
+        var frei = window.wmsSperren(btn);  // v1.99.81 (U-6): erst nach dem Dialog sperren
+        if (!frei) return;
         ergebnis(await post('/BdeTerminal/ReportCompletion', {
             operatorId: operatorId, workOperationId: btn.dataset.woId, workplaceId: workplaceId, terminalId: terminalId, goodQty: q.gut, scrapQty: q.aus
         }), 'Fertig gemeldet: ' + btn.dataset.bez + '.', frei);
@@ -360,6 +392,7 @@
     var scanForm = document.getElementById('faScanForm'), scan = document.getElementById('faScan');
     scanForm.addEventListener('submit', async function (e) {
         e.preventDefault();
+        box.replaceChildren();  // v1.99.81 (U-9)
         var roh = scan.value.trim();
         scan.value = '';
         if (!roh) return;

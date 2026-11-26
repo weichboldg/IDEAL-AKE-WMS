@@ -64,4 +64,46 @@ public class BdeFaSichtViewTests
         var js = Read("wwwroot", "js", "bde-fa-sicht.js");
         js.Should().Contain("Math.max(0, soll - bisher)").And.Contain("über der Sollmenge");
     }
+
+    // v1.99.81 (K-1): Kopf einklappbar (Bootstrap-collapse), Kurzzeile im Knopf, Zustand je Geraet im localStorage mit try/catch;
+    // die Meldungsbox liegt AUSSERHALB des einklappbaren Bereichs (Meldungen bleiben sichtbar).
+    [Fact]
+    public void Kopf_Einklappbar_MeldungAusserhalb()
+    {
+        var kopf = Read("Views", "BdeTeileliste", "_Kopf.cshtml");
+        kopf.Should().Contain("id=\"bdeKopfBereich\"").And.Contain("data-bs-target=\"#bdeKopfBereich\"").And.Contain("@kurzKopf");
+        kopf.IndexOf("id=\"faMeldung\"", StringComparison.Ordinal).Should().BeLessThan(kopf.IndexOf("id=\"bdeKopfBereich\"", StringComparison.Ordinal));
+        Read("Views", "BdeTeileliste", "_KopfBuchungen.cshtml").Should().NotContain("id=\"faMeldung\"");
+        var js = Read("wwwroot", "js", "bde-teileliste.js");
+        var k1 = js[js.IndexOf("(K-1)", StringComparison.Ordinal)..];
+        k1.Should().Contain("try {").And.Contain("localStorage.getItem(KOPF)");
+    }
+
+    // v1.99.81 (Task 4b, U-13): Werkbank-Auswahl und Teilmeldungen-Link nur fuer BDE-Admin; Wechsel behaelt den Werker
+    [Fact]
+    public void Kopf_WerkbankwechselUndWaisenLink_NurBdeAdmin()
+    {
+        var kopf = Read("Views", "BdeTeileliste", "_Kopf.cshtml");
+        var admin = kopf.IndexOf("@if (Model.BdeAdmin)", StringComparison.Ordinal);
+        admin.Should().BeGreaterThan(0);
+        kopf.IndexOf("id=\"teilelisteWerkbank\"", StringComparison.Ordinal).Should().BeGreaterThan(admin);
+        kopf.Should().Contain("data-operator-id=\"@Model.Werker.Id\"");
+        var waisen = kopf[kopf.IndexOf("@if (Model.Waisen > 0)", StringComparison.Ordinal)..];
+        waisen.Should().Contain("<details").And.Contain("BDE-Admin informieren");
+        waisen.IndexOf("asp-action=\"Teilmeldungen\"", StringComparison.Ordinal).Should().BeGreaterThan(waisen.IndexOf("@if (Model.BdeAdmin)", StringComparison.Ordinal));
+        Read("wwwroot", "js", "bde-teileliste.js").Should().Contain("'&operatorId=' + encodeURIComponent(sel.dataset.operatorId)");
+    }
+
+    // v1.99.81 (U-1, U-6, U-9, U-10, U-11)
+    [Fact]
+    public void FaSicht_LaufendeProduktion_Markiert_SperreNachDialog_Enter()
+    {
+        var js = Read("wwwroot", "js", "bde-fa-sicht.js");
+        js.Should().Contain("case 'QuantityRequired': laufendZeigen(json.bookingId)").And.Contain("bde-kopf-markiert")
+            .And.Contain("Solange sie läuft, kann kein zweiter Arbeitsgang starten");
+        js.Should().Contain("ev.key === 'Enter'");
+        js.Should().Contain("var frei = mitMenge ? function () { } : window.wmsSperren(btn);");
+        System.Text.RegularExpressions.Regex.Matches(js, @"box\.replaceChildren\(\);").Count.Should().Be(3);
+        Read("wwwroot", "css", "bde.css").Should().Contain("td.tl-zelle-aktion { order: 0; }");
+    }
 }

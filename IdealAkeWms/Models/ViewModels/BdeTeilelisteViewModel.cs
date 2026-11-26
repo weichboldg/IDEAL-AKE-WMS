@@ -51,6 +51,9 @@ public class BdeTeilelisteViewModel
     public PaginationState Pagination { get; set; } = new();
     public int Waisen { get; set; }
 
+    /// <summary>v1.99.81 (Task 4b, U-13): Web-Konto darf BDE-Admin – Werkbank wechseln ohne Werker-Wechsel, Link zu den Teilmeldungen.</summary>
+    public bool BdeAdmin { get; set; }
+
     /// <summary>E6: Zelltext „Beschichtet“ je Position (null = Spalte ohne Quelle, Zelle „–“).</summary>
     public Func<FaHierarchyNode, string?>? Beschichtet { get; set; }
 

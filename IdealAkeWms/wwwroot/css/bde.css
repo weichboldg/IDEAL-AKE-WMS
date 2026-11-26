@@ -122,6 +122,14 @@
     background: #fff; color: #212529; border: 1px solid #6c757d; border-left: 6px solid #212529; border-radius: 0.375rem;
 }
 .bde-kopf-pausiert { border-left-style: dashed; border-left-color: #6c757d; background: #f8f9fa; }
+/* v1.99.81 (U-1): laufende Buchung, die einen zweiten Start blockiert – Rahmen 3px #212529 + Text, nie Farbe allein; Grund #fff3cd (13:1) */
+.bde-kopf-zeile.bde-kopf-markiert { outline: 3px solid #212529; outline-offset: 2px; background: #fff3cd; }
+.bde-kopf-hinweis { font-weight: 700; color: #212529; }
+/* v1.99.81 (K-1): Kopf-Umschalter zeigt je Zustand „einklappen“ bzw. die Kurzzeile */
+.bde-kopf-umschalter { white-space: normal; text-align: left; }
+.bde-kopf-umschalter[aria-expanded="true"] .bde-kopf-umschalter-zu,
+.bde-kopf-umschalter[aria-expanded="false"] .bde-kopf-umschalter-auf { display: none; }
+.bde-tl-waisen > summary { cursor: pointer; }
 .bde-kopf-art { font-weight: 700; }
 .bde-kopf-was { font-weight: 600; }
 .bde-kopf-detail { order: 3; flex-basis: 100%; font-size: 0.95rem; color: #495057; }
@@ -160,7 +168,7 @@
     .bde-tl-seite .bde-teileliste > tbody > tr.bde-tl-treffer { border-left: 6px solid #212529; }
     .bde-tl-seite .bde-teileliste > tbody > tr.bde-fa-markiert { border-left: 6px solid #212529; background: #fff3cd; }
     .bde-tl-seite .bde-teileliste > tbody > tr > td.tl-zelle-auswahl { order: -1; }
-    .bde-tl-seite .bde-teileliste > tbody > tr > td.tl-zelle-aktion { order: 99; }
+    .bde-tl-seite .bde-teileliste > tbody > tr > td.tl-zelle-aktion { order: 0; } /* v1.99.81 (U-11, 11A): Knoepfe oben, direkt nach dem Haken */
     .bde-tl-seite .bde-teileliste > tbody > tr > td.tl-zelle-aktion > .btn { flex: 1 1 auto; justify-content: center; }
     .bde-tl-seite .bde-teileliste > tbody > tr > td[colspan] { display: block; text-align: center; }
 }

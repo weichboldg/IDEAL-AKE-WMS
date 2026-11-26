@@ -160,7 +160,7 @@
             {
                 <button type="button" class="btn btn-success bde-touch" data-bs-toggle="modal" data-bs-target="#meldenModal"
                         data-schluessel="@z.FormSchluessel" data-matchcode="@n.Matchcode"
-                        data-soll="@n.Sollmenge.ToString(System.Globalization.CultureInfo.InvariantCulture)" data-rest="@z.Rest.ToString(System.Globalization.CultureInfo.InvariantCulture)"
+                        data-soll="@n.Sollmenge.ToString(System.Globalization.CultureInfo.InvariantCulture)" data-rest="@z.Rest.ToString("0.####", System.Globalization.CultureInfo.InvariantCulture)"
                         data-gemeldet="@z.Gemeldet.ToString(System.Globalization.CultureInfo.InvariantCulture)">Melden</button>
             }
         </td>
