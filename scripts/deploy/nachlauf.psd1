@@ -713,7 +713,7 @@ WHERE NOT EXISTS (SELECT 1 FROM dbo.Roles r WHERE r.[Key] = v.k);'
    Text='FA-Liste zeigt nur noch HauptFA-Zeilen; Sub-FAs ueber den Knopf FA-Struktur. 17 weitere Strukturfelder (u. a. PPS-Status, RAL, Material) per Zahnrad einblendbar. Matchcode kommt bevorzugt aus der FA-Struktur, sonst aus dem Artikelstamm (wie Stueckliste).'
    Quelle='2026-11-26-fa-liste-nur-hauptfa-und-fa-struktur-neu-teil-1-spec' }
 @{ Id='fa-struktur-uebersicht-info'; Version='1.99.83'; Typ='Info'; Firma='IDEAL'; Phase='Nachher'; Ausfuehrung='anzeigen'
-   Text='FA-Struktur: je HauptFA eine Zeile mit allen Auftragsdaten als Spalten - alle sichtbar, ueber das Zahnrad ausblendbar; Struktur und Matchcode bleiben beim Querscrollen stehen. Baugruppen per Pfeil aufklappen, Kaufteile/Material ueber den Knopf "Teile anzeigen" (Teile mit Arbeitsschritten bleiben immer sichtbar). Gespeicherte Spalteneinstellungen bleiben, neue Spalten kommen sichtbar dazu.'
+   Text='FA-Struktur: je HauptFA eine Zeile mit allen Auftragsdaten als Spalten, Arbeitsgaenge gleich nach dem Matchcode; Bezeichnung anfangs ausgeblendet, alles ueber das Zahnrad ein-/ausblendbar; Struktur und Matchcode bleiben beim Querscrollen stehen. FA-Liste ohne Zeichen "HauptFA". Baugruppen per Pfeil aufklappen, Kaufteile/Material ueber den Knopf "Teile anzeigen" (Teile mit Arbeitsschritten bleiben immer sichtbar). Gespeicherte Spalteneinstellungen bleiben, neue Spalten kommen sichtbar dazu.'
    Quelle='2026-11-26-fa-liste-nur-hauptfa-und-fa-struktur-neu-teil-2-spec' }
 )
 }
