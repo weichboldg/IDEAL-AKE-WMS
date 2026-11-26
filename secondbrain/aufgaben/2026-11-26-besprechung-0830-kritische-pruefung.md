@@ -226,3 +226,11 @@ Zählung: **BLOCKER 4 · SOLLTE 8 · HINWEIS 10**
 NICHT DEPLOY-BEREIT: Schranke 2 (UAT + Merge) ist offen, B-2 (Terminal-Wächter vs. Mailzusage) ist nicht entschieden, und zwei
 Prod-Vorbedingungen fehlen noch in der Checkliste (Nachtrag-Schalter vor dem ersten Dienststart aus, Wert von `BdeNurFaMeldung` an
 beiden Standorten).
+## Prod-Lesepruefung 2026-11-26 (Freigabe Gerald: lesend auf AKE- und IDEAL-Server)
+Nur SELECT, Manifest-Pruefungen in einer Transaktion mit Rollback ausgefuehrt.
+- **AKE-Prod** `AKESQL20.ake.at` / `IDEAL_AKE_WMS` (SQL 15.0.4430, letzte Migration `20261123124036_AddStockMovementWarehouseRequisitionItem`): keine Vorher-Pruefung schlaegt an (B-3 erledigt). Hinweise: DoppeltePrio 10, RolleFraesenpfadPflegen fehlt (Haltepunkt legt an), Lieferverzug Sammelliste/Absender.
+- **IDEAL-Prod** `IdealSQL2.ideal.ideal-ake.at\SAGE100TEST` / `IDEAL_AKE_WMS` (SQL 15.0.4280 = 2019, gleiche letzte Migration; Standardinstanz `IdealSQL2` lehnt das Konto ab): keine Vorher-Pruefung schlaegt an, auch nicht `FreshInstallIndizesDuplikate`. Nachher-Hinweise: BeschichterKreditoren, KommissionierlisteLeitstandAus, VorfilterZiele, RolleFraesenpfadPflegen, BlechteileNachleseAus, Lieferverzug. Zwei Nachher-Pruefungen fehlen vor dem Schema-Update erwartungsgemaess (Spalten aus SQL/169).
+- **BDE an beiden Prod-Standorten aus:** `BdeAktiv=false`, alle Mehrfach-Schalter und `BdeGleichzeitigerAbschlussBeiMehrfachStart=false`, `BdeNurFaMeldung=false`; verwaiste Zeile `BdeTerminalMaxHauptFa=5` an beiden.
+- **H-C:** Sage IDEAL (DB `IDEAL`) liegt auf derselben Instanz SQL 2019 → STRING_AGG ok. AKESQL20 ebenfalls 2019.
+- **F-16 belegt:** `KHKArtikel.USER_OSBlechdicke` (und USER_OSMaterial, USER_OSArbeitsschritte) existiert in Sage-Test `IDEAL_TEST_2026_05_03`.
+- Entscheide Gerald 2026-11-26: 1C (Nachtrag-Default an lassen, Sofortlauf in Checkliste vermerken), 2A, 3A, 4 Rueckfrage (Restmenge vorschlagen, Ausschuss moeglich, 0 nach Teilmengen erlaubt), 6 gemeinsam auf Testsystem (Testsysteme stehen auf v1.99.62/63).
