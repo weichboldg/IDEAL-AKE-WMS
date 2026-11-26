@@ -116,12 +116,17 @@ public sealed class BeschichtungsauftragReklamationViewModel
 }
 
 /// <summary>Aussendokument (Anforderung 7): Briefkopf (Empfaenger = Dienstleister des Auftrags), Kopf, Positionen summiert
-/// je Artnr (Teil-1-Aggregation), Barcode = Auftragsnummer, sichtbare Spalten der Detail-Positionstabelle.</summary>
+/// je Artnr (v1.99.87, <see cref="BeschichtungsauftraegeDruck.Summiert"/>) mit Summenzeile, Barcode = Auftragsnummer, sichtbare Spalten der Detail-Positionstabelle.</summary>
 public sealed class BeschichtungsauftragPrintViewModel
 {
     public Beschichtungsauftrag Auftrag { get; init; } = new();
-    /// <summary>v1.99.41 A11: je Position in Druckreihenfolge (<see cref="BeschichtungsauftraegeDruck.Sortiert"/>); Pos. = Index + 1.</summary>
-    public List<BeschichtungsauftragPosition> Positionen { get; init; } = new();
+    /// <summary>v1.99.87 (Spec 2026-11-26-beschichtung-summe-…-teil-1, hebt v1.99.41 A11 „je Position“ fuer Druck/PDF auf):
+    /// immer summiert je Artnr (<see cref="BeschichtungsauftraegeDruck.Summiert"/>); Pos. = Index + 1 je Zeile.</summary>
+    public List<BeschichtungsauftragDruckZeile> Zeilen { get; init; } = new();
+    /// <summary>Summenzeile „Summe Teile im Auftrag“ (S5): Summe aller Mengen.</summary>
+    public decimal Summe => Zeilen.Sum(z => z.Menge);
+    /// <summary>Anzahl Auftragspositionen hinter der Summe (S5).</summary>
+    public int PositionenGesamt => Zeilen.Sum(z => z.Positionen);
     public string Barcode { get; init; } = string.Empty;
     public IReadOnlyList<string> VisibleColumns { get; init; } = new List<string>();
 
@@ -137,9 +142,30 @@ public static class BeschichtungsauftraegeDruck
     public static bool IstDruckbar(BeschichtungsauftragStatus s) =>
         s is BeschichtungsauftragStatus.Uebergeben or BeschichtungsauftragStatus.Versendet or BeschichtungsauftragStatus.Erledigt;
 
-    /// <summary>Reihenfolge von Detail und Druck (v1.99.41 A11 b, Rueckfrage 11 hebt Teil-4-Antwort 6 „summiert“ fuer den
-    /// Auftragsdruck auf): Position, PositionText natuerlich, SubFA; Positionen ohne FA zuletzt.</summary>
+    /// <summary>Reihenfolge der Detailseite (je Position) und Grundlage der Druckreihenfolge (<see cref="Summiert"/>):
+    /// Position, PositionText natuerlich, SubFA; Positionen ohne FA zuletzt.</summary>
     public static List<BeschichtungsauftragPosition> Sortiert(IEnumerable<BeschichtungsauftragPosition> positionen) =>
         positionen.OrderBy(p => p.OhneFa).ThenBy(p => p.Position ?? int.MaxValue)
             .ThenBy(p => p.PositionText, new NaturalPositionComparer()).ThenBy(p => p.SubFA).ToList();
+
+    /// <summary>v1.99.87 Druck/PDF (S1-S4): je (Artnr getrimmt, OhneFa) eine Zeile in der Reihenfolge der jeweils ersten
+    /// Position aus <see cref="Sortiert"/> (GroupBy erhaelt die Quellreihenfolge). Positionen ohne Artnr werden nie
+    /// zusammengefasst (Schluessel = Position selbst). Eigenschaften und Maße aus der ersten Position,
+    /// <see cref="BeschichtungsauftragDruckZeile.MasseUneinheitlich"/> wie <c>AggregateSummiert</c>.</summary>
+    public static List<BeschichtungsauftragDruckZeile> Summiert(IEnumerable<BeschichtungsauftragPosition> positionen) =>
+        Sortiert(positionen)
+            .GroupBy(p => string.IsNullOrWhiteSpace(p.Artnr) ? (object)p : (p.Artnr.Trim(), p.OhneFa))
+            .Select(g =>
+            {
+                var first = g.First();
+                return new BeschichtungsauftragDruckZeile(first.HauptArtnr, first.Artnr?.Trim(), first.Matchcode, first.OhneFa,
+                    first.Breite, first.Hoehe, first.Tiefe, g.Sum(p => p.Menge), g.Count(), g.Count(p => p.Verpackt),
+                    g.Any(p => p.Breite != first.Breite || p.Hoehe != first.Hoehe || p.Tiefe != first.Tiefe));
+            })
+            .ToList();
 }
+
+/// <summary>Eine gedruckte Zeile des Beschichtungsauftrags (v1.99.87): <see cref="Verpackt"/> = Anzahl verpackter von
+/// <see cref="Positionen"/> Auftragspositionen.</summary>
+public sealed record BeschichtungsauftragDruckZeile(string? HauptArtnr, string? Artnr, string? Matchcode, bool OhneFa,
+    decimal Breite, decimal Hoehe, decimal Tiefe, decimal Menge, int Positionen, int Verpackt, bool MasseUneinheitlich);

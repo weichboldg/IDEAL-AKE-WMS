@@ -500,14 +500,68 @@ public class BeschichtungsauftraegeControllerTests
     }
 
     [Fact]
-    public async Task Print_Uebergeben_JePosition_Reihenfolge_BarcodeNummer()
+    public async Task Print_Uebergeben_Summiert_Reihenfolge_BarcodeNummer()
     {
         var a = await Status(await Anlegen(), BeschichtungsauftragStatus.Uebergeben);
 
         var vm = (BeschichtungsauftragPrintViewModel)((ViewResult)await Ctrl().Print(a.Id, null)).Model!;
 
         vm.Barcode.Should().Be("bc:" + a.Nummer);
-        vm.Positionen.Select(p => p.Position).Should().Equal(1, 2, 3);   // v1.99.41 A11 a/b: je Position, Detail-Reihenfolge
+        // v1.99.87 S1-S3: Pos. 1 (A1) + Pos. 3 (A1) summiert, Reihenfolge der ersten Position; Tiefe 3 vs 4 -> uneinheitlich
+        vm.Zeilen.Select(z => (z.Artnr, z.Menge, z.Positionen, z.MasseUneinheitlich))
+            .Should().Equal(("A1", 4m, 2, true), ("A2", 2m, 1, false));
+        (vm.Summe, vm.PositionenGesamt).Should().Be((6m, 3));
+    }
+
+    private static BeschichtungsauftragPosition Pos(int id, string? artnr, decimal menge, bool verpackt = false,
+        bool ohneFa = false, decimal tiefe = 3m, string? matchcode = null) =>
+        new() { Id = id, Position = ohneFa ? null : id, Artnr = artnr, Menge = menge, Verpackt = verpackt, OhneFa = ohneFa,
+            Breite = 500m, Hoehe = 20m, Tiefe = tiefe, Matchcode = matchcode };
+
+    [Fact]
+    public void Druck_Summiert_GruppiertJeArtnr_ReihenfolgeErstePosition()
+    {
+        // AK 1: A x3 (2, 3, 5) + B (1) -> zwei Zeilen; " A " getrimmt gleich "A"
+        var z = BeschichtungsauftraegeDruck.Summiert(new[]
+            { Pos(4, "A", 5), Pos(2, "B", 1), Pos(1, "A", 2), Pos(3, " A ", 3) });
+
+        z.Select(r => (r.Artnr, r.Menge, r.Positionen)).Should().Equal(("A", 10m, 3), ("B", 1m, 1));
+    }
+
+    [Fact]
+    public void Druck_Summiert_VerpacktZaehlung()
+    {
+        var z = BeschichtungsauftraegeDruck.Summiert(new[]
+            { Pos(1, "A", 1, verpackt: true), Pos(2, "A", 1, verpackt: true), Pos(3, "A", 1), Pos(4, "B", 1, verpackt: true), Pos(5, "C", 1) });
+
+        z.Select(r => (r.Artnr, r.Verpackt, r.Positionen)).Should().Equal(("A", 2, 3), ("B", 1, 1), ("C", 0, 1));
+    }
+
+    [Fact]
+    public void Druck_Summiert_MasseUneinheitlich_NurBeiAbweichung()
+    {
+        var z = BeschichtungsauftraegeDruck.Summiert(new[] { Pos(1, "A", 1), Pos(2, "A", 1, tiefe: 4m), Pos(3, "B", 1), Pos(4, "B", 1) });
+
+        z.Select(r => (r.Artnr, r.Tiefe, r.MasseUneinheitlich)).Should().Equal(("A", 3m, true), ("B", 3m, false));
+    }
+
+    [Fact]
+    public void Druck_Summiert_OhneArtnr_JePositionEigeneZeile()
+    {
+        // AK 10/15: null, "" und Leerzeichen nie zusammenfassen
+        var z = BeschichtungsauftraegeDruck.Summiert(new[]
+            { Pos(1, null, 2, matchcode: "X"), Pos(2, "", 3, matchcode: "Y"), Pos(3, "  ", 4, matchcode: "Z"), Pos(4, null, 1, matchcode: "W") });
+
+        z.Select(r => (r.Matchcode, r.Menge, r.Positionen)).Should().Equal(("X", 2m, 1), ("Y", 3m, 1), ("Z", 4m, 1), ("W", 1m, 1));
+    }
+
+    [Fact]
+    public void Druck_Summiert_FreiePositionGetrenntUndZuletzt()
+    {
+        // AK 4
+        var z = BeschichtungsauftraegeDruck.Summiert(new[] { Pos(9, "A", 1, ohneFa: true), Pos(1, "A", 2), Pos(2, "B", 1) });
+
+        z.Select(r => (r.Artnr, r.OhneFa, r.Menge)).Should().Equal(("A", false, 2m), ("B", false, 1m), ("A", true, 1m));
     }
 
     [Fact]

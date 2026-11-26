@@ -1606,9 +1606,13 @@
                     <li><strong>Auftrag:</strong> Drucken und PDF ab <em>Übergeben</em> (auch Versendet und Erledigt). Oben der
                         <strong>Briefkopf</strong> (Logo), darunter der Empfänger als Brief-Anschrift aus dem Kreditor (Name, Straße,
                         PLZ Ort, Land; zum Druckzeitpunkt gelesen), ohne Kreditor der Dienstleister-Text; Dokument und Datum; Barcode =
-                        Auftragsnummer; HauptFA in der Kopftabelle. Seit v1.99.41 <strong>eine Zeile je Position</strong>: Spalte 1
-                        &bdquo;Pos.&ldquo; = laufende Nummer, Menge &bdquo;5&ldquo; statt &bdquo;5,000&ldquo; (Bruchteile bleiben sichtbar),
-                        letzte Spalte &bdquo;Verpackt&ldquo; &#9745;/&#9744;. Eine per Zahnrad ausgeblendete Spalte fehlt auch im Druck.
+                        Auftragsnummer; HauptFA in der Kopftabelle. Seit v1.99.87 <strong>eine Zeile je Artikel</strong>
+                        (Summe der Mengen; bis v1.99.86 eine Zeile je Position): Spalte 1 &bdquo;Pos.&ldquo; = laufende Nummer der gedruckten Zeilen,
+                        Menge &bdquo;5&ldquo; statt &bdquo;5,000&ldquo; (Bruchteile bleiben sichtbar). Freie Positionen (ohne FA) und Positionen ohne
+                        Artikelnummer werden nicht zusammengefasst. Letzte Spalte &bdquo;Verpackt&ldquo;: &#9745; verpackt, &#9744; offen oder
+                        &bdquo;&#9705; 2 von 3 verpackt&ldquo;, bei abweichenden Maßen zusätzlich &bdquo;Maße uneinheitlich&ldquo; (gedruckt werden die
+                        Maße der ersten Position). Am Ende die Zeile &bdquo;Summe Teile im Auftrag&ldquo; mit Summe der Mengen und Anzahl Positionen.
+                        Die Detailseite zeigt weiter jede Position einzeln. Eine per Zahnrad ausgeblendete Spalte fehlt auch im Druck.
                         Seit v1.99.42 steht der Barcode klein rechts neben dem Titel, die Tabellen haben nur waagrechte Linien, und unten
                         rechts steht immer &bdquo;Seite x von y&ldquo; (auch ohne Fußzeile in der Vorlage).</li>
                     <li><strong>Bemerkung:</strong> Sie hat ihren eigenen Knopf &bdquo;Bemerkung speichern&ldquo;. Ist sie geändert, aber nicht

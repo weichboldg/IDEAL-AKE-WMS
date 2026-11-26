@@ -33,6 +33,11 @@
         .text-end { text-align: right; }
         .ohne-fa { display: inline-block; margin-left: 4px; padding: 0 4px; border: 1px solid #555; font-size: 9px; }
         .haken { white-space: nowrap; }
+        .hinweis { display: inline-block; margin-top: 2px; padding: 0 4px; border: 1px solid #555; font-size: 9px; }
+        /* v1.99.87 S5/S6: Summenzeile fett mit Linie wie thead, nur einmal am Tabellenende (nicht je Druckseite) */
+        table.positions tfoot { display: table-row-group; }
+        table.positions tfoot td { border-top: 1px solid #053153; border-bottom: none; font-weight: 600; }
+        .summe-wert { white-space: nowrap; }
         .bemerkung { margin-top: 8px; white-space: pre-line; }
         @@media print { .screen-controls { display: none; } body { padding: 0; } }
     </style>
@@ -67,7 +72,15 @@
             }
         </div>
 
-        @* v1.99.41 A11: je Position (Rueckfrage 11), Spalte 1 laufende Nummer, Menge 0.###, Haken-Spalte zuletzt. *@
+        @* v1.99.87 (Spec 2026-11-26-beschichtung-summe-…-teil-1): immer summiert je Artnr (hebt v1.99.41 A11 „je Position“
+           fuer Druck/PDF auf), Pos. laufend je Zeile, Menge 0.###, Haken-Spalte zuletzt, Summenzeile im tfoot.
+           „Maße uneinheitlich“ steht in der immer sichtbaren Verpackt-Spalte, damit es nicht mit Spalten verschwindet. *@
+        @{
+            // colspan der Summen-Beschriftung: Pos. + sichtbare Spalten vor Menge
+            var vorMenge = 1 + new[] { "hauptartnr", "artnr", "matchcode", "breite", "hoehe", "tiefe" }.Count(Model.ShowCol);
+            var mitMenge = Model.ShowCol("menge");
+            var summeText = $"{BeschichtungsauftragService.FormatMass(Model.Summe)} ({Model.PositionenGesamt} {(Model.PositionenGesamt == 1 ? "Position" : "Positionen")})";
+        }
         <table class="positions">
             <thead>
                 <tr>
@@ -83,28 +96,45 @@
                 </tr>
             </thead>
             <tbody>
-                @for (var i = 0; i < Model.Positionen.Count; i++)
+                @for (var i = 0; i < Model.Zeilen.Count; i++)
                 {
-                    var p = Model.Positionen[i];
+                    var z = Model.Zeilen[i];
                     <tr>
                         <td class="text-end">@(i + 1)</td>
-                        @if (Model.ShowCol("hauptartnr")) { <td>@p.HauptArtnr</td> }
+                        @if (Model.ShowCol("hauptartnr")) { <td>@z.HauptArtnr</td> }
                         @if (Model.ShowCol("artnr"))
                         {
                             <td>
-                                @p.Artnr
-                                @if (p.OhneFa) { <span class="ohne-fa">ohne FA</span> }
+                                @z.Artnr
+                                @if (z.OhneFa) { <span class="ohne-fa">ohne FA</span> }
                             </td>
                         }
-                        @if (Model.ShowCol("matchcode")) { <td>@p.Matchcode</td> }
-                        @if (Model.ShowCol("breite")) { <td class="text-end">@BeschichtungsauftragService.FormatMass(p.Breite)</td> }
-                        @if (Model.ShowCol("hoehe")) { <td class="text-end">@BeschichtungsauftragService.FormatMass(p.Hoehe)</td> }
-                        @if (Model.ShowCol("tiefe")) { <td class="text-end">@BeschichtungsauftragService.FormatMass(p.Tiefe)</td> }
-                        @if (Model.ShowCol("menge")) { <td class="text-end">@BeschichtungsauftragService.FormatMass(p.Menge)</td> }
-                        <td class="haken">@(p.Verpackt ? "☑ verpackt" : "☐ offen")</td>
+                        @if (Model.ShowCol("matchcode")) { <td>@z.Matchcode</td> }
+                        @if (Model.ShowCol("breite")) { <td class="text-end">@BeschichtungsauftragService.FormatMass(z.Breite)</td> }
+                        @if (Model.ShowCol("hoehe")) { <td class="text-end">@BeschichtungsauftragService.FormatMass(z.Hoehe)</td> }
+                        @if (Model.ShowCol("tiefe")) { <td class="text-end">@BeschichtungsauftragService.FormatMass(z.Tiefe)</td> }
+                        @if (Model.ShowCol("menge")) { <td class="text-end">@BeschichtungsauftragService.FormatMass(z.Menge)</td> }
+                        <td class="haken">
+                            @(z.Verpackt == z.Positionen ? "☑ verpackt" : z.Verpackt == 0 ? "☐ offen" : $"◩ {z.Verpackt} von {z.Positionen} verpackt")
+                            @if (z.MasseUneinheitlich) { <br /><span class="hinweis">Maße uneinheitlich</span> }
+                        </td>
                     </tr>
                 }
             </tbody>
+            <tfoot>
+                <tr>
+                    @if (mitMenge)
+                    {
+                        <td colspan="@vorMenge">Summe Teile im Auftrag</td>
+                        <td class="text-end summe-wert">@summeText</td>
+                    }
+                    else
+                    {
+                        <td colspan="@vorMenge">Summe Teile im Auftrag <span class="summe-wert">@summeText</span></td>
+                    }
+                    <td></td>
+                </tr>
+            </tfoot>
         </table>
     </div>
     <partial name="_PrintBriefkopfFuss" model="true" />

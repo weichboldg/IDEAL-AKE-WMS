@@ -123,8 +123,12 @@ Drucken und PDF gehen ab **Übergeben**. Das Blatt enthält:
 - oben den Briefkopf, darunter den **Empfänger** als Brief-Anschrift aus dem gewählten Kreditor (beim Drucken frisch gelesen); ohne Kreditor
   den Dienstleister-Text,
 - Auftragsnummer als Barcode rechts neben dem Titel, HauptFA, RAL, Start und Retour, die Bemerkung,
-- **eine Zeile je Position** mit laufender Nummer *Pos.*, Menge ohne unnötige Nachkommastellen (*5* statt *5,000*) und als letzte Spalte
-  **Verpackt** (☑/☐),
+- seit Version 1.99.87 **eine Zeile je Artikel** mit der Gesamtmenge aller Positionen dieses Artikels (bis 1.99.86: eine Zeile je Position).
+  *Pos.* zählt die gedruckten Zeilen laufend 1, 2, 3 …; Menge ohne unnötige Nachkommastellen (*5* statt *5,000*). Freie Positionen
+  (ohne FA) und Positionen ohne Artikelnummer werden nicht mit anderen zusammengefasst. Letzte Spalte **Verpackt**: ☑ verpackt,
+  ☐ offen oder ◩ *2 von 3 verpackt*; weichen die Maße eines Artikels ab, steht dort zusätzlich *Maße uneinheitlich*
+  (gedruckt werden die Maße der ersten Position),
+- am Tabellenende die Zeile **Summe Teile im Auftrag** mit der Summe aller Mengen und der Anzahl Positionen, z. B. *11 (4 Positionen)*,
 - unten rechts „Seite x von y“.
 
 Spalten, die man über das Zahnrad ausblendet, fehlen auch im Druck.
