@@ -2,7 +2,7 @@
 type: spec
 title: "IDEAL FA-Struktur uebersichtlicher (Variante D: eine Zeile je HauptFA mit Kopfspalten, Baum per Chevron, Teile per Knopf)"
 slug: 2026-11-26-fa-liste-nur-hauptfa-und-fa-struktur-neu-teil-2-spec
-status: InUmsetzung
+status: Testbereit
 created: 2026-11-26
 updated: 2026-11-26
 source_backlog: "[[2026-11-26-fa-liste-nur-hauptfa-und-fa-struktur-neu]]"
@@ -483,6 +483,8 @@ abgeloest sind nur die Schritte zur Struktur-Kopfzeile und zur immer sichtbaren 
 
 ## Deploy
 
+*Nachtrag v1.99.84 (qa-agent 2026-11-26, gegen den echten Diff `1824dba0..2bde92f9`):* deploy.web ja (`_ProductionOrderRow`, FaHierarchy-Views, `ColumnDefinitions`, `site.css`, Hilfe, Changelog, `AppVersion`); deploy.service nur `AppVersion` 1.99.84 (mit ausrollen, gleicher Stand); deploy.migration nein (keine Datei unter `*/Migrations/`, kein `SQL/XX`). Paket `C:\Git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-07-ideal-teile-1-5\publish` = **v1.99.84, Commit `2bde92f9`** (ersetzt das v1.99.83-Paket unten). Manifest-Info `fa-struktur-uebersicht-info` an v1.99.84 angepasst (QA-Commit `2bde92f9`). Reihenfolge unveraendert ohne DB-Schritt. Nach dem Merge nur dann neu aus `main` publishen, wenn der Merge getestete Dateien mit parallelen `main`-Aenderungen zusammengefuehrt hat.
+
 *Final (qa-agent Nach-QA 2026-11-26, gegen den echten Diff `ce04f887~1..9cde9c6f`):*
 
 - **deploy.web:** ja (Views/Partial FaHierarchy, JS, `site.css`, Controller, `FaHierarchyTreeBuilder.TeileAusblenden`, ColumnDefinitions, Hilfe, Changelog, `AppVersion`)
@@ -769,3 +771,73 @@ weg; „Bezeichnung bitte mal ausblenden“; Arbeitsgänge gleich nach Matchcode
 - N-3: FA-Struktur: `description` mit `DefaultHidden` (ColumnDefinitions + `#column-config`); gespeicherte Präferenzen bleiben.
 - N-4: FA-Struktur: Spalte `operations` an Position 3 direkt nach `matchcode` (ColumnDefinitions, Kopf-/Filterzeile, `#column-config`, Knotenzeile).
 - Test `V1_99_84_ArbeitsgaengeNachMatchcode_BezeichnungAnfangsAusgeblendet`; TS-204.8; Version 1.99.84; Worktree-Commit `d6e2183f`.
+
+## Nach-QA Nachtrag v1.99.84 (qa-agent, 2026-11-26) — Testbereit
+
+Gepruefter Stand: Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5`, Review-Bereich `1824dba0..d6e2183f` (14 Dateien) plus QA-Commit `2bde92f9` (nur `scripts/deploy/nachlauf.psd1`).
+
+### 1. Build und Tests (selbst ausgefuehrt, Stand `d6e2183f`)
+
+- `dotnet build IdealAkeWms.slnx`: 0 Fehler, 32 Warnungen (bekannte CS86xx/NU190x).
+- `dotnet test`: IdealAkeWms.Tests 3775 bestanden / 1 uebersprungen / 0 Fehler (3776); IDEALAKEWMSService.Tests 848 / 0 / 0.
+- Nach QA-Commit `2bde92f9`: `dotnet test IdealAkeWms.Tests --filter Nachlauf` 19/19 bestanden (nur Manifest-Text geaendert).
+
+### 2. Code-Review (selbst, synchron)
+
+Geprueft: ganzer Diff; `column-preferences.js` (`buildDefaultSettings`, `mergeWithDefaults`, `applyColumnOrder`, `reorderDomColumns`, `setColVisibility`); `fa-hierarchy-tree.js` (Sticky-Logik Z. 358–370, Spaltenfilter Z. 328); `site.css` `#faTree`-Regeln inkl. `@media`-Block; `colspan`-Zeilen im Partial; Verwendung von `isHauptFaRow`; Export/Druck im `FaHierarchyController`.
+
+- Feste Spaltenpositionen: `reorderDomColumns`/`setColVisibility` arbeiten **positionsbasiert** (Index aus der Kopfzeile auf Filter- und Datenzeilen). Das traegt nur, weil Kopf-, Filterzeile und `_FaHierarchyNode` gleich verschoben wurden — im Diff alle drei konsistent (`operations` an Position 3). `colspan="24"`-Zeilen werden bei Sichtbarkeit uebersprungen, beim Umordnen ist ein Einzelkind harmlos; Spaltenzahl unveraendert (Drift-Waechter `FaHierarchyStrukturSpaltenTests` gruen). Sticky prueft per `data-col-key` „erste zwei sichtbaren = structure, matchcode“ — unberuehrt. CSS nur Attribut-Selektoren, kein `nth-child`. FaHierarchy hat keinen CSV-/Druck-Export. Spaltenfilter per `data-filter-key`/`data-col-key`. → keine Positionsannahme verletzt.
+- Gespeicherte Praeferenzen: `mergeWithDefaults` nimmt Reihenfolge und `visible` aus der gespeicherten Einstellung, `defaultHidden` greift nur bei fehlendem Key → Altbenutzer behalten Bezeichnung sichtbar und Arbeitsgaenge hinten (auf DEV belegt, s. 6). Gewollt laut TS-204.8 Negativfall.
+- `isHauptFaRow` wird weiter gebraucht (Zeilenklasse `fw-semibold`, Kommissionier-Knopf) — Entfernen nur des Badges korrekt.
+- Befund **B1 (behoben, QA-Commit `2bde92f9`)**: Manifest-Info `fa-struktur-uebersicht-info` (`scripts/deploy/nachlauf.psd1`) sagte noch „alle sichtbar“ — widerspricht N-3. Text an v1.99.84 angepasst (Arbeitsgaenge nach Matchcode, Bezeichnung anfangs aus, FA-Liste ohne Zeichen „HauptFA“).
+- Fehlerklassen-Liste (Script-Embedding, `hidden`+`d-*`, stille Fallbacks, Parallel-Arrays, Nur-Browser-Validierung, Mehrfach-Regeln): im Diff nicht beruehrt. Spaltenliste steht wie bisher doppelt (C# `ColumnDefinitions` + `#column-config`), durch Test abgesichert nur fuer C#; `#column-config` per DEV-Lauf belegt.
+
+### 3. Nachweisart je Punkt
+
+| Punkt | Nachweis |
+|---|---|
+| N-1 Badge weg | Manual-UAT (Razor), auf DEV OK |
+| N-2 Linie weg | Manual-UAT (CSS); ausgeliefertes `site.css` auf DEV ohne `border-right` belegt, Optik nicht per Screenshot pruefbar |
+| N-3 Bezeichnung DefaultHidden | Test `V1_99_84_…` (C#-Definition) + DEV (JS `#column-config`) |
+| N-4 Arbeitsgaenge Position 3 | Test `V1_99_84_…` + DEV (Kopf-/Filterzeile) |
+
+### 4. Geaenderte bestehende Tests
+
+Keine. Nur neuer Test `FaStrukturVarianteDTests.V1_99_84_ArbeitsgaengeNachMatchcode_BezeichnungAnfangsAusgeblendet`.
+
+### 5. Checkliste
+
+Keine Migration/SQL/Einstellung (ADR 0020 nicht betroffen). Version 1.99.84 in beiden `AppVersion.cs`, Anwender-Changelog, Hilfe, `docs/TESTSZENARIEN.md` (TS-204.8, TS-203.1/204.7 angepasst), docs/anwender Kap. 20 + README, docs/betrieb 00-index. Testindex Zeile 204 um TS-204.8 ergaenzt (Hauptcheckout). Manifest: B1.
+
+### 6. DEV-Deploy und Testlauf
+
+- Shell erhoeht (Admin = True). `dev-deploy.ps1 -Standort IDEAL -Quelle <worktree>` (Stand `d6e2183f`): Exit 0, „HTTP 200, Fusszeile v1.99.84“, „Fertig: IDEAL v1.99.84“. `-Standort AKE` (Regression): Exit 0, „Fertig: AKE v1.99.84“. QA-Commit `2bde92f9` aendert nur das Manifest, DEV nicht neu deployt.
+- Browser-Benutzer = DEV-User 8 (Gerald Weichbold), **ohne** gespeicherte FaHierarchyStructure-Praeferenz (SQL `UserViewPreferences`). Screenshots im Lauf nicht moeglich (CDP-Timeout, Fenster nicht im Vordergrund) — Pruefung ueber Accessibility-Baum/Seitentext.
+
+| Schritt | Ergebnis | |
+|---|---|---|
+| TS-204.8/1 `/ProductionOrders` IDEAL | 4 Zeilen, kein „HauptFA“-Zeichen, 1059463 traegt „mehrdeutig (Kombigerät)“ | OK |
+| TS-204.8/2 Spaltenfolge | Kopf + Filterzeile: Struktur, Matchcode, Arbeitsgänge, Bezeichnung (hidden), Kunde …; Bezeichnung-Kopf und -Filter als hidden gemeldet | OK |
+| TS-204.8/3 AG-Kaestchen ohne Querscrollen | Arbeitsgänge-Zellen sichtbar (nicht off-screen) bei 1920 px; DEV ohne BDE-Status zeigt „kein BDE-Arbeitsgang“; Status-Symbole Haken/Sanduhr/Dreieck/Kreis nicht pruefbar | NICHT MOEGLICH (BDE-Status fehlt auf DEV, keine Screenshots) |
+| TS-204.8/4 Zahnrad Bezeichnung einblenden, neu laden | Haken gesetzt → Praeferenz Id 36 gespeichert (`description visible:true`); nach Reload Bezeichnung sichtbar | OK |
+| TS-204.8/5 keine Linie, deckend | `site.css` auf DEV ohne `border-right`; Optik/Deckung | NICHT MOEGLICH (keine Screenshots) |
+| TS-204.8 Negativ alte Praeferenz | Id 36 per SQL auf v1.99.83-Reihenfolge gesetzt (description sichtbar, operations nach workarea) → Seite zeigt Bezeichnung an Pos. 3, Arbeitsgänge nach Arbeitsbereich | OK |
+| Aufraeumen | QA-Praeferenz Id 36 geloescht; User 8 hat wieder keine FaHierarchyStructure-Praeferenz | OK |
+| TS-203.1/1 | je Auftrag eine Zeile, keine Sub-FA-Zeile, kein Pfeil | OK |
+| TS-203.1/2 | „4 Aufträge“ ohne „· m Sub-FAs“; Seitengroesse 25/Seite 2 | OK / NICHT MOEGLICH (nur 4 Auftraege auf DEV) |
+| TS-204.7/1–3 Sticky ohne Linie, deckend, Mitruecken, Matchcode verschoben | CSS-Regeln unveraendert bis auf Linie | NICHT MOEGLICH (keine Screenshots) |
+| AKE-Regression | `/ProductionOrders` laedt; `/FaHierarchy` leitet auf Dashboard um | OK |
+
+### 7. Publish
+
+`C:\Git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-07-ideal-teile-1-5\publish\` — vorher geleert; `IDEALAKEWMSWeb` und `IDEALAKEWMSWebService` (beide Exit 0, DLL-Version `1.0.0+2bde92f9…`), `SQL\` (157 Dateien), `deploy\` (6 Dateien, Manifest mit B1-Text). `publish-info.txt`: Version 1.99.84, Commit `2bde92f9f6a0b7f79815592de12348fccc7ca168`, Branch `feature/2026-08-07-ideal-teile-1-5`, Erstellt 2026-11-26 17:46, Komponenten Web + Dienst.
+
+### Manuelle Testcheckliste (Mensch, Schranke 2) — offen
+
+1. Paket `publish\` (v1.99.84) aufs IDEAL-Testsystem (`deploy\Update-IdealAkeWms.ps1`), Fusszeile v1.99.84, Manifest-Info mit neuem Text.
+2. TS-204.8/3: AG-Status-Symbole (Haken/Sanduhr/Dreieck/Kreis) ohne Querscrollen sichtbar — mit BDE-Daten.
+3. TS-204.8/5 + TS-204.7: keine graue Linie nach Matchcode, Struktur/Matchcode beim Querscrollen deckend, Matchcode rueckt beim Aufklappen mit, kein Durchscheinen (auch Kopf-/Filterzeile, Hervorheben-Farbe).
+4. TS-203.1/2: Seitengroesse 25 und Seite 2 mit mehr als 25 Auftraegen.
+5. Benutzer mit alter Zahnrad-Einstellung am Testsystem: Bezeichnung bleibt sichtbar, Arbeitsgaenge bleiben hinten (erwartet laut TS-204.8; bei Bedarf „Auf Standard zuruecksetzen“).
+6. Offene Punkte der Checkliste v1.99.83 oben (2–10) bleiben bestehen.
+7. Danach Merge (Schranke 2).
