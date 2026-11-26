@@ -30,6 +30,8 @@ public class ProductionOrderListViewModel
     public List<ProductionOrderListGroup> Groups { get; set; } = new();
     /// <summary>Anzahl aller Sub-FA-Zeilen auf der Filterauswahl (Z4: „N Aufträge · M Sub-FAs").</summary>
     public int HierarchicalRowCount { get; set; }
+    /// <summary>v1.99.82 (F6): offene Auftraege ohne HauptFA-Zeile — die Liste zeigt sie nicht, das Banner meldet sie.</summary>
+    public int OhneHauptFaZeile { get; set; }
 }
 
 /// <summary>Eine HauptFA-Gruppe der FA-Liste im hierarchischen Modus.</summary>
@@ -144,4 +146,27 @@ public class ProductionOrderListItem
     public string? AbNummer { get; set; }
     /// <summary>Montage-Abteilung des HauptFA-Kopfs.</summary>
     public string? MontageAbteilung { get; set; }
+
+    // v1.99.82 (Spec 2026-11-26 FA-Liste nur HauptFA, F3/F4): weitere Kopf- (K, FaHierarchyOrderInfo) und
+    // Wurzelfelder (W, FaHierarchyNode SubFA == HauptFA) — nur Anzeige, nie materialisiert. Kopf-Felder nur bei
+    // eindeutigem Kopf, Wurzel-Felder auch beim Kombigeraet.
+    /// <summary>true = Kombigeraet (mehrere Auftragskoepfe), Badge in der FA-Nr.-Zelle.</summary>
+    public bool IsAmbiguous { get; set; }
+    public string? PpsStatus { get; set; }
+    public string? AbPosition { get; set; }
+    public string? Dienstleister { get; set; }
+    public string? Ral { get; set; }
+    public DateTime? BeschichtungRetour { get; set; }
+    public DateTime? NeuerPtPps { get; set; }
+    public decimal? Montagestunden { get; set; }
+    public string? BemerkungUhrzeit { get; set; }
+    public decimal? Fertigungsmenge { get; set; }
+    public string? Artikelgruppe { get; set; }
+    public string? Arbeitsbereich { get; set; }
+    public string? KommZiel { get; set; }
+    public string? Hauptlagerplatz { get; set; }
+    public string? Bemerkung { get; set; }
+    public string? Fertigungsinfo { get; set; }
+    public string? Arbeitsschritte { get; set; }
+    public string? Material { get; set; }
 }

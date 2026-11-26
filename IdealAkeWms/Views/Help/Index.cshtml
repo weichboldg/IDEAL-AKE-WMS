@@ -934,6 +934,28 @@
                         werden per 301-Redirect auf <code>/PickingLeitstand/...</code> umgeleitet.
                     </dd>
 
+                    <dt>FA-Liste nur HauptFA (IDEAL, seit v1.99.82)</dt>
+                    <dd>Bei eingeschalteter Hierarchie (<code>ProduktionsauftragHierarchisch</code>, IDEAL) zeigt die FA-Liste je Auftrag
+                        <strong>genau eine Zeile: die HauptFA</strong>. Gruppen-Kopfzeilen und Sub-FA-Zeilen gibt es dort nicht mehr.
+                        <ul class="mt-1 mb-1">
+                            <li><strong>Sub-FAs ansehen:</strong> Knopf <em>FA-Struktur</em> (Baum-Symbol) rechts in der Zeile öffnet die
+                                FA-Struktur gefiltert auf diesen HauptFA.</li>
+                            <li><strong>Suche:</strong> FA-Nr. in der Filterkarte oder im Spaltenfilter findet den Auftrag auch über eine
+                                Sub-FA-Nummer (angezeigt wird dann die HauptFA-Zeile).</li>
+                            <li><strong>Weitere Spalten</strong> (Zahnrad, standardmäßig ausgeblendet): aus dem Auftragskopf PPS-Status,
+                                AB-Pos., Beschichter, RAL, Beschicht. retour, Neuer PT (PPS), Montage-Std., Bemerkung/Uhrzeit; aus der
+                                Strukturwurzel Fert.-Menge, Artikelgruppe, Arbeitsbereich, Komm.-Ziel, Hauptlagerplatz, Bemerkung,
+                                Fertigungsinfo, Arbeitsschritte, Material. Alle haben einen Spaltenfilter (Text, Datum oder Zahl).
+                                <em>PPS-Status</em> ist der Status aus der FA-Struktur, <em>Sage-Status</em> bleibt unverändert.</li>
+                            <li><strong>Kombigerät</strong> (mehrere Auftragsköpfe): Zeichen &bdquo;mehrdeutig (Kombigerät)&ldquo; in der
+                                FA-Nr.-Zelle, Kopf-Spalten bleiben leer; die Köpfe je Variante zeigt die FA-Struktur.</li>
+                            <li><strong>Matchcode:</strong> zuerst aus der FA-Struktur (Wurzel), ist er dort leer, aus dem Artikelstamm.</li>
+                            <li><strong>Hinweis über der Liste:</strong> gibt es offene Aufträge ohne HauptFA-Zeile, nennt ein gelber
+                                Hinweis ihre Anzahl &ndash; diese Aufträge stehen nur in der FA-Struktur.</li>
+                            <li>Die Spalte <em>Übergeordnete Sub-FA</em> entfällt an der IDEAL. Am Standort AKE bleibt die FA-Liste unverändert.</li>
+                        </ul>
+                    </dd>
+
                     <dt>FA-Zusatzinfos aus Sage in FA-Liste + Leitstand (seit v1.26.0)</dt>
                     <dd>Die FA-Liste und der Kommissionier-Leitstand kennen fuenf zusaetzliche
                         Spalten <strong>Kaeltemittel, Ventil, Ausfuehrung E/Z, Maschine,
@@ -1857,8 +1879,8 @@
                         &bdquo;uebersprungen (Sub-FA)&ldquo; gemeldet &mdash; sowohl beim Freigeben als
                         auch beim Zuruecknehmen. Am Standort AKE ist davon nichts sichtbar, da dort jede
                         FA ihre eigene HauptFA ist. Die schreibgeschuetzte Stueckliste (Vorbau/
-                        <em>FaWorklist</em>) fuer BDE-Referenz bleibt in der FA-Liste auf Sub-FA-Zeilen
-                        erreichbar (mit Vorbau-Zugriff); im Leitstand zeigen Sub-FA-Zeilen keinen
+                        <em>FaWorklist</em>) fuer BDE-Referenz ist seit v1.99.82 ueber die FA-Struktur erreichbar (die FA-Liste
+                        zeigt an der IDEAL nur noch HauptFA-Zeilen); im Leitstand zeigen Sub-FA-Zeilen keinen
                         Stueckliste-Link. Die vorher vorhandene Freigabe-Kaskade &bdquo;Alle Sub-FAs freigeben&ldquo; ist entfallen
                         (siehe Aenderungen v1.38.0/v1.46.0) &mdash; die Fertigmeldungs-Kaskade
                         &bdquo;Alle Sub-FAs fertigmelden&ldquo; ist davon nicht betroffen.</dd>

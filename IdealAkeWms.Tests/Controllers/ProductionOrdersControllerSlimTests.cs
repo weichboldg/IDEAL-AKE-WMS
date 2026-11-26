@@ -29,6 +29,7 @@ public class ProductionOrdersControllerSlimTests
     private readonly Mock<IServiceSettingRepository> _serviceSettingRepo = new();
     private readonly Mock<IFaHierarchyOrderInfoRepository> _orderInfoRepo = new();
     private readonly Mock<IArticleRepository> _articleRepo = new();
+    private readonly Mock<IFaHierarchyNodeRepository> _faNodeRepo = new();
     private readonly ProductionOrdersController _controller;
 
     public ProductionOrdersControllerSlimTests()
@@ -48,6 +49,9 @@ public class ProductionOrdersControllerSlimTests
         // Master default null -> Flachmodus (bestehende Tests unveraendert).
         _serviceSettingRepo.Setup(s => s.GetValueAsync(It.IsAny<string>())).ReturnsAsync((string?)null);
 
+        _faNodeRepo.Setup(n => n.GetRootsByHauptFaKeysAsync(It.IsAny<IReadOnlyCollection<int>>()))
+            .ReturnsAsync(new List<FaHierarchyNode>());
+
         _controller = new ProductionOrdersController(
             _orderRepo.Object,
             _pickingStatusRepo.Object,
@@ -59,6 +63,7 @@ public class ProductionOrdersControllerSlimTests
             _serviceSettingRepo.Object,
             _orderInfoRepo.Object,
             _articleRepo.Object,
+            _faNodeRepo.Object,
             NullLogger<ProductionOrdersController>.Instance);
 
         _controller.TempData = new TempDataDictionary(

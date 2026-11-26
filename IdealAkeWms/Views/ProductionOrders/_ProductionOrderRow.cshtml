@@ -49,6 +49,10 @@
         {
             <span class="badge rounded-pill bg-secondary ms-1" title="Diese Zeile ist die HauptFA selbst, nicht eine ihrer Sub-FAs.">HauptFA</span>
         }
+        @if (Model.Hierarchical && item.IsAmbiguous)
+        {
+            <span class="badge bg-info text-dark ms-1" title="HauptFA mit mehreren Auftragsköpfen (Kombigerät) – Kopfdaten je Variante in der FA-Struktur">mehrdeutig (Kombigerät)</span>
+        }
         @if (item.IsCancelled)
         {
             <span class="badge bg-danger ms-1" title="Dieser Fertigungsauftrag existiert nicht mehr in Sage und wurde automatisch storniert.">In Sage gelöscht</span>
@@ -63,15 +67,13 @@
         }
     </td>
     <td class="text-end">@item.Quantity.ToString("N3")</td>
-    @* data-repeat-key: ein Folge-Task unterdrueckt Wiederholungswerte je Gruppe per JS. Die Zellen
-       markieren sich selbst, damit ein spaeterer Spalteneinschub das JS nicht still bricht. *@
-    <td data-repeat-key="customer">@item.Customer</td>
+    <td>@item.Customer</td>
     @if (Model.Hierarchical)
     {
-        <td data-repeat-key="prio">@item.Prio</td>
-        <td data-repeat-key="ab-nummer">@item.AbNummer</td>
-        <td data-repeat-key="montage-abteilung">@item.MontageAbteilung</td>
-        <td data-repeat-key="konstruktions-termin">@FormatDateWithKw(item.KonstruktionsTermin)</td>
+        <td>@item.Prio</td>
+        <td>@item.AbNummer</td>
+        <td>@item.MontageAbteilung</td>
+        <td>@FormatDateWithKw(item.KonstruktionsTermin)</td>
     }
     <td>
         @if (!string.IsNullOrEmpty(item.ArticleNumber))
@@ -117,9 +119,41 @@
             <span class="text-muted" title="Lackierteile offen">–</span>
         }
     </td>
-    @* IDEAL Hierarchie: Elternzeiger-Spalte (defaultHidden, im Flachmodus leer). *@
-    <td>@item.ParentSubOrderNumber</td>
+    @* Elternzeiger-Spalte (defaultHidden) nur im Flachmodus; an der HauptFA-Zeile waere sie immer leer (F7, v1.99.82). *@
+    @if (!Model.Hierarchical)
+    {
+        <td>@item.ParentSubOrderNumber</td>
+    }
+    @* v1.99.82 (F3): Kopf-/Wurzelfelder in derselben Reihenfolge wie die <th> in Index.cshtml. *@
+    @if (Model.Hierarchical)
+    {
+        <td>@item.PpsStatus</td>
+        <td>@item.AbPosition</td>
+        <td>@item.Dienstleister</td>
+        <td>@item.Ral</td>
+        <td class="text-nowrap">@FormatDateWithKw(item.BeschichtungRetour)</td>
+        <td class="text-nowrap">@FormatDateWithKw(item.NeuerPtPps)</td>
+        <td class="text-end">@item.Montagestunden?.ToString("0.###")</td>
+        <td>@item.BemerkungUhrzeit</td>
+        <td class="text-end">@item.Fertigungsmenge?.ToString("0.###")</td>
+        <td>@item.Artikelgruppe</td>
+        <td>@item.Arbeitsbereich</td>
+        <td>@item.KommZiel</td>
+        <td>@item.Hauptlagerplatz</td>
+        <td>@item.Bemerkung</td>
+        <td>@item.Fertigungsinfo</td>
+        <td>@item.Arbeitsschritte</td>
+        <td>@item.Material</td>
+    }
     <td class="text-nowrap">
+        @if (Model.Hierarchical)
+        {
+            @* F5: Sprung in die Sub-FA-Sicht (FA-Struktur), gleicher Tab. *@
+            <a asp-controller="FaHierarchy" asp-action="Index" asp-route-filterHauptFa="@item.OrderNumber"
+               class="btn btn-sm btn-outline-secondary me-1" title="FA-Struktur anzeigen" aria-label="FA-Struktur von @item.OrderNumber anzeigen">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true"><path fill-rule="evenodd" d="M6 3.5A1.5 1.5 0 0 1 7.5 2h1A1.5 1.5 0 0 1 10 3.5v1A1.5 1.5 0 0 1 8.5 6v1H14a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-1 0V8h-5v.5a.5.5 0 0 1-1 0V8h-5v.5a.5.5 0 0 1-1 0v-1A.5.5 0 0 1 2 7h5.5V6A1.5 1.5 0 0 1 6 4.5zM8.5 5a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5h-1a.5.5 0 0 0-.5.5v1a.5.5 0 0 0 .5.5zM0 11.5A1.5 1.5 0 0 1 1.5 10h1A1.5 1.5 0 0 1 4 11.5v1A1.5 1.5 0 0 1 2.5 14h-1A1.5 1.5 0 0 1 0 12.5zm1.5-.5a.5.5 0 0 0-.5.5v1a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5zm4.5.5A1.5 1.5 0 0 1 7.5 10h1a1.5 1.5 0 0 1 1.5 1.5v1A1.5 1.5 0 0 1 8.5 14h-1A1.5 1.5 0 0 1 6 12.5zm1.5-.5a.5.5 0 0 0-.5.5v1a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5zm4.5.5a1.5 1.5 0 0 1 1.5-1.5h1a1.5 1.5 0 0 1 1.5 1.5v1a1.5 1.5 0 0 1-1.5 1.5h-1a1.5 1.5 0 0 1-1.5-1.5zm1.5-.5a.5.5 0 0 0-.5.5v1a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5z"/></svg>
+            </a>
+        }
         <a asp-controller="Tracking" asp-action="OseonIndex" asp-route-filterCustomerOrder="@item.OrderNumber" asp-route-showFinished="true"
            class="btn btn-sm btn-outline-info me-1" title="OSEON Teileverfolgung">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M8 16A8 8 0 1 0 8 0a8 8 0 0 0 0 16m.93-9.412-1 4.705c-.07.34.029.533.304.533.194 0 .487-.07.686-.246l-.088.416c-.287.346-.92.598-1.465.598-.703 0-1.002-.422-.808-1.319l.738-3.468c.064-.293.006-.399-.287-.399l-.451.004.09-.41h2.281z"/><path d="M8 5.5a1 1 0 1 0 0-2 1 1 0 0 0 0 2"/></svg>

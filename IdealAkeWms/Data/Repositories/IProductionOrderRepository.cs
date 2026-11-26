@@ -123,6 +123,8 @@ public interface IProductionOrderRepository : IRepository<ProductionOrder>
     /// solange mindestens eine Zeile passt; die order-number-Suche trifft SubOrderNumber ODER
     /// OrderNumber). Sortierung je Gruppe: <c>SubOrderNumber</c> aufsteigend (Z2, Vorbelegung).
     /// </summary>
+    /// <param name="nurHauptFa">v1.99.82: nur HauptFA-Zeilen (<see cref="ProductionOrder.IsHauptFa"/>), je Gruppe eine Zeile; die
+    /// FA-Nr.-Suche (Karte und Spalte) findet den Auftrag auch ueber eine Sub-FA-Nummer.</param>
     Task<LeitstandOrderGroupedPage> GetForLeitstandGroupedAsync(
         string? filterOrderNumber,
         string? filterArticleNumber,
@@ -130,7 +132,11 @@ public interface IProductionOrderRepository : IRepository<ProductionOrder>
         bool showDone,
         int page,
         int pageSize,
-        IReadOnlyDictionary<string, string>? columnFilters = null);
+        IReadOnlyDictionary<string, string>? columnFilters = null,
+        bool nurHauptFa = false);
+
+    /// <summary>v1.99.82: Anzahl Auftraege ohne HauptFA-Zeile (gleicher showDone-Filter wie die Liste), fuer das Banner.</summary>
+    Task<int> CountGruppenOhneHauptFaAsync(bool showDone);
 }
 
 

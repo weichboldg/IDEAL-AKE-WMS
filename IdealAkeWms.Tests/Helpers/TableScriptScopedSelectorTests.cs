@@ -47,7 +47,6 @@ public class TableScriptScopedSelectorTests
     private static readonly string TableFilterJs;
     private static readonly string ColumnPreferencesJs;
     private static readonly string FaListeGruppierungJs;
-    private static readonly string FaListeWiederholungJs;
 
     static TableScriptScopedSelectorTests()
     {
@@ -60,7 +59,6 @@ public class TableScriptScopedSelectorTests
         TableFilterJs = File.ReadAllText(Path.Combine(jsDir, "table-filter.js"));
         ColumnPreferencesJs = File.ReadAllText(Path.Combine(jsDir, "column-preferences.js"));
         FaListeGruppierungJs = File.ReadAllText(Path.Combine(jsDir, "fa-liste-gruppierung.js"));
-        FaListeWiederholungJs = File.ReadAllText(Path.Combine(jsDir, "fa-liste-wiederholung.js"));
     }
 
     // ========================================================================
@@ -205,15 +203,5 @@ public class TableScriptScopedSelectorTests
         FaListeGruppierungJs.Should().NotContain("querySelectorAll('.fa-liste-node-row')",
             "unskopierte Klassensuche greift in die verschachtelte Varianten-Tabelle hinein, " +
             "sobald dort Zeilen mit dieser Klasse auftauchen");
-    }
-
-    [Fact]
-    public void FaListeWiederholung_StaysScoped()
-    {
-        // Diese Datei war von Anfang an skopiert — der Waechter haelt den Zustand fest.
-        FaListeWiederholungJs.Should().Contain(":scope > tr.fa-liste-node-row",
-            "die Wiederholungswert-Unterdrueckung darf nicht in die Varianten-Tabelle greifen");
-        FaListeWiederholungJs.Should().Contain(":scope > [data-repeat-key]",
-            "Zellen werden als direkte Kinder der Zeile gelesen");
     }
 }

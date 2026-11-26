@@ -17,4 +17,8 @@ public interface IFaHierarchyNodeRepository
 
     /// <summary>Alle Knoten (ungefiltert). Fuer spaetere Listen-/Baum-Features.</summary>
     Task<List<FaHierarchyNode>> GetAllAsync();
+
+    /// <summary>v1.99.82: Strukturwurzeln (<c>SubFA == HauptFA</c>) zu einer Menge HauptFA - EINE Abfrage je Seite.
+    /// Nicht verschwundene Wurzeln zuerst; mehr als eine je HauptFA meldet der Aufrufer.</summary>
+    Task<List<FaHierarchyNode>> GetRootsByHauptFaKeysAsync(IReadOnlyCollection<int> hauptFaKeys);
 }

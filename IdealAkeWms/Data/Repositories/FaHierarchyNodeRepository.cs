@@ -34,4 +34,14 @@ public class FaHierarchyNodeRepository : IFaHierarchyNodeRepository
             .ThenBy(n => n.Position)
             .ToListAsync();
     }
+
+    public async Task<List<FaHierarchyNode>> GetRootsByHauptFaKeysAsync(IReadOnlyCollection<int> hauptFaKeys)
+    {
+        if (hauptFaKeys == null || hauptFaKeys.Count == 0) return new List<FaHierarchyNode>();
+        var keys = hauptFaKeys.Distinct().ToList();
+        return await _db.FaHierarchyNodes.AsNoTracking()
+            .Where(n => keys.Contains(n.HauptFA) && n.SubFA == n.HauptFA)
+            .OrderBy(n => n.HauptFA).ThenBy(n => n.VerschwundenSeit != null).ThenBy(n => n.Id)
+            .ToListAsync();
+    }
 }

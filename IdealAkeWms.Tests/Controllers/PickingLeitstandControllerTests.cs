@@ -171,7 +171,7 @@ public class PickingLeitstandControllerTests
 
         _orderRepo.Setup(r => r.GetForLeitstandGroupedAsync(
                 It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<bool>(),
-                It.IsAny<int>(), It.IsAny<int>(), It.IsAny<IReadOnlyDictionary<string, string>?>()))
+                It.IsAny<int>(), It.IsAny<int>(), It.IsAny<IReadOnlyDictionary<string, string>?>(), It.IsAny<bool>()))
             .ReturnsAsync(grouped);
         _pickingStatusRepo.Setup(r => r.GetByProductionOrderIdsAsync(It.IsAny<IEnumerable<int>>()))
             .ReturnsAsync(new Dictionary<int, ProductionOrderPickingStatus>());
@@ -229,7 +229,7 @@ public class PickingLeitstandControllerTests
             TotalRowCount: 1);
         _orderRepo.Setup(r => r.GetForLeitstandGroupedAsync(
                 It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<bool>(),
-                It.IsAny<int>(), It.IsAny<int>(), It.IsAny<IReadOnlyDictionary<string, string>?>()))
+                It.IsAny<int>(), It.IsAny<int>(), It.IsAny<IReadOnlyDictionary<string, string>?>(), It.IsAny<bool>()))
             .ReturnsAsync(grouped);
         _pickingStatusRepo.Setup(r => r.GetByProductionOrderIdsAsync(It.IsAny<IEnumerable<int>>()))
             .ReturnsAsync(new Dictionary<int, ProductionOrderPickingStatus>());
@@ -245,7 +245,7 @@ public class PickingLeitstandControllerTests
         // Repository gehen -- dort uebernimmt die SQL-Subquery gegen FaHierarchyOrderInfo die Suche.
         _orderRepo.Verify(r => r.GetForLeitstandGroupedAsync(
             null, null, "Mustermann", false,
-            It.IsAny<int>(), It.IsAny<int>(), It.IsAny<IReadOnlyDictionary<string, string>?>()),
+            It.IsAny<int>(), It.IsAny<int>(), It.IsAny<IReadOnlyDictionary<string, string>?>(), It.IsAny<bool>()),
             Times.Once);
     }
 
@@ -1049,7 +1049,7 @@ public class PickingLeitstandControllerTests
             .Returns((DateTime d, HashSet<DayOfWeek> _) => d);
         _orderRepo.Setup(r => r.GetForLeitstandGroupedAsync(
                 It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<bool>(),
-                It.IsAny<int>(), It.IsAny<int>(), It.IsAny<IReadOnlyDictionary<string, string>?>()))
+                It.IsAny<int>(), It.IsAny<int>(), It.IsAny<IReadOnlyDictionary<string, string>?>(), It.IsAny<bool>()))
             .ReturnsAsync(new LeitstandOrderGroupedPage(
                 new List<LeitstandOrderGroup> { new("1000", new List<LeitstandOrderRow> { MakeRowH(1, "1000", "1001"), MakeRowH(2, "1000", "1002") }) },
                 TotalGroupCount: 1, TotalRowCount: 2));

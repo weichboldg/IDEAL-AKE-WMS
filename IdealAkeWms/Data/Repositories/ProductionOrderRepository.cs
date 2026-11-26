@@ -58,11 +58,12 @@ public class ProductionOrderRepository : Repository<ProductionOrder>, IProductio
         bool showDone,
         int page,
         int pageSize,
-        IReadOnlyDictionary<string, string>? columnFilters = null)
+        IReadOnlyDictionary<string, string>? columnFilters = null,
+        bool nurHauptFa = false)
     {
         // Dieselben Filter (Zeilen-Ebene, Z3b), aber order-number matcht SubOrderNumber ODER OrderNumber.
         var q = BuildLeitstandQuery(filterOrderNumber, filterArticleNumber, filterCustomer,
-            showDone, columnFilters, hierarchical: true);
+            showDone, columnFilters, hierarchical: true, nurHauptFa: nurHauptFa);
 
         var totalRowCount = await q.CountAsync();
 
@@ -98,9 +99,25 @@ public class ProductionOrderRepository : Repository<ProductionOrder>, IProductio
     // SQL-Uebersetzung, ohne die Methode oeffentlich zu machen. Siehe InternalsVisibleTo in der csproj.
     internal IQueryable<ProductionOrder> BuildLeitstandQuery(
         string? filterOrderNumber, string? filterArticleNumber, string? filterCustomer,
-        bool showDone, IReadOnlyDictionary<string, string>? columnFilters, bool hierarchical)
+        bool showDone, IReadOnlyDictionary<string, string>? columnFilters, bool hierarchical, bool nurHauptFa = false)
     {
         IQueryable<ProductionOrder> q = _dbSet.AsNoTracking();
+
+        // v1.99.82 (Spec 2026-11-26 FA-Liste nur HauptFA, F1/F2): nur die HauptFA-Zeile (die EINE Definition IsHauptFa);
+        // die FA-Nr.-Suche trifft weiter auch Sub-FA-Nummern - dann ueber den Auftrag (Subquery), nicht ueber die Zeile.
+        if (nurHauptFa)
+        {
+            q = q.Where(ProductionOrder.IsHauptFa);
+            if (!string.IsNullOrWhiteSpace(filterOrderNumber))
+            {
+                var f = filterOrderNumber;
+                var treffer = _dbSet.Where(s => s.OrderNumber.Contains(f)
+                                             || (s.SubOrderNumber != null && s.SubOrderNumber.Contains(f)))
+                                    .Select(s => s.OrderNumber);
+                q = q.Where(o => treffer.Contains(o.OrderNumber));
+                filterOrderNumber = null;
+            }
+        }
 
         // Filterkarten-Freitext (Antwort 8 Suchsyntax-Spec, v1.58.0): weiter „enthaelt“ ohne Syntax, aber string.Contains statt
         // EF.Functions.Like — EF maskiert %/_/[ im Parameter, „A_1“ trifft nicht mehr „AX1“.
@@ -148,11 +165,28 @@ public class ProductionOrderRepository : Repository<ProductionOrder>, IProductio
                 // Alle SQL-Spalten dieser Liste sind Text (Datum/Zahl filtert der Controller in C#, ColumnFilterTypes "ProductionOrders/Index").
                 var parsed = ColumnFilterSyntax.Parse(raw, ColumnFilterType.Text);
                 if (parsed.IsEmpty) continue;
+                if (nurHauptFa && key.Equals("order-number", StringComparison.OrdinalIgnoreCase))
+                {
+                    // Spalte FA-Nr. wie die Karte: Auftraege, in denen irgendeine Zeile (HauptFA oder Sub-FA) passt.
+                    var treffer = ApplyLeitstandColumnFilter(_dbSet.AsQueryable(), key, parsed, hierarchical).Select(s => s.OrderNumber);
+                    q = q.Where(o => treffer.Contains(o.OrderNumber));
+                    continue;
+                }
                 q = ApplyLeitstandColumnFilter(q, key, parsed, hierarchical);
             }
         }
 
         return q;
+    }
+
+    /// <summary>v1.99.82 (F6): Auftraege (OrderNumber) mit Zeilen im showDone-Filter, aber ohne HauptFA-Zeile - die
+    /// FA-Liste zeigt sie nicht, das Banner meldet die Anzahl. Gemeinsam mit dem Leitstand (Spec 2026-11-26 ...-teil-2).</summary>
+    public async Task<int> CountGruppenOhneHauptFaAsync(bool showDone)
+    {
+        var mitHauptFa = _dbSet.Where(ProductionOrder.IsHauptFa).Select(h => h.OrderNumber);
+        return await BuildLeitstandQuery(null, null, null, showDone, null, hierarchical: true)
+            .Where(o => !mitHauptFa.Contains(o.OrderNumber))
+            .Select(o => o.OrderNumber).Distinct().CountAsync();
     }
 
     // Matchcode (Task 2, Artikelstamm): NICHT mehr aus o.Matchcode projiziert — die Spalte wird in

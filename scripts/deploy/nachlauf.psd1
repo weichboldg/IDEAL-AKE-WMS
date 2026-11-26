@@ -709,5 +709,8 @@ WHERE NOT EXISTS (SELECT 1 FROM dbo.Roles r WHERE r.[Key] = v.k);'
 @{ Id='v1.99.78-BdeHandyKontenInfo'; Version='1.99.78'; Typ='Info'; Firma='beide'; Phase='Nachher'; Ausfuehrung='anzeigen'
    Text='BDE am Android-Handy: je Geraet lokales WMS-Konto (Formular-Login) + Terminal-Zuordnung anlegen (docs/betrieb/09). Konten sind noch nicht angelegt.'
    Quelle='2026-11-25-v1-99-78-bde-masken-etappe-5-terminal-abloesung' }
+@{ Id='fa-liste-nur-hauptfa-info'; Version='1.99.82'; Typ='Info'; Firma='IDEAL'; Phase='Nachher'; Ausfuehrung='anzeigen'
+   Text='FA-Liste zeigt nur noch HauptFA-Zeilen; Sub-FAs ueber den Knopf FA-Struktur. 17 weitere Strukturfelder (u. a. PPS-Status, RAL, Material) per Zahnrad einblendbar. Matchcode kommt bevorzugt aus der FA-Struktur, sonst aus dem Artikelstamm (wie Stueckliste).'
+   Quelle='2026-11-26-fa-liste-nur-hauptfa-und-fa-struktur-neu-teil-1-spec' }
 )
 }

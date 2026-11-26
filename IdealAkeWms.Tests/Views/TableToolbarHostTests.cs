@@ -93,7 +93,7 @@ public class TableToolbarHostTests
     {
         var html = View(rel);
         var marker = html.IndexOf("data-table-toolbar", StringComparison.Ordinal);
-        var zaehlzeile = html.IndexOf("@Model.HierarchicalRowCount", StringComparison.Ordinal);
+        var zaehlzeile = html.IndexOf("@Model.Pagination.TotalCount</strong> Aufträge", StringComparison.Ordinal);
         zaehlzeile.Should().BePositive();
         marker.Should().BePositive().And.BeLessThan(zaehlzeile, "das Zahnrad gehoert nicht in die Zaehlzeile „… Aufträge · … Sub-FAs“");
     }

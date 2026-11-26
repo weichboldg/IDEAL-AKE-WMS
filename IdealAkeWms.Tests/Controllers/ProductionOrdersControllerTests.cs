@@ -32,6 +32,7 @@ public class ProductionOrdersControllerTests
     private readonly Mock<IServiceSettingRepository> _serviceSettingRepo = new();
     private readonly Mock<IFaHierarchyOrderInfoRepository> _orderInfoRepo = new();
     private readonly Mock<IArticleRepository> _articleRepo = new();
+    private readonly Mock<IFaHierarchyNodeRepository> _faNodeRepo = new();
     private readonly ProductionOrdersController _controller;
 
     public ProductionOrdersControllerTests()
@@ -60,6 +61,9 @@ public class ProductionOrdersControllerTests
 
         EnableHierarchical();
 
+        _faNodeRepo.Setup(n => n.GetRootsByHauptFaKeysAsync(It.IsAny<IReadOnlyCollection<int>>()))
+            .ReturnsAsync(new List<FaHierarchyNode>());
+
         _controller = new ProductionOrdersController(
             _orderRepo.Object,
             _pickingStatusRepo.Object,
@@ -71,6 +75,7 @@ public class ProductionOrdersControllerTests
             _serviceSettingRepo.Object,
             _orderInfoRepo.Object,
             _articleRepo.Object,
+            _faNodeRepo.Object,
             NullLogger<ProductionOrdersController>.Instance);
 
         _controller.TempData = new TempDataDictionary(
@@ -112,7 +117,7 @@ public class ProductionOrdersControllerTests
     private void SetupGrouped(LeitstandOrderGroupedPage page) =>
         _orderRepo.Setup(r => r.GetForLeitstandGroupedAsync(
                 It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<bool>(),
-                It.IsAny<int>(), It.IsAny<int>(), It.IsAny<IReadOnlyDictionary<string, string>?>()))
+                It.IsAny<int>(), It.IsAny<int>(), It.IsAny<IReadOnlyDictionary<string, string>?>(), It.IsAny<bool>()))
             .ReturnsAsync(page);
 
     private void SetupPickingStatuses(Dictionary<int, ProductionOrderPickingStatus> statuses) =>
@@ -672,7 +677,7 @@ public class ProductionOrdersControllerTests
         // (im Gegensatz zum Leitstand, siehe PickingLeitstandControllerTests).
         _orderRepo.Verify(r => r.GetForLeitstandGroupedAsync(
             null, null, null, false,
-            It.IsAny<int>(), It.IsAny<int>(), It.IsAny<IReadOnlyDictionary<string, string>?>()),
+            It.IsAny<int>(), It.IsAny<int>(), It.IsAny<IReadOnlyDictionary<string, string>?>(), true),
             Times.Once);
     }
 

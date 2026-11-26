@@ -23,6 +23,7 @@ public class ProductionOrdersController : Controller
     private readonly IServiceSettingRepository _serviceSettingRepository;
     private readonly IFaHierarchyOrderInfoRepository _faHierarchyOrderInfoRepository;
     private readonly IArticleRepository _articleRepository;
+    private readonly IFaHierarchyNodeRepository _faHierarchyNodeRepository;
     private readonly ILogger<ProductionOrdersController> _logger;
 
     public ProductionOrdersController(
@@ -36,6 +37,7 @@ public class ProductionOrdersController : Controller
         IServiceSettingRepository serviceSettingRepository,
         IFaHierarchyOrderInfoRepository faHierarchyOrderInfoRepository,
         IArticleRepository articleRepository,
+        IFaHierarchyNodeRepository faHierarchyNodeRepository,
         ILogger<ProductionOrdersController> logger)
     {
         _productionOrderRepository = productionOrderRepository;
@@ -48,6 +50,7 @@ public class ProductionOrdersController : Controller
         _serviceSettingRepository = serviceSettingRepository;
         _faHierarchyOrderInfoRepository = faHierarchyOrderInfoRepository;
         _articleRepository = articleRepository;
+        _faHierarchyNodeRepository = faHierarchyNodeRepository;
         _logger = logger;
     }
 
@@ -243,8 +246,10 @@ public class ProductionOrdersController : Controller
             // fuer die FA-Liste) -- wird unten als Postfilter auf item.Customer angewendet, siehe
             // hasCustomerFreetextFilter oben. Der Leitstand (PickingLeitstandController) ist davon
             // unberuehrt und uebergibt filterCustomer weiterhin unveraendert.
+            // v1.99.82 (Spec 2026-11-26 FA-Liste nur HauptFA, F1): je Auftrag nur die HauptFA-Zeile.
             var grouped = await _productionOrderRepository.GetForLeitstandGroupedAsync(
-                filterOrderNumber, filterArticleNumber, null, showDone, sqlGroupPage, sqlGroupPageSize, sqlColumnFiltersHierarchical);
+                filterOrderNumber, filterArticleNumber, null, showDone, sqlGroupPage, sqlGroupPageSize, sqlColumnFiltersHierarchical,
+                nurHauptFa: true);
 
             var allRows = grouped.Groups.SelectMany(g => g.Rows).ToList();
 
@@ -262,6 +267,14 @@ public class ProductionOrdersController : Controller
                 .Where(k => k.HasValue).Select(k => k!.Value).Distinct().ToList();
             var headInfos = await _faHierarchyOrderInfoRepository.GetByHauptFaKeysAsync(hauptFaKeys);
             var headsByFa = headInfos.GroupBy(i => i.HauptFA).ToDictionary(g => g.Key, g => g.ToList());
+
+            // v1.99.82 (F3/F9): Strukturwurzeln je HauptFA — EIN Batch, VOR MapItem und den Postfiltern.
+            var rootsByFa = (await _faHierarchyNodeRepository.GetRootsByHauptFaKeysAsync(hauptFaKeys))
+                .GroupBy(n => n.HauptFA).ToDictionary(g => g.Key, g => g.ToList());
+            var mehrereWurzeln = rootsByFa.Where(kv => kv.Value.Count > 1).Select(kv => kv.Key).ToList();
+            if (mehrereWurzeln.Count > 0)
+                _logger.LogWarning("FA-Liste: {Anzahl} HauptFA mit mehr als einer Strukturwurzel, erste genommen: {HauptFa}",
+                    mehrereWurzeln.Count, string.Join(", ", mehrereWurzeln.Take(20)));
 
             var listGroups = grouped.Groups.Select(g =>
             {
@@ -317,12 +330,15 @@ public class ProductionOrdersController : Controller
                     }).ToList();
                 }
 
+                var root = int.TryParse(g.OrderNumber, out var rootKey) ? rootsByFa.GetValueOrDefault(rootKey)?.FirstOrDefault() : null;
                 group.Items = g.Rows.Select(r =>
                 {
                     var ps = psDict.GetValueOrDefault(r.Id);
-                    return MapItem(r, ps?.HasCoatingParts ?? false, ps?.IsCoatingDone ?? false,
+                    var item = MapItem(r, ps?.HasCoatingParts ?? false, ps?.IsCoatingDone ?? false,
                         groupProductionDate, groupDeliveryDate, groupHead, hierarchical: true,
                         groupCustomer, groupPrio, groupAbNummer, groupMontageAbteilung, groupKonstruktionsTermin);
+                    StrukturFelderSetzen(item, groupHead, root, group.IsAmbiguous);
+                    return item;
                 }).ToList();
 
                 return group;
@@ -372,6 +388,9 @@ public class ProductionOrdersController : Controller
             {
                 Hierarchical = true,
                 Groups = listGroups,
+                // v1.99.82: flache Darstellung, je Auftrag eine Zeile (die Gruppenansicht der FA-Liste entfaellt, F1).
+                Items = listGroups.SelectMany(g => g.Items).ToList(),
+                OhneHauptFaZeile = await _productionOrderRepository.CountGruppenOhneHauptFaAsync(showDone),
                 HierarchicalRowCount = totalRowCount,
                 FilterOrderNumber = filterOrderNumber,
                 FilterArticleNumber = filterArticleNumber,
@@ -473,7 +492,8 @@ public class ProductionOrdersController : Controller
     // FormatDateForFilter ("dd.MM.yyyy KWxx", kleingeschrieben) abgeglichen.
     private static readonly HashSet<string> FaListDateColumnKeys = new(StringComparer.OrdinalIgnoreCase)
     {
-        "coating-date", "bg-date", "picking-date", "production-date", "delivery-date", "konstruktions-termin"
+        "coating-date", "bg-date", "picking-date", "production-date", "delivery-date", "konstruktions-termin",
+        "beschichtung-retour", "neuer-pt-pps" // v1.99.82 Kopffelder
     };
 
     // IDEAL K1 (Task 6): Gruppenkopf-Felder, die erst im Anzeige-Modell entstehen (Task 5) und
@@ -483,8 +503,43 @@ public class ProductionOrdersController : Controller
     // K1-Kopfdaten ein C#-Postfilter statt eines SQL-Praedikats (A1/D2).
     private static readonly HashSet<string> FaListComputedColumnKeys = new(StringComparer.OrdinalIgnoreCase)
     {
-        "customer", "prio", "ab-nummer", "montage-abteilung", "matchcode"
+        "customer", "prio", "ab-nummer", "montage-abteilung", "matchcode",
+        // v1.99.82 (Spec 2026-11-26 FA-Liste nur HauptFA, F3): Kopf- und Wurzelfelder, nur im Anzeige-Modell
+        "pps-status", "ab-position", "dienstleister", "ral", "montagestunden", "bemerkung-uhrzeit",
+        "fertigungsmenge", "artikelgruppe", "arbeitsbereich", "komm-ziel", "hauptlagerplatz", "bemerkung",
+        "fertigungsinfo", "arbeitsschritte", "material"
     };
+
+    private static string? Leer(string? v) => string.IsNullOrWhiteSpace(v) ? null : v.Trim();
+
+    /// <summary>v1.99.82 (F3/F4/F9): Kopf- (nur eindeutiger Kopf) und Wurzelfelder ins Anzeige-Modell; Matchcode
+    /// Struktur zuerst, Artikelstamm als Rueckfall (wie Stueckliste, PickingController Variante B).</summary>
+    internal static void StrukturFelderSetzen(ProductionOrderListItem item, FaHierarchyOrderInfo? head, FaHierarchyNode? root, bool isAmbiguous)
+    {
+        item.IsAmbiguous = isAmbiguous;
+        if (head != null)
+        {
+            item.PpsStatus = head.Status;
+            item.AbPosition = head.Pos;
+            item.Dienstleister = head.Dienstleister;
+            item.Ral = head.RAL;
+            item.BeschichtungRetour = head.Beschichten_Retour;
+            item.NeuerPtPps = head.Neuer_PT_PPS;
+            item.Montagestunden = head.Montagestunden;
+            item.BemerkungUhrzeit = head.Bemerkung_Uhrzeit;
+        }
+        if (root == null) return;
+        item.Matchcode = Leer(root.Matchcode) ?? item.Matchcode;
+        item.Fertigungsmenge = root.Fertigungmenge;
+        item.Artikelgruppe = root.Artikelgruppe;
+        item.Arbeitsbereich = root.Arbeitsbereich;
+        item.KommZiel = root.Kommissionieren;
+        item.Hauptlagerplatz = root.Hauptlagerplatz;
+        item.Bemerkung = root.BemerkungPN;
+        item.Fertigungsinfo = root.FertigungsInfoPN;
+        item.Arbeitsschritte = root.Arbeitsschritte;
+        item.Material = root.Material;
+    }
 
     private static string FormatDateForFilter(DateTime? date)
     {
@@ -507,6 +562,8 @@ public class ProductionOrdersController : Controller
             "production-date" => FormatDateForFilter(item.ProductionDate),
             "delivery-date" => FormatDateForFilter(item.DeliveryDate),
             "konstruktions-termin" => FormatDateForFilter(item.KonstruktionsTermin),
+            "beschichtung-retour" => FormatDateForFilter(item.BeschichtungRetour),
+            "neuer-pt-pps" => FormatDateForFilter(item.NeuerPtPps),
             _ => string.Empty
         };
         // Vergleich/Bereich auf dem Datum (tageweise), „enthaelt“/% auf "dd.MM.yyyy kwNN" — kw42 und 10.2026 wie bisher.
@@ -525,6 +582,21 @@ public class ProductionOrdersController : Controller
             "ab-nummer" => item.AbNummer,
             "montage-abteilung" => item.MontageAbteilung,
             "matchcode" => item.Matchcode,
+            "pps-status" => item.PpsStatus,
+            "ab-position" => item.AbPosition,
+            "dienstleister" => item.Dienstleister,
+            "ral" => item.Ral,
+            "montagestunden" => item.Montagestunden?.ToString(System.Globalization.CultureInfo.GetCultureInfo("de-AT")),
+            "bemerkung-uhrzeit" => item.BemerkungUhrzeit,
+            "fertigungsmenge" => item.Fertigungsmenge?.ToString(System.Globalization.CultureInfo.GetCultureInfo("de-AT")),
+            "artikelgruppe" => item.Artikelgruppe,
+            "arbeitsbereich" => item.Arbeitsbereich,
+            "komm-ziel" => item.KommZiel,
+            "hauptlagerplatz" => item.Hauptlagerplatz,
+            "bemerkung" => item.Bemerkung,
+            "fertigungsinfo" => item.Fertigungsinfo,
+            "arbeitsschritte" => item.Arbeitsschritte,
+            "material" => item.Material,
             _ => null
         };
         // Leerer Wert matcht kein „enthaelt“ -- bei Kombigeraeten sind diese Felder absichtlich NULL; ein Filter darauf

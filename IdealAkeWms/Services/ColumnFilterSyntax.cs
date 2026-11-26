@@ -67,7 +67,8 @@ public static class ColumnFilterTypes
             ["Picking/Index"] = L(("priority", N), ("picking-date", D)), // v1.88.0 Auftragsliste (Faelligkeit = picking-date)
             ["PickingLeitstand/Index"] = L(("coating-date", D), ("bg-date", D), ("picking-date", D), ("production-date", D), ("delivery-date", D)),
             ["ProductionOrders/Index"] = L(("prio", N), ("konstruktions-termin", D), ("coating-date", D), ("bg-date", D),
-                ("picking-date", D), ("production-date", D), ("delivery-date", D)),
+                ("picking-date", D), ("production-date", D), ("delivery-date", D),
+                ("beschichtung-retour", D), ("neuer-pt-pps", D), ("montagestunden", N), ("fertigungsmenge", N)), // v1.99.82
             ["ProductionWorkplaces/Index"] = L(("pre-picking-days", N), ("sage-missing", D)),
             ["Roles/Index"] = L(("user-count", N)),
             ["SageBookingQueue/Index"] = L(("id", N), ("pos", N), ("quantity", N), ("created-at", D), ("sent-at", D), ("confirmed-at", D), ("attempts", N)), // v1.99.66 Sage-Buchungen

@@ -67,14 +67,22 @@
 <div class="d-flex justify-content-end mb-1" data-table-toolbar></div>
 @if (Model.Hierarchical)
 {
-    @* Z4: im hierarchischen Modus zaehlt die Gruppierung Auftraege (HauptFA) UND Sub-FAs. *@
+    @* v1.99.82 (Spec 2026-11-26 FA-Liste nur HauptFA, F1/F6): eine Zeile je Auftrag; Sub-FAs zeigt die FA-Struktur. *@
+    @if (Model.OhneHauptFaZeile > 0)
+    {
+        <div class="alert alert-warning py-2 mb-2" role="status">
+            <strong>@Model.OhneHauptFaZeile @(Model.OhneHauptFaZeile == 1 ? "Auftrag" : "Aufträge") ohne HauptFA-Zeile</strong>
+            @(Model.OhneHauptFaZeile == 1 ? "wird" : "werden") in der FA-Liste nicht angezeigt – Struktur unter
+            <a asp-controller="FaHierarchy" asp-action="Index" class="alert-link">FA-Struktur</a>.
+        </div>
+    }
     <div class="small text-muted mb-1">
-        <strong>@Model.Pagination.TotalCount</strong> Aufträge · <strong>@Model.HierarchicalRowCount</strong> Sub-FAs
-        <span class="ms-2">(Gruppierung nach HauptFA; Paginierung über Gruppen)</span>
+        <strong>@Model.Pagination.TotalCount</strong> Aufträge
+        <span class="ms-2">(eine Zeile je HauptFA; Sub-FAs über den Knopf „FA-Struktur“)</span>
     </div>
 }
 <div class="table-responsive">
-    <table class="table table-striped mb-0 filterable-table" data-view-key="ProductionOrders" data-fallback-sort-column="picking-date" data-fallback-sort-direction="asc" data-server-column-filter="true" data-hierarchical="@(Model.Hierarchical ? "true" : "false")">
+    <table class="table table-striped mb-0 filterable-table" data-view-key="ProductionOrders" data-fallback-sort-column="picking-date" data-fallback-sort-direction="asc" data-server-column-filter="true">
         <thead>
             <tr>
                 @if (Model.CanPick || Model.HasVorbauAccess)
@@ -109,7 +117,32 @@
                 <th class="text-nowrap" data-filterable data-col-key="production-date" data-date-filter>Fert.-Termin</th>
                 <th class="text-nowrap" data-filterable data-col-key="delivery-date" data-date-filter>Liefertermin</th>
                 <th class="text-nowrap text-center" style="width: 55px;" data-col-key="coating-part">Lack-T</th>
-                <th data-filterable data-col-key="parent-sub-order-number">Übergeordnete Sub-FA</th>
+                @* F7: an der HauptFA-Zeile immer leer, deshalb nur im Flachmodus. *@
+                @if (!Model.Hierarchical)
+                {
+                    <th data-filterable data-col-key="parent-sub-order-number">Übergeordnete Sub-FA</th>
+                }
+                @* v1.99.82 (F3): Kopf- und Strukturwurzel-Felder, nur hierarchisch, per Default ausgeblendet (Zahnrad). *@
+                @if (Model.Hierarchical)
+                {
+                    <th data-filterable data-col-key="pps-status">PPS-Status</th>
+                    <th data-filterable data-col-key="ab-position">AB-Pos.</th>
+                    <th data-filterable data-col-key="dienstleister">Beschichter</th>
+                    <th data-filterable data-col-key="ral">RAL</th>
+                    <th class="text-nowrap" data-filterable data-col-key="beschichtung-retour" data-date-filter>Beschicht. retour</th>
+                    <th class="text-nowrap" data-filterable data-col-key="neuer-pt-pps" data-date-filter>Neuer PT (PPS)</th>
+                    <th class="text-end" data-filterable data-col-key="montagestunden" data-filter-type="number">Montage-Std.</th>
+                    <th data-filterable data-col-key="bemerkung-uhrzeit">Bemerkung/Uhrzeit</th>
+                    <th class="text-end" data-filterable data-col-key="fertigungsmenge" data-filter-type="number">Fert.-Menge</th>
+                    <th data-filterable data-col-key="artikelgruppe">Artikelgruppe</th>
+                    <th data-filterable data-col-key="arbeitsbereich">Arbeitsbereich</th>
+                    <th data-filterable data-col-key="komm-ziel">Komm.-Ziel</th>
+                    <th data-filterable data-col-key="hauptlagerplatz">Hauptlagerplatz</th>
+                    <th data-filterable data-col-key="bemerkung">Bemerkung</th>
+                    <th data-filterable data-col-key="fertigungsinfo">Fertigungsinfo</th>
+                    <th data-filterable data-col-key="arbeitsschritte">Arbeitsschritte</th>
+                    <th data-filterable data-col-key="material">Material</th>
+                }
                 <th style="width: 80px;" data-col-key="row-actions"></th>
             </tr>
         </thead>
@@ -120,6 +153,8 @@
             // hierarchischen Modus im <thead>. Das colspan darf deshalb auch nur dort wachsen —
             // im Flachzweig wuerde die Leerzustands-Zelle sonst vier Spalten zu breit.
             if (Model.Hierarchical) colCount += 4;
+            // v1.99.82: hierarchisch ohne parent-sub-order-number (F7), dafuer die 17 Strukturfelder (F3).
+            if (Model.Hierarchical) colCount += 17 - 1;
             Func<ProductionOrderListItem, ProductionOrderRowContext> Ctx = it => new ProductionOrderRowContext
             {
                 Item = it,
@@ -131,94 +166,6 @@
                 Hierarchical = Model.Hierarchical
             };
         }
-        @if (Model.Hierarchical)
-        {
-            @* Zwei-Ebenen-Gruppierung: ein <tbody> je HauptFA-Gruppe, Kopfzeile mit colspan + Chevron. *@
-            foreach (var group in Model.Groups)
-            {
-                <tbody class="fa-liste-group" data-group="@group.OrderNumber">
-                    <tr class="fa-liste-group-head">
-                        <td colspan="@colCount" class="fa-liste-group-header">
-                            <span class="fa-liste-group-toggle" role="button" tabindex="0" aria-expanded="true" title="Gruppe auf-/zuklappen" aria-label="Gruppe auf-/zuklappen">
-                                <svg class="fa-liste-chevron" xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" viewBox="0 0 16 16" style="transform: rotate(90deg);">
-                                    <path fill-rule="evenodd" d="M4.646 1.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1 0 .708l-6 6a.5.5 0 0 1-.708-.708L10.293 8 4.646 2.354a.5.5 0 0 1 0-.708" />
-                                </svg>
-                            </span>
-                            <strong class="ms-1">HauptFA @group.OrderNumber</strong>
-                            <span class="badge rounded-pill bg-light text-dark border ms-2" title="Anzahl Sub-FAs in dieser Gruppe">@group.Items.Count Sub-FA@(group.Items.Count == 1 ? "" : "s")</span>
-                            @* Verschlankte Kopfzeile: Nur Kunde und der Leittermin (FE) bleiben. Prio,
-                               Montage-Abt., AB-Nr., KO- und Liefertermin stehen jetzt in den Zeilen selbst.
-                               Kunde und FE-Termin bleiben aber bewusst doppelt: Bei ZUGEKLAPPTER Gruppe ist
-                               die Kopfzeile das Einzige, was sichtbar ist — ohne sie zeigte die Zwei-Ebenen-
-                               Ansicht nur noch Nummern und verlor genau ihren Ueberblick. *@
-                            @if (!group.IsAmbiguous)
-                            {
-                                @if (!string.IsNullOrEmpty(group.Customer))
-                                {
-                                    <span class="badge bg-primary ms-2" title="Kunde">@group.Customer</span>
-                                }
-                                @if (group.ProductionDate.HasValue)
-                                {
-                                    <span class="badge bg-light text-dark border ms-1" title="Fertigungstermin">FE @group.ProductionDate.Value.ToString("dd.MM.yyyy")</span>
-                                }
-                            }
-                            else
-                            {
-                                <span class="badge bg-info text-dark ms-2" title="HauptFA mit mehreren Auftragsköpfen (Kombigerät)">mehrdeutig (Kombigerät)</span>
-                            }
-                        </td>
-                    </tr>
-                    @if (group.IsAmbiguous && group.HeadVariants.Any())
-                    {
-                        @* fa-liste-node-row ist PFLICHT: Das Gruppen-Klapp-JS versteckt ausschliesslich
-                           Zeilen mit dieser Klasse (fa-liste-gruppierung.js). Ohne sie bliebe die
-                           Varianten-Tabelle beim Zuklappen unter der Kopfzeile stehen. Nebeneffekt,
-                           erwuenscht: das Auto-Aufklappen beim Filtern durchsucht die Zeile mit.
-                           Sortierung und Client-Filter ueberspringen sie ohnehin wegen td[colspan]. *@
-                        <tr class="fa-liste-group-heads fa-liste-node-row">
-                            <td colspan="@colCount">
-                                <div class="table-responsive mb-1">
-                                    <table class="table table-sm table-bordered mb-0">
-                                        <thead>
-                                            <tr>
-                                                <th>Montage-Abt.</th><th>Kunde</th><th>KO-Termin</th>
-                                                <th>FE-Termin</th><th>Liefertermin</th><th>Prio</th><th>AB-Nr.</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            @foreach (var v in group.HeadVariants)
-                                            {
-                                                <tr>
-                                                    <td>@v.MontageAbteilung</td>
-                                                    <td>@v.Customer</td>
-                                                    <td>@(v.KonstruktionsTermin?.ToString("dd.MM.yyyy") ?? "-")</td>
-                                                    <td>@(v.ProductionDate?.ToString("dd.MM.yyyy") ?? "-")</td>
-                                                    <td>@(v.DeliveryDate?.ToString("dd.MM.yyyy") ?? "-")</td>
-                                                    <td>@(v.Prio?.ToString() ?? "-")</td>
-                                                    <td>@v.AbNummer</td>
-                                                </tr>
-                                            }
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </td>
-                        </tr>
-                    }
-                    @foreach (var item in group.Items)
-                    {
-                        <partial name="_ProductionOrderRow" model="Ctx(item)" />
-                    }
-                </tbody>
-            }
-            @if (!Model.Groups.Any())
-            {
-                <tbody>
-                    <tr><td colspan="@colCount" class="text-center text-muted py-4">Keine @pageTitle gefunden.</td></tr>
-                </tbody>
-            }
-        }
-        else
-        {
         <tbody>
             @foreach (var item in Model.Items)
             {
@@ -231,7 +178,6 @@
                 </tr>
             }
         </tbody>
-        }
     </table>
 </div>
 
@@ -246,10 +192,13 @@
     { "key": "order-number", "label": "FA Nr.", "locked": true, "defaultWidth": 90 },
     { "key": "quantity", "label": "Stk.", "locked": false, "defaultWidth": 55 },
     { "key": "customer", "label": "Kunde", "locked": false, "defaultWidth": null },
-    @if (Model.Hierarchical) { <text>{ "key": "prio", "label": "Prio", "locked": false, "defaultWidth": 55 },</text> }
-    @if (Model.Hierarchical) { <text>{ "key": "ab-nummer", "label": "AB-Nr.", "locked": false, "defaultWidth": 80 },</text> }
-    @if (Model.Hierarchical) { <text>{ "key": "montage-abteilung", "label": "Montage-Abt.", "locked": false, "defaultWidth": null },</text> }
-    @if (Model.Hierarchical) { <text>{ "key": "konstruktions-termin", "label": "KO-Termin", "locked": false, "defaultWidth": null },</text> }
+    @if (Model.Hierarchical)
+    {
+    <text>{ "key": "prio", "label": "Prio", "locked": false, "defaultWidth": 55 },
+    { "key": "ab-nummer", "label": "AB-Nr.", "locked": false, "defaultWidth": 80 },
+    { "key": "montage-abteilung", "label": "Montage-Abt.", "locked": false, "defaultWidth": null },
+    { "key": "konstruktions-termin", "label": "KO-Termin", "locked": false, "defaultWidth": null },</text>
+    }
     { "key": "article-number", "label": "Artikelnummer", "locked": false, "defaultWidth": null },
     { "key": "matchcode", "label": "Matchcode", "locked": false, "defaultWidth": null },
     { "key": "description1", "label": "Bezeichnung 1", "locked": false, "defaultWidth": null },
@@ -266,7 +215,27 @@
     { "key": "production-date", "label": "Fert.-Termin", "locked": false, "defaultWidth": null },
     { "key": "delivery-date", "label": "Liefertermin", "locked": false, "defaultWidth": null },
     { "key": "coating-part", "label": "Lack-T", "locked": false, "defaultWidth": 55 },
-    { "key": "parent-sub-order-number", "label": "Übergeordnete Sub-FA", "locked": false, "defaultWidth": null, "defaultHidden": true },
+    @if (!Model.Hierarchical) { <text>{ "key": "parent-sub-order-number", "label": "Übergeordnete Sub-FA", "locked": false, "defaultWidth": null, "defaultHidden": true },</text> }
+    @if (Model.Hierarchical)
+    {
+    <text>{ "key": "pps-status", "label": "PPS-Status", "locked": false, "defaultWidth": null, "defaultHidden": true },
+    { "key": "ab-position", "label": "AB-Pos.", "locked": false, "defaultWidth": null, "defaultHidden": true },
+    { "key": "dienstleister", "label": "Beschichter", "locked": false, "defaultWidth": null, "defaultHidden": true },
+    { "key": "ral", "label": "RAL", "locked": false, "defaultWidth": null, "defaultHidden": true },
+    { "key": "beschichtung-retour", "label": "Beschicht. retour", "locked": false, "defaultWidth": null, "defaultHidden": true },
+    { "key": "neuer-pt-pps", "label": "Neuer PT (PPS)", "locked": false, "defaultWidth": null, "defaultHidden": true },
+    { "key": "montagestunden", "label": "Montage-Std.", "locked": false, "defaultWidth": null, "defaultHidden": true },
+    { "key": "bemerkung-uhrzeit", "label": "Bemerkung/Uhrzeit", "locked": false, "defaultWidth": null, "defaultHidden": true },
+    { "key": "fertigungsmenge", "label": "Fert.-Menge", "locked": false, "defaultWidth": null, "defaultHidden": true },
+    { "key": "artikelgruppe", "label": "Artikelgruppe", "locked": false, "defaultWidth": null, "defaultHidden": true },
+    { "key": "arbeitsbereich", "label": "Arbeitsbereich", "locked": false, "defaultWidth": null, "defaultHidden": true },
+    { "key": "komm-ziel", "label": "Komm.-Ziel", "locked": false, "defaultWidth": null, "defaultHidden": true },
+    { "key": "hauptlagerplatz", "label": "Hauptlagerplatz", "locked": false, "defaultWidth": null, "defaultHidden": true },
+    { "key": "bemerkung", "label": "Bemerkung", "locked": false, "defaultWidth": null, "defaultHidden": true },
+    { "key": "fertigungsinfo", "label": "Fertigungsinfo", "locked": false, "defaultWidth": null, "defaultHidden": true },
+    { "key": "arbeitsschritte", "label": "Arbeitsschritte", "locked": false, "defaultWidth": null, "defaultHidden": true },
+    { "key": "material", "label": "Material", "locked": false, "defaultWidth": null, "defaultHidden": true },</text>
+    }
     { "key": "row-actions", "label": "", "locked": true, "defaultWidth": 80 }
 ]
 </script>
@@ -276,12 +245,6 @@
     <script src="~/js/barcode-scanner.js" asp-append-version="true"></script>
     <script src="~/js/column-preferences.js" asp-append-version="true"></script>
     <script src="~/js/table-filter.js" asp-append-version="true"></script>
-    @* IDEAL FA-Liste-Hierarchie: Gruppen-Chevron-Collapse + Auto-Expand (aktiv nur bei data-hierarchical=true). *@
-    <script src="~/js/fa-liste-gruppierung.js" asp-append-version="true"></script>
-    @* IDEAL FA-Liste-Hierarchie: Wiederholungswerte je Gruppe nur an der ersten Zeile zeigen
-       (aktiv nur bei data-hierarchical=true). Muss NACH table-filter.js/fa-liste-gruppierung.js
-       stehen, weil es auf deren Ereignisse hoert. *@
-    <script src="~/js/fa-liste-wiederholung.js" asp-append-version="true"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             // QR scanner for FA number filter — fills input then submits form

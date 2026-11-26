@@ -56,4 +56,8 @@ public class CachedFaHierarchyNodeRepository : IFaHierarchyNodeRepository
 
         return result;
     }
+
+    // Ohne Cache: die Schluesselmenge ist je Seite verschieden (Spec 2026-11-26 Teil 1, Loesung 2).
+    public Task<List<FaHierarchyNode>> GetRootsByHauptFaKeysAsync(IReadOnlyCollection<int> hauptFaKeys)
+        => _inner.GetRootsByHauptFaKeysAsync(hauptFaKeys);
 }

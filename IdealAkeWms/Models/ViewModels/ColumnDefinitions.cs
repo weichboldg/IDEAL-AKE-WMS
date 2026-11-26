@@ -56,6 +56,25 @@ public static class ColumnDefinitions
             // IDEAL Teil 7/8 (FA-Liste-Hierarchie): Elternzeiger je Sub-FA, nur im hierarchischen Modus
             // befuellt; per Default ausgeblendet (Zahnrad einblendbar). Additiv, keine Migration.
             new ColumnDef("parent-sub-order-number","Uebergeordnete Sub-FA", Locked: false, DefaultHidden: true),
+            // v1.99.82 (Spec 2026-11-26 FA-Liste nur HauptFA, F3/F7): nur hierarchisch (IDEAL) gerendert, dort entfaellt
+            // parent-sub-order-number; Kopf- (FaHierarchyOrderInfo) und Strukturwurzel-Felder, alle per Default ausgeblendet.
+            new ColumnDef("pps-status", "PPS-Status", Locked: false, DefaultHidden: true),
+            new ColumnDef("ab-position", "AB-Pos.", Locked: false, DefaultHidden: true),
+            new ColumnDef("dienstleister", "Beschichter", Locked: false, DefaultHidden: true),
+            new ColumnDef("ral", "RAL", Locked: false, DefaultHidden: true),
+            new ColumnDef("beschichtung-retour", "Beschicht. retour", Locked: false, DefaultHidden: true),
+            new ColumnDef("neuer-pt-pps", "Neuer PT (PPS)", Locked: false, DefaultHidden: true),
+            new ColumnDef("montagestunden", "Montage-Std.", Locked: false, DefaultHidden: true),
+            new ColumnDef("bemerkung-uhrzeit", "Bemerkung/Uhrzeit", Locked: false, DefaultHidden: true),
+            new ColumnDef("fertigungsmenge", "Fert.-Menge", Locked: false, DefaultHidden: true),
+            new ColumnDef("artikelgruppe", "Artikelgruppe", Locked: false, DefaultHidden: true),
+            new ColumnDef("arbeitsbereich", "Arbeitsbereich", Locked: false, DefaultHidden: true),
+            new ColumnDef("komm-ziel", "Komm.-Ziel", Locked: false, DefaultHidden: true),
+            new ColumnDef("hauptlagerplatz", "Hauptlagerplatz", Locked: false, DefaultHidden: true),
+            new ColumnDef("bemerkung", "Bemerkung", Locked: false, DefaultHidden: true),
+            new ColumnDef("fertigungsinfo", "Fertigungsinfo", Locked: false, DefaultHidden: true),
+            new ColumnDef("arbeitsschritte", "Arbeitsschritte", Locked: false, DefaultHidden: true),
+            new ColumnDef("material", "Material", Locked: false, DefaultHidden: true),
             // Icon/action column (enaio links)
             new ColumnDef("row-actions", "",                 Locked: true,  DefaultWidth: 80),
         ]
