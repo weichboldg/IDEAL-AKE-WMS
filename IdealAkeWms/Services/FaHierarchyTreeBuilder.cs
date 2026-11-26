@@ -89,6 +89,27 @@ public class FaHierarchyTreeBuilder
         return result;
     }
 
+    /// <summary>
+    /// v1.99.83 (Spec FA-Struktur Variante D, D-5): entfernt NACH dem Aufbau rekursiv die Blaetter (<c>SubFA == 0</c>) ohne
+    /// Arbeitsschritte und zaehlt sie je Struktur in <see cref="FaHierarchyStructure.AusgeblendeteTeile"/>. Teile mit
+    /// Arbeitsschritten bleiben (Freigabe-Antwort 10). Nach dem Aufbau, damit Filterkarte und Waisen-Erkennung weiter
+    /// alle Knoten sehen; Wurzeln werden nie entfernt.
+    /// </summary>
+    public static void TeileAusblenden(IEnumerable<FaHierarchyStructure> structures)
+    {
+        foreach (var structure in structures)
+            foreach (var root in structure.Roots)
+                structure.AusgeblendeteTeile += Ausduennen(root);
+    }
+
+    private static int Ausduennen(FaHierarchyTreeNode node)
+    {
+        var entfernt = node.Children.RemoveAll(c => c.Node.SubFA == 0 && string.IsNullOrWhiteSpace(c.Node.Arbeitsschritte));
+        foreach (var child in node.Children)
+            entfernt += Ausduennen(child);
+        return entfernt;
+    }
+
     private FaHierarchyStructure BuildStructure(
         int hauptFa,
         FaHierarchyNode root,

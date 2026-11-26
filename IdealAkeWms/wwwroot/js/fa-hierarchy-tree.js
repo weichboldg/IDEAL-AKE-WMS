@@ -1,15 +1,13 @@
-// fa-hierarchy-tree.js — FA-Struktur-Baumtabelle (IDEAL Teil 2, Darstellungs-Nachtrag Etappe 7).
+// fa-hierarchy-tree.js — FA-Struktur-Baumtabelle (IDEAL Teil 2, Darstellungs-Nachtrag Etappe 7; Variante D seit v1.99.83).
 //
-// Kompletter Ersatz des frueheren Inline-Skriptblocks aus Index.cshtml: dieser beruhte auf
-// DOM-Verschachtelung (.fa-node-children-Container). Das Tree-Table rendert alle Ebenen als
-// flache Geschwister-<tr> in EINEM <tbody> je Struktur; Eltern-Kind-Beziehung laeuft ausschliesslich
-// ueber data-parent-id (VaterFA) -> data-node-id (SubFA des Vaters). Sichtbarkeit ueber display
-// je Zeile, analog OseonIndex.cshtml.
+// Das Tree-Table rendert alle Ebenen als flache Geschwister-<tr> in EINEM <tbody> je Struktur; Eltern-Kind-Beziehung
+// laeuft ausschliesslich ueber data-parent-id (VaterFA) -> data-node-id (SubFA des Vaters). Sichtbarkeit ueber display
+// je Zeile, analog OseonIndex.cshtml. Seit v1.99.83 ist die Wurzelzeile (Level 0) die HauptFA-Zeile; die fruehere
+// Struktur-Kopfzeile samt eigenem Struktur-Toggle ist entfallen — der Wurzel-Chevron klappt die Struktur.
 //
-// Enthaelt: Expand/Collapse je Knoten UND je Struktur (ganzer <tbody>), "Alle auf/zu",
-// expandAncestors (fuer das Zeilen-/data-parent-id-Modell neu), #faClientFilter-Hervorheben
-// (blendet NICHTS aus), PLUS den lokalen Baum-Spaltenfilter (blendet nicht passende Zweige aus,
-// Vorfahrenpfad bleibt als Kontext gekennzeichnet, Zaehler "X von Y Knoten", Auswahlfilter je Spalte).
+// Enthaelt: Expand/Collapse je Knoten (aria-expanded), "Alle auf/zu", expandAncestors, #faClientFilter-Hervorheben
+// (blendet NICHTS aus), den lokalen Baum-Spaltenfilter (blendet nicht passende Zweige aus, Vorfahrenpfad als Kontext,
+// Zaehler "X von Y Knoten", Auswahlfilter je Spalte), Legende-Popover und die angehefteten Spalten Struktur/Matchcode.
 (function () {
     'use strict';
 
@@ -19,6 +17,8 @@
 
         var scriptEl = document.querySelector('script[src*="fa-hierarchy-tree.js"]');
         var recursiveFilter = scriptEl && scriptEl.getAttribute('data-recursive-filter') === 'true';
+        // D-5: Teile (Blaetter ohne Arbeitsschritte) serverseitig ausgeblendet -> Zaehler/Hervorheben melden es.
+        var teileAusgeblendet = table.getAttribute('data-teile-ausgeblendet') === 'true';
 
         var tbodies = Array.prototype.slice.call(table.querySelectorAll('tbody.fa-structure-group'));
 
@@ -36,14 +36,7 @@
                 var nid = r.getAttribute('data-node-id') || '';
                 if (nid) rowById[nid] = r;
             });
-            return {
-                tbody: tbody,
-                headRow: tbody.querySelector(':scope > tr.fa-structure-group-head'),
-                subheadRow: tbody.querySelector(':scope > tr.fa-structure-subhead'),
-                rows: rows,
-                childrenByParent: childrenByParent,
-                rowById: rowById
-            };
+            return { tbody: tbody, rows: rows, childrenByParent: childrenByParent, rowById: rowById };
         });
 
         var totalNodes = groups.reduce(function (s, g) { return s + g.rows.length; }, 0);
@@ -55,16 +48,16 @@
         function hasChildren(g, row) {
             return directChildren(g, row).length > 0;
         }
+        // Chevron-Drehung + aria-expanded (U-2) an EINER Stelle.
         function setChevron(row, open) {
             var c = row.querySelector('.fa-chevron');
             if (c) c.style.transform = open ? 'rotate(90deg)' : '';
-        }
-        function setStructChevron(g, open) {
-            var c = g.headRow ? g.headRow.querySelector('.fa-struct-chevron') : null;
-            if (c) c.style.transform = open ? 'rotate(90deg)' : '';
+            var t = row.querySelector('.fa-toggle');
+            if (t) t.setAttribute('aria-expanded', open ? 'true' : 'false');
         }
         function showRow(row) { row.style.display = ''; }
         function hideRow(row) { row.style.display = 'none'; }
+        function depthOf(row) { return parseInt(row.getAttribute('data-depth') || '0', 10); }
 
         // Alle Nachfahren (rekursiv) eines Knotens.
         function descendants(g, row) {
@@ -114,54 +107,32 @@
             return null;
         }
 
-        // ---- Struktur-Ebene (ganzer <tbody>) -------------------------------
-        function structIsCollapsed(g) { return g.tbody.classList.contains('fa-struct-collapsed'); }
-        function collapseStruct(g) {
-            g.tbody.classList.add('fa-struct-collapsed');
-            if (g.subheadRow) hideRow(g.subheadRow);
-            g.rows.forEach(hideRow);
-            setStructChevron(g, false);
-        }
-        function expandStruct(g) {
-            g.tbody.classList.remove('fa-struct-collapsed');
-            if (g.subheadRow) showRow(g.subheadRow);
-            // Zurueck auf Default: Wurzeln sichtbar, tiefere Zeilen eingeklappt.
+        // Standard: nur Level 0 (= eine Zeile je HauptFA) sichtbar, alles zugeklappt.
+        function collapseAllRows(g) {
             g.rows.forEach(function (r) {
-                var depth = parseInt(r.getAttribute('data-depth') || '0', 10);
-                if (depth === 0) showRow(r); else hideRow(r);
+                if (depthOf(r) === 0) showRow(r); else hideRow(r);
                 setChevron(r, false);
                 r.classList.remove('fa-open');
             });
-            setStructChevron(g, true);
-        }
-        function toggleStruct(g) {
-            if (structIsCollapsed(g)) expandStruct(g); else collapseStruct(g);
         }
 
         // ---- Default-Zustand (nach Filter-Reset) ---------------------------
         function resetTreeToDefault() {
             groups.forEach(function (g) {
                 g.tbody.style.display = '';
-                g.tbody.classList.remove('fa-struct-collapsed');
-                if (g.headRow) showRow(g.headRow);
-                if (g.subheadRow) showRow(g.subheadRow);
-                g.rows.forEach(function (r) {
-                    r.classList.remove('fa-filter-hit', 'fa-node-context', 'fa-open');
-                    var depth = parseInt(r.getAttribute('data-depth') || '0', 10);
-                    if (depth === 0) showRow(r); else hideRow(r);
-                    setChevron(r, false);
-                });
-                setStructChevron(g, true);
+                g.rows.forEach(function (r) { r.classList.remove('fa-filter-hit', 'fa-node-context'); });
+                collapseAllRows(g);
             });
         }
 
         // ---- Zaehler -------------------------------------------------------
         var counterEl = document.getElementById('faNodeCounter');
+        var teileZusatz = teileAusgeblendet ? ' (Teile ausgeblendet)' : '';
         function setCounter(hits, filtered) {
             if (!counterEl) return;
-            counterEl.textContent = filtered
+            counterEl.textContent = (filtered
                 ? (hits + ' von ' + totalNodes + ' Knoten (Spaltenfilter aktiv)')
-                : (totalNodes + ' Knoten');
+                : (totalNodes + ' Knoten')) + teileZusatz;
         }
         setCounter(0, false);
 
@@ -171,9 +142,6 @@
         if (btnExpand) {
             btnExpand.addEventListener('click', function () {
                 groups.forEach(function (g) {
-                    g.tbody.classList.remove('fa-struct-collapsed');
-                    if (g.subheadRow) showRow(g.subheadRow);
-                    setStructChevron(g, true);
                     g.rows.forEach(function (r) {
                         showRow(r);
                         if (hasChildren(g, r)) { setChevron(r, true); r.classList.add('fa-open'); }
@@ -182,22 +150,11 @@
             });
         }
         if (btnCollapse) {
-            btnCollapse.addEventListener('click', function () {
-                groups.forEach(function (g) {
-                    g.rows.forEach(function (r) {
-                        var depth = parseInt(r.getAttribute('data-depth') || '0', 10);
-                        if (depth === 0) showRow(r); else hideRow(r);
-                        setChevron(r, false);
-                        r.classList.remove('fa-open');
-                    });
-                });
-            });
+            btnCollapse.addEventListener('click', function () { groups.forEach(collapseAllRows); });
         }
 
-        // ---- Klick-Delegation: Knoten- und Struktur-Toggle -----------------
-        // Knoten: Chevron. Struktur: gesamte Kopfzeile (Parität zu OseonIndex oseon-tree-group).
+        // ---- Klick-Delegation: Knoten-Toggle + AG-Knopf --------------------
         table.addEventListener('click', function (e) {
-            // AG-Knopf sitzt IN der Struktur-Kopfzeile -> vor dem Struktur-Toggle abfangen.
             var woBtn = e.target.closest('.fa-wo-btn');
             if (woBtn) {
                 openWorkOperations(woBtn.getAttribute('data-hauptfa'));
@@ -208,13 +165,6 @@
                 var row = nodeToggle.closest('tr.fa-node-row');
                 var g2 = row ? groupOf(row) : null;
                 if (g2 && row) toggleNode(g2, row);
-                return;
-            }
-            var head = e.target.closest('tr.fa-structure-group-head');
-            if (head) {
-                var gh = head.closest('tbody.fa-structure-group');
-                var g1 = groups.filter(function (g) { return g.tbody === gh; })[0];
-                if (g1) toggleStruct(g1);
             }
         });
         // ---- Modal "Arbeitsgaenge": Inhalt erst beim Oeffnen laden (eine Struktur je Klick) ----
@@ -251,7 +201,7 @@
         // Tastatur (Enter/Space) fuer die role=button-Toggles.
         table.addEventListener('keydown', function (e) {
             if (e.key !== 'Enter' && e.key !== ' ') return;
-            var t = e.target.closest('.fa-struct-toggle, .fa-toggle');
+            var t = e.target.closest('.fa-toggle');
             if (!t) return;
             e.preventDefault();
             t.click();
@@ -259,22 +209,32 @@
 
         // ---- #faClientFilter: hervorheben (blendet NICHTS aus) -------------
         var clientFilter = document.getElementById('faClientFilter');
+        var clientHinweis = document.getElementById('faClientFilterHinweis');
         if (clientFilter) {
             clientFilter.addEventListener('input', function () {
                 var term = this.value.trim().toLowerCase();
+                var hits = 0;
                 groups.forEach(function (g) {
                     g.rows.forEach(function (r) { r.classList.remove('fa-hl'); });
                 });
-                if (!term) return;
-                groups.forEach(function (g) {
-                    g.rows.forEach(function (r) {
-                        var hay = r.getAttribute('data-search') || '';
-                        if (hay.indexOf(term) !== -1) {
-                            r.classList.add('fa-hl');
-                            if (recursiveFilter) { expandAncestors(g, r); showRow(r); }
-                        }
+                if (term) {
+                    groups.forEach(function (g) {
+                        g.rows.forEach(function (r) {
+                            var hay = r.getAttribute('data-search') || '';
+                            if (hay.indexOf(term) !== -1) {
+                                hits++;
+                                r.classList.add('fa-hl');
+                                if (recursiveFilter) { expandAncestors(g, r); showRow(r); }
+                            }
+                        });
                     });
-                });
+                }
+                // AK 10 / S-4: kein Treffer bei ausgeblendeten Teilen -> melden statt still.
+                if (clientHinweis) {
+                    clientHinweis.textContent = (term && hits === 0 && teileAusgeblendet)
+                        ? 'Kein Treffer in den angezeigten Zeilen – Teile sind ausgeblendet, „Teile anzeigen“ blendet sie ein.'
+                        : '';
+                }
             });
         }
 
@@ -310,26 +270,18 @@
                 g.rows.forEach(function (r) { if (rowMatchesAll(r, filters)) selfMatch.add(r); });
 
                 // keep = matcht selbst ODER hat einen behaltenen Nachfahren (bottom-up).
-                var byDepth = g.rows.slice().sort(function (a, b) {
-                    return parseInt(b.getAttribute('data-depth') || '0', 10) - parseInt(a.getAttribute('data-depth') || '0', 10);
-                });
+                var byDepth = g.rows.slice().sort(function (a, b) { return depthOf(b) - depthOf(a); });
                 var keep = new Set();
                 byDepth.forEach(function (r) {
                     if (selfMatch.has(r)) { keep.add(r); }
                     else if (directChildren(g, r).some(function (c) { return keep.has(c); })) { keep.add(r); }
                 });
 
-                var structHasHits = selfMatch.size > 0;
                 totalHits += selfMatch.size;
 
-                if (!structHasHits) {
-                    // Struktur faellt auf null Treffer -> ganzer <tbody> verschwindet.
-                    g.tbody.style.display = 'none';
-                    return;
-                }
+                // Struktur faellt auf null Treffer -> ganzer <tbody> (inkl. Kopfdaten-/Fehlerzeile) verschwindet.
+                if (selfMatch.size === 0) { g.tbody.style.display = 'none'; return; }
                 g.tbody.style.display = '';
-                if (g.headRow) showRow(g.headRow);
-                if (g.subheadRow) showRow(g.subheadRow);
 
                 g.rows.forEach(function (r) {
                     r.classList.remove('fa-filter-hit', 'fa-node-context');
@@ -386,5 +338,41 @@
                     sel.appendChild(opt);
                 });
         });
+
+        // ---- Legende als Popover (D-6): Inhalt aus #faLegendContent (Element -> kein Sanitizer-Verlust der SVG-Icons).
+        var btnLegende = document.getElementById('btnFaLegende');
+        var legendContent = document.getElementById('faLegendContent');
+        if (btnLegende && legendContent && window.bootstrap) {
+            new window.bootstrap.Popover(btnLegende, {
+                title: 'Legende: Knotentypen', html: true, placement: 'bottom', trigger: 'click',
+                content: function () {
+                    var c = legendContent.cloneNode(true);
+                    c.removeAttribute('id');
+                    c.classList.remove('d-none');
+                    return c;
+                }
+            });
+        }
+
+        // ---- Angeheftete Spalten Struktur + Matchcode (AK 19) ---------------
+        // CSS (site.css, #faTree.fa-sticky-cols) heftet beide links an; hier nur der Versatz der Matchcode-Spalte
+        // (= Breite der Struktur-Spalte, aendert sich beim Aufklappen) und die Bedingung „beide sind die ersten zwei
+        // sichtbaren Spalten" (per Zahnrad umsortierbar) — sonst Klasse weg, keine ueberlappenden Zellen.
+        var headRow = table.querySelector('thead > tr');
+        var thStructure = headRow && headRow.querySelector('th[data-col-key="structure"]');
+        function updateSticky() {
+            if (!headRow || !thStructure) return;
+            var visible = Array.prototype.filter.call(headRow.children, function (th) {
+                return getComputedStyle(th).display !== 'none';
+            }).map(function (th) { return th.getAttribute('data-col-key'); });
+            var ok = visible[0] === 'structure' && visible[1] === 'matchcode';
+            table.classList.toggle('fa-sticky-cols', ok);
+            table.style.setProperty('--fa-sticky-left-2', thStructure.getBoundingClientRect().width + 'px');
+        }
+        updateSticky();
+        if (window.ResizeObserver && thStructure) new ResizeObserver(updateSticky).observe(thStructure);
+        if (window.MutationObserver && headRow) {
+            new MutationObserver(updateSticky).observe(headRow, { childList: true, subtree: true, attributes: true, attributeFilter: ['style'] });
+        }
     });
 })();

@@ -35,6 +35,9 @@ public class FaHierarchyTreeViewModel
 
     /// <summary>True, wenn eine Struktur auf dieser Seite wegen Tiefen-/Zyklenverstoss unvollstaendig ist.</summary>
     public bool HasErrorStructures => Structures.Any(s => s.HasError);
+
+    /// <summary>v1.99.83 (D-5): Knopf „Teile anzeigen" — URL-Parameter <c>mitTeilen</c>; false = Blaetter ohne Arbeitsschritte ausgeblendet.</summary>
+    public bool MitTeilen { get; set; }
 }
 
 /// <summary>
@@ -77,6 +80,9 @@ public class FaHierarchyStructure
     /// <summary>Mindestens ein erkannter Arbeitsgang in dieser Struktur (schlanker Existenz-Check beim
     /// Seitenaufbau) — steuert nur, ob der AG-Knopf gerendert wird. Die Details laedt erst das Modal.</summary>
     public bool HasWorkOperations { get; set; }
+
+    /// <summary>v1.99.83 (D-5): Zahl der bei „Teile ausblenden" entfernten Blaetter (SubFA 0, ohne Arbeitsschritte).</summary>
+    public int AusgeblendeteTeile { get; set; }
 
     internal void MarkError(string reason, int atSubFa)
     {

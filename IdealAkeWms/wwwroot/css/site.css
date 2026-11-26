@@ -1319,13 +1319,7 @@ th:hover .col-resize-handle {
     padding: 0.28rem 0.5rem;
     vertical-align: middle;
 }
-/* Struktur-Kopfzeile: heller Kontrast-fixer Band (siehe .fa-structure-header oben),
-   spannt per colspan die ganze Breite. */
-.fa-structure-group-head { cursor: pointer; }
-.fa-structure-group-head > td.fa-structure-header {
-    font-weight: 600;
-    padding: 0.4rem 0.6rem;
-}
+/* Kopfdaten-Zeile (nur bei mehreren Auftragskoepfen, v1.99.83 D-3), spannt per colspan die ganze Breite. */
 .fa-structure-subhead > td {
     background-color: var(--ake-white);
     padding: 0.3rem 0.6rem;
@@ -1354,26 +1348,24 @@ th:hover .col-resize-handle {
 }
 .fa-node-icon { flex-shrink: 0; vertical-align: -1px; margin: 0 0.25rem; }
 .fa-node-artnr { }
+/* Klapp-Knopf: Trefferflaeche 28 x 28 px (v1.99.83, U-1: WCAG 2.2 2.5.8, Terminals mit Handschuh), Icon bleibt 12 px.
+   Negativer Rand haelt die Zeilenhoehe; der Platzhalter ist gleich breit, damit Blaetter fluchten. */
 .fa-toggle {
     cursor: pointer;
     user-select: none;
     display: inline-flex;
     justify-content: center;
     align-items: center;
-    width: 16px;
+    width: 28px;
+    height: 28px;
+    margin: -6px 0;
+    vertical-align: middle;
     color: #6c757d; /* Bootstrap-secondary, >= 4,5:1 auf hellem Grund */
 }
-.fa-toggle-placeholder { display: inline-block; width: 16px; }
-.fa-struct-toggle {
-    cursor: pointer;
-    user-select: none;
-    display: inline-flex;
-    align-items: center;
-    color: var(--ake-text);
-}
-.fa-chevron, .fa-struct-chevron { transition: transform 0.15s; }
+.fa-toggle-placeholder { display: inline-block; width: 28px; }
+.fa-chevron { transition: transform 0.15s; }
 /* Sichtbarer Tastatur-Fokus fuer die Toggles. */
-.fa-toggle:focus-visible, .fa-struct-toggle:focus-visible {
+.fa-toggle:focus-visible {
     outline: 2px solid var(--ake-secondary);
     outline-offset: 1px;
     border-radius: 2px;
@@ -1434,7 +1426,7 @@ th:hover .col-resize-handle {
 .col-filter-feedback { font-size: 0.7rem; font-weight: 400; white-space: normal; color: #b02a37; }
 
 @media (prefers-reduced-motion: reduce) {
-    .fa-chevron, .fa-struct-chevron { transition: none !important; }
+    .fa-chevron { transition: none !important; }
 }
 /* Schmaler Bildschirm (< Bootstrap lg/992px): hintere Spalten ausblenden; die
    .table-responsive-Umhuellung erlaubt zusaetzlich horizontales Scrollen. Die
@@ -1444,6 +1436,15 @@ th:hover .col-resize-handle {
     #faTree [data-col-key="subfa"],
     #faTree [data-col-key="quantity"] { display: none; }
 }
+/* v1.99.83 (AK 19): Struktur + Matchcode bleiben beim Querscrollen links stehen. Klasse setzt fa-hierarchy-tree.js nur,
+   solange beide die ersten zwei sichtbaren Spalten sind; --fa-sticky-left-2 = Breite der Struktur-Spalte. Zellen sind
+   deckend (Bootstrap --bs-table-bg); Hover/Hervorheben/Treffer setzen ihren Grund weiter an derselben Zelle. */
+#faTree.fa-sticky-cols [data-col-key="structure"],
+#faTree.fa-sticky-cols [data-col-key="matchcode"] { position: sticky; z-index: 1; }
+#faTree.fa-sticky-cols [data-col-key="structure"] { left: 0; }
+#faTree.fa-sticky-cols [data-col-key="matchcode"] { left: var(--fa-sticky-left-2, 0); border-right: 1px solid #adb5bd; }
+#faTree.fa-sticky-cols > thead [data-col-key="structure"],
+#faTree.fa-sticky-cols > thead [data-col-key="matchcode"] { z-index: 2; }
 
 /* Stueckliste: Lagerplatz „+n weitere“ (v1.62.0). Trefferflaeche >= 24x24 CSS-px (WCAG 2.2, 2.5.8 — Terminals mit
    Handschuh), sichtbarer Fokus >= 3:1 auf allen Zeilengruenden (#212529), Text-Bedeutung statt Farbe.

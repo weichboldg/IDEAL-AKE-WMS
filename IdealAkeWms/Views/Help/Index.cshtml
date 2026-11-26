@@ -1248,6 +1248,34 @@
                         </ul>
                     </dd>
 
+                    <dt id="hilfe-fa-struktur">IDEAL: FA-Struktur lesen (seit v1.99.83)</dt>
+                    <dd>
+                        Die <em>FA-Struktur</em> zeigt je HauptFA <strong>eine Zeile</strong> mit den Auftragsdaten als Spalten
+                        (Kunde, PPS-Status, KO-Termin, Fert.-Termin, Montage-Abt., AB-Nr., Prio, Liefertermin, AB-Pos., Beschichter, RAL,
+                        Beschichtung retour, Neuer PT (PPS), Montage-Std., Bemerkung/Uhrzeit). Alle Spalten sind sichtbar; über das
+                        Zahnrad blenden Sie aus, was Sie nicht brauchen. Struktur und Matchcode bleiben beim Querscrollen stehen.
+                        <ul class="mt-1 mb-1">
+                            <li><strong>Aufklappen:</strong> Pfeil vor der HauptFA-Nummer zeigt die Baugruppen darunter, erneut
+                                geklickt klappt er den ganzen Zweig zu. &bdquo;Alle auf/zu&ldquo; wirkt auf alle Strukturen der Seite.</li>
+                            <li><strong>Teile:</strong> Im Standard sind Kaufteile und Material ausgeblendet; die HauptFA-Zeile nennt
+                                &bdquo;n Knoten · m Teile ausgeblendet&ldquo;. Knopf <strong>Teile anzeigen</strong> blendet sie für die
+                                ganze Seite ein (<strong>Teile ausblenden</strong> wieder aus). Teile mit Arbeitsschritten bleiben immer sichtbar.</li>
+                            <li><strong>Kombigerät:</strong> Hat ein HauptFA mehrere Auftragsköpfe, bleiben die Kopfspalten leer; das
+                                Zeichen &bdquo;mehrdeutig (Kombigerät)&ldquo; bzw. &bdquo;n Auftragsköpfe&ldquo; steht an der Nummer, die Kopfdaten
+                                aller Köpfe stehen in der Zeile darunter. &bdquo;ohne Kopfdaten&ldquo;: zu diesem HauptFA gibt es keinen Auftragskopf.</li>
+                            <li><strong>Drei Suchwege:</strong> Die <em>Filterkarte</em> wählt Strukturen aus (auch über ausgeblendete
+                                Teile). Der <em>Spaltenfilter</em> in der Kopfzeile blendet nicht passende Zweige aus; der Pfad zu den Treffern
+                                bleibt kursiv mit grauem Streifen links als Kontext. Ein Filter auf eine Auftragsspalte (z.&nbsp;B. Kunde) zeigt
+                                die passenden Strukturen zugeklappt; Termine filtern als Text (<code>.07.2026</code>). <em>Knoten
+                                hervorheben</em> markiert nur und blendet nichts aus. Spaltenfilter und Hervorheben sehen nur angezeigte Zeilen
+                                &ndash; bei ausgeblendeten Teilen sagt die Seite das.</li>
+                            <li><strong>Legende</strong> (Knopf): grünes Haus = Wurzel/Endprodukt (HauptFA-Zeile), blaue Box = Baugruppe
+                                (Sub-FA), Einkaufswagen = Zukaufteil, grauer Punkt = Lager-/Fertigungsmaterial.</li>
+                            <li><strong>Arbeitsgänge:</strong> Knopf in der Spalte Arbeitsgänge der HauptFA-Zeile; das Fenster zeigt
+                                immer alle Knoten.</li>
+                        </ul>
+                    </dd>
+
                     <dt>IDEAL: Arbeitsgaenge als Kuerzel im FA-Struktur-Baum (seit v1.52.0)</dt>
                     <dd>
                         Die Spalte <strong>Arbeitsgaenge</strong> der <em>FA-Struktur</em> zeigt je Baumzeile die
@@ -1260,7 +1288,7 @@
                             <li>Mauszeiger auf ein Kürzel oder mit der Tab-Taste hinspringen: Name der Werkbank (und, bei
                                 eingeschaltetem BDE, der Status).</li>
                             <li>Nach einem Kürzel filtern: in der Filterzeile der Spalte z.&nbsp;B. <code>ka</code> eingeben.</li>
-                            <li>Alle erkannten Arbeitsgänge der Struktur: Knopf <strong>Arbeitsgaenge</strong> an der Kopfzeile
+                            <li>Alle erkannten Arbeitsgänge der Struktur: Knopf <strong>Arbeitsgaenge</strong> in der HauptFA-Zeile
                                 (siehe &bdquo;Arbeitsgaenge einer FA-Struktur ansehen&ldquo;).</li>
                         </ol>
                         <ul class="mt-1 mb-1">
@@ -1271,7 +1299,7 @@
                                 Kuerzel da.</li>
                             <li><strong>Alle Kuerzel erscheinen</strong>, auch solche, aus denen nie ein Arbeitsgang wird
                                 (z. B. <code>STO</code>, <code>XXX</code>). Die Spalte zeigt Sage, nicht das, was BDE kennt
-                                &mdash; dafuer gibt es das Fenster <em>Arbeitsgaenge</em> an der Kopfzeile.</li>
+                                &mdash; dafuer gibt es das Fenster <em>Arbeitsgaenge</em> in der HauptFA-Zeile.</li>
                             <li><strong>Status (seit v1.55.0, nur bei BDE an und BDE-aktiver Werkbank):</strong>
                                 gruen mit Haken = erledigt (Endmeldung am BDE-Terminal), blau mit Sanduhr = laeuft (offene
                                 Buchung; pausiert zaehlt nicht), rot mit Warndreieck = ueberfaellig, blau mit rotem Rand und
@@ -1370,7 +1398,7 @@
 
                     <dt>IDEAL: Arbeitsgaenge einer FA-Struktur ansehen (seit v1.45.0)</dt>
                     <dd>
-                        In der <em>FA-Struktur</em> traegt die Kopfzeile einer Struktur den Knopf
+                        In der <em>FA-Struktur</em> traegt die HauptFA-Zeile einer Struktur (Spalte Arbeitsgaenge) den Knopf
                         <strong>Arbeitsgaenge</strong>. Er oeffnet ein Fenster mit allen erkannten
                         Arbeitsgaengen des ganzen Baums &mdash; nur zum Nachsehen, bearbeiten laesst sich dort
                         nichts.

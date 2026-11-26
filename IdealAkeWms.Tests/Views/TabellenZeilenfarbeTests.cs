@@ -81,7 +81,7 @@ public class TabellenZeilenfarbeTests
         => TableTags().Where(t => t.Tag.Contains("table-plain")).Select(t => t.Datei).OrderBy(d => d, StringComparer.Ordinal).Should().Equal(
             "Views/Articles/Info.cshtml",        // Schluessel-Wert-Tabelle Artikelinfo
             "Views/FaHierarchy/Index.cshtml",    // #faTree
-            "Views/FaHierarchy/Index.cshtml",    // fa-head-table
+            "Views/FaHierarchy/_FaHierarchyNode.cshtml", // fa-head-table (seit v1.99.83 im Partial, D-3)
             "Views/Tracking/Index.cshtml",       // #trackingTree
             "Views/Tracking/OseonIndex.cshtml"); // #oseonTree
 }

@@ -1,38 +1,27 @@
 @model IdealAkeWms.Models.ViewModels.FaHierarchyTreeViewModel
+@using Microsoft.AspNetCore.WebUtilities
 @{
     ViewData["Title"] = "FA-Struktur";
+    // Knopf „Teile anzeigen/ausblenden" (v1.99.83, D-5): aktuelle URL mit umgeschaltetem mitTeilen; Filter und Seite bleiben.
+    var teileQuery = Context.Request.Query
+        .Where(kv => !string.Equals(kv.Key, "mitTeilen", StringComparison.OrdinalIgnoreCase))
+        .ToDictionary(kv => kv.Key, kv => (string?)kv.Value.ToString());
+    if (!Model.MitTeilen) teileQuery["mitTeilen"] = "true";
+    var teileUrl = QueryHelpers.AddQueryString(Context.Request.Path, teileQuery);
+    var teileAusgeblendet = !Model.MitTeilen && Model.Structures.Any(s => s.AusgeblendeteTeile > 0);
 }
 
 <h2 class="page-header">FA-Struktur</h2>
 
-@* Icon-Legende (ausklappbar) — Typ-Icons unterscheiden sich in Form UND Farbe. *@
-<details class="fa-legend mb-2">
-    <summary>Legende: Knotentypen</summary>
-    <div class="d-flex flex-wrap gap-3 mt-2 small">
-        <span class="d-inline-flex align-items-center gap-1">
-            <svg class="text-success" xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true"><path d="M6.5 14.5v-3.505c0-.245.20-.495.5-.495h2c.294 0 .5.25.5.495v3.505a.5.5 0 0 0 .5.5h4a.5.5 0 0 0 .5-.5v-7a.5.5 0 0 0-.146-.354L13 5.793V2.5a.5.5 0 0 0-.5-.5h-1a.5.5 0 0 0-.5.5v1.293L8.354 1.146a.5.5 0 0 0-.708 0l-6 6A.5.5 0 0 0 1.5 7.5v7a.5.5 0 0 0 .5.5h4a.5.5 0 0 0 .5-.5"/></svg>
-            Wurzel / Endprodukt
-        </span>
-        <span class="d-inline-flex align-items-center gap-1">
-            <svg class="text-primary" xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true"><path d="M8.186 1.113a.5.5 0 0 0-.372 0L1.846 3.5l2.404.961L10.404 2zm3.564 1.426L5.596 5 8 5.961 14.154 3.5zm3.25 1.7-6.5 2.6v7.922l6.5-2.6V4.24zM7.5 14.762V6.838L1 4.239v7.923zM7.443.184a1.5 1.5 0 0 1 1.114 0l7.129 2.852A.5.5 0 0 1 16 3.5v8.662a1 1 0 0 1-.629.928l-7.185 2.874a.5.5 0 0 1-.372 0L.63 13.09a1 1 0 0 1-.63-.928V3.5a.5.5 0 0 1 .314-.464z"/></svg>
-            Baugruppe (Sub-FA)
-        </span>
-        <span class="d-inline-flex align-items-center gap-1">
-            <svg class="text-dark" xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true"><path d="M0 1.5A.5.5 0 0 1 .5 1H2a.5.5 0 0 1 .485.379L2.89 3H14.5a.5.5 0 0 1 .491.592l-1.5 8A.5.5 0 0 1 13 12H4a.5.5 0 0 1-.491-.408L2.01 3.607 1.61 2H.5a.5.5 0 0 1-.5-.5M3.102 4l1.313 7h8.17l1.313-7zM5 12a2 2 0 1 0 0 4 2 2 0 0 0 0-4m7 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4m-7 1a1 1 0 1 1 0 2 1 1 0 0 1 0-2m7 0a1 1 0 1 1 0 2 1 1 0 0 1 0-2"/></svg>
-            Zukaufteil
-        </span>
-        <span class="d-inline-flex align-items-center gap-1">
-            <svg class="text-secondary" xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 4a4 4 0 1 0 0 8 4 4 0 0 0 0-8"/></svg>
-            Lager-/Fertigungsmaterial
-        </span>
-    </div>
-</details>
-
 @* Filterkarte — server-seitig auf STRUKTUR-Ebene: entscheidet, welche Strukturen erscheinen
-   (Kopf ODER irgendein Knoten passt). Innerhalb einer Struktur werden nie Knoten entfernt. *@
+   (Kopf ODER irgendein Knoten passt, auch ausgeblendete Teile). Innerhalb einer Struktur entfernt sie nie Knoten. *@
 <div class="card filter-card mb-3">
     <div class="card-body py-2">
         <form method="get" asp-action="Index" class="row g-2 align-items-end">
+            @if (Model.MitTeilen)
+            {
+                <input type="hidden" name="mitTeilen" value="true" />
+            }
             <div class="col-md-2">
                 <label class="form-label mb-0 small">HauptFA</label>
                 <input type="text" name="filterHauptFa" value="@Model.FilterHauptFa" class="form-control form-control-sm" placeholder="FA-Nr." />
@@ -48,7 +37,7 @@
             <div class="col-auto">
                 <button type="submit" class="btn btn-sm btn-secondary">Filtern</button>
             </div>
-            @if (!string.IsNullOrEmpty(Model.FilterHauptFa) || !string.IsNullOrEmpty(Model.FilterCustomer) || !string.IsNullOrEmpty(Model.FilterText))
+            @if (!string.IsNullOrEmpty(Model.FilterHauptFa) || !string.IsNullOrEmpty(Model.FilterCustomer) || !string.IsNullOrEmpty(Model.FilterText) || Model.MitTeilen)
             {
                 <div class="col-auto">
                     <a asp-action="Index" class="btn btn-sm btn-outline-secondary">Zurücksetzen</a>
@@ -56,18 +45,18 @@
             }
         </form>
         <div class="mt-2">
-            <label class="form-label mb-0 small" for="faClientFilter">Knoten hervorheben (Struktur bleibt vollständig)</label>
+            <label class="form-label mb-0 small" for="faClientFilter">Knoten hervorheben</label>
             <input type="text" id="faClientFilter" class="form-control form-control-sm" style="max-width: 420px;"
-                   placeholder="hervorheben ..." />
-            <div class="form-text">
-                <strong>Hervorheben</strong> markiert passende Knoten <em>innerhalb</em> der angezeigten
-                Strukturen und blendet <em>nichts</em> aus — die Baumstruktur bleibt vollständig. Zum
-                <strong>Ausblenden</strong> nicht passender Zweige den Spaltenfilter in der Tabellen-Kopfzeile nutzen.
+                   placeholder="hervorheben ..." aria-describedby="faClientFilterText faClientFilterHinweis" />
+            <div class="form-text" id="faClientFilterText">
+                Markiert passende Knoten und blendet nichts aus.
                 @if (Model.RecursiveFilterSearch)
                 {
-                    <span>Trefferpfade werden automatisch aufgeklappt (Einstellung „Rekursive Filtersuche" aktiv).</span>
+                    <span>Trefferpfade werden aufgeklappt (Einstellung „Rekursive Filtersuche" aktiv).</span>
                 }
             </div>
+            @* D-5/AK 10: Hinweis, wenn das Hervorheben bei ausgeblendeten Teilen nichts findet (fa-hierarchy-tree.js setzt den Text). *@
+            <div class="form-text text-body" id="faClientFilterHinweis" role="status"></div>
         </div>
     </div>
 </div>
@@ -80,6 +69,13 @@
     </div>
 }
 
+@if (!string.IsNullOrWhiteSpace(Model.FilterText) && teileAusgeblendet)
+{
+    <div class="alert alert-info py-2" role="status">
+        Die Suche kann in ausgeblendeten Teilen getroffen haben – „Teile anzeigen“ blendet sie ein.
+    </div>
+}
+
 @if (!Model.Structures.Any())
 {
     <div class="alert alert-info">Keine Strukturen gefunden.</div>
@@ -89,32 +85,75 @@ else
     <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
         <div class="small text-muted">
             <span id="faNodeCounter"></span>
-            <span class="ms-2">Spaltenfilter (Kopfzeile) <strong>blendet</strong> nicht passende Zweige aus; der Pfad zu den Treffern bleibt als Kontext sichtbar (kursiv, grauer Streifen links).</span>
         </div>
-        @* Toolbar-Host (data-table-toolbar): Zahnrad rechts neben „Alle auf/zu“ (v1.65.0). *@
+        @* Toolbar-Host (data-table-toolbar): Zahnrad rechts neben den Knoepfen (v1.65.0). *@
         <div data-table-toolbar>
+            <a href="@teileUrl" role="button" class="btn btn-sm btn-outline-secondary me-1" id="btnFaTeile"
+               aria-pressed="@(Model.MitTeilen ? "true" : "false")">@(Model.MitTeilen ? "Teile ausblenden" : "Teile anzeigen")</a>
             <button type="button" id="btnFaExpandAll" class="btn btn-sm btn-outline-secondary me-1" title="Alle aufklappen" aria-label="Alle aufklappen">
                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
                     <path fill-rule="evenodd" d="M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708" />
                 </svg>
                 Alle auf
             </button>
-            <button type="button" id="btnFaCollapseAll" class="btn btn-sm btn-outline-secondary" title="Alle zuklappen" aria-label="Alle zuklappen">
+            <button type="button" id="btnFaCollapseAll" class="btn btn-sm btn-outline-secondary me-1" title="Alle zuklappen" aria-label="Alle zuklappen">
                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
                     <path fill-rule="evenodd" d="M7.646 4.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1-.708.708L8 5.707l-5.646 5.647a.5.5 0 0 1-.708-.708z" />
                 </svg>
                 Alle zu
             </button>
+            @* Legende als Popover (D-6); Inhalt aus #faLegendContent, fa-hierarchy-tree.js initialisiert. *@
+            <button type="button" id="btnFaLegende" class="btn btn-sm btn-outline-secondary me-1">Legende</button>
+            <a href="@Url.Action("Index", "Help")#hilfe-fa-struktur" class="btn btn-sm btn-outline-secondary me-1">Hilfe</a>
+        </div>
+    </div>
+
+    @* Legende: Typ-Icons unterscheiden sich in Form UND Farbe. *@
+    <div id="faLegendContent" class="d-none">
+        <div class="d-flex flex-column gap-1 small">
+            <span class="d-inline-flex align-items-center gap-1">
+                <svg class="text-success" xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true"><path d="M6.5 14.5v-3.505c0-.245.20-.495.5-.495h2c.294 0 .5.25.5.495v3.505a.5.5 0 0 0 .5.5h4a.5.5 0 0 0 .5-.5v-7a.5.5 0 0 0-.146-.354L13 5.793V2.5a.5.5 0 0 0-.5-.5h-1a.5.5 0 0 0-.5.5v1.293L8.354 1.146a.5.5 0 0 0-.708 0l-6 6A.5.5 0 0 0 1.5 7.5v7a.5.5 0 0 0 .5.5h4a.5.5 0 0 0 .5-.5"/></svg>
+                Wurzel / Endprodukt (HauptFA-Zeile)
+            </span>
+            <span class="d-inline-flex align-items-center gap-1">
+                <svg class="text-primary" xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true"><path d="M8.186 1.113a.5.5 0 0 0-.372 0L1.846 3.5l2.404.961L10.404 2zm3.564 1.426L5.596 5 8 5.961 14.154 3.5zm3.25 1.7-6.5 2.6v7.922l6.5-2.6V4.24zM7.5 14.762V6.838L1 4.239v7.923zM7.443.184a1.5 1.5 0 0 1 1.114 0l7.129 2.852A.5.5 0 0 1 16 3.5v8.662a1 1 0 0 1-.629.928l-7.185 2.874a.5.5 0 0 1-.372 0L.63 13.09a1 1 0 0 1-.63-.928V3.5a.5.5 0 0 1 .314-.464z"/></svg>
+                Baugruppe (Sub-FA)
+            </span>
+            <span class="d-inline-flex align-items-center gap-1">
+                <svg class="text-dark" xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true"><path d="M0 1.5A.5.5 0 0 1 .5 1H2a.5.5 0 0 1 .485.379L2.89 3H14.5a.5.5 0 0 1 .491.592l-1.5 8A.5.5 0 0 1 13 12H4a.5.5 0 0 1-.491-.408L2.01 3.607 1.61 2H.5a.5.5 0 0 1-.5-.5M3.102 4l1.313 7h8.17l1.313-7zM5 12a2 2 0 1 0 0 4 2 2 0 0 0 0-4m7 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4m-7 1a1 1 0 1 1 0 2 1 1 0 0 1 0-2m7 0a1 1 0 1 1 0 2 1 1 0 0 1 0-2"/></svg>
+                Zukaufteil
+            </span>
+            <span class="d-inline-flex align-items-center gap-1">
+                <svg class="text-secondary" xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 4a4 4 0 1 0 0 8 4 4 0 0 0 0-8"/></svg>
+                Lager-/Fertigungsmaterial
+            </span>
+            <span>Kursiv mit grauem Streifen: Pfad zu einem Spaltenfilter-Treffer.</span>
         </div>
     </div>
 
     <div class="table-responsive">
-        <table id="faTree" data-view-key="FaHierarchyStructure" class="table table-sm table-plain fa-tree-table mb-0">
+        <table id="faTree" data-view-key="FaHierarchyStructure" class="table table-sm table-plain fa-tree-table mb-0"
+               data-teile-ausgeblendet="@(teileAusgeblendet ? "true" : "false")">
             <thead>
                 <tr>
                     <th data-col-key="structure">Struktur</th>
                     <th data-col-key="matchcode">Matchcode</th>
                     <th data-col-key="description">Bezeichnung</th>
+                    <th data-col-key="customer">Kunde</th>
+                    <th data-col-key="pps-status">PPS-Status</th>
+                    <th data-col-key="konstruktions-termin">KO-Termin</th>
+                    <th data-col-key="production-date">Fert.-Termin</th>
+                    <th data-col-key="montage-abteilung">Montage-Abt.</th>
+                    <th data-col-key="ab-nummer">AB-Nr.</th>
+                    <th data-col-key="prio">Prio</th>
+                    <th data-col-key="delivery-date">Liefertermin</th>
+                    <th data-col-key="ab-position">AB-Pos.</th>
+                    <th data-col-key="dienstleister">Beschichter</th>
+                    <th data-col-key="ral">RAL</th>
+                    <th data-col-key="beschichtung-retour">Beschicht. retour</th>
+                    <th data-col-key="neuer-pt-pps">Neuer PT (PPS)</th>
+                    <th data-col-key="montagestunden">Montage-Std.</th>
+                    <th data-col-key="bemerkung-uhrzeit">Bemerkung/Uhrzeit</th>
                     <th data-col-key="workarea">Arbeitsbereich</th>
                     <th data-col-key="operations">Arbeitsgänge</th>
                     <th data-col-key="picking-target">Komm.-Ziel</th>
@@ -123,11 +162,27 @@ else
                     <th data-col-key="status">Status</th>
                 </tr>
                 @* Spaltenfilter-Zeile (lokaler Baum-Filter, fa-hierarchy-tree.js) — NICHT table-filter.js.
-                   Auswahlfilter (<select>) fuer Spalten mit kleinem Wertebereich, sonst Freitext. *@
+                   Auswahlfilter (<select>) fuer Spalten mit kleinem Wertebereich, sonst Freitext. Kopfspalten (Kunde … Bemerkung/Uhrzeit)
+                   sind nur an der HauptFA-Zeile befuellt: ein Filter dort zeigt die passenden Strukturen zugeklappt. Datum filtert als Text. *@
                 <tr class="filter-row">
                     <th data-col-key="structure"><input type="text" class="form-control form-control-sm fa-col-filter" data-filter-key="structure" placeholder="Artnr. filtern..." aria-label="Struktur/Artnr. filtern" /></th>
                     <th data-col-key="matchcode"><input type="text" class="form-control form-control-sm fa-col-filter" data-filter-key="matchcode" placeholder="filtern..." aria-label="Matchcode filtern" /></th>
                     <th data-col-key="description"><input type="text" class="form-control form-control-sm fa-col-filter" data-filter-key="description" placeholder="filtern..." aria-label="Bezeichnung filtern" /></th>
+                    <th data-col-key="customer"><input type="text" class="form-control form-control-sm fa-col-filter" data-filter-key="customer" placeholder="filtern..." aria-label="Kunde filtern" /></th>
+                    <th data-col-key="pps-status"><select class="form-select form-select-sm fa-col-filter" data-filter-key="pps-status" aria-label="PPS-Status filtern"><option value="">(alle)</option></select></th>
+                    <th data-col-key="konstruktions-termin"><input type="text" class="form-control form-control-sm fa-col-filter" data-filter-key="konstruktions-termin" placeholder="z. B. .07.2026" aria-label="KO-Termin filtern" /></th>
+                    <th data-col-key="production-date"><input type="text" class="form-control form-control-sm fa-col-filter" data-filter-key="production-date" placeholder="z. B. .07.2026" aria-label="Fert.-Termin filtern" /></th>
+                    <th data-col-key="montage-abteilung"><select class="form-select form-select-sm fa-col-filter" data-filter-key="montage-abteilung" aria-label="Montage-Abt. filtern"><option value="">(alle)</option></select></th>
+                    <th data-col-key="ab-nummer"><input type="text" class="form-control form-control-sm fa-col-filter" data-filter-key="ab-nummer" placeholder="filtern..." aria-label="AB-Nr. filtern" /></th>
+                    <th data-col-key="prio"><input type="text" class="form-control form-control-sm fa-col-filter" data-filter-key="prio" placeholder="filtern..." aria-label="Prio filtern" /></th>
+                    <th data-col-key="delivery-date"><input type="text" class="form-control form-control-sm fa-col-filter" data-filter-key="delivery-date" placeholder="z. B. .07.2026" aria-label="Liefertermin filtern" /></th>
+                    <th data-col-key="ab-position"><input type="text" class="form-control form-control-sm fa-col-filter" data-filter-key="ab-position" placeholder="filtern..." aria-label="AB-Pos. filtern" /></th>
+                    <th data-col-key="dienstleister"><input type="text" class="form-control form-control-sm fa-col-filter" data-filter-key="dienstleister" placeholder="filtern..." aria-label="Beschichter filtern" /></th>
+                    <th data-col-key="ral"><input type="text" class="form-control form-control-sm fa-col-filter" data-filter-key="ral" placeholder="filtern..." aria-label="RAL filtern" /></th>
+                    <th data-col-key="beschichtung-retour"><input type="text" class="form-control form-control-sm fa-col-filter" data-filter-key="beschichtung-retour" placeholder="z. B. .07.2026" aria-label="Beschichtung retour filtern" /></th>
+                    <th data-col-key="neuer-pt-pps"><input type="text" class="form-control form-control-sm fa-col-filter" data-filter-key="neuer-pt-pps" placeholder="z. B. .07.2026" aria-label="Neuer PT (PPS) filtern" /></th>
+                    <th data-col-key="montagestunden"><input type="text" class="form-control form-control-sm fa-col-filter" data-filter-key="montagestunden" placeholder="filtern..." aria-label="Montage-Std. filtern" /></th>
+                    <th data-col-key="bemerkung-uhrzeit"><input type="text" class="form-control form-control-sm fa-col-filter" data-filter-key="bemerkung-uhrzeit" placeholder="filtern..." aria-label="Bemerkung/Uhrzeit filtern" /></th>
                     <th data-col-key="workarea"><select class="form-select form-select-sm fa-col-filter" data-filter-key="workarea" aria-label="Arbeitsbereich filtern"><option value="">(alle)</option></select></th>
                     <th data-col-key="operations"><input type="text" class="form-control form-control-sm fa-col-filter" data-filter-key="operations" placeholder="z. B. KA" aria-label="Arbeitsgänge filtern" /></th>
                     <th data-col-key="picking-target"><select class="form-select form-select-sm fa-col-filter" data-filter-key="picking-target" aria-label="Komm.-Ziel filtern"><option value="">(alle)</option></select></th>
@@ -138,127 +193,9 @@ else
             </thead>
             @foreach (var structure in Model.Structures)
             {
-                var head = structure.OrderInfos.FirstOrDefault();
+                // D-1: die Wurzelzeile (Level 0) ist die HauptFA-Zeile; nur sie liest den Struktur-Kontext.
+                ViewData["FaStruktur"] = structure;
                 <tbody class="fa-structure-group" data-struct="@structure.HauptFA">
-                    <tr class="fa-structure-group-head" data-struct="@structure.HauptFA">
-                        <td colspan="9" class="fa-structure-header">
-                            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
-                                <div class="d-flex align-items-center flex-wrap gap-2">
-                                    <span class="fa-struct-toggle" role="button" tabindex="0" title="Struktur auf-/zuklappen" aria-label="Struktur auf-/zuklappen" data-struct="@structure.HauptFA">
-                                        <svg class="fa-struct-chevron" xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" viewBox="0 0 16 16" style="transform: rotate(90deg);">
-                                            <path fill-rule="evenodd" d="M4.646 1.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1 0 .708l-6 6a.5.5 0 0 1-.708-.708L10.293 8 4.646 2.354a.5.5 0 0 1 0-.708" />
-                                        </svg>
-                                    </span>
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" class="flex-shrink-0" aria-hidden="true">
-                                        <path d="M9.828 3h3.982a2 2 0 0 1 1.992 2.181l-.637 7A2 2 0 0 1 13.174 14H2.825a2 2 0 0 1-1.991-1.819l-.637-7a2 2 0 0 1 .342-1.31L2.1 3a2 2 0 0 1 1.542-.819l4.83-.26a2 2 0 0 1 1.356.52z" />
-                                    </svg>
-                                    <span class="fw-bold">HauptFA @structure.HauptFA</span>
-                                    <partial name="_FaStrukturBadge" model="(IdealAkeWms.Models.IFaStrukturZeile?)structure.Roots.FirstOrDefault()?.Node ?? head" />
-                                    @if (head != null && !string.IsNullOrEmpty(head.Kunde))
-                                    {
-                                        <span class="badge bg-primary" title="Kunde">@head.Kunde</span>
-                                    }
-                                    @* Status/Termine/Abteilung nur bei eindeutigem Kopf — bei Kombigeraeten
-                                       (mehrdeutig) zeigt die Kopfdaten-Tabelle unten alle Zeilen. *@
-                                    @if (head != null && !structure.IsAmbiguous)
-                                    {
-                                        if (!string.IsNullOrEmpty(head.Status))
-                                        {
-                                            <span class="badge bg-secondary" title="Status">@head.Status</span>
-                                        }
-                                        if (head.KO_Termin.HasValue)
-                                        {
-                                            <span class="badge bg-light text-dark border" title="Konstruktions-Termin">KO @head.KO_Termin.Value.ToString("dd.MM.yyyy")</span>
-                                        }
-                                        if (head.FE_Termin.HasValue)
-                                        {
-                                            <span class="badge bg-light text-dark border" title="Fertig-Termin">FE @head.FE_Termin.Value.ToString("dd.MM.yyyy")</span>
-                                        }
-                                        if (!string.IsNullOrEmpty(head.MontageAbteilung))
-                                        {
-                                            <span class="badge bg-light text-dark border" title="Montage-Abteilung">@head.MontageAbteilung</span>
-                                        }
-                                    }
-                                    @if (structure.IsOrphan)
-                                    {
-                                        <span class="badge bg-warning text-dark" title="VaterFA verweist auf keinen importierten Parent">
-                                            Verwaist — VaterFA @(structure.OrphanVaterFa?.ToString() ?? "?") nicht gefunden
-                                        </span>
-                                    }
-                                    @if (structure.IsAmbiguous)
-                                    {
-                                        <span class="badge bg-info text-dark" title="HauptFA mit mehreren Montage-Abteilungen (Kombigerät)">
-                                            mehrdeutig (Kombigerät)
-                                        </span>
-                                    }
-                                    @if (structure.HasError)
-                                    {
-                                        <span class="badge bg-danger" title="@structure.ErrorMessage">
-                                            Fehlerhaft — @structure.ErrorMessage
-                                        </span>
-                                    }
-                                    @* AG-Knopf am Ende der Flex-Reihe: bei 0 erkannten Arbeitsgaengen gar nicht gerendert
-                                       (kein Layout-Sprung am Zeilenende). Inhalt laedt fa-hierarchy-tree.js beim Oeffnen. *@
-                                    @if (structure.HasWorkOperations)
-                                    {
-                                        <button type="button" class="btn btn-sm btn-outline-secondary py-0 fa-wo-btn"
-                                                data-hauptfa="@structure.HauptFA" aria-haspopup="dialog"
-                                                title="Erkannte Arbeitsgänge aller Sub-FAs dieser Struktur anzeigen">
-                                            Arbeitsgänge
-                                        </button>
-                                    }
-                                </div>
-                                <span class="badge rounded-pill bg-light text-dark border" title="Anzahl Knoten in dieser Struktur">@structure.NodeCount Knoten</span>
-                            </div>
-                        </td>
-                    </tr>
-                    <tr class="fa-structure-subhead">
-                        <td colspan="9">
-                            @* Kopfdaten aus FaHierarchyOrderInfo (bei Kombigeräten alle Zeilen im Klartext).
-                               Eigene kleine Tabelle — NICHT Teil der Baum-Spaltenlogik. *@
-                            @if (structure.OrderInfos.Any())
-                            {
-                                <div class="table-responsive mb-1">
-                                    <table class="table table-sm table-plain table-bordered mb-0 fa-head-table">
-                                        <thead>
-                                            <tr>
-                                                <th>Montage-Abt.</th>
-                                                <th>Kunde</th>
-                                                <th>Status</th>
-                                                <th>KO-Termin</th>
-                                                <th>FE-Termin</th>
-                                                <th>AB-Nr.</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            @foreach (var info in structure.OrderInfos)
-                                            {
-                                                <tr>
-                                                    <td>@info.MontageAbteilung</td>
-                                                    <td>@info.Kunde</td>
-                                                    <td>@info.Status</td>
-                                                    <td>@(info.KO_Termin?.ToString("dd.MM.yyyy") ?? "-")</td>
-                                                    <td>@(info.FE_Termin?.ToString("dd.MM.yyyy") ?? "-")</td>
-                                                    <td>@info.ABNr</td>
-                                                </tr>
-                                            }
-                                        </tbody>
-                                    </table>
-                                </div>
-                            }
-                            else
-                            {
-                                <div class="text-muted small">Keine Auftrags-Kopfdaten (FaHierarchyOrderInfo) zu diesem HauptFA.</div>
-                            }
-                            @if (structure.HasError)
-                            {
-                                <div class="alert alert-danger py-2 px-3 small mb-0 mt-1">
-                                    Diese Struktur wurde wegen eines Tiefen-Cap-/Zyklenfehlers nur teilweise aufgebaut
-                                    (@structure.ErrorMessage). Die übrigen Strukturen sind vollständig.
-                                </div>
-                            }
-                        </td>
-                    </tr>
                     @foreach (var root in structure.Roots)
                     {
                         <partial name="_FaHierarchyNode" model="root" />
@@ -293,15 +230,30 @@ else
 </script>
 <script type="application/json" id="column-config">
 [
-    { "key": "structure",      "label": "Struktur",       "locked": true,  "defaultWidth": null },
-    { "key": "matchcode",      "label": "Matchcode",      "locked": true,  "defaultWidth": null },
-    { "key": "description",    "label": "Bezeichnung",    "locked": false, "defaultWidth": null },
-    { "key": "workarea",       "label": "Arbeitsbereich", "locked": false, "defaultWidth": null },
-    { "key": "operations",     "label": "Arbeitsgänge",   "locked": false, "defaultWidth": null },
-    { "key": "picking-target", "label": "Komm.-Ziel",     "locked": false, "defaultWidth": null },
-    { "key": "quantity",       "label": "Soll / Fert.",   "locked": false, "defaultWidth": null },
-    { "key": "subfa",          "label": "SubFA",          "locked": false, "defaultWidth": null },
-    { "key": "status",         "label": "Status",         "locked": false, "defaultWidth": null }
+    { "key": "structure",           "label": "Struktur",          "locked": true,  "defaultWidth": null },
+    { "key": "matchcode",           "label": "Matchcode",         "locked": true,  "defaultWidth": null },
+    { "key": "description",         "label": "Bezeichnung",       "locked": false, "defaultWidth": null },
+    { "key": "customer",            "label": "Kunde",             "locked": false, "defaultWidth": null },
+    { "key": "pps-status",          "label": "PPS-Status",        "locked": false, "defaultWidth": null },
+    { "key": "konstruktions-termin","label": "KO-Termin",         "locked": false, "defaultWidth": null },
+    { "key": "production-date",     "label": "Fert.-Termin",      "locked": false, "defaultWidth": null },
+    { "key": "montage-abteilung",   "label": "Montage-Abt.",      "locked": false, "defaultWidth": null },
+    { "key": "ab-nummer",           "label": "AB-Nr.",            "locked": false, "defaultWidth": null },
+    { "key": "prio",                "label": "Prio",              "locked": false, "defaultWidth": null },
+    { "key": "delivery-date",       "label": "Liefertermin",      "locked": false, "defaultWidth": null },
+    { "key": "ab-position",         "label": "AB-Pos.",           "locked": false, "defaultWidth": null },
+    { "key": "dienstleister",       "label": "Beschichter",       "locked": false, "defaultWidth": null },
+    { "key": "ral",                 "label": "RAL",               "locked": false, "defaultWidth": null },
+    { "key": "beschichtung-retour", "label": "Beschicht. retour", "locked": false, "defaultWidth": null },
+    { "key": "neuer-pt-pps",        "label": "Neuer PT (PPS)",    "locked": false, "defaultWidth": null },
+    { "key": "montagestunden",      "label": "Montage-Std.",      "locked": false, "defaultWidth": null },
+    { "key": "bemerkung-uhrzeit",   "label": "Bemerkung/Uhrzeit", "locked": false, "defaultWidth": null },
+    { "key": "workarea",            "label": "Arbeitsbereich",    "locked": false, "defaultWidth": null },
+    { "key": "operations",          "label": "Arbeitsgänge",      "locked": false, "defaultWidth": null },
+    { "key": "picking-target",      "label": "Komm.-Ziel",        "locked": false, "defaultWidth": null },
+    { "key": "quantity",            "label": "Soll / Fert.",      "locked": false, "defaultWidth": null },
+    { "key": "subfa",               "label": "SubFA",             "locked": false, "defaultWidth": null },
+    { "key": "status",              "label": "Status",            "locked": false, "defaultWidth": null }
 ]
 </script>
 

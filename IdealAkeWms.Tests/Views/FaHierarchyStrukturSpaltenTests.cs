@@ -48,7 +48,7 @@ public class FaHierarchyStrukturSpaltenTests
 
     [Fact]
     public void StrukturKopfzeilen_ColspanGleichSpaltenzahl()
-        => Regex.Matches(Index, @"<td colspan=""(\d+)""").Select(m => int.Parse(m.Groups[1].Value))
+        => Regex.Matches(Index + Node, @"<td colspan=""(\d+)""").Select(m => int.Parse(m.Groups[1].Value))
             .Should().NotBeEmpty().And.OnlyContain(c => c == Definition.Count);
 
     [Fact]

@@ -62,7 +62,8 @@ public class FaHierarchyController : Controller
         string? filterCustomer,
         string? filterText,
         int page = 1,
-        int? pageSize = null)
+        int? pageSize = null,
+        bool mitTeilen = false)
     {
         var userDefaultPageSize = await _currentUserService.GetDefaultPageSizeAsync();
         var effectivePageSize = PageSize.Resolve(pageSize, userDefaultPageSize);
@@ -95,6 +96,11 @@ public class FaHierarchyController : Controller
             .Skip((page - 1) * effectivePageSize)
             .Take(effectivePageSize)
             .ToList();
+
+        // v1.99.83 (D-5): Standard ohne Teile — erst NACH Filter, Aufbau und Pagination ausduennen (Teilenummer findet die
+        // Struktur weiter, Waisen-Erkennung unveraendert); das Modal „Arbeitsgaenge" baut eigenstaendig und zeigt alles.
+        if (!mitTeilen)
+            FaHierarchyTreeBuilder.TeileAusblenden(pageStructures);
 
         // AG-Knopf: EIN schlanker Existenz-Check fuer die sichtbaren Strukturen (nur Schluessel, keine Details).
         var withOperations = await _workOperationRepository.GetOrderNumbersWithWorkOperationsAsync(
@@ -137,6 +143,7 @@ public class FaHierarchyController : Controller
             RecursiveFilterSearch = recursiveFilterSearch,
             DepthCap = depthCap,
             NichtKonfigurierteKuerzel = nichtKonfiguriert,
+            MitTeilen = mitTeilen,
             Pagination = new PaginationState
             {
                 CurrentPage = page,
@@ -176,7 +183,7 @@ public class FaHierarchyController : Controller
     /// Gibt <c>null</c> zurueck, wenn kein Filter gesetzt ist (alle Strukturen qualifizieren).
     /// Semantik zwischen den Feldern: UND (analog <see cref="ProductionOrdersController"/>).
     /// </summary>
-    private static HashSet<int>? FilterHauptFas(
+    internal static HashSet<int>? FilterHauptFas(
         List<FaHierarchyNode> nodes,
         List<FaHierarchyOrderInfo> orderInfos,
         string? filterHauptFa,

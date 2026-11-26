@@ -5,12 +5,35 @@
     // Elternbezug NUR ueber data-parent-id (VaterFA -> SubFA des Vaters), NICHT ueber DOM-
     // Verschachtelung. Nur die Struktur-Spalte traegt Einrueckung (padding-left je Tiefe).
     // JS-Haken: data-node-id / data-parent-id / data-depth (fa-hierarchy-tree.js).
-    var indentPx = 6 + Model.Level * 18;
+    // Einrueckung 18 px je Ebene; der Klapp-Knopf ist seit v1.99.83 28 px breit (U-1).
+    var indentPx = 2 + Model.Level * 18;
+
+    // v1.99.83 (Variante D, D-1): Level 0 ist die HauptFA-Zeile und liest den Struktur-Kontext aus der Index-Schleife.
+    // Kopfspalten nur an der ECHTEN Wurzel und nur bei genau EINEM Auftragskopf (Regel der FA-Liste, D-3) — Waisen und
+    // Baumzeilen tragen dort leere Zellen.
+    var s = Model.Level == 0 ? ViewData["FaStruktur"] as IdealAkeWms.Models.ViewModels.FaHierarchyStructure : null;
+    var kopf = s != null && !s.IsOrphan && s.OrderInfos.Count == 1 ? s.OrderInfos[0] : null;
+    string D(DateTime? d) => d?.ToString("dd.MM.yyyy") ?? "";
+    var kCustomer = kopf?.Kunde ?? "";
+    var kPpsStatus = kopf?.Status ?? "";
+    var kKoTermin = D(kopf?.KO_Termin);
+    var kFertTermin = D(kopf?.FE_Termin);
+    var kMontageAbt = kopf?.MontageAbteilung ?? "";
+    var kAbNummer = kopf?.ABNr ?? "";
+    var kPrio = kopf?.Prio?.ToString() ?? "";
+    var kLiefertermin = D(kopf?.Verladetermin_Vsl);
+    var kAbPosition = kopf?.Pos ?? "";
+    var kDienstleister = kopf?.Dienstleister ?? "";
+    var kRal = kopf?.RAL ?? "";
+    var kBeschRetour = D(kopf?.Beschichten_Retour);
+    var kNeuerPt = D(kopf?.Neuer_PT_PPS);
+    var kMontageStd = kopf?.Montagestunden?.ToString("0.##") ?? "";
+    var kBemerkungUhrzeit = kopf?.Bemerkung_Uhrzeit ?? "";
 
     // Werte je Spalte — auch als data-f-<key> am <tr> fuer den (reorder-sicheren) Baum-Spaltenfilter.
     var vStructure = n.Artnr ?? "";
     var vMatchcode = n.Matchcode ?? "";
-    var vDescription = string.Join(" ", new[] { n.Bezeichnung1, n.Bezeichnung2 }.Where(s => !string.IsNullOrEmpty(s)));
+    var vDescription = string.Join(" ", new[] { n.Bezeichnung1, n.Bezeichnung2 }.Where(x => !string.IsNullOrEmpty(x)));
     var vWorkarea = n.Arbeitsbereich ?? "";
     var vOperations = string.Join(" ", Model.Arbeitsgaenge.Select(a => a.Kuerzel));
     var vPickingTarget = n.Kommissionieren ?? "";
@@ -23,7 +46,7 @@
     {
         n.HauptArtnr, n.Artnr, n.Matchcode, n.Bezeichnung1, n.Bezeichnung2,
         n.Artikelgruppe, n.Arbeitsbereich, n.Kommissionieren, vStatus
-    }.Where(s => !string.IsNullOrEmpty(s))).ToLowerInvariant();
+    }.Where(x => !string.IsNullOrEmpty(x))).ToLowerInvariant();
 
     // Typ-Icon (geordnete Praezedenzkette Wurzel -> Baugruppe -> Zukauf -> Material).
     // Form UND Farbe unterscheiden; title/aria-label immer; fill=currentColor (WCAG:
@@ -53,7 +76,7 @@
             break;
     }
 }
-<tr class="fa-node-row"
+<tr class="fa-node-row@(s != null ? " fa-hauptfa-row" : "")"
     data-node-id="@n.SubFA"
     data-parent-id="@(n.VaterFA?.ToString() ?? "")"
     data-depth="@Model.Level"
@@ -61,6 +84,21 @@
     data-f-structure="@vStructure.ToLowerInvariant()"
     data-f-matchcode="@vMatchcode.ToLowerInvariant()"
     data-f-description="@vDescription.ToLowerInvariant()"
+    data-f-customer="@kCustomer.ToLowerInvariant()"
+    data-f-pps-status="@kPpsStatus.ToLowerInvariant()"
+    data-f-konstruktions-termin="@kKoTermin"
+    data-f-production-date="@kFertTermin"
+    data-f-montage-abteilung="@kMontageAbt.ToLowerInvariant()"
+    data-f-ab-nummer="@kAbNummer.ToLowerInvariant()"
+    data-f-prio="@kPrio"
+    data-f-delivery-date="@kLiefertermin"
+    data-f-ab-position="@kAbPosition.ToLowerInvariant()"
+    data-f-dienstleister="@kDienstleister.ToLowerInvariant()"
+    data-f-ral="@kRal.ToLowerInvariant()"
+    data-f-beschichtung-retour="@kBeschRetour"
+    data-f-neuer-pt-pps="@kNeuerPt"
+    data-f-montagestunden="@kMontageStd"
+    data-f-bemerkung-uhrzeit="@kBemerkungUhrzeit.ToLowerInvariant()"
     data-f-workarea="@vWorkarea.ToLowerInvariant()"
     data-f-operations="@vOperations.ToLowerInvariant()"
     data-f-picking-target="@vPickingTarget.ToLowerInvariant()"
@@ -69,13 +107,12 @@
     data-f-status="@vStatus.ToLowerInvariant()"
     style="@(Model.Level > 0 ? "display:none" : null)">
     @* --fa-indent exponiert die Einrueckungsbreite fuer die vertikale Leitlinien-Leiter (site.css,
-       repeating-linear-gradient auf genau diese Breite begrenzt). Ersetzt die im Tree-Table-Umbau
-       entfallene .fa-node-children-Leitlinie (Spec-Rumpf Abschnitt 5). *@
+       repeating-linear-gradient auf genau diese Breite begrenzt). *@
     <td data-col-key="structure" class="fa-struct-cell" style="padding-left:@(indentPx)px;--fa-indent:@(indentPx)px">
         @if (Model.HasChildren)
         {
-            <span class="fa-toggle" role="button" tabindex="0" title="Auf-/Zuklappen" aria-label="Auf-/Zuklappen">
-                <svg class="fa-chevron" xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" viewBox="0 0 16 16">
+            <span class="fa-toggle" role="button" tabindex="0" title="Auf-/Zuklappen" aria-label="Auf-/Zuklappen" aria-expanded="false">
+                <svg class="fa-chevron" xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
                     <path fill-rule="evenodd" d="M4.646 1.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1 0 .708l-6 6a.5.5 0 0 1-.708-.708L10.293 8 4.646 2.354a.5.5 0 0 1 0-.708" />
                 </svg>
             </span>
@@ -88,14 +125,65 @@
             <title>@iconTitle</title>
             @Html.Raw(iconSvg)
         </svg>
+        @if (s != null)
+        {
+            <span class="fw-bold me-1" title="HauptFA">@s.HauptFA</span>
+        }
         <span class="fa-node-artnr fw-semibold">@(string.IsNullOrEmpty(n.Artnr) ? "—" : n.Artnr)</span>
         <partial name="_FaStrukturBadge" model="n" />
+        @if (s != null)
+        {
+            @if (s.IsOrphan)
+            {
+                <span class="badge bg-warning text-dark" title="VaterFA verweist auf keinen importierten Parent">Verwaist (VaterFA @(s.OrphanVaterFa?.ToString() ?? "?"))</span>
+            }
+            else if (s.OrderInfos.Count > 1)
+            {
+                <span class="badge bg-info text-dark" title="Mehrere Auftragsköpfe – Kopfdaten in der Zeile darunter">@(s.IsAmbiguous ? "mehrdeutig (Kombigerät)" : $"{s.OrderInfos.Count} Auftragsköpfe")</span>
+            }
+            else if (s.OrderInfos.Count == 0)
+            {
+                <span class="badge bg-light text-dark border" title="Keine Auftrags-Kopfdaten (FaHierarchyOrderInfo) zu diesem HauptFA">ohne Kopfdaten</span>
+            }
+            @if (s.HasError)
+            {
+                <span class="badge bg-danger" title="@s.ErrorMessage">Fehlerhaft</span>
+            }
+            @* U-4 / AK 8, 14: melden statt still — Zahl der angezeigten Knoten und der ausgeblendeten Teile. *@
+            <div class="small text-muted fa-struct-zaehler">@(s.NodeCount - s.AusgeblendeteTeile) Knoten@(s.AusgeblendeteTeile > 0 ? $" · {s.AusgeblendeteTeile} Teile ausgeblendet" : "")</div>
+        }
     </td>
     <td data-col-key="matchcode" class="fa-cell-matchcode text-muted small">@n.Matchcode</td>
     <td data-col-key="description">@vDescription</td>
+    <td data-col-key="customer">@kCustomer</td>
+    <td data-col-key="pps-status">@kPpsStatus</td>
+    <td data-col-key="konstruktions-termin">@kKoTermin</td>
+    <td data-col-key="production-date">@kFertTermin</td>
+    <td data-col-key="montage-abteilung">@kMontageAbt</td>
+    <td data-col-key="ab-nummer">@kAbNummer</td>
+    <td data-col-key="prio">@kPrio</td>
+    <td data-col-key="delivery-date">@kLiefertermin</td>
+    <td data-col-key="ab-position">@kAbPosition</td>
+    <td data-col-key="dienstleister">@kDienstleister</td>
+    <td data-col-key="ral">@kRal</td>
+    <td data-col-key="beschichtung-retour">@kBeschRetour</td>
+    <td data-col-key="neuer-pt-pps">@kNeuerPt</td>
+    <td data-col-key="montagestunden" class="text-end">@kMontageStd</td>
+    <td data-col-key="bemerkung-uhrzeit">@kBemerkungUhrzeit</td>
     <td data-col-key="workarea">@n.Arbeitsbereich</td>
-    @* Arbeitsgaenge als Symbole (v1.52.0, Status Teil 2 v1.55.0) – seit v1.99.73 im gemeinsamen Partial _FaAgSymbole. *@
-    <td data-col-key="operations"><partial name="_FaAgSymbole" model="Model.Arbeitsgaenge" /></td>
+    @* Arbeitsgaenge als Symbole (v1.52.0, Status Teil 2 v1.55.0) – seit v1.99.73 im gemeinsamen Partial _FaAgSymbole.
+       Seit v1.99.83 sitzt hier an der HauptFA-Zeile auch der Knopf „Arbeitsgänge" (frueher Kopfzeile). *@
+    <td data-col-key="operations">
+        <partial name="_FaAgSymbole" model="Model.Arbeitsgaenge" />
+        @if (s != null && s.HasWorkOperations)
+        {
+            <button type="button" class="btn btn-sm btn-outline-secondary py-0 ms-1 fa-wo-btn"
+                    data-hauptfa="@s.HauptFA" aria-haspopup="dialog"
+                    title="Erkannte Arbeitsgänge aller Sub-FAs dieser Struktur anzeigen">
+                Arbeitsgänge
+            </button>
+        }
+    </td>
     <td data-col-key="picking-target">
         @if (!string.IsNullOrEmpty(n.Kommissionieren))
         {
@@ -111,6 +199,53 @@
         }
     </td>
 </tr>
+@if (s != null && !s.IsOrphan && s.OrderInfos.Count > 1)
+{
+    @* D-3: ab zwei Auftragskoepfen die Kopfdaten aller Koepfe direkt unter der HauptFA-Zeile (haengt nicht am Chevron).
+       Eigene kleine Tabelle — NICHT Teil der Baum-Spaltenlogik (column-preferences laesst colspan-Zeilen stehen). *@
+    <tr class="fa-structure-subhead">
+        <td colspan="24">
+            <div class="table-responsive mb-1">
+                <table class="table table-sm table-plain table-bordered mb-0 fa-head-table">
+                    <thead>
+                        <tr>
+                            <th>Montage-Abt.</th>
+                            <th>Kunde</th>
+                            <th>Status</th>
+                            <th>KO-Termin</th>
+                            <th>FE-Termin</th>
+                            <th>AB-Nr.</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var info in s.OrderInfos)
+                        {
+                            <tr>
+                                <td>@info.MontageAbteilung</td>
+                                <td>@info.Kunde</td>
+                                <td>@info.Status</td>
+                                <td>@(info.KO_Termin?.ToString("dd.MM.yyyy") ?? "-")</td>
+                                <td>@(info.FE_Termin?.ToString("dd.MM.yyyy") ?? "-")</td>
+                                <td>@info.ABNr</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </td>
+    </tr>
+}
+@if (s != null && s.HasError)
+{
+    <tr class="fa-structure-error">
+        <td colspan="24">
+            <div class="alert alert-danger py-2 px-3 small mb-0">
+                Diese Struktur wurde wegen eines Tiefen-Cap-/Zyklenfehlers nur teilweise aufgebaut
+                (@s.ErrorMessage). Die übrigen Strukturen sind vollständig.
+            </div>
+        </td>
+    </tr>
+}
 @foreach (var child in Model.Children)
 {
     <partial name="_FaHierarchyNode" model="child" />
