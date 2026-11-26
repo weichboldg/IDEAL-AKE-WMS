@@ -1,6 +1,6 @@
 # 01 – Kommissionierung
 
-Stand: Version 1.99.89 (IDEAL: Maske „Liste“ und summierter Auftragsdruck, Text; Fotos folgen), 1.99.79 (Hinweis „Altbestand geprüft“), 1.99.70 (Abschnitt „Weitere Knöpfe“, Hinweise) bzw. 1.99.58 · Standorte AKE und IDEAL · Bilder aus dem AKE-Testsystem (IDEAL-Bild extra gekennzeichnet)
+Stand: Version 1.99.89 (IDEAL: Maske „Liste“ mit Umbuchen und summierter Auftragsdruck, mit Fotos), 1.99.88 (IDEAL-Leitstand eine Zeile je HauptFA, mit Fotos), 1.99.79 (Hinweis „Altbestand geprüft“), 1.99.70 (Abschnitt „Weitere Knöpfe“, Hinweise) bzw. 1.99.58 · Standorte AKE und IDEAL · Bilder aus dem AKE-Testsystem (IDEAL-Bild extra gekennzeichnet)
 
 ## Zweck
 
@@ -162,6 +162,10 @@ Sind die Kommissionierlisten eingeschaltet, öffnet der Auftrag bei IDEAL in der
 - Wer Haken gesetzt oder Ist-Mengen geändert hat und umschaltet, wird vorher gefragt – ungespeicherte Eingaben gehen sonst verloren.
 - Die Liste hat eine eigene Spaltenauswahl (Zahnrad), unabhängig von der Stückliste.
 
+![Maske „Liste“: Umschalter Stückliste | Liste, Zeile mit Pos. 5.5, 6.5, Ist-Menge mit „verteilt auf Pos. …“ und Quell-Lagerplatz](bilder/01-24-auftrag-maske-liste.jpg)
+
+![Dieselbe Liste nach dem Umbuchen: „✓ gepickt“, eine Zeile mit „⚠ Rest 1 aus Pos. 6.7 geht beim Abschluss in den Folgeauftrag“](bilder/01-25-liste-nach-buchung.jpg)
+
 ### 5. Zeilen anhaken, Ist-Menge und Quell-Lagerplatz prüfen
 
 1. Bei jedem geholten Teil das Häkchen setzen (oder Artikel scannen). Die Zeile wird grün; noch ist **nichts** gebucht.
@@ -231,6 +235,8 @@ Auf der Auftragsseite **Auftrag drucken** öffnet eine Druckansicht in einem neu
   eine Zeile je Artikel und Kommissionierziel, genau mit den in der Liste eingeblendeten Spalten, in der Reihenfolge der Liste.
   Daneben lädt **PDF** dasselbe Dokument als PDF-Datei (nur sichtbar, wenn die PDF-Erzeugung eingerichtet ist).
 
+![Summierter Auftragsdruck (IDEAL): Banner „Summierte Ansicht“, je Artikel und Ziel eine Zeile, Spalte Pos. mit allen Positionen](bilder/01-26-auftrag-drucken-summiert.jpg)
+
 ### 9. Fehlteile: Bedarfsmeldung aus dem Auftrag
 
 Fehlt ein Teil, kann direkt aus dem Auftrag eine **Bedarfsmeldung** erstellt werden (nur wenn die Einstellung „Bedarfsmeldungen aus der
@@ -267,6 +273,21 @@ Im Leitstand beim FA auf den **grünen Haken** klicken (oder mehrere markieren u
 | Kommissionierlisten | – | zusätzlich Menü **Kommissionierung → Kommissionierlisten** (summiert nach Kommissionier-Ziel, mit Abteilung und Lagerplätzen). Seit Version 1.99.43 stehen dort **nur im Leitstand freigegebene** HauptFAs – wer dort etwas vermisst, prüft zuerst die Freigabe (Schritt 1). Anleitung: [Kapitel 16](16-ideal-kommissionierliste.md) |
 
 ![IDEAL-Testsystem: HauptFA mit Sub-FAs, nur die HauptFA-Zeile hat „Freigeben“](bilder/01-18-ideal-nur-hauptfa.jpg)
+
+**Seit Version 1.99.88 – IDEAL-Leitstand: eine Zeile je HauptFA.** Der Leitstand zeigt ohne Gruppenkopf nur noch die HauptFA-Zeilen
+(das Bild oben zeigt den früheren Stand). Die FA-Nr.-Zelle nennt „+ n Sub-FAs“, wenn Sub-FAs eingeflossen sind.
+
+- **Lack-T, Glas, Zukauf, VK–VA** fassen HauptFA und alle Sub-FAs zusammen: Lack-T, Glas, Zukauf angehakt, wenn irgendeine Zeile sie hat;
+  Lack-T erledigt, wenn alle Zeilen mit Lackteilen erledigt sind; VK–VA alle fertig = Fertig, alle offen = Offen, sonst in Bearbeitung.
+- Ein Klick speichert **nur die HauptFA**. Bestimmen Sub-FAs den Wert mit, steht darunter „Sub-FA bestimmt den Wert weiter“ und die Seite
+  lädt nach dem Speichern neu. „Lackteile nur an Sub-FAs“ bzw. „Arbeitsgang nur an Sub-FAs“ sind gesperrt – ändern über **Sub-FAs anzeigen**.
+- **Sub-FAs anzeigen** (Filterkarte) zeigt die bisherige Ansicht mit allen Sub-FA-Zeilen. Nur dort findet die FA-Nr.-Suche Sub-FA-Nummern;
+  ohne Schalter weist ein Hinweis darauf hin.
+- **Alle Sub-FAs fertigmelden** steht in der Zeile. Aufträge ohne HauptFA-Zeile meldet ein Banner.
+
+![IDEAL-Leitstand seit 1.99.88: je HauptFA eine Zeile mit „+ n Sub-FAs“](bilder/01-22-leitstand-nur-hauptfa.jpg)
+
+![Rechter Teil derselben Zeilen: zusammengefasste Werte, Hinweise „Sub-FA bestimmt den Wert weiter“ und „Arbeitsgang nur an Sub-FAs“](bilder/01-23-leitstand-hauptfa-hinweise.jpg)
 
 ## Hinweise und Stolperfallen
 

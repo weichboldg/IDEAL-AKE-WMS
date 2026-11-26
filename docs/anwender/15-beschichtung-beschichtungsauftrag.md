@@ -1,6 +1,6 @@
 # 15 Beschichtung – Vorschlagsliste und Beschichtungsauftrag
 
-Stand: Version 1.99.67 · Standorte AKE und IDEAL · Bilder aus dem IDEAL-Testsystem
+Stand: Version 1.99.88 (Druck summiert, Summenzeile nur Teilesumme, Foto 15-06 neu), 1.99.67 · Standorte AKE und IDEAL · Bilder aus dem IDEAL-Testsystem
 
 ## Zweck
 
@@ -133,7 +133,7 @@ Drucken und PDF gehen ab **Übergeben**. Das Blatt enthält:
 
 Spalten, die man über das Zahnrad ausblendet, fehlen auch im Druck.
 
-![Druckansicht eines Beschichtungsauftrags](bilder/15-06-druck.jpg)
+![Druckansicht eines Beschichtungsauftrags: je Artikel eine Zeile, Verpackt-Spalte, Summenzeile „Summe Teile im Auftrag 17“](bilder/15-06-druck.jpg)
 
 Der gelbe Kasten „Briefkopf: …“ im Bild ist ein Hinweis aus dem Testsystem (Vorlage fehlt dort) und erscheint nur am Bildschirm.
 

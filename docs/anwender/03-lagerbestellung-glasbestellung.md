@@ -1,6 +1,6 @@
 # 03 – Lagerbestellung und Glasbestellung
 
-Stand: Version 1.99.85 (Abschnitt 9 Liefertermin seit 1.99.85, Abschnitt 8 Fräsen-Pfad seit 1.99.72), 1.99.57 (Bilder aus dem AKE-Testsystem, Stand 1.99.29 – Foto zu „Entnahme aus“ folgt nach Einschalten des Schalters) · Standorte AKE und IDEAL
+Stand: Version 1.99.86 (Hinweis „bereits als Fehlteil bestellt“ beim Erfassen, mit Foto), 1.99.85 (Abschnitt 9 Liefertermin seit 1.99.85, Abschnitt 8 Fräsen-Pfad seit 1.99.72), 1.99.57 (Bilder aus dem AKE-Testsystem, Stand 1.99.29 – Foto zu „Entnahme aus“ folgt nach Einschalten des Schalters) · Standorte AKE und IDEAL
 
 ## Zweck
 
@@ -61,6 +61,12 @@ Menü **Bestellungen → Lagerbestellungen**. Oben die Reiter **Lager** und **Gl
 - **Artikel nicht gefunden?** Dann bietet die Suche eine **DUMMY-Position** an: eigene Bezeichnung eingeben (Pflicht), Menge,
   **DUMMY-Position anlegen**.
 - Ein Glas-Artikel lässt sich nicht in eine Lager-Liste aufnehmen und umgekehrt („Artikelgruppe … gehoert zur Glas-Bestellung.“).
+- **Seit 1.99.86:** Wird der Artikel an den eigenen Werkbänken schon als **Fehlteil nachgeliefert**, steht unter der Artikelnummer
+  „Hinweis: bereits als Fehlteil bestellt mit Lagerbestellung #… (wird nachgeliefert)“ und der nächste Liefertermin aus Sage (wie die
+  Spalte „Liefertermin“ im Lager). Es gilt dieselbe Regel wie bei „Meine Fehlteile“. Der Hinweis blockiert nichts – die Liste lässt sich
+  wie bisher abschicken; er soll nur doppeltes Bestellen vermeiden.
+
+![Lagerbestellung im Entwurf: unter der Artikelnummer der Hinweis „bereits als Fehlteil bestellt mit Lagerbestellung #…“](bilder/03-12-entwurf-hinweis-bereits-bestellt.jpg)
 
 ### 3. Kommentar und Abschicken
 
