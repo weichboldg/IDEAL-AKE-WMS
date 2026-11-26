@@ -106,4 +106,20 @@ public class BdeFaSichtViewTests
         System.Text.RegularExpressions.Regex.Matches(js, @"box\.replaceChildren\(\);").Count.Should().Be(3);
         Read("wwwroot", "css", "bde.css").Should().Contain("td.tl-zelle-aktion { order: 0; }");
     }
+
+    // v1.99.81 (Task 4b, TS-202): jede filterbare Spalte hat in JEDER Zeilenart eine Zelle mit gleichem Schluessel (Summiert: Aggregat + Einzelauftrag)
+    [Theory]
+    [InlineData("Summiert.cshtml", 2)]
+    [InlineData("Index.cshtml", 1)]
+    [InlineData("Fa.cshtml", 1)]
+    public void JedeFilterspalte_HatZelleMitSchluessel_JeZeilenart(string view, int zeilenarten)
+    {
+        var html = Read("Views", "BdeTeileliste", view);
+        var kopf = html[..html.IndexOf("</thead>", StringComparison.Ordinal)];
+        var keys = System.Text.RegularExpressions.Regex.Matches(kopf, @"<th data-filterable data-col-key=""([^""]+)""").Select(m => m.Groups[1].Value).ToList();
+        keys.Should().Contain("montage-abteilung");
+        var rumpf = html[html.IndexOf("</thead>", StringComparison.Ordinal)..];
+        foreach (var k in keys)
+            System.Text.RegularExpressions.Regex.Matches(rumpf, $@"<td[^>]*data-col-key=""{k}""").Count.Should().BeGreaterThanOrEqualTo(zeilenarten, $"{view}: Spalte {k}");
+    }
 }

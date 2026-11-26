@@ -224,4 +224,28 @@ public class BdeTeilelisteServiceTests
         var spalten = BdeTeilelisteService.SpaltenEinzeln(new Dictionary<int, VormontageService.KopfWerte>(), n => n.Beschichtet ? "ja" : "nein");
         spalten["beschichtet"](new FaHierarchyNode { Beschichtet = true }).Should().Be("ja");
     }
+
+    // v1.99.81 (Task 4b, TS-202): Abteilung filtert in Einzeln (Baugruppe + Kinder) und Summiert – Diagnose des Nachtrags Gerald 2026-11-26
+    [Fact]
+    public void Abteilung_Filter_BaugruppeUndSummiert()
+    {
+        var nodes = new[]
+        {
+            Node(100, 100, 200, 1, "BG", "Baugruppe A", "KA"),
+            Node(100, 200, 0, 1, "B1", "Blech A", "KA"),
+            Node(101, 101, 300, 1, "BG2", "Baugruppe B", "KA"),
+            Node(101, 300, 0, 1, "B2", "Blech B", "KA"),
+        };
+        var infos = new[]
+        {
+            new FaHierarchyOrderInfo { HauptFA = 100, MontageAbteilung = "Montage Nord" },
+            new FaHierarchyOrderInfo { HauptFA = 101, MontageAbteilung = "Montage Sued" },
+        };
+        var colf = new Dictionary<string, string> { ["montage-abteilung"] = "Nord" };
+
+        var d = Bauen(nodes, infos: infos, colf: colf);
+        d.Zeilen.Select(z => z.Node.Matchcode).Should().BeEquivalentTo("Baugruppe A", "Blech A");
+
+        BdeTeilelisteService.Summieren(d.Zeilen, infos, colf).Select(a => a.Matchcode).Should().BeEquivalentTo("Baugruppe A", "Blech A");
+    }
 }
