@@ -2,7 +2,7 @@
 type: spec
 title: "Lagerbestellung: Hinweis „bereits als Fehlteil bestellt“ mit nächstem Liefertermin"
 slug: 2026-11-26-lagerbestellung-hinweis-fehlteil-bereits-bestellt-spec
-status: InUmsetzung
+status: Testbereit
 created: 2026-11-26
 updated: 2026-11-26
 source_backlog: "[[2026-11-26-lagerbestellung-hinweis-fehlteil-bereits-bestellt]]"
@@ -277,17 +277,20 @@ Manual-UAT: Neuladen nach dem Hinzufügen im Browser, Kontrast, Groß/Klein in S
 
 ## Deploy
 
-*Vorläufig, der QA-Lauf bestätigt es gegen den echten Diff.*
+*Final (QA 2026-11-26, aus dem echten Diff von Commit `300dbf25`).*
 
-- **Web-App:** ja (Controller, Service-Helfer, ViewModel und View im Web-Projekt).
-- **Service:** nein (Dienst unverändert, nur Versionsgleichstand `AppVersion.cs`).
-- **Migration:** nein.
-- **Manifest-Einträge** (`scripts/deploy/nachlauf.psd1`): keine. Es gibt kein SQL, keine Einstellung, keinen Leitstand-Schritt und keinen Ordner.
-  Die Datenvoraussetzung `Sync:EinkaufBestellungenEnabled` hat schon ihren Eintrag (`nachlauf.psd1:470`).
-- **Publish-Befehle** (im Worktree): `dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWMSWeb`.
-  Keine Reihenfolge, Web austauschen genügt.
-- Version in beiden `AppVersion.cs` hochzählen (nächste freie im Bündel, Stand 2026-11-26 v1.99.86, Dev-Lauf prüft), Anwender-Changelog
-  `Views/Help/Changelog.cshtml`, Hilfe `Views/Help/Index.cshtml`, `docs/anwender/03-lagerbestellung-glasbestellung.md` mit Foto gegen DEV.
+- **Web-App:** ja (`IdealAkeWms/`: Controller `WarehouseRequisitionsController`/`WarehousePickingController`, neu `Services/LieferterminTexte.cs`,
+  ViewModels, `Views/WarehouseRequisitions/Edit.cshtml`, Hilfe/Changelog).
+- **Service:** nein fachlich (`IDEALAKEWMSService/` nur `AppVersion.cs` 1.99.86 Versionsgleichstand). Mit dem Bündel-Paket wird er ohnehin mit ausgetauscht.
+- **Migration:** nein (keine Datei unter `*/Migrations/`, kein `SQL/`).
+- **Manifest** (`scripts/deploy/nachlauf.psd1`): kein neuer Eintrag nötig, kein SQL, keine Einstellung, kein Leitstand-Schritt. Datenvoraussetzung
+  `Sync:EinkaufBestellungenEnabled` steht schon in `nachlauf.psd1:470`.
+- **Publish (erledigt, QA):** `C:\Git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-07-ideal-teile-1-5\publish\` (IDEALAKEWMSWeb + IDEALAKEWMSWebService + SQL + deploy,
+  `publish-info.txt` Version 1.99.86, Commit `300dbf258563b3df134316eaebb86c19afce7ca4`). Keine Reihenfolge, kein DB-Schritt; Web austauschen genügt.
+- Ablauf Mensch: Publish aus dem Worktree → Testsystem → Test → Merge. Nach dem Merge nur dann neu aus `main` publishen, wenn der Merge getestete
+  Dateien mit parallelen `main`-Änderungen zusammengeführt hat:
+  `dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWMSWeb` und
+  `dotnet publish IDEALAKEWMSService/IDEALAKEWMSService.csproj -c Release -o .\publish\IDEALAKEWMSWebService`.
 
 ## Offene Rueckfragen
 
@@ -316,3 +319,95 @@ Weitere Aussagen Gerald (Chat 2026-11-26, keine Antwort auf Frage 1):
 - „IDEAL lesen wir dann auch“ – am Standort IDEAL werden die offenen Bestellungen künftig ebenfalls gelesen
   (`Sync:EinkaufBestellungenEnabled` dort einschalten, Betriebsschritt, nicht Teil dieser Spec). Der Text „Liefertermin unbekannt …“
   bleibt nur als Rückfall für einen leeren Cache.
+
+## QA-Nachweis (qa-agent, 2026-11-26)
+
+Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5`, Branch `feature/2026-08-07-ideal-teile-1-5`, geprüfter Commit `300dbf25` (HEAD), Version 1.99.86.
+Standort aus Frontmatter: `beide`.
+
+### 1. Build und Tests
+- `dotnet build IdealAkeWms.slnx`: 0 Fehler, 33 Warnungen (bestehend).
+- `dotnet test`: IdealAkeWms.Tests 3794 bestanden / 1 übersprungen / 0 Fehler (3795); IDEALAKEWMSService.Tests 848 / 0 / 0.
+
+### 2. Code-Review (selbst, synchron)
+Geprüft: kompletter Diff `300dbf25` (Controller, `LieferterminTexte`, ViewModels, `Edit.cshtml`, Hilfe, Changelog, Tests, TESTSZENARIEN), dazu
+`WarehouseRequisitionRepository.GetMissingPartsAsync` (`:390-435`: Statusfilter, Typ, Werkbank-Menge, Sortierung `ClosedAt` absteigend),
+das JS in `Edit.cshtml` (Artikel über `data-article`, `:181-182`, nicht über den Zelltext, daher stört das zusätzliche `div` weder Lagerplatz-Laden noch Entfernen)
+und `column-config` (`article-number` mit `locked: true`).
+Gezielt geprüfte Fehlerklassen: kein Wert in `<script>` (Hinweis per Razor-Encoding im `td`); kein `hidden` zusammen mit `d-*`; kein stiller Rückfallwert
+(fehlender Liefertermin wird zum Text „Keine offene Bestellung“ bzw. „unbekannt“, nicht 0); keine parallelen Arrays; keine reine Browser-Validierung (reine Anzeige);
+eine Regel an einem Ort (Fehlteil-Regel = dieselbe Repository-Methode wie „Meine Fehlteile“, Liefertermin an einer Stelle `LieferterminTexte`, unverändert verschoben,
+Details und Druck-Filter rufen dieselbe Methode).
+Befunde:
+- **H-1 (Hinweis, belassen):** `Distinct()` auf LINQ-to-Objects behält die Reihenfolge des ersten Auftretens. Das ist Implementierungsverhalten, nicht vertraglich zugesichert.
+  Auf DEV bestätigt (#81, #80, #79, neueste zuerst).
+- **H-2 (Hinweis, belassen):** Bei gleichem `ClosedAt` ist die Reihenfolge der Listennummern nicht festgelegt, weil das Repository nur nach `ClosedAt` sortiert.
+  Das gilt genauso für die Fehlteil-Liste und ist fachlich unerheblich.
+- **H-3 (Hinweis):** Dass dieselbe Liste den Artikel zweimal enthält (E4), geht nur über Varianten in Groß/Klein-Schreibung oder Leerzeichen. Der Unique-Index
+  `IX_WarehouseRequisitionItems_WarehouseRequisitionId_ArticleNumber` verhindert echte Doppel. Auf DEV mit `EK013128` und ` ek013128` in #81 geprüft: #81 erscheint einmal.
+Keine Blocker und keine Sollte-Befunde.
+
+### 3. Nachweisart je AK
+| AK | Nachweis |
+|---|---|
+| 1 | Auto (`Edit_EigeneWerkbank_…`) + DEV (Hinzufügen per Suche, Neuladen, Hinweis an der neuen Zeile) |
+| 2 | Auto (Ersteller-Id 999 = Kollege) + DEV (Listen von „QA207 Kollege“) |
+| 3, 4, 8, 9 | Auto (InMemory) + DEV |
+| 5 | Auto (Text bei 1/3/5 Listen, Edit mit 2 Listen) + DEV (4 Listen ergeben „#81, #80, #79 und 1 weitere“) |
+| 6 | Auto (Texte) + DEV (überfällig (+17), ohne Bestellung, Termin in der Zukunft, leerer Cache auf IDEAL) |
+| 7 | Auto (dieselbe Funktion `LieferterminTexte.Zelle`) + DEV (Gegenprobe Lager-Details #81: „09.01.2023 überfällig (+17)“ identisch) |
+| 10 | Auto + DEV |
+| 11 | DEV (Menge geändert, abgeschickt, danach kein Hinweis); automatisiert nur „abgeschickt → kein Hinweis“. Entfernen bleibt Manual-UAT, weil es `confirm()` auslöst |
+| 12 | Manual-UAT, auf DEV durchgeführt (Bezeichnung ausgeblendet, Hinweis bleibt) |
+| 13 | Auto (`LieferterminOffeneBestellungenTests` und bestehende Druck-Filter-Tests grün) + DEV Details; Druck-Filter im Browser offen |
+| 14 | Auto (siehe 1) |
+| E8 SQL-Kollation | Manual-UAT: auf DEV ` ek013128` (Entwurf) gegen `EK013128` (Fehlteil und Sage-Cache) → Hinweis inklusive Termin, OK |
+
+### 4. Geänderte bestehende Tests
+- `FehlteileKarteV181Tests.cs`, `WarehouseRequisitionsControllerTests.cs`: nur der Konstruktor (zwei Mocks ergänzt) → reine Typ-/Compile-Änderung.
+- `LieferterminOffeneBestellungenTests.cs:45`: Verweis `WarehousePickingController.LieferterminZelle` → `LieferterminTexte.Zelle` → reine Typ-Änderung (Verschiebung nach Technik 1), Erwartungen unverändert.
+Kein Fall der Kategorie „Sonstiges“.
+
+### 5. Checkliste CLAUDE.md
+Migration, SQL, FreshInstall und AgentJobs: nicht betroffen. Audit-Felder: nicht betroffen (nur Lesen). Version 1.99.86 in beiden `AppVersion.cs`, Anwender-Changelog und Hilfe ergänzt.
+TS-207 in `docs/TESTSZENARIEN.md` (Worktree) und im Index (`testszenarien-index.md:180`, Hauptcheckout). ADR 0020: keine neue oder geänderte Einstellung.
+Offen für den Lauf-Leiter (nicht im Commit): Brain-Changelog v1.99.86, `feature-map.md`, `docs/anwender/03-lagerbestellung-glasbestellung.md` mit Foto (Definition of Done).
+
+### 6. DEV-Deploy und Testlauf
+- Deploy (erhöhte Shell, `D:\Dev\scripts\dev-deploy.ps1 -Quelle <worktree>`): **AKE** http://localhost:8081 Exit 0, „HTTP 200, Fusszeile v1.99.86“;
+  **IDEAL** http://localhost:8082 Exit 0, „HTTP 200, Fusszeile v1.99.86“. Web und Dienst je Standort, DEV-Absicherung angewendet.
+- Testdaten in AKE_WMS_DEV (Kommentar „QA207 …“): Listen #78–#81 (W1 = A1, `EK013128`, ClosedAt 20.–23.11., #81 zusätzlich ` ek013128`), #82 (QA108-A, nicht zugeordnet,
+  `EK014971`), #83 Glas (`EK021528`), #84 NoRestock (`EK001268`), #85 Submitted (`EK000247`), #86 (`QA207-OHNE`), #87 (`00717182`); Entwürfe #88 Lager, #89 Glas, #90 Lager (Benutzer 14).
+  In IDEAL_WMS_DEV: Liste #14, Entwurf #15 (Benutzer 8; Zuordnung zu Werkbank 1 nur vorübergehend, danach wieder entfernt).
+
+| Schritt | Ergebnis | Status |
+|---|---|---|
+| 207.1 Grundfall | #88: `00717182` per Suche hinzugefügt → nach dem Neuladen „…Lagerbestellung #87 (wird nachgeliefert). Nächster Liefertermin: … überfällig (+N).“ | OK |
+| 207.2 Kollege | Listen von „QA207 Kollege“ (ohne CreatedByUserId) erscheinen bei Benutzer 14 | OK |
+| 207.3 Mehrere Listen | „#81, #80, #79 und 1 weitere“; #81 trotz zwei Varianten-Positionen nur einmal | OK |
+| 207.4 Liefertermin | „09.01.2023 überfällig (+17)“; „Keine offene Bestellung in Sage.“ (QA207-OHNE, 00000900); Glas „03.03.2028.“; Gegenprobe Lager-Details #81 identisch | OK |
+| 207.5 Cache leer | IDEAL-DEV: Cache in tempdb gesichert und geleert → „Liefertermin unbekannt (offene Bestellungen werden nicht aus Sage gelesen).“; vorher mit Cache „Keine offene Bestellung in Sage.“; alle 1059 Zeilen zurückgeschrieben | OK |
+| 207.6 Glas | #89: `EK021528` zeigt „Glasbestellung #83“, `EK013128` (nur Lager-Fehlteil) ohne Hinweis; #88: `EK021528` (nur Glas-Fehlteil) ohne Hinweis | OK |
+| 207.7 Nicht blockieren / Spalten | Bezeichnung ausgeblendet → Hinweis bleibt (danach wieder eingeblendet); Menge 1→3 gespeichert, abgeschickt, #88 „Abgeschickt“ ohne Hinweis, Menge 3 | OK (Entfernen nicht geklickt, wegen `confirm()`) |
+| 207.8 Stückliste | nicht im Browser geprüft. Indirekt belegt: alle Entwurfspositionen auf DEV entstanden per SQL statt über Edit und zeigen trotzdem den Hinweis | NICHT MOEGLICH (Stücklisten-Rückmeldung selbst nicht angesehen) |
+| 207.9 Regression TS-206 | Details-Spalte identisch (siehe 207.4); Druck-Filter/-Sortierung nur automatisiert geprüft | teilweise, Druck offen |
+| Neg. fremde Werkbank | `EK014971` (#82 an QA108-A) → kein Hinweis | OK |
+| Neg. ohne Zuordnung | Zuordnung von Benutzer 14 gesichert und gelöscht → #90 ohne Hinweis, Seite normal; Zuordnung (Id 23) wiederhergestellt | OK |
+| Neg. Haken zurück / NoRestock | #86 auf `None` gesetzt → #90 `QA207-OHNE` ohne Hinweis; `EK001268` (NoRestock) ohne Hinweis | OK |
+| Neg. abgeschickte Quelle | `EK000247` (#85 Submitted) ohne Hinweis | OK |
+| Neg. DUMMY | DUMMY-Position ohne Hinweis trotz DUMMY-Fehlteil #70 | OK |
+| Neg. Groß/Klein/Leerzeichen | ` ek013128` im Entwurf → Hinweis inklusive Sage-Termin | OK |
+| Kontrast | `text-warning-emphasis` auf weißem und gestreiftem Hintergrund gut lesbar, Wort „Hinweis:“ vorangestellt | OK |
+
+### 7. Publish
+`C:\Git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-07-ideal-teile-1-5\publish\` neu befüllt (IDEALAKEWMSWeb, IDEALAKEWMSWebService, SQL, deploy); beide `dotnet publish` mit Exit 0.
+`publish-info.txt`: Version 1.99.86, Commit `300dbf258563b3df134316eaebb86c19afce7ca4`. Kein Paket-ZIP (macht der Lauf-Leiter).
+
+**Ergebnis: Testbereit.**
+
+### Manuelle Test-Checkliste (Mensch, Schranke 2)
+1. TS-207.8: Artikel über die Stücklisten-Schnellerfassung in einen Entwurf legen → Rückmeldung unverändert, Hinweis beim Öffnen des Entwurfs.
+2. TS-207.9: Lager → Details → Drucken mit Filter/Sortierung „Liefertermin“ unverändert (TS-206.6/206.9).
+3. TS-207.7: Position mit Hinweis entfernen (Bestätigungsdialog) → funktioniert wie bisher.
+4. Testsystem-Lauf TS-207.1–207.7 mit echten Fehlteilen (Lager markiert Fehlteil und schließt ab), auf AKE und IDEAL (IDEAL nach dem Einschalten von `Sync:EinkaufBestellungenEnabled` mit Termin, sonst Rückfalltext).
+5. Optisch am Terminal: Lesbarkeit des Hinweises bei schlechtem Licht.
