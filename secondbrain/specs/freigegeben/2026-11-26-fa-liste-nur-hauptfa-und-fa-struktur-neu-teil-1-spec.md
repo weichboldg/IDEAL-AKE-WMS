@@ -2,7 +2,7 @@
 type: spec
 title: "IDEAL FA-Liste: nur HauptFA-Zeilen, Strukturfelder im Zahnrad, Sprung in die FA-Struktur"
 slug: 2026-11-26-fa-liste-nur-hauptfa-und-fa-struktur-neu-teil-1-spec
-status: Entwurf
+status: Freigegeben
 created: 2026-11-26
 updated: 2026-11-26
 source_backlog: "[[2026-11-26-fa-liste-nur-hauptfa-und-fa-struktur-neu]]"
@@ -38,9 +38,9 @@ deploy:
   web: true
   service: false
   migration: false
-freigabe_entscheidung: ""
-freigabe_von: ""
-freigabe_am: ""
+freigabe_entscheidung: "Antworten 1-6 (Gerald 2026-11-26): Sub-FA ganz weg; 16 Spalten + Material ausgeblendet; Matchcode Struktur zuerst, dann Artikelstamm; eigene Spalte PPS-Status; AKE-Spalten unveraendert"
+freigabe_von: Gerald
+freigabe_am: 2026-11-26
 ---
 
 ## Ziel / Nutzen (das Warum)

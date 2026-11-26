@@ -1,7 +1,7 @@
 ---
 type: uebersicht
 title: "IDEAL: FA-Liste nur HauptFA + FA-Struktur uebersichtlich (Split-Uebersicht)"
-status: Entwurf
+status: Freigegeben
 created: 2026-11-26
 updated: 2026-11-26
 source_backlog: "[[2026-11-26-fa-liste-nur-hauptfa-und-fa-struktur-neu]]"

@@ -2,7 +2,7 @@
 type: spec
 title: "IDEAL FA-Struktur uebersichtlicher (Variante D: eine Zeile je HauptFA mit Kopfspalten, Baum per Chevron, Teile per Knopf)"
 slug: 2026-11-26-fa-liste-nur-hauptfa-und-fa-struktur-neu-teil-2-spec
-status: Entwurf
+status: Freigegeben
 created: 2026-11-26
 updated: 2026-11-26
 source_backlog: "[[2026-11-26-fa-liste-nur-hauptfa-und-fa-struktur-neu]]"
@@ -42,9 +42,9 @@ deploy:
   web: true
   service: false
   migration: false
-freigabe_entscheidung: ""
-freigabe_von: ""
-freigabe_am: ""
+freigabe_entscheidung: "D (Antworten 1-10, Gerald 2026-11-26)"
+freigabe_von: Gerald
+freigabe_am: 2026-11-26
 ---
 
 ## Ziel / Nutzen (das Warum)
