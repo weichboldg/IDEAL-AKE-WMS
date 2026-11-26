@@ -16,7 +16,7 @@ Start-Stand Worktree: v1.99.85 (c8814cdf), höchstes TS 206 (TS-205 reserviert f
 | [[2026-11-26-lagerbestellung-hinweis-fehlteil-bereits-bestellt-spec]] | Spec | – | 1.99.86 | 207 | **Testbereit** | 300dbf25, QA b7704475 | |
 | [[2026-11-26-beschichtung-summe-leitstand-hauptfa-kommissionierauftrag-liste-teil-1-spec]] | Spec | – | 1.99.87 | 205 | **Testbereit** | e67e9f6f, QA 9da4b0af | |
 | [[2026-11-26-beschichtung-summe-leitstand-hauptfa-kommissionierauftrag-liste-teil-2-spec]] | Spec | – | 1.99.88 | 208 | Testbereit | 5d7639dc, ebb16bd7 (QA-Fix); N-1 Teil 1 a89d98cc | |
-| [[2026-11-26-beschichtung-summe-leitstand-hauptfa-kommissionierauftrag-liste-teil-3-spec]] | Epic (A+B) | – | 1.99.89 | 209 | InUmsetzung (A erledigt, B läuft) | 98ea06fa | |
+| [[2026-11-26-beschichtung-summe-leitstand-hauptfa-kommissionierauftrag-liste-teil-3-spec]] | Epic (A+B) | – | 1.99.89 | 209 | InUmsetzung (A+B erledigt, QA läuft) | 98ea06fa, 6144f36d | |
 
 ## Vorprüfung
 - Alle vier: status Freigegeben, worktree/branch leer, freigabe_* gesetzt, keine offenen BLOCKER in „Kritische Pruefung“
@@ -45,6 +45,8 @@ Start-Stand Worktree: v1.99.85 (c8814cdf), höchstes TS 206 (TS-205 reserviert f
   [[2026-11-26-v1-99-88-leitstand-nur-hauptfa]] + feature-map. Teil 3 Etappe A gestartet.
 - 2026-11-26 Teil 3 Etappe A erledigt (98ea06fa, v1.99.89, TS-209): Build 0 Fehler, Tests 3843/1 skip + 848 (1 Reparaturrunde:
   Wächter-Listen um neues Partial). Etappen-Tabelle 676c3c5f. Etappe B gestartet.
+- 2026-11-26 Teil 3 Etappe B erledigt (6144f36d): Verteil-Buchung, K12, Knopf-Sperre; Build 0 Fehler, Tests 3853/1 skip + 848,
+  TS-209.9–209.15; Sammel-Bestellknopf in der Liste ausgeblendet (K5). qa-agent für das ganze Epic gestartet.
 
 ## Folgearbeit aus Befunden (Gerald 2026-11-26: „alle Befunde als Backlog, nach der Schluss-QA gleich Spec“)
 
