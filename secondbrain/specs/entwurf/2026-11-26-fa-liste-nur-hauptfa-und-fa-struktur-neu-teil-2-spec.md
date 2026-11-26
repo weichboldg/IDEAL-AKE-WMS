@@ -485,15 +485,62 @@ Zusaetzliche Akzeptanzkriterien:
 
 ## Freigabe-Antworten (Mensch fuellt aus — Schranke 1)
 
-*Antworten 1-4 im Chat gegeben und vom Orchestrator im Auftrag eingetragen (Ausnahme vom Unveraendert-Gebot).*
+*Antworten 1-10 im Chat gegeben und vom Orchestrator im Auftrag eingetragen (Ausnahme vom Unveraendert-Gebot).*
 
 1. → Neue Variante D statt A/B/C: je HauptFA genau eine Zeile wie in der FA-Liste, alle FA-Details nebeneinander als eigene Spalten (Zahnrad/column-preferences wie FA-Liste); die heutige Kopfzeile + Unterkopf-Tabelle (Dopplung K2) entfallen und gehen in diese Zeile auf; ueber Chevron klappt darunter der Baum (Baugruppen/Teile) auf. Kombigeraet sauber loesen. *(Gerald 2026-11-26 Chat)*
 2. → Nein — Feld „Knoten hervorheben“ bleibt. *(Gerald 2026-11-26 Chat)*
 3. → Keine neuen DefaultHidden — SubFA, Soll/Fert., Status beschichtet, Arbeitsbereich bleiben standardmaessig eingeblendet („eingeblendet“ war gemeint). *(Gerald 2026-11-26 Chat)*
 4. → Im aufgeklappten Baum standardmaessig nur Baugruppen (SubFA != 0); Kaufteile/Material per Knopf (Button, kein Switch) „Teile anzeigen“/„Teile ausblenden“ einblenden. Frage zu Blaettern mit Arbeitsschritten nicht verstanden → Default der Empfehlung (sichtbar lassen) als Annahme, siehe Rueckfrage 10; Zaehler „n Teile ausgeblendet“ bleibt. *(Gerald 2026-11-26 Chat)*
-5. →
-6. →
-7. →
-8. →
-9. →
-10. →
+5. → Eingerueckt in denselben Spalten (Empfehlung), Kopf-Spalten in Baumzeilen leer. *(Gerald 2026-11-26 Chat)*
+6. → Badge „Kombigeraet“ + Kopf-Tabelle als Zeile darunter, ab zwei Koepfen (Regel der FA-Liste) (Empfehlung). *(Gerald 2026-11-26 Chat)*
+7. → Ein Knopf fuer die ganze Seite in der Toolbar, Zustand in der URL (Empfehlung). *(Gerald 2026-11-26 Chat)*
+8. → Alle Kopf-Spalten standardmaessig sichtbar (abweichend von der Empfehlung „6 sichtbar“); Labels wie FA-Liste („Fert.-Termin“). *(Gerald 2026-11-26 Chat)*
+9. → Legende als Popover + Hilfeseite, Langtext neben Zaehler auf die Hilfeseite, unter „Knoten hervorheben“ ein Satz (Empfehlung). *(Gerald 2026-11-26 Chat)*
+10. → Trotzdem anzeigen: Teile mit Arbeitsschritten bleiben auch bei „Teile ausblenden“ sichtbar (Empfehlung, Annahme bestaetigt). *(Gerald 2026-11-26 Chat)*
+
+## Kritische Pruefung (2026-11-26)
+
+Geprueft: Spec inkl. Freigabe-Antworten 1-10, Backlog-Notiz, Uebersicht, Teil 1 (Status), Stichproben im Buendel-Worktree.
+
+### BLOCKER
+
+- **B-1 Abhaengigkeit Teil 1 unbeantwortet.** `depends_on` Teil 1; die Kopfspalte `pps-status` haengt an Teil-1-Rueckfrage 4
+  (eigene Spalte oder „Sage-Status“), die Neu-Felder (`ab-position`, `dienstleister`, `ral` …) an Teil-1-Rueckfrage 2 — die
+  Freigabe-Antworten von [[2026-11-26-fa-liste-nur-hauptfa-und-fa-struktur-neu-teil-1-spec]] sind alle leer (Zeilen 311-315).
+  Mit Antwort 8 („alle Kopfspalten sichtbar“) ist offen, welche Spalten das ueberhaupt sind.
+  **Frage an Gerald:** Teil 1 zuerst beantworten und gemeinsam freigeben (Empfehlung) — oder Teil 2 entkoppeln: Kopfspalten
+  nur mit den heute vorhandenen FA-Listen-Keys (Kunde, KO-Termin, Fert.-Termin, Montage-Abt., AB-Nr., Prio, Liefertermin,
+  Status aus `OrderInfos.Status` unter neuem Key), Neu-Felder per Nachtrag nach Teil 1?
+
+### SOLLTE
+
+- **S-1 Antwort 8 nicht im Rumpf.** D-2-Tabelle (`prio`, `delivery-date`, Neu-Felder „ausgeblendet“), AK 4 („die weiteren
+  Kopfspalten ausgeblendet“) und D-7 („15 sichtbare Spalten“) widersprechen Antwort 8 (alle Kopfspalten sichtbar). Der Dev-Lauf
+  arbeitet nach dem Rumpf → vor dem Lauf nachziehen: alle Kopfspalten `DefaultHidden = false`, AK 4 neu: „Ohne gespeicherte
+  Praeferenz sind alle Spalten sichtbar (9 bisherige + alle Kopfspalten)“.
+- **S-2 Tabellenbreite.** Mit Antwort 8: 9 bisherige + 8 Kopfspalten + bis zu 7 Neu-Felder ≈ 24 sichtbare Spalten. An
+  Fertigungs-Terminals ist das ein langer Querscroll (eine Leiste nach v1.64.1, aber trotzdem). Vorschlag: AK ergaenzen
+  „bei 1280 px Breite bleiben Struktur und Matchcode beim Querscrollen sichtbar (Locked/sticky)“ — oder Antwort 8 bewusst
+  bestaetigen lassen. Kein Blocker, weil die Entscheidung klar ist; das Zahnrad nimmt Spalten zurueck.
+- **S-3 „vorbehaltlich Rueckfrage“ entfernen.** AK 3 (Rueckfrage 9), AK 6 (Rueckfrage 6), AK 8 (Annahme 10), AK 9 (Rueckfrage 7)
+  und D-5 („Annahme“) sind beantwortet — Vorbehalte streichen, damit die AK eindeutig pruefbar sind. Badge-Text vereinheitlichen:
+  Antwort 6 sagt „Kombigeraet“, D-3/AK 6 „mehrdeutig (Kombigeraet)“ bzw. „n Auftragskoepfe“ — Rumpf-Text ist feiner und deckt
+  Antwort 6 ab; so festschreiben.
+- **S-4 Hervorheben vs. ausgeblendete Teile.** Antwort 2 behaelt das Hervorheben-Feld; es sieht wie der Spaltenfilter nur
+  gerenderte Zeilen. Wer dort eine Teilenummer eingibt, findet bei ausgeblendeten Teilen nichts und bekommt keinen Hinweis
+  (D-5 meldet nur Filterkarte und Spaltenfilter). Vorschlag AK 10 ergaenzen: „Hervorheben ohne Treffer bei ausgeblendeten
+  Teilen zeigt denselben Hinweis wie der Spaltenfilter.“
+- **S-5 `freigabe_entscheidung` setzen** (Varianten-Spec): bei der Freigabe `D` eintragen.
+
+### HINWEIS
+
+- **H-1 Pagination belegt:** `site.js:126-135` baut die URL aus `window.location.href` und setzt nur `page` — `mitTeilen`
+  bleibt beim Blaettern erhalten. Der Vermerk „der Dev-Lauf belegt“ (D-5) ist damit erledigt.
+- **H-2 Pruefabfragen T-1..T-3** sind nicht gelaufen. Sie aendern keine Entscheidung mehr (Antworten 6 und 10 gelten
+  unabhaengig vom Ergebnis), liefern aber die Testdaten fuer die Szenarien (Kombigeraet, Kaufteil mit AG) — vor dem Manual-UAT laufen lassen.
+- **H-3 Groesse:** ~10 Dateien (2 Views, JS, CSS, Controller, TreeBuilder, ViewModel, ColumnDefinitions, 2-3 Tests, Hilfe) —
+  in einem Dev-Lauf machbar, kein Split noetig.
+- **H-4 Abschnitt „UI-Pruefung“** sagt noch „Variante B bleibt die Empfehlung“; der Nachtrag darunter stellt das richtig — so lassen (Historie).
+- **H-5 Deploy plausibel:** Web only, keine Migration, Manifest-Info ok; Text um „alle Spalten sichtbar, Zahnrad zum Ausblenden“ ergaenzen (S-1).
+
+**NACHBESSERUNG NOETIG: Teil 1 unbeantwortet (B-1) und Antwort 8 nicht in Rumpf/AK (S-1).**
