@@ -31,7 +31,7 @@ open_questions:
   - "3. (beantwortet Gerald 2026-11-26: Rueckfall auf Strukturwurzel; Reihenfolge siehe Rueckfrage 6) Matchcode der HauptFA-Zeile: bleibt Artikelstamm (Fallstrick „Listen lesen Article.Matchcode“), oder bei leerem Artikelstamm-Treffer Rueckfall auf den Matchcode der Strukturwurzel (wie Stueckliste Variante B)? Fehlende Endgeraete im Artikelstamm sind ein bekannter Mangel."
   - "4. (beantwortet Gerald 2026-11-26: eigene Spalte PPS-Status, Sage-Status unveraendert) Kopf-Status (FAInfos.Status): eigene Spalte „PPS-Status“ (Empfehlung) oder in die bestehende Spalte „Sage-Status“ (heute aus FAZusatzinformationen) einspielen? Haengt an Pruefabfrage S-1."
   - "5. (beantwortet Gerald 2026-11-26: unveraendert) AKE-Spalten ohne IDEAL-Quelle (Werkbank, Kaeltemittel, Ventil, Ausfuehrung E/Z, Maschine, ggf. Sage-Status): im hierarchischen Modus unveraendert lassen (Empfehlung) oder ausblenden?"
-  - "6. Konflikt Antwort 3 vs. Code: Die Antwort sagt „Artikelstamm zuerst, Strukturwurzel als Rueckfall“, die genannte Stueckliste v1.62.0 macht es umgekehrt (Strukturknoten zuerst, Artikelstamm als Rueckfall, PickingController.cs:353, :555). Spec baut nach dem Wortlaut der Antwort — so lassen oder Reihenfolge wie Stueckliste? (Wirkt nur, wenn beide Quellen befuellt sind und sich unterscheiden; nicht blockierend.)"
+  - "6. (beantwortet Gerald 2026-11-26: wie Stueckliste, Struktur zuerst) Konflikt Antwort 3 vs. Code: Die Antwort sagt „Artikelstamm zuerst, Strukturwurzel als Rueckfall“, die genannte Stueckliste v1.62.0 macht es umgekehrt (Strukturknoten zuerst, Artikelstamm als Rueckfall, PickingController.cs:353, :555). Spec baut nach dem Wortlaut der Antwort — so lassen oder Reihenfolge wie Stueckliste? (Wirkt nur, wenn beide Quellen befuellt sind und sich unterscheiden; nicht blockierend.)"
 epic: false
 etappen: []
 deploy:
@@ -60,8 +60,8 @@ dann an genau einem Ort (FA-Struktur), statt doppelt.
 - 17 neue, per Default ausgeblendete Spalten aus Auftragskopf (`FaHierarchyOrderInfo`) und Strukturwurzel
   (`FaHierarchyNode`, `SubFA == HauptFA`) gemaess Mapping-Tabelle (16 „ja“ + Material, Freigabe-Antwort 2),
   je mit Server-Spaltenfilter.
-- Matchcode der HauptFA-Zeile: Artikelstamm, bei fehlendem/leerem Treffer Rueckfall auf den Matchcode der
-  Strukturwurzel (Freigabe-Antwort 3).
+- Matchcode der HauptFA-Zeile: getrimmter Matchcode der Strukturwurzel, bei leer Rueckfall auf den Artikelstamm
+  (Freigabe-Antworten 3 und 6, Reihenfolge wie Stueckliste `PickingController.cs:353`).
 - Eigene Spalte „PPS-Status“ (`pps-status`) aus dem Auftragskopf; „Sage-Status“ bleibt unveraendert (Freigabe-Antwort 4).
 - Knopf je Zeile „FA-Struktur“ → `/FaHierarchy?filterHauptFa=<HauptFA>`.
 - Banner fuer Auftraege ohne HauptFA-Zeile (melden statt still verschwinden lassen).
@@ -139,7 +139,7 @@ dann an genau einem Ort (FA-Struktur), statt doppelt.
 | F6 | Banner `alert-warning` mit Text, wenn offene Auftraege ohne HauptFA-Zeile existieren: „n Auftraege ohne HauptFA-Zeile werden in der FA-Liste nicht angezeigt – Struktur unter FA-Struktur.“ Gezaehlt mit demselben `showDone`-Filter. |
 | F7 | Spalte „Uebergeordnete Sub-FA“ (`parent-sub-order-number`) entfaellt im hierarchischen Modus (an der HauptFA-Zeile immer leer). |
 | F8 | AKE (Master false): Liste, Spalten, Zahnrad-Inhalt und gespeicherte Praeferenzen unveraendert. |
-| F9 | Matchcode (`matchcode`) der HauptFA-Zeile: Artikelstamm-Wert (`MatchcodeLookup`); ist er null/leer, der getrimmte `Matchcode` der Strukturwurzel (leer → null). Der Spaltenfilter `matchcode` wirkt auf diesen angezeigten Wert. Reihenfolge nach Wortlaut Freigabe-Antwort 3 (Konflikt zur Stueckliste siehe Rueckfrage 6). |
+| F9 | Matchcode (`matchcode`) der HauptFA-Zeile: getrimmter `Matchcode` der Strukturwurzel; ist er null/leer, der Artikelstamm-Wert (`MatchcodeLookup`). Der Spaltenfilter `matchcode` wirkt auf diesen angezeigten Wert. Reihenfolge wie Stueckliste (`PickingController.cs:353`, `:555`), Freigabe-Antwort 6. |
 | F10 | Kopf-`Status` als eigene Spalte „PPS-Status“ (`pps-status`); die Spalte „Sage-Status“ (`sage-status`, `ExtraInfo.SageStatus`) bleibt in Quelle, Label und Default unveraendert (Freigabe-Antwort 4). |
 | F11 | AKE-Spalten Werkbank, Kaeltemittel, Ventil, Ausfuehrung E/Z, Maschine, Sage-Status bleiben im hierarchischen Modus unveraendert (Freigabe-Antwort 5). |
 
@@ -218,8 +218,7 @@ Kopfdaten-Abfrage, ein neuer Batch-Read, vorhandenes Postfilter-Muster.
    `GetByHauptFaKeysAsync` (`:263`) ueber dieselben `hauptFaKeys` — also **vor** `MapItem` und vor den Postfiltern
    (bei Postfiltern ueber alle Gruppen, `:240-241`). Ergebnis-Zeilen wie heute mappen; `MapItem` bekommt Kopf und
    Wurzel durchgereicht und setzt die neuen Felder nur bei eindeutigem Kopf (Kopf-Felder) bzw. vorhandener Wurzel.
-   Matchcode (F9): `matchcodes.GetValueOrDefault(r.ArticleNumber ?? "")`, bei null/leer `root?.Matchcode?.Trim()`
-   (leer → null) — nach dem Postfilter-Muster `:527` filtert `matchcode` dann den angezeigten Wert.
+   Matchcode (F9): `root?.Matchcode?.Trim()` (leer → null), bei null `matchcodes.GetValueOrDefault(r.ArticleNumber ?? "")` — nach dem Postfilter-Muster `:527` filtert `matchcode` dann den angezeigten Wert.
    `vm.Items = listGroups.SelectMany(g => g.Items)`, `vm.Hierarchical = true` bleibt
    (FA-Nr.-Zelle, Badges), neu `vm.OhneHauptFaZeile = n`, `IsAmbiguous` je Item fuer F4. ~~neu `vm.NurHauptFa = true`~~
    *(ueberholt: ohne Schalter ist hierarchisch = nur HauptFA, kein eigenes Flag; Freigabe-Antwort 1)*.
@@ -308,8 +307,8 @@ Keine — reine Lese-Aenderung, keine Entitaet wird geschrieben. Spalten-Praefer
 10. AKE (Master false): FA-Liste unveraendert — gleiche Spalten, gleiche Zeilen, kein FA-Struktur-Knopf, keine neuen Zahnrad-Eintraege.
 11. `ColumnDefinitions.ProductionOrders` und `#column-config` sind deckungsgleich (Drift-Waechter-Test gruen).
 12. Kein Schreibzugriff: Diff enthaelt keine Migration, keine SQL-Datei, keine Aenderung im Service-Projekt.
-13. Build + alle Tests gruen; neue Tests: Repository `nurHauptFa` (Sub-FA-Nummer findet HauptFA, Sub-FA-Zeilen ausgeschlossen), Postfilter je neuem Key-Typ, Matchcode-Rueckfall (Artikelstamm-Treffer gewinnt; ohne Treffer bzw. leer → getrimmter Wurzel-Matchcode; beides leer → leer).
-14. Matchcode: HauptFA-Zeile mit Artikelstamm-Treffer zeigt den Artikelstamm-Matchcode; ohne Treffer (oder leerer Matchcode) den Matchcode der Strukturwurzel; der Spaltenfilter `matchcode` findet auch Zeilen, deren Wert aus der Wurzel kommt.
+13. Build + alle Tests gruen; neue Tests: Repository `nurHauptFa` (Sub-FA-Nummer findet HauptFA, Sub-FA-Zeilen ausgeschlossen), Postfilter je neuem Key-Typ, Matchcode-Rueckfall (Wurzel-Matchcode gewinnt, getrimmt; Wurzel leer → Artikelstamm; beides leer → leer).
+14. Matchcode: HauptFA-Zeile mit Matchcode an der Strukturwurzel zeigt diesen (getrimmt), auch wenn der Artikelstamm einen anderen hat; ist die Wurzel leer, den Artikelstamm-Matchcode; der Spaltenfilter `matchcode` findet den angezeigten Wert aus beiden Quellen.
 15. Spalte „PPS-Status“ (`pps-status`) zeigt `FaHierarchyOrderInfo.Status` bei genau einem Kopf; „Sage-Status“ (`sage-status`) ist in Quelle, Label und Default-Sichtbarkeit unveraendert.
 16. Werkbank, Kaeltemittel, Ventil, Ausfuehrung E/Z, Maschine und Sage-Status sind im hierarchischen Modus unveraendert (gleiche Spalten, gleiche Quelle, gleiche Default-Sichtbarkeit wie vorher).
 17. Die Gruppenansicht der FA-Liste ist entfernt: kein `data-hierarchical`, kein Include `fa-liste-wiederholung.js`/`fa-liste-gruppierung.js` in `ProductionOrders/Index.cshtml`; FaCompletion, FaWorklist und Leitstand gruppieren unveraendert.
@@ -322,7 +321,7 @@ abgeloest“ kennzeichnen, nicht loeschen.
 
 - **Vorbedingung:** IDEAL-Testsystem, Master an, mind. ein normaler HauptFA, ein Kombigeraet, ein HauptFA mit Lackierteilen; Benutzer mit Picking-Recht und einer nur mit Tracking-Recht.
 - **Positiv:** nur HauptFA-Zeilen (AK 1/2); Sub-FA-Nummer suchen (AK 3); ohne Praeferenz sind die 17 neuen Spalten ausgeblendet, je eine K-, W-, Datums- und Zahl-Spalte sowie „Material“ einblenden, Wert gegen FA-Struktur-Kopf/-Wurzel pruefen, filtern (AK 5); PPS-Status neben unveraendertem Sage-Status (AK 15); Knopf FA-Struktur (AK 7); Reload behaelt Zahnrad-Auswahl.
-- **Matchcode:** HauptFA mit Artikelstamm-Eintrag → Artikelstamm-Wert; Endgeraet ohne Artikelstamm-Eintrag → Matchcode der Strukturwurzel, Spaltenfilter darauf trifft (AK 14). Vorab per SQL ein Endgeraet ohne Artikelstamm-Treffer suchen (`ProductionOrders` HauptFA-Zeile, `ArticleNumber` nicht in `Articles`).
+- **Matchcode:** HauptFA mit Matchcode an der Wurzel → Wurzel-Wert (auch bei abweichendem Artikelstamm); Wurzel ohne Matchcode → Artikelstamm-Wert; Endgeraet ohne Artikelstamm-Eintrag → Wurzel-Wert, Spaltenfilter darauf trifft (AK 14). Vorab per SQL ein Endgeraet ohne Artikelstamm-Treffer suchen (`ProductionOrders` HauptFA-Zeile, `ArticleNumber` nicht in `Articles`).
 - **Kombigeraet:** AK 6.
 - **Negativ:** Auftrag ohne HauptFA-Zeile → Banner (AK 8); Filter ohne Treffer → Leerzustand mit korrektem colspan; AKE-Spalten an der IDEAL unveraendert (AK 16); AKE-Testsystem unveraendert (AK 10); FaCompletion/FaWorklist/Leitstand gruppieren weiter (AK 17); Benutzer ohne FA-Listen-Recht → kein Zugriff wie bisher.
 
@@ -341,7 +340,7 @@ abgeloest“ kennzeichnen, nicht loeschen.
 - **Migration:** nein
 - **Manifest-Eintraege** (`scripts/deploy/nachlauf.psd1`):
   - Id `fa-liste-nur-hauptfa-info`, Version = Version des Laufs, Typ `Info`, Firma `IDEAL`, Phase `Nachher`, Ausfuehrung `anzeigen`,
-    Text „FA-Liste zeigt nur noch HauptFA-Zeilen; Sub-FAs ueber den Knopf FA-Struktur. 17 weitere Strukturfelder (u. a. PPS-Status, RAL, Material) per Zahnrad einblendbar. Matchcode faellt bei fehlendem Artikelstamm auf die Strukturwurzel zurueck.“
+    Text „FA-Liste zeigt nur noch HauptFA-Zeilen; Sub-FAs ueber den Knopf FA-Struktur. 17 weitere Strukturfelder (u. a. PPS-Status, RAL, Material) per Zahnrad einblendbar. Matchcode kommt bevorzugt aus der FA-Struktur, sonst aus dem Artikelstamm (wie Stueckliste).“
 - **Publish-Befehle:** `dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWMSWeb` (im Worktree)
 
 ## Offene Rueckfragen
@@ -351,7 +350,7 @@ abgeloest“ kennzeichnen, nicht loeschen.
 3. *(beantwortet, Freigabe-Antwort 3: Rueckfall auf Strukturwurzel; Reihenfolge → Rueckfrage 6)* Matchcode der HauptFA-Zeile: bleibt Artikelstamm (dokumentierte Festlegung fuer Listen), oder bei fehlendem Artikelstamm-Treffer Rueckfall auf den Matchcode der Strukturwurzel (wie Stueckliste Variante B seit v1.62.0)? Gefertigte Endgeraete fehlen evtl. im Artikelstamm, dann bleibt die Spalte an genau diesen Zeilen leer.
 4. *(beantwortet, Freigabe-Antwort 4: eigene Spalte PPS-Status)* Kopf-Status (`FAInfos.Status`): eigene Spalte „PPS-Status“ (Empfehlung) oder im hierarchischen Modus in die bestehende Spalte „Sage-Status“ (heute `ExtraInfo.SageStatus` aus FAZusatzinformationen)? Ergebnis von S-1 bitte dazunehmen.
 5. *(beantwortet, Freigabe-Antwort 5: unveraendert)* AKE-Spalten ohne bekannte IDEAL-Quelle (Werkbank, Kaeltemittel, Ventil, Ausfuehrung E/Z, Maschine, ggf. Sage-Status) im hierarchischen Modus unveraendert lassen (Empfehlung, kleinster Eingriff) oder ausblenden?
-6. **Neu (Rework 2026-11-26) — Konflikt Antwort 3 vs. Code:** Antwort 3 lautet „Artikelstamm zuerst, bei fehlendem Treffer Matchcode der Strukturwurzel (wie Stueckliste v1.62.0)“. Die Stueckliste macht es aber **umgekehrt**: Strukturknoten zuerst, Artikelstamm nur als Rueckfall (`PickingController.cs:353`, `:555`). Die Spec baut nach dem Wortlaut der Antwort (F9). Soll es so bleiben, oder wie in der Stueckliste der Strukturknoten Vorrang haben? Unterschied nur, wenn beide Quellen einen Matchcode haben und sie sich unterscheiden; Umstellen waere das Tauschen der zwei Quellen in einer Zeile. Nicht blockierend.
+6. *(beantwortet, Freigabe-Antwort 6: Struktur zuerst)* **Neu (Rework 2026-11-26) — Konflikt Antwort 3 vs. Code:** Antwort 3 lautet „Artikelstamm zuerst, bei fehlendem Treffer Matchcode der Strukturwurzel (wie Stueckliste v1.62.0)“. Die Stueckliste macht es aber **umgekehrt**: Strukturknoten zuerst, Artikelstamm nur als Rueckfall (`PickingController.cs:353`, `:555`). Die Spec baut nach dem Wortlaut der Antwort (F9). Soll es so bleiben, oder wie in der Stueckliste der Strukturknoten Vorrang haben? Unterschied nur, wenn beide Quellen einen Matchcode haben und sie sich unterscheiden; Umstellen waere das Tauschen der zwei Quellen in einer Zeile. Nicht blockierend.
 
 ## ANTWORTEN auf Rueckfragen - Fachbereich (aus Jira)
 
@@ -364,4 +363,42 @@ abgeloest“ kennzeichnen, nicht loeschen.
 3. → Rueckfall auf den Matchcode der Strukturwurzel, wenn der Artikelstamm keinen Treffer hat (Empfehlung, wie Stueckliste v1.62.0). *(Gerald 2026-11-26 Chat)*
 4. → Eigene Spalte „PPS-Status“ (Empfehlung); „Sage-Status“ bleibt unveraendert. *(Gerald 2026-11-26 Chat)*
 5. → AKE-Spalten ohne IDEAL-Quelle unveraendert lassen (Empfehlung). *(Gerald 2026-11-26 Chat)*
-6. →
+6. → Wie Stueckliste: zuerst Matchcode der Strukturwurzel, Artikelstamm nur als Rueckfall (Empfehlung; korrigiert die Reihenfolge aus Antwort 3, die auf einer falschen Beschreibung der Stueckliste in der Chat-Frage beruhte). *(Gerald 2026-11-26 Chat)*
+
+## Kritische Pruefung (2026-11-26)
+
+Geprueft: Spec inkl. Freigabe-Antworten 1-6, Backlog, Uebersicht, Teil 2, Leitstand-Spec (Kopplung), Stichproben im Buendel-Worktree.
+
+### BLOCKER
+
+Keiner.
+
+### SOLLTE
+
+- **S-1 Antwort 6 im Rumpf — erledigt in diesem Durchgang.** F9 und der Loesungsentwurf waren nach Antwort 6 umgestellt,
+  AK 14, Matchcode-Testszenario und Manifest-Text sprachen noch von „Artikelstamm zuerst“. Vom Orchestrator nachgezogen
+  (Wurzel zuerst, Artikelstamm als Rueckfall, wie `PickingController.cs:353`). Bewusst gewollte Folge: weicht der
+  Struktur-Matchcode vom Artikelstamm ab, zeigt die FA-Liste jetzt den Strukturwert — Abweichung zum Fallstrick
+  „Listen lesen Article.Matchcode“; beim Brain-Update im Dev-Lauf `fallstricke.md` ergaenzen (FA-Liste IDEAL = wie Stueckliste).
+- **S-2 Kopplung an die Leitstand-Spec.** Parameter `nurHauptFa` und `CountGruppenOhneHauptFaAsync(showDone)` entstehen
+  in [[2026-11-26-beschichtung-summe-leitstand-hauptfa-kommissionierauftrag-liste-teil-2-spec]], die noch **unbeantwortet**
+  ist (dort u. a. Rueckfrage „Schalter Sub-FAs anzeigen“). „Wer zuerst baut, fuehrt ihn ein“ ist ok, aber die Signatur
+  muss in beiden Specs identisch festgeschrieben sein: `GetForLeitstandGroupedAsync(..., bool nurHauptFa = false)`,
+  `Task<int> CountGruppenOhneHauptFaAsync(bool showDone)`. Vorschlag: so in den Loesungsentwurf, damit Teil 1 auch allein baubar ist.
+- **S-3 Postfilter laden alle Gruppen.** Die 17 neuen Spalten sind C#-Postfilter; jeder aktive Filter darauf setzt
+  `hasHierarchicalPostFilters` und laedt **alle** Gruppen ungepaginiert (`ProductionOrdersController.cs:240-241`), dazu jetzt
+  Kopf- **und** Wurzel-Batch ueber alle HauptFA. Das ist das bestehende K1-Muster (kein neues Risiko in der Art), aber mehr
+  Last. Vorschlag AK: „Filter auf eine neue Spalte bei vollem IDEAL-Testbestand antwortet in unter 3 s“ (Messwert im QA-Nachweis).
+
+### HINWEIS
+
+- **H-1 `Contains` mit vielen Keys:** EF Core 10 uebersetzt `keys.Contains(..)` als JSON-Parameter (keine 2100-Grenze);
+  Muster `FaHierarchyOrderInfoRepository.cs:39-47` laeuft schon so. Kein Handlungsbedarf.
+- **H-2 Gespeicherte Praeferenzen mit `parent-sub-order-number`** (F7 entfernt die Spalte): Dev-Lauf pruefen, dass
+  `column-preferences.js` unbekannte Keys ignoriert (Testschritt „Benutzer mit alter Praeferenz“ ergaenzen).
+- **H-3 Pruefabfragen W-1..W-3, S-1** nicht gelaufen; keine Entscheidung haengt mehr daran, sie liefern Testdaten.
+- **H-4 Groesse:** ~12 Dateien (Repo + Cache-Decorator, Controller, ViewModel, 2 Views, ColumnDefinitions, ColumnFilterSyntax,
+  JS-Datei loeschen, Tests) — ein Dev-Lauf. Reihenfolge laut Uebersicht: Teil 1 vor Teil 2.
+- **H-5 Zusatzfund OSEON-Knopf** an der IDEAL bleibt bewusst draussen — als Backlog-Notiz festhalten, wenn gewuenscht.
+
+**BEREIT ZUR FREIGABE** (S-1 erledigt; S-2/S-3 sind Verbesserungen, die der Dev-Lauf mitnehmen kann).
