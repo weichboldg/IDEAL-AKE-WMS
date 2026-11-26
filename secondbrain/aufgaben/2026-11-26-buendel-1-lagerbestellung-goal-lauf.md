@@ -16,7 +16,7 @@ Start-Stand Worktree: v1.99.85 (c8814cdf), höchstes TS 206 (TS-205 reserviert f
 | [[2026-11-26-lagerbestellung-hinweis-fehlteil-bereits-bestellt-spec]] | Spec | – | 1.99.86 | 207 | **Testbereit** | 300dbf25, QA b7704475 | |
 | [[2026-11-26-beschichtung-summe-leitstand-hauptfa-kommissionierauftrag-liste-teil-1-spec]] | Spec | – | 1.99.87 | 205 | **Testbereit** | e67e9f6f, QA 9da4b0af | |
 | [[2026-11-26-beschichtung-summe-leitstand-hauptfa-kommissionierauftrag-liste-teil-2-spec]] | Spec | – | 1.99.88 | 208 | Testbereit | 5d7639dc, ebb16bd7 (QA-Fix); N-1 Teil 1 a89d98cc | |
-| [[2026-11-26-beschichtung-summe-leitstand-hauptfa-kommissionierauftrag-liste-teil-3-spec]] | Epic (A+B) | – | 1.99.89 (geplant) | | InUmsetzung | | |
+| [[2026-11-26-beschichtung-summe-leitstand-hauptfa-kommissionierauftrag-liste-teil-3-spec]] | Epic (A+B) | – | 1.99.89 | 209 | InUmsetzung (A erledigt, B läuft) | 98ea06fa | |
 
 ## Vorprüfung
 - Alle vier: status Freigegeben, worktree/branch leer, freigabe_* gesetzt, keine offenen BLOCKER in „Kritische Pruefung“
@@ -43,12 +43,14 @@ Start-Stand Worktree: v1.99.85 (c8814cdf), höchstes TS 206 (TS-205 reserviert f
   N-1 belegt (AKE BA-6 „1035“, IDEAL BA-12 „17“ ohne Klammer), Publish 1.99.88 (ebb16bd7). Befunde F-1..F-3 ohne Blocker.
 - 2026-11-26 Fotos Leitstand (ohne/mit Sub-FAs, Hinweis) + BA-12-Druck an Gerald; Brain Changelog
   [[2026-11-26-v1-99-88-leitstand-nur-hauptfa]] + feature-map. Teil 3 Etappe A gestartet.
+- 2026-11-26 Teil 3 Etappe A erledigt (98ea06fa, v1.99.89, TS-209): Build 0 Fehler, Tests 3843/1 skip + 848 (1 Reparaturrunde:
+  Wächter-Listen um neues Partial). Etappen-Tabelle 676c3c5f. Etappe B gestartet.
 
 ## Folgearbeit aus Befunden (Gerald 2026-11-26: „alle Befunde als Backlog, nach der Schluss-QA gleich Spec“)
 
 - [[2026-11-26-leitstand-kaskaden-zaehler-ohne-hauptfa]] (F-1), [[2026-11-26-leitstand-spaltenfilter-glas-zukauf-ohne-wirkung]] (F-2),
   [[2026-11-26-leitstand-hinweis-vk-spalte-breit]] (F-3), [[2026-11-26-beschichtungsauftrag-druck-ohne-fa-und-matchcode-abweichung]] (Teil 1 H-1/H-2),
-  [[2026-11-26-lagerbestellung-artikelnummer-varianten]] (Spec 1 H-1..H-3).
+  [[2026-11-26-lagerbestellung-artikelnummer-varianten]] (Spec 1 H-1..H-3), [[2026-11-26-kommissionierauftrag-filter-springt-auf-bom]] (Teil 3 Zusatzfund A).
 - **Nach der Schluss-QA (Teil 3) dieses Laufs: /spec für alle fünf** (Entwürfe nach specs/entwurf, Schranke 1 bleibt).
 
 ## Fuer spaetere Confluence-Uebernahme (geaenderte Kapitel)
