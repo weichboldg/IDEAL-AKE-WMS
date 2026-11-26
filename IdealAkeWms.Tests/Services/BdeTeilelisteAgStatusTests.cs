@@ -124,4 +124,17 @@ public class BdeTeilelisteAgStatusTests
         bg.Kinder.Should().BeEmpty();
         bg.KinderGesamt.Should().Be(2, "die View meldet „0 von 2 passen zum Filter“");
     }
+
+    // QA v1.99.81: Haupt-FA-Filter trifft Eltern und alle Kinder (gleicher Haupt-FA) – alle Teile bleiben, keine Treffer-Markierung, zugeklappt
+    [Fact]
+    public void Filter_HauptFa_AlleKinderBleiben_KeinTreffer()
+    {
+        var d = BdeTeilelisteService.Bauen(Baugruppe(), Array.Empty<FaHierarchyOrderInfo>(), "KA", Array.Empty<BdeTeilMeldung>(), KeineAuftraege,
+            null, false, new Dictionary<string, string> { ["hauptfa"] = "100" });
+
+        var bg = d.Zeilen.Single(z => z.Node.Matchcode == "Baugruppe");
+        bg.Kinder.Should().HaveCount(2).And.OnlyContain(k => !k.Treffer);
+        bg.KinderGesamt.Should().Be(2);
+        bg.Aufgeklappt.Should().BeFalse();
+    }
 }
