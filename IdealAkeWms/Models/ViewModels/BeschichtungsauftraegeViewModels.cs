@@ -125,8 +125,6 @@ public sealed class BeschichtungsauftragPrintViewModel
     public List<BeschichtungsauftragDruckZeile> Zeilen { get; init; } = new();
     /// <summary>Summenzeile „Summe Teile im Auftrag“ (S5): Summe aller Mengen.</summary>
     public decimal Summe => Zeilen.Sum(z => z.Menge);
-    /// <summary>Anzahl Auftragspositionen hinter der Summe (S5).</summary>
-    public int PositionenGesamt => Zeilen.Sum(z => z.Positionen);
     public string Barcode { get; init; } = string.Empty;
     public IReadOnlyList<string> VisibleColumns { get; init; } = new List<string>();
 

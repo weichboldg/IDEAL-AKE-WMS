@@ -510,7 +510,7 @@ public class BeschichtungsauftraegeControllerTests
         // v1.99.87 S1-S3: Pos. 1 (A1) + Pos. 3 (A1) summiert, Reihenfolge der ersten Position; Tiefe 3 vs 4 -> uneinheitlich
         vm.Zeilen.Select(z => (z.Artnr, z.Menge, z.Positionen, z.MasseUneinheitlich))
             .Should().Equal(("A1", 4m, 2, true), ("A2", 2m, 1, false));
-        (vm.Summe, vm.PositionenGesamt).Should().Be((6m, 3));
+        vm.Summe.Should().Be(6m);   // v1.99.88 N-1: nur Teilesumme
     }
 
     private static BeschichtungsauftragPosition Pos(int id, string? artnr, decimal menge, bool verpackt = false,

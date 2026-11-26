@@ -79,7 +79,8 @@
             // colspan der Summen-Beschriftung: Pos. + sichtbare Spalten vor Menge
             var vorMenge = 1 + new[] { "hauptartnr", "artnr", "matchcode", "breite", "hoehe", "tiefe" }.Count(Model.ShowCol);
             var mitMenge = Model.ShowCol("menge");
-            var summeText = $"{BeschichtungsauftragService.FormatMass(Model.Summe)} ({Model.PositionenGesamt} {(Model.PositionenGesamt == 1 ? "Position" : "Positionen")})";
+            // v1.99.88 Nachtrag N-1 (Gerald): nur die Teilesumme, keine Positionsanzahl in Klammern
+            var summeText = BeschichtungsauftragService.FormatMass(Model.Summe);
         }
         <table class="positions">
             <thead>

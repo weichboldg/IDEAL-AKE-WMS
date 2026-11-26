@@ -14908,13 +14908,13 @@ ORDER BY p.OhneFa, p.Position;
 
 - **TS-205.1 Summiert, Pos. laufend, Summenzeile (AK 1, 2):** Detailseite → Drucken → Artnr der 3er-Gruppe steht **einmal** mit Menge „10“,
   die andere Artnr mit „1“, Spalte Pos. 1, 2, … lückenlos. Am Tabellenende fett „Summe Teile im Auftrag“ unter der Menge-Spalte
-  „N (M Positionen)“ mit N = Summe aller Mengen, M = Anzahl Auftragspositionen (Prüfabfrage).
+  „N“ mit N = Summe aller Mengen (Prüfabfrage), **ohne** Positionsanzahl in Klammern (v1.99.88 Nachtrag N-1).
 - **TS-205.2 Verpackt-Zelle (AK 3):** Gruppe mit 2 von 3 Haken → „◩ 2 von 3 verpackt“; Gruppe alle verpackt → „☑ verpackt“; keine → „☐ offen“.
 - **TS-205.3 Freie Position getrennt (AK 4):** Die freie Position mit gleicher Artnr steht als eigene Zeile **zuletzt** mit Badge „ohne FA“.
 - **TS-205.4 Maße uneinheitlich (AK 5):** Gruppe mit abweichenden Maßen → eine Zeile mit den Maßen der ersten Position, in der Verpackt-Zelle
   als zweite Zeile umrandet „Maße uneinheitlich“. Danach per Zahnrad der Detailseite Breite, Höhe, Tiefe und Artnr. ausblenden, erneut
   drucken → Hinweis steht weiter in der Verpackt-Zelle.
-- **TS-205.5 Menge ausgeblendet (AK 6):** Spalte Menge per Zahnrad ausblenden, drucken → Summenzeile zeigt „Summe Teile im Auftrag N (M Positionen)“
+- **TS-205.5 Menge ausgeblendet (AK 6):** Spalte Menge per Zahnrad ausblenden, drucken → Summenzeile zeigt „Summe Teile im Auftrag N“
   in der Beschriftungszelle, die Tabelle bleibt bündig (Verpackt-Spalte unter Verpackt).
 - **TS-205.6 Mehrseitig (AK 7):** Auftrag mit so vielen Artikeln, dass der Ausdruck > 1 Seite hat → Druckvorschau: Kopfzeile auf jeder Seite,
   Summenzeile nur einmal am Ende der letzten Seite.
@@ -14924,7 +14924,7 @@ ORDER BY p.OhneFa, p.Position;
 - **TS-205.9 Beide Standorte (AK 12):** 205.1–205.7 auf DEV AKE und DEV IDEAL → gleiches Druckbild.
 - **TS-205.10 Ohne Artnr (AK 15):** Auftrag mit zwei Positionen ohne Artnr (verschiedener Matchcode, Mengen 2 und 3) → zwei eigene Zeilen mit
   „2“ und „3“ und eigenem Matchcode; beide zählen in der Summenzeile mit.
-- **TS-205.11 Eine Position (AK 2):** Auftrag mit genau einer Position → Summenzeile „… (1 Position)“ (Einzahl).
+- **TS-205.11 Eine Position (AK 2):** Auftrag mit genau einer Position → Summenzeile „Summe Teile im Auftrag N“ ohne Klammer (v1.99.88 N-1, Einzahl entfällt).
 - **Negativfälle:**
   - Auftrag im Entwurf → Drucken/PDF abgewiesen „Im Entwurf nicht druckbar — erst übergeben.“ (unverändert).
   - Detailseite des Auftrags → weiter jede Position einzeln mit eigenem Haken (AK 9).

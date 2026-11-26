@@ -128,7 +128,7 @@ Drucken und PDF gehen ab **Übergeben**. Das Blatt enthält:
   (ohne FA) und Positionen ohne Artikelnummer werden nicht mit anderen zusammengefasst. Letzte Spalte **Verpackt**: ☑ verpackt,
   ☐ offen oder ◩ *2 von 3 verpackt*; weichen die Maße eines Artikels ab, steht dort zusätzlich *Maße uneinheitlich*
   (gedruckt werden die Maße der ersten Position),
-- am Tabellenende die Zeile **Summe Teile im Auftrag** mit der Summe aller Mengen und der Anzahl Positionen, z. B. *11 (4 Positionen)*,
+- am Tabellenende die Zeile **Summe Teile im Auftrag** mit der Summe aller Mengen, z. B. *11* (seit 1.99.88 ohne Positionsanzahl),
 - unten rechts „Seite x von y“.
 
 Spalten, die man über das Zahnrad ausblendet, fehlen auch im Druck.
