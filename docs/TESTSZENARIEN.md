@@ -14723,7 +14723,8 @@ Kürzel IF.
    mehr möglich.“ und Knopf **Abschließen** (rot umrandet). Abschließen → Rückfrage → „Pause abgeschlossen.“; Buchung beendet, Ende = Pausenbeginn,
    keine Menge, Änderungsfelder gesetzt.
 3. Negativ: Abschließen einer Buchung von Werker B per manipuliertem Request → „gehört nicht …“, nichts geändert. Abschließen einer schon
-   fortgesetzten oder laufenden Buchung → „Diese Buchung ist nicht (mehr) pausiert – Seite neu laden.“
+   fortgesetzten oder laufenden Buchung → „Diese Buchung ist nicht (mehr) pausiert – Seite neu laden.“ Abschließen einer **fortsetzbaren**
+   eigenen Pause per Request (QA v1.99.81) → „Diese Pause ist fortsetzbar – bitte „Fortsetzen“ nutzen.“, nichts geändert.
 4. *BDE-Buchungen › Hängende Pausen* als Schichtleiter: alle nie fortgesetzten Pausen aller Werker, Filter „Pausiert bis einschließlich“,
    Spaltenfilter (Datum, Werker …), Blättern; **kein** Knopf Abschließen. Als BDE-Admin: Abschließen → grüne Meldung „Pause abgeschlossen – ohne
    Mengen …“, Zeile verschwindet. Negativ: ohne BDE-Rolle → kein Zugriff.

@@ -239,9 +239,13 @@ public class BdeTerminalController : Controller
 
     /// <summary>v1.99.81 (Entscheid 9): eigene haengende Pause abschliessen (nicht fortsetzbar: FA abgeholt, fremde Werkbank).</summary>
     [HttpPost, ValidateAntiForgeryToken]
-    public async Task<IActionResult> ClosePaused(int bookingId, int operatorId, int terminalId)
+    public async Task<IActionResult> ClosePaused(int bookingId, int operatorId, int workplaceId, int terminalId)
     {
         if (await FremdeBuchungAsync(bookingId, operatorId, terminalId) is { } fremd) return fremd;
+        // QA v1.99.81: wie der Kopf (_KopfBuchungen) – Abschliessen nur, wenn Fortsetzen an dieser Werkbank gesperrt ist; nicht nur im Browser
+        var wo = await _ctx.BdeBookings.Where(b => b.Id == bookingId).Select(b => b.WorkOperationId).FirstOrDefaultAsync();
+        if (wo is not int woId || await _bookingSvc.FortsetzenSperreAsync(woId, workplaceId) == null)
+            return Json(MapResult(BdeBookingResult.Invalid("Diese Pause ist fortsetzbar – bitte „Fortsetzen“ nutzen.")));
         return Json(MapResult(await _bookingSvc.ClosePausedAsync(bookingId)));
     }
 

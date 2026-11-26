@@ -342,12 +342,15 @@ public class BdeTerminalControllerTests
         await ctx.SaveChangesAsync();
         var c = CreateTerminalController(ctx);
 
-        Antwort(await c.ClosePaused(fremde.Id, ids.OperatorId, ids.TerminalId)).GetProperty("message").GetString().Should().Contain("gehört nicht");
-        Antwort(await c.ClosePaused(eigene.Id, ids.OperatorId, ids.TerminalId + 999)).GetProperty("message").GetString().Should().Contain("nicht dem angemeldeten Benutzer");
+        Antwort(await c.ClosePaused(fremde.Id, ids.OperatorId, ids.WorkplaceId, ids.TerminalId)).GetProperty("message").GetString().Should().Contain("gehört nicht");
+        Antwort(await c.ClosePaused(eigene.Id, ids.OperatorId, ids.WorkplaceId, ids.TerminalId + 999)).GetProperty("message").GetString().Should().Contain("nicht dem angemeldeten Benutzer");
+        // QA v1.99.81: fortsetzbare Pause → nur „Fortsetzen“, auch serverseitig (der Kopf zeigt „Abschließen“ nur bei Sperre)
+        Antwort(await c.ClosePaused(eigene.Id, ids.OperatorId, ids.WorkplaceId, ids.TerminalId)).GetProperty("message").GetString().Should().Contain("fortsetzbar");
         ctx.BdeBookings.AsNoTracking().Single(x => x.Id == fremde.Id).Status.Should().Be(BdeBookingStatus.Paused);
         ctx.BdeBookings.AsNoTracking().Single(x => x.Id == eigene.Id).Status.Should().Be(BdeBookingStatus.Paused);
 
-        await c.ClosePaused(eigene.Id, ids.OperatorId, ids.TerminalId);
+        await BdeBookingTestSeed.SetSageStatusAsync(ctx, ids.ProductionOrderId, "abgeholt");
+        await c.ClosePaused(eigene.Id, ids.OperatorId, ids.WorkplaceId, ids.TerminalId);
         ctx.BdeBookings.AsNoTracking().Single(x => x.Id == eigene.Id).Status.Should().Be(BdeBookingStatus.Finished);
     }
 

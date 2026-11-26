@@ -299,7 +299,7 @@
                     window.bdeBestaetigen('Pause von ' + z.dataset.bez + ' abschließen? Die Zeit bis zur Pause bleibt gebucht, es wird keine Menge gemeldet.',
                         'Abschließen', function () { ja(true); }, function () { ja(false); });
                 })) || !sperren()) return frei();
-                r = await post('/BdeTerminal/ClosePaused', { bookingId: id, operatorId: operatorId, terminalId: terminalId }); ok = 'Pause abgeschlossen.'; break;
+                r = await post('/BdeTerminal/ClosePaused', { bookingId: id, operatorId: operatorId, workplaceId: workplaceId, terminalId: terminalId }); ok = 'Pause abgeschlossen.'; break;
             default: return frei();
         }
         ergebnis(r, ok, frei);
