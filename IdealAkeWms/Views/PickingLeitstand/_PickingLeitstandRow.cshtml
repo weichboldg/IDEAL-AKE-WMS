@@ -15,6 +15,11 @@
     if (Model.Hierarchical) rowClass = ("fa-liste-node-row " + rowClass).Trim();
     // Kommissionierung nur am HauptFA (Spec 2026-09-25): Quelle ProductionOrder.IsSubFaOf (item.IsSubFa).
     var isHauptFaRow = Model.Hierarchical && !item.IsSubFa;
+    // v1.99.88 (Leitstand nur HauptFA, L10/Antwort 8): Sub-FAs bestimmen den zusammengefassten Wert mit -> Hinweis + Neuladen nach dem Speichern.
+    bool SubFaBestimmt(string key) => Model.NurHauptFa && item.SubFaBestimmt.Contains(key);
+    const string SubFaBestimmtText = "Sub-FA bestimmt den Wert weiter";
+    const string NurSubFaHinweis = "ändern mit „Sub-FAs anzeigen“";
+    var zusammenTitel = $"Zusammenfassung aus HauptFA und {item.SubFaAnzahl} Sub-FAs";
 }
 <tr class="@rowClass" data-group="@item.OrderNumber">
     @if (Model.LeitstandAktiv && Model.CanManagePickingRelease)
@@ -42,8 +47,13 @@
             }
         </td>
     }
-    <td>
+    <td data-csv-value="@faCellNumber">
         <strong>@faCellNumber</strong>
+        @if (Model.NurHauptFa && item.SubFaAnzahl > 0)
+        {
+            @* L11: Text statt Farbe — die Werte dieser Zeile sind zusammengefasst. *@
+            <span class="small text-body-secondary text-nowrap ms-1" title="Lack-T, Glas, Zukauf, VK–VA zusammengefasst aus HauptFA und Sub-FAs (inkl. erledigter)">+ @item.SubFaAnzahl Sub-FA@(item.SubFaAnzahl == 1 ? "" : "s")</span>
+        }
         @if (Model.Hierarchical && item.SageMissingSince.HasValue)
         {
             <span class="badge bg-warning text-dark ms-1" title="Seit @item.SageMissingSince.Value.ToString("dd.MM.yyyy") nicht mehr in der Struktur gemeldet — Rückmeldung weiterhin möglich">vermisst seit @item.SageMissingSince.Value.ToString("dd.MM.yyyy")</span>
@@ -99,61 +109,65 @@
     </td>
     <td>@FormatDateWithKw(item.ProductionDate)</td>
     <td>@FormatDateWithKw(item.DeliveryDate)</td>
-    <td class="text-center">
+    @{
+        var lackNurSubFa = Model.NurHauptFa && item.LackNurSubFa;
+    }
+    <td class="text-center" data-neu-laden="@(SubFaBestimmt("IsCoatingDone") ? "true" : null)">
         @if (item.HasCoatingParts)
         {
+            @* W3 (Antwort 9b): HauptFA-Zeile ohne eigene Lackteile -> gesperrt, Pflege ueber „Sub-FAs anzeigen“. *@
             <input type="checkbox" class="form-check-input toggle-field"
                    data-id="@item.Id"
                    data-endpoint="/api/picking-status/toggle"
                    data-field="IsCoatingDone"
-                   title="Lackierteile erledigt"
-                   @(item.IsCoatingDone ? "checked" : "") @(!Model.CanPick ? "disabled" : "") />
+                   title="@(lackNurSubFa ? "Lackteile nur an Sub-FAs – " + NurSubFaHinweis : SubFaBestimmt("IsCoatingDone") ? SubFaBestimmtText + " – " + zusammenTitel : "Lackierteile erledigt")"
+                   @(item.IsCoatingDone ? "checked" : "") @(!Model.CanPick || lackNurSubFa ? "disabled" : "") />
+            @if (lackNurSubFa)
+            {
+                <div class="small text-body-secondary lh-sm">Lackteile nur an Sub-FAs – @NurSubFaHinweis</div>
+            }
+            else if (SubFaBestimmt("IsCoatingDone"))
+            {
+                <div class="small text-body-secondary lh-sm">@SubFaBestimmtText</div>
+            }
         }
     </td>
-    <td class="text-center">
-        <input type="checkbox" class="form-check-input toggle-field"
-               data-id="@item.Id"
-               data-endpoint="/api/picking-status/toggle"
-               data-field="HasGlass"
-               @(item.HasGlass ? "checked" : "") @(!Model.CanPick ? "disabled" : "") />
-    </td>
-    <td class="text-center">
-        <input type="checkbox" class="form-check-input toggle-field"
-               data-id="@item.Id"
-               data-endpoint="/api/picking-status/toggle"
-               data-field="HasExternalPurchase"
-               @(item.HasExternalPurchase ? "checked" : "") @(!Model.CanPick ? "disabled" : "") />
-    </td>
-    <td class="text-center">
-        @if (item.WorkSteps.TryGetValue("VK", out var vk))
-        {
-            @await Html.PartialAsync("_FaWorkStepStatusSelect", new IdealAkeWms.Models.ViewModels.FaWorkStepStatusSelectViewModel { FaWorkStepId = vk.FaWorkStepId, Status = vk.Status, Disabled = !Model.CanPick })
-        }
-    </td>
-    <td class="text-center">
-        @if (item.WorkSteps.TryGetValue("VL", out var vl))
-        {
-            @await Html.PartialAsync("_FaWorkStepStatusSelect", new IdealAkeWms.Models.ViewModels.FaWorkStepStatusSelectViewModel { FaWorkStepId = vl.FaWorkStepId, Status = vl.Status, Disabled = !Model.CanPick })
-        }
-    </td>
-    <td class="text-center">
-        @if (item.WorkSteps.TryGetValue("VE", out var ve))
-        {
-            @await Html.PartialAsync("_FaWorkStepStatusSelect", new IdealAkeWms.Models.ViewModels.FaWorkStepStatusSelectViewModel { FaWorkStepId = ve.FaWorkStepId, Status = ve.Status, Disabled = !Model.CanPick })
-        }
-    </td>
-    <td class="text-center">
-        @if (item.WorkSteps.TryGetValue("VT", out var vt))
-        {
-            @await Html.PartialAsync("_FaWorkStepStatusSelect", new IdealAkeWms.Models.ViewModels.FaWorkStepStatusSelectViewModel { FaWorkStepId = vt.FaWorkStepId, Status = vt.Status, Disabled = !Model.CanPick })
-        }
-    </td>
-    <td class="text-center">
-        @if (item.WorkSteps.TryGetValue("VA", out var va))
-        {
-            @await Html.PartialAsync("_FaWorkStepStatusSelect", new IdealAkeWms.Models.ViewModels.FaWorkStepStatusSelectViewModel { FaWorkStepId = va.FaWorkStepId, Status = va.Status, Disabled = !Model.CanPick })
-        }
-    </td>
+    @foreach (var (feld, wert) in new[] { ("HasGlass", item.HasGlass), ("HasExternalPurchase", item.HasExternalPurchase) })
+    {
+        <td class="text-center" data-neu-laden="@(SubFaBestimmt(feld) ? "true" : null)">
+            <input type="checkbox" class="form-check-input toggle-field"
+                   data-id="@item.Id"
+                   data-endpoint="/api/picking-status/toggle"
+                   data-field="@feld"
+                   title="@(SubFaBestimmt(feld) ? SubFaBestimmtText + " – " + zusammenTitel : null)"
+                   @(wert ? "checked" : "") @(!Model.CanPick ? "disabled" : "") />
+            @if (SubFaBestimmt(feld))
+            {
+                <div class="small text-body-secondary lh-sm">@SubFaBestimmtText</div>
+            }
+        </td>
+    }
+    @foreach (var code in new[] { "VK", "VL", "VE", "VT", "VA" })
+    {
+        var hatAg = item.WorkSteps.TryGetValue(code, out var ag);
+        // W4: Arbeitsgang nur an Sub-FAs (FaWorkStepId 0) -> gesperrt, zeigt die Zusammenfassung.
+        var nurSubFaAg = hatAg && ag!.FaWorkStepId == 0;
+        <td class="text-center" data-neu-laden="@(SubFaBestimmt(code) ? "true" : null)"
+            title="@(nurSubFaAg ? "Arbeitsgang nur an Sub-FAs – " + NurSubFaHinweis : SubFaBestimmt(code) ? SubFaBestimmtText + " – " + zusammenTitel : null)">
+            @if (hatAg)
+            {
+                @await Html.PartialAsync("_FaWorkStepStatusSelect", new IdealAkeWms.Models.ViewModels.FaWorkStepStatusSelectViewModel { FaWorkStepId = ag!.FaWorkStepId, Status = ag.Status, Disabled = !Model.CanPick || nurSubFaAg })
+                @if (nurSubFaAg)
+                {
+                    <div class="small text-body-secondary lh-sm">Arbeitsgang nur an Sub-FAs – @NurSubFaHinweis</div>
+                }
+                else if (SubFaBestimmt(code))
+                {
+                    <div class="small text-body-secondary lh-sm">@SubFaBestimmtText</div>
+                }
+            }
+        </td>
+    }
     <td>
         @if (item.IsDone)
         {
@@ -236,6 +250,17 @@
                     }
                 </button>
             </form>
+        }
+        @if (Model.Hierarchical && isHauptFaRow && Model.CanPick && Model.NurHauptFa && item.SubFaAnzahl > 0)
+        {
+            @* v1.99.88 (L3/S-4): Kaskade aus der Zeile statt dem Gruppenkopf, gleicher Dialog (Skript sucht .btn-cascade-done). *@
+            <button type="button" class="btn btn-sm btn-outline-success ms-1 btn-cascade-done"
+                    data-order-number="@item.OrderNumber"
+                    title="Alle Sub-FAs dieser HauptFA fertigmelden (BDE)">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16" class="me-1" aria-hidden="true">
+                    <path d="M12.736 3.97a.733.733 0 0 1 1.047 0c.286.289.29.756.01 1.05L7.88 12.01a.733.733 0 0 1-1.065.02L3.217 8.384a.757.757 0 0 1 0-1.06.733.733 0 0 1 1.047 0l3.052 3.093 5.4-6.425z"/>
+                </svg>Alle Sub-FAs fertigmelden
+            </button>
         }
     </td>
     @if (Model.LeitstandAktiv && Model.CanManagePickingRelease)

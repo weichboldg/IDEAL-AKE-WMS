@@ -31,6 +31,16 @@ public class PickingLeitstandViewModel
     public List<PickingLeitstandGroup> Groups { get; set; } = new();
     /// <summary>Anzahl aller Sub-FA-Zeilen auf der Filterauswahl (Z4: „N Aufträge · M Sub-FAs").</summary>
     public int HierarchicalRowCount { get; set; }
+
+    // v1.99.88 (Spec 2026-11-26 Leitstand nur HauptFA, Teil 2)
+    /// <summary>Hierarchisch ohne Schalter: eine Zeile je HauptFA (Items, kein Gruppenkopf), Werte zusammengefasst.</summary>
+    public bool NurHauptFa { get; set; }
+    /// <summary>Schalter „Sub-FAs anzeigen“ (URL mitSubFa=true): heutige Gruppenansicht.</summary>
+    public bool MitSubFa { get; set; }
+    /// <summary>Banner L5: offene Auftraege ohne HauptFA-Zeile (CountGruppenOhneHauptFaAsync).</summary>
+    public int GruppenOhneHauptFa { get; set; }
+    /// <summary>FA-Nr.-Filter (Karte oder Spalte) gesetzt — fuer den Hinweis bei 0 Treffern (L2, S-2).</summary>
+    public bool FaNrFilterGesetzt { get; set; }
 }
 
 /// <summary>Eine HauptFA-Gruppe des Leitstands im hierarchischen Modus.</summary>
@@ -57,6 +67,8 @@ public class PickingLeitstandRowContext
     public bool BeschichtungAktiv { get; set; }
     /// <summary>true → order-number-Zelle zeigt SubOrderNumber, Elternspalte + SageMissingSince-Badge aktiv.</summary>
     public bool Hierarchical { get; set; }
+    /// <summary>v1.99.88: Nur-HauptFA-Ansicht — Zusammenfassungs-Hinweise und Kaskaden-Knopf in der Zeile.</summary>
+    public bool NurHauptFa { get; set; }
 }
 
 public class PickingLeitstandItem
@@ -126,4 +138,12 @@ public class PickingLeitstandItem
     public DateTime? SageMissingSince { get; set; }
     /// <summary>Kommissionierung nur am HauptFA (Spec 2026-09-25) — aus ProductionOrder.IsSubFaOf, keine eigene Formel.</summary>
     public bool IsSubFa { get; set; }
+
+    // v1.99.88 (Leitstand nur HauptFA, LeitstandHauptFaZusammenfassung) — nur an der HauptFA-Zeile ohne Schalter befuellt.
+    /// <summary>Eingeflossene Sub-FA-Zeilen (nicht storniert, inkl. erledigter), L11.</summary>
+    public int SubFaAnzahl { get; set; }
+    /// <summary>Zellen (HasGlass, HasExternalPurchase, IsCoatingDone, VK…VA), deren Wert Sub-FAs mitbestimmen (Antwort 8).</summary>
+    public HashSet<string> SubFaBestimmt { get; set; } = new();
+    /// <summary>W3 (Antwort 9b): Lack-T nur an Sub-FAs — Lack-T-erledigt-Haken gesperrt.</summary>
+    public bool LackNurSubFa { get; set; }
 }

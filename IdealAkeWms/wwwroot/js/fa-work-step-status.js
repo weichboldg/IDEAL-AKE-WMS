@@ -25,6 +25,9 @@
             if (!resp.ok) {
                 sel.value = sel.dataset.prevValue || '0';
                 alert('Fehler beim Speichern.');
+            } else {
+                // v1.99.88: additiv — der Leitstand laedt darauf neu (nur Zellen mit data-neu-laden); FA-Abarbeitungsliste hoert nicht darauf.
+                sel.dispatchEvent(new CustomEvent('wms:fa-status-gespeichert', { bubbles: true }));
             }
         }).catch(function () {
             sel.value = sel.dataset.prevValue || '0';

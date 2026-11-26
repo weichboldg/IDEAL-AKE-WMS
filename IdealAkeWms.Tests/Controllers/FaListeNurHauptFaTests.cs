@@ -57,6 +57,37 @@ public class FaListeNurHauptFaTests
         page.Groups.Should().ContainSingle().Which.Rows.Should().ContainSingle().Which.Id.Should().Be(1);
     }
 
+    // v1.99.88 (Spec 2026-11-26 Leitstand nur HauptFA, Teil 2, AK 18): faNrUeberSubFa=false -> nur die HauptFA-Nummer trifft.
+    [Theory]
+    [InlineData("100-2", 0)]
+    [InlineData("100", 1)]
+    public async Task NurHauptFa_OhneSubFaSuche_TrifftNurHauptFaNummer(string suche, int erwartet)
+    {
+        var page = await (await Repo()).GetForLeitstandGroupedAsync(suche, null, null, false, 1, 50, nurHauptFa: true, faNrUeberSubFa: false);
+        page.Groups.SelectMany(g => g.Rows).Should().HaveCount(erwartet);
+        if (erwartet == 1) page.Groups.Single().Rows.Single().Id.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task GetZeilenIdsJeAuftrag_HauptUndSubFa_InklErledigte_OhneStornierte()
+    {
+        var ctx = TestDbContextFactory.Create();
+        Seed(ctx, 1, "100", "100");
+        Seed(ctx, 2, "100", "100-1", isDone: true);
+        ctx.ProductionOrders.Add(new ProductionOrder
+        {
+            Id = 3, OrderNumber = "100", SubOrderNumber = "100-2", Quantity = 1, IsCancelled = true,
+            CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t"
+        });
+        Seed(ctx, 4, "200", "200");
+        await ctx.SaveChangesAsync();
+
+        var zeilen = await new ProductionOrderRepository(ctx).GetZeilenIdsJeAuftragAsync(new[] { "100" });
+
+        zeilen.Select(z => z.Id).Should().BeEquivalentTo(new[] { 1, 2 });
+        zeilen.Should().OnlyContain(z => z.OrderNumber == "100");
+    }
+
     [Fact]
     public async Task OhneNurHauptFa_Unveraendert_AlleZeilen()
     {

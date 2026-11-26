@@ -51,6 +51,8 @@ public class PickingLeitstandControllerTests
         _pickingOrderRepo.Setup(r => r.GetByProductionOrdersAsync(It.IsAny<IReadOnlyCollection<int>>())).ReturnsAsync(new Dictionary<int, List<PickingOrder>>());
         _articleRepo.Setup(a => a.GetMatchcodesByArticleNumbersAsync(It.IsAny<IReadOnlyCollection<string>>()))
             .ReturnsAsync(new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase));
+        _orderRepo.Setup(r => r.GetZeilenIdsJeAuftragAsync(It.IsAny<IReadOnlyCollection<string>>()))
+            .ReturnsAsync(new List<(int Id, string OrderNumber)>());
         _currentUser.Setup(x => x.GetDisplayName()).Returns("TestUser");
         _currentUser.Setup(x => x.GetWindowsUserName()).Returns("DOMAIN\\testuser");
 
@@ -171,14 +173,14 @@ public class PickingLeitstandControllerTests
 
         _orderRepo.Setup(r => r.GetForLeitstandGroupedAsync(
                 It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<bool>(),
-                It.IsAny<int>(), It.IsAny<int>(), It.IsAny<IReadOnlyDictionary<string, string>?>(), It.IsAny<bool>()))
+                It.IsAny<int>(), It.IsAny<int>(), It.IsAny<IReadOnlyDictionary<string, string>?>(), It.IsAny<bool>(), It.IsAny<bool>()))
             .ReturnsAsync(grouped);
         _pickingStatusRepo.Setup(r => r.GetByProductionOrderIdsAsync(It.IsAny<IEnumerable<int>>()))
             .ReturnsAsync(new Dictionary<int, ProductionOrderPickingStatus>());
         _faWorkStepRepo.Setup(r => r.GetWorkStepDetailPivotAsync(It.IsAny<List<int>>()))
             .ReturnsAsync(new Dictionary<int, Dictionary<string, FaWorkStepPivotCell>>());
 
-        var result = await _controller.Index(null, null, null, false, 1, null);
+        var result = await _controller.Index(null, null, null, false, 1, null, mitSubFa: true);
 
         var vm = ((ViewResult)result).Model.Should().BeOfType<PickingLeitstandViewModel>().Subject;
         vm.Hierarchical.Should().BeTrue();
@@ -229,14 +231,14 @@ public class PickingLeitstandControllerTests
             TotalRowCount: 1);
         _orderRepo.Setup(r => r.GetForLeitstandGroupedAsync(
                 It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<bool>(),
-                It.IsAny<int>(), It.IsAny<int>(), It.IsAny<IReadOnlyDictionary<string, string>?>(), It.IsAny<bool>()))
+                It.IsAny<int>(), It.IsAny<int>(), It.IsAny<IReadOnlyDictionary<string, string>?>(), It.IsAny<bool>(), It.IsAny<bool>()))
             .ReturnsAsync(grouped);
         _pickingStatusRepo.Setup(r => r.GetByProductionOrderIdsAsync(It.IsAny<IEnumerable<int>>()))
             .ReturnsAsync(new Dictionary<int, ProductionOrderPickingStatus>());
         _faWorkStepRepo.Setup(r => r.GetWorkStepDetailPivotAsync(It.IsAny<List<int>>()))
             .ReturnsAsync(new Dictionary<int, Dictionary<string, FaWorkStepPivotCell>>());
 
-        var result = await _controller.Index(null, null, "Mustermann", false, 1, null);
+        var result = await _controller.Index(null, null, "Mustermann", false, 1, null, mitSubFa: true);
 
         var vm = ((ViewResult)result).Model.Should().BeOfType<PickingLeitstandViewModel>().Subject;
         vm.Groups.Should().NotBeEmpty();
@@ -245,8 +247,72 @@ public class PickingLeitstandControllerTests
         // Repository gehen -- dort uebernimmt die SQL-Subquery gegen FaHierarchyOrderInfo die Suche.
         _orderRepo.Verify(r => r.GetForLeitstandGroupedAsync(
             null, null, "Mustermann", false,
-            It.IsAny<int>(), It.IsAny<int>(), It.IsAny<IReadOnlyDictionary<string, string>?>(), It.IsAny<bool>()),
+            It.IsAny<int>(), It.IsAny<int>(), It.IsAny<IReadOnlyDictionary<string, string>?>(), It.IsAny<bool>(), It.IsAny<bool>()),
             Times.Once);
+    }
+
+    // --- v1.99.88 (Spec 2026-11-26 Leitstand nur HauptFA, Teil 2) ---
+
+    [Fact]
+    public async Task Index_Hierarchical_OhneSchalter_NurHauptFa_FlacheZeilen_Zusammengefasst()
+    {
+        EnableHierarchical();
+        _orderRepo.Setup(r => r.GetForLeitstandGroupedAsync(
+                It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<bool>(),
+                It.IsAny<int>(), It.IsAny<int>(), It.IsAny<IReadOnlyDictionary<string, string>?>(), It.IsAny<bool>(), It.IsAny<bool>()))
+            .ReturnsAsync(new LeitstandOrderGroupedPage(
+                new List<LeitstandOrderGroup> { new("H1", new List<LeitstandOrderRow> { MakeRowH(1, "H1", "H1") }) },
+                TotalGroupCount: 1, TotalRowCount: 1));
+        _orderRepo.Setup(r => r.GetZeilenIdsJeAuftragAsync(It.IsAny<IReadOnlyCollection<string>>()))
+            .ReturnsAsync(new List<(int Id, string OrderNumber)> { (1, "H1"), (2, "H1"), (3, "H1") });
+        _orderRepo.Setup(r => r.CountGruppenOhneHauptFaAsync(false)).ReturnsAsync(4);
+        _pickingStatusRepo.Setup(r => r.GetByProductionOrderIdsAsync(It.IsAny<IEnumerable<int>>()))
+            .ReturnsAsync(new Dictionary<int, ProductionOrderPickingStatus> { { 1, MakePs(1) }, { 2, MakePs(2, hasGlass: true) }, { 3, MakePs(3) } });
+        _faWorkStepRepo.Setup(r => r.GetWorkStepDetailPivotAsync(It.IsAny<List<int>>()))
+            .ReturnsAsync(new Dictionary<int, Dictionary<string, FaWorkStepPivotCell>>
+            {
+                { 2, new() { ["VK"] = new FaWorkStepPivotCell(20, FaWorkStepStatus.Fertig) } },
+                { 3, new() { ["VK"] = new FaWorkStepPivotCell(30, FaWorkStepStatus.Offen) } },
+            });
+
+        var vm = (PickingLeitstandViewModel)((ViewResult)await _controller.Index(null, null, null, false, 1, null)).Model!;
+
+        vm.NurHauptFa.Should().BeTrue();
+        vm.Groups.Should().BeEmpty("eine Zeile je HauptFA ohne Gruppenkopf (L3)");
+        var item = vm.Items.Should().ContainSingle().Subject;
+        item.SubFaAnzahl.Should().Be(2);
+        item.HasGlass.Should().BeTrue("Z3: irgendeine Zeile");
+        item.WorkSteps["VK"].Should().Be(new FaWorkStepPivotCell(0, FaWorkStepStatus.InBearbeitung), "Z5 gemischt + W4");
+        vm.GruppenOhneHauptFa.Should().Be(4);
+        // Eine Id-Liste (HauptFA + Sub-FA) fuer Pivot und Statuszeilen.
+        _faWorkStepRepo.Verify(r => r.GetWorkStepDetailPivotAsync(It.Is<List<int>>(l => l.OrderBy(x => x).SequenceEqual(new[] { 1, 2, 3 }))), Times.Once);
+        _orderRepo.Verify(r => r.GetForLeitstandGroupedAsync(
+            null, null, null, false, It.IsAny<int>(), It.IsAny<int>(), It.IsAny<IReadOnlyDictionary<string, string>?>(), true, false), Times.Once);
+    }
+
+    [Fact]
+    public async Task Index_Hierarchical_MitSchalter_Gruppenansicht_OhneZusammenfassung()
+    {
+        EnableHierarchical();
+        _orderRepo.Setup(r => r.GetForLeitstandGroupedAsync(
+                It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<bool>(),
+                It.IsAny<int>(), It.IsAny<int>(), It.IsAny<IReadOnlyDictionary<string, string>?>(), It.IsAny<bool>(), It.IsAny<bool>()))
+            .ReturnsAsync(new LeitstandOrderGroupedPage(
+                new List<LeitstandOrderGroup> { new("H1", new List<LeitstandOrderRow> { MakeRowH(1, "H1", "H1"), MakeRowH(2, "H1", "H1-1") }) },
+                TotalGroupCount: 1, TotalRowCount: 2));
+        _pickingStatusRepo.Setup(r => r.GetByProductionOrderIdsAsync(It.IsAny<IEnumerable<int>>()))
+            .ReturnsAsync(new Dictionary<int, ProductionOrderPickingStatus> { { 2, MakePs(2, hasGlass: true) } });
+        _faWorkStepRepo.Setup(r => r.GetWorkStepDetailPivotAsync(It.IsAny<List<int>>()))
+            .ReturnsAsync(new Dictionary<int, Dictionary<string, FaWorkStepPivotCell>>());
+
+        var vm = (PickingLeitstandViewModel)((ViewResult)await _controller.Index(null, null, null, false, 1, null, mitSubFa: true)).Model!;
+
+        vm.NurHauptFa.Should().BeFalse();
+        vm.MitSubFa.Should().BeTrue();
+        vm.Groups.Single().Items.Single(i => i.Id == 1).HasGlass.Should().BeFalse("mit Schalter eigene Werte (L6)");
+        _orderRepo.Verify(r => r.GetZeilenIdsJeAuftragAsync(It.IsAny<IReadOnlyCollection<string>>()), Times.Never);
+        _orderRepo.Verify(r => r.GetForLeitstandGroupedAsync(
+            null, null, null, false, It.IsAny<int>(), It.IsAny<int>(), It.IsAny<IReadOnlyDictionary<string, string>?>(), false, false), Times.Once);
     }
 
     [Fact]
@@ -1049,7 +1115,7 @@ public class PickingLeitstandControllerTests
             .Returns((DateTime d, HashSet<DayOfWeek> _) => d);
         _orderRepo.Setup(r => r.GetForLeitstandGroupedAsync(
                 It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<bool>(),
-                It.IsAny<int>(), It.IsAny<int>(), It.IsAny<IReadOnlyDictionary<string, string>?>(), It.IsAny<bool>()))
+                It.IsAny<int>(), It.IsAny<int>(), It.IsAny<IReadOnlyDictionary<string, string>?>(), It.IsAny<bool>(), It.IsAny<bool>()))
             .ReturnsAsync(new LeitstandOrderGroupedPage(
                 new List<LeitstandOrderGroup> { new("1000", new List<LeitstandOrderRow> { MakeRowH(1, "1000", "1001"), MakeRowH(2, "1000", "1002") }) },
                 TotalGroupCount: 1, TotalRowCount: 2));
@@ -1061,7 +1127,7 @@ public class PickingLeitstandControllerTests
     }
 
     private async Task<List<PickingLeitstandItem>> HierarchischeZeilen() =>
-        ((PickingLeitstandViewModel)((ViewResult)await _controller.Index(null, null, null, false, 1, null)).Model!).Groups.Single().Items;
+        ((PickingLeitstandViewModel)((ViewResult)await _controller.Index(null, null, null, false, 1, null, mitSubFa: true)).Model!).Groups.Single().Items;
 
     [Fact]
     public async Task Index_Hierarchical_View_StartBeschichtungDesKopfs_NurMitLackFlag_AK7()

@@ -117,7 +117,7 @@ public class ProductionOrdersControllerTests
     private void SetupGrouped(LeitstandOrderGroupedPage page) =>
         _orderRepo.Setup(r => r.GetForLeitstandGroupedAsync(
                 It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<bool>(),
-                It.IsAny<int>(), It.IsAny<int>(), It.IsAny<IReadOnlyDictionary<string, string>?>(), It.IsAny<bool>()))
+                It.IsAny<int>(), It.IsAny<int>(), It.IsAny<IReadOnlyDictionary<string, string>?>(), It.IsAny<bool>(), It.IsAny<bool>()))
             .ReturnsAsync(page);
 
     private void SetupPickingStatuses(Dictionary<int, ProductionOrderPickingStatus> statuses) =>
@@ -677,8 +677,8 @@ public class ProductionOrdersControllerTests
         // (im Gegensatz zum Leitstand, siehe PickingLeitstandControllerTests).
         _orderRepo.Verify(r => r.GetForLeitstandGroupedAsync(
             null, null, null, false,
-            It.IsAny<int>(), It.IsAny<int>(), It.IsAny<IReadOnlyDictionary<string, string>?>(), true),
-            Times.Once);
+            It.IsAny<int>(), It.IsAny<int>(), It.IsAny<IReadOnlyDictionary<string, string>?>(), true, true),
+            Times.Once); // v1.99.88: FA-Liste behaelt die FA-Nr.-Suche ueber Sub-FA-Nummern (faNrUeberSubFa Default)
     }
 
     [Fact]

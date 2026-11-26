@@ -715,5 +715,12 @@ WHERE NOT EXISTS (SELECT 1 FROM dbo.Roles r WHERE r.[Key] = v.k);'
 @{ Id='fa-struktur-uebersicht-info'; Version='1.99.83'; Typ='Info'; Firma='IDEAL'; Phase='Nachher'; Ausfuehrung='anzeigen'
    Text='FA-Struktur: je HauptFA eine Zeile mit allen Auftragsdaten als Spalten, Arbeitsgaenge gleich nach dem Matchcode; Bezeichnung anfangs ausgeblendet, alles ueber das Zahnrad ein-/ausblendbar; Struktur und Matchcode bleiben beim Querscrollen stehen. FA-Liste ohne Zeichen "HauptFA". Baugruppen per Pfeil aufklappen, Kaufteile/Material ueber den Knopf "Teile anzeigen" (Teile mit Arbeitsschritten bleiben immer sichtbar). Gespeicherte Spalteneinstellungen bleiben, neue Spalten kommen sichtbar dazu.'
    Quelle='2026-11-26-fa-liste-nur-hauptfa-und-fa-struktur-neu-teil-2-spec' }
+@{ Id='Pruefung/LeitstandOhneHauptFaZeile'; Version='1.99.88'; Typ='Pruefung'; Firma='IDEAL'; Phase='Nachher'; Ausfuehrung='anzeigen'
+   Pruefung='SELECT COUNT(DISTINCT po.OrderNumber) FROM dbo.ProductionOrders po LEFT JOIN dbo.ProductionOrderPickingStatus ps ON ps.ProductionOrderId = po.Id WHERE po.IsDone = 0 AND po.IsCancelled = 0 AND ISNULL(ps.IsDonePicking, 0) = 0 AND NOT EXISTS (SELECT 1 FROM dbo.ProductionOrders h WHERE h.OrderNumber = po.OrderNumber AND (h.SubOrderNumber = N'''' OR h.SubOrderNumber = h.OrderNumber))'
+   Text='Offene Auftraege ohne HauptFA-Zeile: im Leitstand nur mit "Sub-FAs anzeigen" sichtbar und nicht freigebbar (gleiche Zahl wie das Banner). Materialisierung pruefen.'
+   Quelle='2026-11-26-beschichtung-summe-leitstand-hauptfa-kommissionierauftrag-liste-teil-2-spec' }
+@{ Id='v1.99.88-LeitstandNurHauptFa'; Version='1.99.88'; Typ='Info'; Firma='IDEAL'; Phase='Nachher'; Ausfuehrung='anzeigen'
+   Text='Leitstand-Benutzer informieren: Der Leitstand zeigt nur noch HauptFA-Zeilen. Lack-T, Glas, Zukauf und VK-VA fassen dort HauptFA und alle Sub-FAs zusammen. Sub-FAs ueber den Schalter "Sub-FAs anzeigen" in der Filterkarte; die FA-Nr.-Suche nach Sub-FA-Nummern nur dort. Steht bei Lack-T "Lackteile nur an Sub-FAs", wird Lack-T erledigt nur ueber "Sub-FAs anzeigen" gesetzt. Ist die HauptFA erledigt, verschwindet der Auftrag auch mit offenen Sub-FAs. "Alle Sub-FAs fertigmelden" steht jetzt in der Zeile.'
+   Quelle='2026-11-26-beschichtung-summe-leitstand-hauptfa-kommissionierauftrag-liste-teil-2-spec' }
 )
 }

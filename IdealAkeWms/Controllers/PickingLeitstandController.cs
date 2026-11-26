@@ -76,7 +76,8 @@ public class PickingLeitstandController : Controller
         string? filterCustomer,
         bool showDone = false,
         int page = 1,
-        int? pageSize = null)
+        int? pageSize = null,
+        bool mitSubFa = false)
     {
         var userDefaultPageSize = await _currentUserService.GetDefaultPageSizeAsync();
         var effectivePageSize = PageSize.Resolve(pageSize, userDefaultPageSize);
@@ -123,7 +124,8 @@ public class PickingLeitstandController : Controller
         // Gemeinsame Zeilen-Anreicherung (Pivot + PickingStatus + Termine) — flach UND gruppiert.
         // Detail-Pivot liefert pro aktivem AG FaWorkStepId + Status (VK-VA-Zellen, 3-Wert-Erledigt).
         PickingLeitstandItem MapItem(LeitstandOrderRow o, ProductionOrderPickingStatus? ps,
-            Dictionary<string, FaWorkStepPivotCell> grp, FaHierarchyOrderInfo? head = null)
+            Dictionary<string, FaWorkStepPivotCell> grp, FaHierarchyOrderInfo? head = null,
+            Action<PickingLeitstandItem>? zusammenfassen = null)
         {
             var item = new PickingLeitstandItem
             {
@@ -177,6 +179,9 @@ public class PickingLeitstandController : Controller
                     item.KommissionierTermin.Value, effectivePrePickingDays, holidays);
             }
 
+            // v1.99.88 (Leitstand nur HauptFA): Zusammenfassung VOR dem Beschichtungstermin (Z6: Sichtbarkeit am zusammengefassten Lack-Flag).
+            zusammenfassen?.Invoke(item);
+
             // Beschichtungstermin nur aus dem Resolver (DRY mit FA-Liste und FA-Abarbeitungsliste). E4: hierarchisch mit dem
             // eindeutigen Kopf (View = Kopf-Starttermin 1:1); Berechnet rechnet wie die FA-Liste ab dem Kopf-FE_Termin (A5).
             // Die angezeigten K-/VK-Spalten bleiben unveraendert (DB-Datum der Zeile).
@@ -205,17 +210,27 @@ public class PickingLeitstandController : Controller
             // Paginierung ueber GRUPPEN; bei Memory-Filtern alle Gruppen laden, in C# filtern/paginieren.
             var sqlGroupPageSize = hasMemoryFilters ? int.MaxValue : effectivePageSize;
             var sqlGroupPage = hasMemoryFilters ? 1 : page;
+            // v1.99.88 (Spec 2026-11-26 Leitstand nur HauptFA, L1/L2): ohne Schalter nur HauptFA-Zeilen, FA-Nr. nur HauptFA-Nummer.
+            var nurHauptFa = !mitSubFa;
             var grouped = await _productionOrderRepository.GetForLeitstandGroupedAsync(
-                filterOrderNumber, filterArticleNumber, filterCustomer, showDone, sqlGroupPage, sqlGroupPageSize, sqlColumnFilters);
+                filterOrderNumber, filterArticleNumber, filterCustomer, showDone, sqlGroupPage, sqlGroupPageSize, sqlColumnFilters,
+                nurHauptFa: nurHauptFa, faNrUeberSubFa: false);
 
             var allRows = grouped.Groups.SelectMany(g => g.Rows).ToList();
+
+            // L9: alle nicht stornierten Zeilen der Auftraege (inkl. erledigter, unabhaengig von Listenfiltern) als Basis der Zusammenfassung;
+            // ihre Ids laufen mit in die EINE Id-Liste fuer Pivot und Statuszeilen (kein Round-Trip je Auftrag).
+            var auftragsZeilen = nurHauptFa
+                ? (await _productionOrderRepository.GetZeilenIdsJeAuftragAsync(grouped.Groups.Select(g => g.OrderNumber).ToList()))
+                    .ToLookup(z => z.OrderNumber)
+                : Enumerable.Empty<(int Id, string OrderNumber)>().ToLookup(z => z.OrderNumber);
 
             // Matchcode-Join (Task 2): EIN Batch-Lookup fuer die gesamte (bei Memory-Filtern
             // ungepaginierte) Zeilenmenge, VOR MapItem/dem "matchcode"-Postfilter.
             matchcodes = await MatchcodeLookup.BuildAsync(
                 _articleRepository, allRows.Select(r => r.ArticleNumber), _logger, "PickingLeitstand (hierarchisch)");
 
-            var groupIds = allRows.Select(r => r.Id).ToList();
+            var groupIds = allRows.Select(r => r.Id).Concat(auftragsZeilen.SelectMany(z => z).Select(z => z.Id)).Distinct().ToList();
             var groupPivotH = await _faWorkStepRepository.GetWorkStepDetailPivotAsync(groupIds);
             var pickingStatusesH = await _pickingStatusRepository.GetByProductionOrderIdsAsync(groupIds);
 
@@ -230,7 +245,15 @@ public class PickingLeitstandController : Controller
                     r,
                     pickingStatusesH.GetValueOrDefault(r.Id),
                     groupPivotH.GetValueOrDefault(r.Id) ?? new Dictionary<string, FaWorkStepPivotCell>(),
-                    kopf(g.OrderNumber))).ToList()
+                    kopf(g.OrderNumber),
+                    nurHauptFa
+                        ? it => LeitstandHauptFaZusammenfassung.Anwenden(it, auftragsZeilen[r.OrderNumber]
+                            .Where(z => z.Id != r.Id)
+                            .Select(z => new LeitstandHauptFaZusammenfassung.SubFaZeile(
+                                pickingStatusesH.GetValueOrDefault(z.Id),
+                                groupPivotH.GetValueOrDefault(z.Id) ?? new Dictionary<string, FaWorkStepPivotCell>()))
+                            .ToList())
+                        : null)).ToList()
             }).ToList();
 
             var totalGroupCount = grouped.TotalGroupCount;
@@ -259,7 +282,14 @@ public class PickingLeitstandController : Controller
             vm = new PickingLeitstandViewModel
             {
                 Hierarchical = true,
-                Groups = listGroups,
+                // L3: ohne Schalter flache Darstellung (eine Zeile je HauptFA, kein Gruppenkopf).
+                Groups = nurHauptFa ? new() : listGroups,
+                Items = nurHauptFa ? listGroups.SelectMany(g => g.Items).ToList() : new(),
+                NurHauptFa = nurHauptFa,
+                MitSubFa = mitSubFa,
+                GruppenOhneHauptFa = nurHauptFa ? await _productionOrderRepository.CountGruppenOhneHauptFaAsync(showDone) : 0,
+                FaNrFilterGesetzt = !string.IsNullOrWhiteSpace(filterOrderNumber)
+                                    || columnFilters.Keys.Any(k => k.Equals("order-number", StringComparison.OrdinalIgnoreCase)),
                 HierarchicalRowCount = totalRowCount,
                 FilterOrderNumber = filterOrderNumber,
                 FilterArticleNumber = filterArticleNumber,

@@ -1927,6 +1927,26 @@
                         (siehe Aenderungen v1.38.0/v1.46.0) &mdash; die Fertigmeldungs-Kaskade
                         &bdquo;Alle Sub-FAs fertigmelden&ldquo; ist davon nicht betroffen.</dd>
 
+                    <dt>Eine Zeile je HauptFA, Schalter &bdquo;Sub-FAs anzeigen&ldquo; (IDEAL, seit v1.99.88)</dt>
+                    <dd>
+                        Der Leitstand zeigt je HauptFA eine Zeile. Lack-T, Glas, Zukauf und VK&ndash;VA fassen dort HauptFA und alle
+                        Sub-FAs zusammen (stornierte zaehlen nicht, erledigte zaehlen mit); &bdquo;+ n Sub-FAs&ldquo; in der FA-Nr.-Zelle nennt
+                        die Anzahl. Ein Klick an der HauptFA-Zeile speichert nur die HauptFA. Der Schalter &bdquo;Sub-FAs anzeigen&ldquo; in der
+                        Filterkarte zeigt die Sub-FA-Zeilen mit ihren eigenen Werten.
+                        <ul class="mt-1 mb-1">
+                            <li>Steht bei Lack-T &bdquo;Lackteile nur an Sub-FAs&ldquo;, ist der Haken gesperrt: Lack-T erledigt wird ueber
+                                &bdquo;Sub-FAs anzeigen&ldquo; an den Sub-FA-Zeilen gesetzt. Ebenso &bdquo;Arbeitsgang nur an Sub-FAs&ldquo; bei VK&ndash;VA.</li>
+                            <li>Der eigene Wert der HauptFA-Zeile ist nur mit &bdquo;Sub-FAs anzeigen&ldquo; sichtbar. Beispiel: Lack-T erledigt an der
+                                HauptFA gesetzt, die Zelle bleibt wegen einer offenen Sub-FA trotzdem leer (Hinweis &bdquo;Sub-FA bestimmt den Wert weiter&ldquo;).
+                                Zuruecknehmen geht nur dort.</li>
+                            <li>Ist die HauptFA erledigt, fertig kommissioniert oder storniert, verschwindet der Auftrag aus dem Leitstand, auch mit
+                                offenen Sub-FAs; sichtbar mit &bdquo;Erledigte anzeigen&ldquo;.</li>
+                            <li>Sub-FA-Nummern findet die FA-Nr.-Suche nur mit &bdquo;Sub-FAs anzeigen&ldquo;; ohne Schalter erscheint ein Hinweis mit Link.</li>
+                            <li>Auftraege ganz ohne HauptFA-Zeile meldet ein Banner; sie sind nur mit dem Schalter sichtbar und nicht freigebbar.</li>
+                            <li>&bdquo;Alle Sub-FAs fertigmelden&ldquo; steht in der Zeile (nur bei HauptFA mit Sub-FAs).</li>
+                        </ul>
+                    </dd>
+
                     <dt>Automatisch erledigt bei Sage-Status verpackt/abgeholt (seit v1.26.0)</dt>
                     <dd>Meldet Sage einen FA als <em>verpackt</em> oder <em>abgeholt</em>, setzt
                         der Zusatzinfo-Sync ihn automatisch auf Komm-Erledigt &mdash; der FA

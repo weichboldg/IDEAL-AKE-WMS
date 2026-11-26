@@ -12,6 +12,10 @@
         var kw = ISOWeek.GetWeekOfYear(d);
         return $"{d:dd.MM.yyyy} KW{kw}";
     }
+    // v1.99.88 (Leitstand nur HauptFA): dieselbe Seite mit Schalter „Sub-FAs anzeigen“ (Filter, Spaltenfilter, Seite bleiben).
+    var mitSubFaUrl = Context.Request.Path + (Context.Request.QueryString.HasValue ? Context.Request.QueryString.Value + "&" : "?") + "mitSubFa=true";
+    var gruppenAnsicht = Model.Hierarchical && !Model.NurHauptFa;
+    var zusammenTitel = Model.NurHauptFa ? " – zusammengefasst aus HauptFA und Sub-FAs" : "";
 }
 
 <h2 class="page-header">@pageTitle</h2>
@@ -53,6 +57,15 @@
                                @(Model.ShowDone ? "checked" : "") />
                         <label class="form-check-label" for="showDone">Erledigte anzeigen</label>
                     </div>
+                    @if (Model.Hierarchical)
+                    {
+                        @* v1.99.88 (Antwort 2): Standard aus = eine Zeile je HauptFA; an = Gruppenansicht mit Sub-FA-Zeilen. *@
+                        <div class="form-check mb-2 ms-2">
+                            <input type="checkbox" name="mitSubFa" value="true" class="form-check-input" id="mitSubFa"
+                                   @(Model.MitSubFa ? "checked" : "") />
+                            <label class="form-check-label" for="mitSubFa">Sub-FAs anzeigen</label>
+                        </div>
+                    }
                 </div>
                 <div class="col-md-3 d-flex align-items-end gap-2">
                     <button type="submit" class="btn btn-secondary">Filtern</button>
@@ -110,7 +123,30 @@
 @* Toolbar-Host (data-table-toolbar, site.js tableToolbarHost): Zahnrad und CSV. Hinweise duerfen davor oder dahinter stehen (v1.65.0). *@
 <div class="d-flex justify-content-end mb-1" data-table-toolbar></div>
 
-@if (Model.Hierarchical)
+@if (Model.NurHauptFa)
+{
+    @* v1.99.88 (L5): melden statt still — Auftraege ohne HauptFA-Zeile fehlen in dieser Ansicht. *@
+    @if (Model.GruppenOhneHauptFa > 0)
+    {
+        <div class="alert alert-warning py-2" role="status">
+            <strong>@Model.GruppenOhneHauptFa Aufträge ohne HauptFA-Zeile</strong> – nur mit „Sub-FAs anzeigen“ sichtbar, Freigabe dort nicht möglich.
+            <a href="@mitSubFaUrl" class="alert-link ms-1">Mit Sub-FAs anzeigen</a>
+        </div>
+    }
+    @* L2/S-2: Sub-FA-Nummer (z. B. per QR vom Werkstattpapier) findet ohne Schalter nichts — Hinweis statt leerer Liste. *@
+    @if (Model.FaNrFilterGesetzt && !Model.Items.Any())
+    {
+        <div class="alert alert-info py-2" role="status">
+            Keine HauptFA mit dieser Nummer – Sub-FA-Nummern findet „Sub-FAs anzeigen“.
+            <a href="@mitSubFaUrl" class="alert-link ms-1">Mit Sub-FAs suchen</a>
+        </div>
+    }
+    <div class="small text-muted mb-1">
+        <strong>@Model.Pagination.TotalCount</strong> Aufträge (nur HauptFA)
+        <span class="ms-2">(Lack-T, Glas, Zukauf, VK–VA zusammengefasst aus HauptFA und Sub-FAs)</span>
+    </div>
+}
+else if (Model.Hierarchical)
 {
     @* Z4: im hierarchischen Modus zaehlt die Gruppierung Auftraege (HauptFA) UND Sub-FAs. *@
     <div class="small text-muted mb-1">
@@ -119,7 +155,7 @@
     </div>
 }
 <div class="table-responsive">
-    <table class="table table-striped mb-0 filterable-table" data-view-key="PickingLeitstand" data-fallback-sort-column="picking-date" data-fallback-sort-direction="asc" data-server-column-filter="true" data-hierarchical="@(Model.Hierarchical ? "true" : "false")">
+    <table class="table table-striped mb-0 filterable-table" data-view-key="PickingLeitstand" data-fallback-sort-column="picking-date" data-fallback-sort-direction="asc" data-server-column-filter="true" data-hierarchical="@(gruppenAnsicht ? "true" : "false")">
         <thead>
             <tr>
                 @if (Model.LeitstandAktiv && Model.CanManagePickingRelease)
@@ -150,14 +186,14 @@
                 <th class="text-nowrap" data-filterable data-col-key="picking-date" data-date-filter title="Fertigungstermin - @Model.KommissionierTage Arbeitstage">Komm.</th>
                 <th class="text-nowrap" data-filterable data-col-key="production-date" data-date-filter>Fert.-Termin</th>
                 <th class="text-nowrap" data-filterable data-col-key="delivery-date" data-date-filter>Liefertermin</th>
-                <th class="text-nowrap text-center" style="width: 55px;" data-col-key="coating-part">Lack-T</th>
-                <th style="width: 45px;" data-filterable data-col-key="glass">Glas</th>
-                <th style="width: 55px;" data-filterable data-col-key="purchase">Zukauf</th>
-                <th style="width: 40px;" data-filterable data-col-key="cooling"        title="VK Kälte">VK</th>
-                <th style="width: 40px;" data-filterable data-col-key="fan"            title="VL Lüfter">VL</th>
-                <th style="width: 40px;" data-filterable data-col-key="electric"       title="VE Elektro">VE</th>
-                <th style="width: 40px;" data-filterable data-col-key="doors"          title="VT Türen">VT</th>
-                <th style="width: 40px;" data-filterable data-col-key="superstructure" title="VA Aufbau">VA</th>
+                <th class="text-nowrap text-center" style="width: 55px;" data-col-key="coating-part" title="Lackierteile erledigt@(zusammenTitel)">Lack-T</th>
+                <th style="width: 45px;" data-filterable data-col-key="glass" title="Glas@(zusammenTitel)">Glas</th>
+                <th style="width: 55px;" data-filterable data-col-key="purchase" title="Zukauf@(zusammenTitel)">Zukauf</th>
+                <th style="width: 40px;" data-filterable data-col-key="cooling" title="VK Kälte@(zusammenTitel)">VK</th>
+                <th style="width: 40px;" data-filterable data-col-key="fan" title="VL Lüfter@(zusammenTitel)">VL</th>
+                <th style="width: 40px;" data-filterable data-col-key="electric" title="VE Elektro@(zusammenTitel)">VE</th>
+                <th style="width: 40px;" data-filterable data-col-key="doors" title="VT Türen@(zusammenTitel)">VT</th>
+                <th style="width: 40px;" data-filterable data-col-key="superstructure" title="VA Aufbau@(zusammenTitel)">VA</th>
                 <th data-filterable data-col-key="status">Status</th>
                 <th data-filterable data-col-key="parent-sub-order-number">Übergeordnete Sub-FA</th>
                 <th style="width: 80px;" data-col-key="row-actions"></th>
@@ -194,9 +230,10 @@
                     EnaioDmsLinks = Model.EnaioDmsLinks,
                     BeschichtungAktiv = Model.BeschichtungAktiv,
                     Hierarchical = Model.Hierarchical,
+                    NurHauptFa = Model.NurHauptFa,
                 };
         }
-        @if (Model.Hierarchical)
+        @if (gruppenAnsicht)
         {
             @* Zwei-Ebenen-Gruppierung: ein <tbody> je HauptFA-Gruppe, Kopfzeile mit colspan + Chevron. *@
             foreach (var group in Model.Groups)
@@ -546,12 +583,20 @@
                         if (!resp.ok) {
                             cb.checked = !value;
                             alert('Fehler beim Speichern.');
+                        } else if (cb.closest('[data-neu-laden]')) {
+                            // v1.99.88 (Antwort 8): Sub-FA bestimmt den Wert mit -> sofort neu zusammenfassen.
+                            location.reload();
                         }
                     }).catch(function () {
                         cb.checked = !value;
                         alert('Fehler beim Speichern.');
                     });
                 });
+            });
+
+            // v1.99.88 (Antwort 8): VK–VA gespeichert (Ereignis aus fa-work-step-status.js) -> neu laden, wenn Sub-FAs mitbestimmen.
+            document.addEventListener('wms:fa-status-gespeichert', function (e) {
+                if (e.target.closest && e.target.closest('[data-neu-laden]')) location.reload();
             });
         });
     </script>

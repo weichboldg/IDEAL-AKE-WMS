@@ -59,11 +59,12 @@ public class ProductionOrderRepository : Repository<ProductionOrder>, IProductio
         int page,
         int pageSize,
         IReadOnlyDictionary<string, string>? columnFilters = null,
-        bool nurHauptFa = false)
+        bool nurHauptFa = false,
+        bool faNrUeberSubFa = true)
     {
         // Dieselben Filter (Zeilen-Ebene, Z3b), aber order-number matcht SubOrderNumber ODER OrderNumber.
         var q = BuildLeitstandQuery(filterOrderNumber, filterArticleNumber, filterCustomer,
-            showDone, columnFilters, hierarchical: true, nurHauptFa: nurHauptFa);
+            showDone, columnFilters, hierarchical: true, nurHauptFa: nurHauptFa, faNrUeberSubFa: faNrUeberSubFa);
 
         var totalRowCount = await q.CountAsync();
 
@@ -99,7 +100,8 @@ public class ProductionOrderRepository : Repository<ProductionOrder>, IProductio
     // SQL-Uebersetzung, ohne die Methode oeffentlich zu machen. Siehe InternalsVisibleTo in der csproj.
     internal IQueryable<ProductionOrder> BuildLeitstandQuery(
         string? filterOrderNumber, string? filterArticleNumber, string? filterCustomer,
-        bool showDone, IReadOnlyDictionary<string, string>? columnFilters, bool hierarchical, bool nurHauptFa = false)
+        bool showDone, IReadOnlyDictionary<string, string>? columnFilters, bool hierarchical, bool nurHauptFa = false,
+        bool faNrUeberSubFa = true)
     {
         IQueryable<ProductionOrder> q = _dbSet.AsNoTracking();
 
@@ -108,7 +110,8 @@ public class ProductionOrderRepository : Repository<ProductionOrder>, IProductio
         if (nurHauptFa)
         {
             q = q.Where(ProductionOrder.IsHauptFa);
-            if (!string.IsNullOrWhiteSpace(filterOrderNumber))
+            // v1.99.88 (Leitstand, Antwort 4): faNrUeberSubFa=false -> FA-Nr. laeuft normal auf der HauptFA-Zeile (nur HauptFA-Nummer).
+            if (faNrUeberSubFa && !string.IsNullOrWhiteSpace(filterOrderNumber))
             {
                 var f = filterOrderNumber;
                 var treffer = _dbSet.Where(s => s.OrderNumber.Contains(f)
@@ -165,7 +168,7 @@ public class ProductionOrderRepository : Repository<ProductionOrder>, IProductio
                 // Alle SQL-Spalten dieser Liste sind Text (Datum/Zahl filtert der Controller in C#, ColumnFilterTypes "ProductionOrders/Index").
                 var parsed = ColumnFilterSyntax.Parse(raw, ColumnFilterType.Text);
                 if (parsed.IsEmpty) continue;
-                if (nurHauptFa && key.Equals("order-number", StringComparison.OrdinalIgnoreCase))
+                if (nurHauptFa && faNrUeberSubFa && key.Equals("order-number", StringComparison.OrdinalIgnoreCase))
                 {
                     // Spalte FA-Nr. wie die Karte: Auftraege, in denen irgendeine Zeile (HauptFA oder Sub-FA) passt.
                     var treffer = ApplyLeitstandColumnFilter(_dbSet.AsQueryable(), key, parsed, hierarchical).Select(s => s.OrderNumber);
@@ -187,6 +190,21 @@ public class ProductionOrderRepository : Repository<ProductionOrder>, IProductio
         return await BuildLeitstandQuery(null, null, null, showDone, null, hierarchical: true)
             .Where(o => !mitHauptFa.Contains(o.OrderNumber))
             .Select(o => o.OrderNumber).Distinct().CountAsync();
+    }
+
+    /// <summary>v1.99.88 (Leitstand nur HauptFA, Zusammenfassung): alle nicht stornierten Zeilen der Auftraege, unabhaengig von
+    /// showDone (Basis der Zusammenfassungsregel). In 1000er-Bloecken wie der Detail-Pivot (SQL-Parametergrenze 2100).</summary>
+    public async Task<List<(int Id, string OrderNumber)>> GetZeilenIdsJeAuftragAsync(IReadOnlyCollection<string> orderNumbers)
+    {
+        var result = new List<(int Id, string OrderNumber)>();
+        foreach (var block in orderNumbers.Distinct().Chunk(1000))
+        {
+            var rows = await _dbSet.AsNoTracking()
+                .Where(o => block.Contains(o.OrderNumber) && !o.IsCancelled)
+                .Select(o => new { o.Id, o.OrderNumber }).ToListAsync();
+            result.AddRange(rows.Select(r => (r.Id, r.OrderNumber)));
+        }
+        return result;
     }
 
     // Matchcode (Task 2, Artikelstamm): NICHT mehr aus o.Matchcode projiziert — die Spalte wird in
