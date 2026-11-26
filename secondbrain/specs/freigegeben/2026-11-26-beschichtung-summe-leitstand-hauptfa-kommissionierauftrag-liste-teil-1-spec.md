@@ -455,3 +455,10 @@ Manifest: kein Eintrag nötig (keine Deploy-Schritte).
 5. Vorschlagsliste `/FaHierarchyBeschichtung/Print` und `/PrintSummiert` kurz ansehen: ohne Summenzeile.
 6. TS-205 komplett am Testsystem AKE und IDEAL mit echten Aufträgen, Brief an den Lackierer gegenlesen.
 7. Optional H-1 entscheiden (Badge „ohne FA“ bei ausgeblendeter Artnr-Spalte).
+
+## Freigabe-Nachtrag N-1 (Gerald 2026-11-26, Chat, nach Fotos v1.99.87)
+
+Frage Gerald: „Warum 6 (4 Positionen)? … wären meines Erachtens 2 Positionen. Gleiches mit 17 (7), da hätte ich 5.“ Die Klammer
+zählte die Auftragspositionen vor dem Summieren. Entscheidung Gerald: **„Nur Teilesumme“** — die Summenzeile zeigt nur noch
+„Summe Teile im Auftrag <Summe der Mengen>“, ohne Klammer und ohne Positionsanzahl (auch die Einzahl „(1 Position)“ entfällt).
+Geht AK 2/S5 und TS-205 vor. Umsetzung im Bündel nach Teil 2 (Version des Folge-Commits), QA zusammen mit Teil 2.
