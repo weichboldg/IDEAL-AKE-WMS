@@ -334,8 +334,9 @@ public class BdeTeilelisteService
     public async Task<List<TeilelisteZeile>> LagerZeilenAsync(string kuerzel, IReadOnlyDictionary<string, ArtikelZusatz> zusatz)
     {
         var items = await _ctx.WarehouseRequisitionItems.AsNoTracking()
-            .Where(i => i.WarehouseRequisition.Status == WarehouseRequisitionStatus.Submitted
-                        || i.WarehouseRequisition.Status == WarehouseRequisitionStatus.PartiallyDelivered)
+            .Where(i => i.WarehouseRequisition.Type == WarehouseRequisitionType.Lager // v1.99.81 (F-11): keine Glasbestellungen
+                        && (i.WarehouseRequisition.Status == WarehouseRequisitionStatus.Submitted
+                            || i.WarehouseRequisition.Status == WarehouseRequisitionStatus.PartiallyDelivered))
             .Select(i => new
             {
                 i.Id, i.WarehouseRequisitionId, i.Position, i.ArticleNumber, i.ArticleDescription, i.QuantityRequested,
@@ -599,7 +600,7 @@ public class BdeTeilelisteService
         var item = await _ctx.WarehouseRequisitionItems.AsNoTracking().Where(i => i.Id == itemId)
             .Select(i => new
             {
-                i.ArticleNumber, i.QuantityRequested, i.Position, i.WarehouseRequisitionId, i.WarehouseRequisition.Status,
+                i.ArticleNumber, i.QuantityRequested, i.Position, i.WarehouseRequisitionId, i.WarehouseRequisition.Status, i.WarehouseRequisition.Type,
                 Matchcode = _ctx.Articles.Where(x => x.ArticleNumber == i.ArticleNumber).Select(x => x.Matchcode).FirstOrDefault(),
             })
             .FirstOrDefaultAsync();
@@ -609,6 +610,11 @@ public class BdeTeilelisteService
             return;
         }
         bezeichnung = $"{item.Matchcode ?? item.ArticleNumber} (Lagerbestellung #{item.WarehouseRequisitionId.ToString(Inv)} Pos. {item.Position.ToString(Inv)})";
+        if (item.Type != WarehouseRequisitionType.Lager) // v1.99.81 (F-11): wie LagerZeilenAsync, auch gegen manipulierte Requests
+        {
+            e.Abgewiesen.Add($"{bezeichnung}: keine Lagerbestellung (Glasbestellungen erscheinen nicht in der Teileliste)");
+            return;
+        }
         if (item.Status is not (WarehouseRequisitionStatus.Submitted or WarehouseRequisitionStatus.PartiallyDelivered))
         {
             e.Abgewiesen.Add($"{bezeichnung}: Lagerbestellung ist nicht mehr abgeschickt oder teilgeliefert");

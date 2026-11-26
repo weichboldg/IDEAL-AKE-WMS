@@ -67,6 +67,20 @@ public class BdeTeilelisteLagerTests
         d.Zeilen.Should().Contain(x => x.Lager == null && x.Node.Artnr == "B1", "FA-Zeilen bleiben");
     }
 
+    // v1.99.81 (F-11): Glasbestellungen (dieselbe Tabelle, Type Glas) erscheinen nicht und sind nicht meldbar
+    [Fact]
+    public async Task Glasbestellung_NichtInListe_NichtMeldbar()
+    {
+        var l = await AufbauAsync();
+        l.U.Ctx.WarehouseRequisitions.Single(x => x.Id == 31).Type = WarehouseRequisitionType.Glas;
+        await l.U.Ctx.SaveChangesAsync();
+
+        (await l.U.Svc.LadenAsync("KA", null, false, null, mitLagerbestellungen: true)).Zeilen.Should().OnlyContain(x => x.Lager == null);
+        var r = await MeldeLager(l, l.ItemKa);
+        r.Gemeldet.Should().Be(0);
+        r.Abgewiesen.Should().ContainSingle().Which.Should().Contain("keine Lagerbestellung");
+    }
+
     [Fact]
     public async Task Laden_OhneOption_KeineLagerZeilen()
     {

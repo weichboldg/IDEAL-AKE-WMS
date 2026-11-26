@@ -63,7 +63,7 @@
                                        data-soll="@a.SummeSollmengeOffen.ToString(System.Globalization.CultureInfo.InvariantCulture)" aria-label="@a.Matchcode: alle @a.OffeneSchluessel.Count offenen Aufträge auswählen" /></label>
                             }
                         </td>
-                        <td data-col-key="matchcode" data-label="Matchcode">
+                        <td data-col-key="matchcode" data-label="Matchcode" data-csv-value="@a.Matchcode">
                             @a.Matchcode
                             @* E2-1: Einzelauftraege aufklappen – gleicher Knopf wie „Teile (n)“ in Einzeln (Etappe 1) *@
                             <button type="button" class="btn btn-outline-secondary bde-touch ms-1 bde-tl-teile" data-bs-toggle="collapse" data-bs-target="[data-eltern='@i']"
@@ -108,7 +108,7 @@
                                            aria-label="@n.Matchcode, @(z.Lager is { } l ? $"Lagerbestellung {l.RequisitionId}" : $"Haupt-FA {n.HauptFA} Pos. {n.Position}") auswählen" /></label>
                                 }
                             </td>
-                            <td data-col-key="matchcode" data-label="Matchcode">
+                            <td data-col-key="matchcode" data-label="Matchcode" data-csv-value="@n.Matchcode">
                                 <span class="bde-tl-kind-pfeil" aria-hidden="true">&#8627;</span><span class="visually-hidden">Auftrag zu @n.Matchcode: </span>@n.Matchcode
                                 @if (z.IstBaugruppe)
                                 {

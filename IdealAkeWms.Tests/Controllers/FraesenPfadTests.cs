@@ -42,6 +42,17 @@ public class FraesenPfadTests
         fehler.Should().Be(FraesenPfad.Fehlertext);
     }
 
+    // v1.99.81 (7B): Laufwerk Y: an der Fraese = ...\CAM\Format4 (Gerald 2026-11-26), gleiche Angabe wie das Einmal-Skript
+    [Fact]
+    public void Fehlertext_NenntFormat4()
+    {
+        FraesenPfad.Fehlertext.Should().EndWith(@"Y: an der Fräse = \\idealfs1\Daten$\Produktion\CAM\Format4");
+        var dir = new DirectoryInfo(AppContext.BaseDirectory);
+        while (dir != null && !Directory.Exists(Path.Combine(dir.FullName, "SQL", "Einmalig"))) dir = dir.Parent;
+        var skript = File.ReadAllText(Path.Combine(dir!.FullName, "SQL", "Einmalig", "2026-11-25_v1.99.72_FraesenPfad_Erstimport.sql"));
+        skript.Should().Contain(@"THEN N'\\idealfs1\Daten$\Produktion\CAM\Format4\' + SUBSTRING");
+    }
+
     [Fact]
     public void Pruefen_501_Zeichen_abgewiesen_500_gueltig()
     {

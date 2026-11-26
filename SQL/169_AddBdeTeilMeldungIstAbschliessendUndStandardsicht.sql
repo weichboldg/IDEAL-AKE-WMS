@@ -39,8 +39,10 @@ IF COL_LENGTH(N'dbo.ProductionWorkplaces', N'BdeStandardsichtTeile') IS NULL
 BEGIN
     ALTER TABLE [dbo].[ProductionWorkplaces] ADD [BdeStandardsichtTeile] BIT NOT NULL
         CONSTRAINT [DF_ProductionWorkplaces_BdeStandardsichtTeile] DEFAULT 0;
-    -- Vorbelegung nur bei Erstanlage (EXEC: die Spalte existiert erst nach dem ALTER dieses Batches)
-    EXEC (N'UPDATE dbo.ProductionWorkplaces SET BdeStandardsichtTeile = 1 WHERE BdeAktiv = 1 AND BdeTeileliste = 1 AND ISNULL(LTRIM(RTRIM(ArbeitsschrittCode)), N'''') <> N''''');
+    -- Vorbelegung nur bei Erstanlage (EXEC: die Spalte existiert erst nach dem ALTER dieses Batches);
+    -- v1.99.81 (17B): Audit-Felder nach Muster SQL/110:79-81 (ADR 0003)
+    EXEC (N'UPDATE dbo.ProductionWorkplaces SET BdeStandardsichtTeile = 1, ModifiedAt = SYSDATETIME(), ModifiedBy = N''SQL/169'',
+        ModifiedByWindows = LEFT(SUSER_SNAME(), 200) WHERE BdeAktiv = 1 AND BdeTeileliste = 1 AND ISNULL(LTRIM(RTRIM(ArbeitsschrittCode)), N'''') <> N''''');
     PRINT N'Spalte ProductionWorkplaces.BdeStandardsichtTeile angelegt und vorbelegt.';
 END
 GO

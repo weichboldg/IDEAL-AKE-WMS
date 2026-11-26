@@ -10,13 +10,13 @@
 -- Annahme Rueckfrage 15 (offen): Pfad WIE IN SPALTE E, kein Anhaengen von \<Matchcode>.tcn.
 --
 -- Regeln:
---   * Pfad getrimmt. Beginnt mit Y:\ (Gross/Klein egal) -> \\idealfs1\Daten$\Produktion\CAM\ + Rest (Antwort 18); beginnt mit \\ -> unveraendert;
+--   * Pfad getrimmt. Beginnt mit Y:\ (Gross/Klein egal) -> \\idealfs1\Daten$\Produktion\CAM\Format4\ + Rest (Antwort 18; v1.99.81 Gerald 2026-11-26: Y:\ = ...\CAM\Format4\); beginnt mit \\ -> unveraendert;
 --     sonst NICHT schreiben, nur melden ("ist enthalten in ...", Zeile 161 "Y\" ohne Doppelpunkt). Ergebnis > 500 Zeichen -> melden.
 --   * Zuordnung ueber Articles.Matchcode getrimmt, exakt: 0 Treffer -> unbekannt, > 1 -> mehrdeutig; Matchcode mehrfach in der Liste mit
 --     verschiedenen Pfaden -> doppelt in der Liste. Alle nur melden.
 --   * Geschrieben wird nur, wo CamPath IS NULL (Handpflege wird nie ueberschrieben; abweichender vorhandener Wert -> "schon gepflegt").
 --     Dadurch wiederholbar ohne Sperre: der zweite Trockenlauf liefert TREFFER: 0.
--- REIHENFOLGE: 1. SQL/164 da (v1.99.72).  2. Trockenlauf (Default).  3. DB-Backup.  4. vor SCHARF Antworten auf Rueckfragen 15/16 pruefen.
+-- REIHENFOLGE: 1. SQL/164 da (v1.99.72).  2. Trockenlauf (Default).  3. DB-Backup.  4. (entfaellt seit v1.99.81: Rueckfragen 15/16 beantwortet, Entscheid 7B).
 --   5. @Trockenlauf = 0 (Update-Skript: SCHARF).  6. Zweiter Trockenlauf muss TREFFER: 0 liefern.  7. Meldeliste von Hand pflegen.
 -- =====================================================================================================
 SET NOCOUNT ON;
@@ -236,7 +236,7 @@ SELECT l.Zeile, LTRIM(RTRIM(l.Matchcode)) AS Matchcode, LTRIM(RTRIM(l.PfadRoh)) 
 INTO #Kand
 FROM #Liste l
 CROSS APPLY (SELECT LTRIM(RTRIM(l.PfadRoh)) AS t) x
-CROSS APPLY (SELECT CASE WHEN LEFT(x.t, 3) = N'Y:\' THEN N'\\idealfs1\Daten$\Produktion\CAM\' + SUBSTRING(x.t, 4, 1000)
+CROSS APPLY (SELECT CASE WHEN LEFT(x.t, 3) = N'Y:\' THEN N'\\idealfs1\Daten$\Produktion\CAM\Format4\' + SUBSTRING(x.t, 4, 1000)
                          WHEN LEFT(x.t, 2) = N'\\' THEN x.t END AS Pfad) p
 OUTER APPLY (SELECT COUNT(*) AS Anzahl, MIN(ar.Id) AS ArticleId, MIN(ar.CamPath) AS CamPathAlt
              FROM dbo.Articles ar WHERE LTRIM(RTRIM(ar.Matchcode)) = LTRIM(RTRIM(l.Matchcode))) a;

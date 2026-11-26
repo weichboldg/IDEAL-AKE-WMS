@@ -376,9 +376,9 @@ WHERE NOT EXISTS (SELECT 1 FROM dbo.Roles r WHERE r.[Key] = v.k);'
 
 @{ Id='Einmalig/2026-11-25_v1.99.72_FraesenPfad_Erstimport'; Version='1.99.72'; Typ='Einmalig'; Firma='IDEAL'; Phase='Nachher'; Ausfuehrung='Trockenlauf'
    Datei='Einmalig\2026-11-25_v1.99.72_FraesenPfad_Erstimport.sql'; Braucht=@('SQL/164')
-   Voraussetzung='Web >= 1.99.72, DB-Backup; vor SCHARF Antworten auf Rueckfragen 15/16 pruefen'
+   Voraussetzung='Web >= 1.99.72, DB-Backup'
    Spur='SELECT COUNT(*) FROM dbo.Articles WHERE ModifiedBy LIKE N''Einmal-Skript Fr_sen-Pfad'''
-   Text='Uebernimmt die Fraesen-Pfade aus WICAM-Pfade.xlsx je eindeutigem Matchcode in Articles.CamPath (nur leere; Y:\ -> \\idealfs1\Daten$\Produktion\CAM). Trockenlauf automatisch (Zaehlung, Schreibliste, Meldeliste ins Protokoll). TREFFER 0 -> entfaellt. Sonst Zaehlung freigeben, SCHARF eintippen (Backup aus diesem Lauf Pflicht); zweiter Trockenlauf muss 0 liefern. Unbekannte, mehrdeutige, doppelte Matchcodes und Zeilen ohne gueltigen Pfad stehen in der Meldeliste - von Hand pflegen.'
+   Text='Uebernimmt die Fraesen-Pfade aus WICAM-Pfade.xlsx je eindeutigem Matchcode in Articles.CamPath (nur leere; Y:\ -> \\idealfs1\Daten$\Produktion\CAM\Format4). Im Prod-Fenster an IDEAL SCHARF ausfuehren (Entscheid 7B, v1.99.81). Trockenlauf automatisch (Zaehlung, Schreibliste, Meldeliste ins Protokoll). TREFFER 0 -> entfaellt. Sonst Zaehlung freigeben, SCHARF eintippen (Backup aus diesem Lauf Pflicht); zweiter Trockenlauf muss 0 liefern. Unbekannte, mehrdeutige, doppelte Matchcodes und Zeilen ohne gueltigen Pfad stehen in der Meldeliste - von Hand pflegen.'
    Quelle='2026-11-25-v1-99-72-bde-liste-isolierungsfraese-pfad-material' }
 
 # ---------------------------------------------------------------- Ordner und Rechte (Schritt 5a, jeder Lauf) ------------------
@@ -451,7 +451,7 @@ WHERE NOT EXISTS (SELECT 1 FROM dbo.Roles r WHERE r.[Key] = v.k);'
 @{ Id='v1.63.0-Info'; Version='1.63.0'; Typ='Info'; Firma='beide'; Phase='Nachher'; Ausfuehrung='anzeigen'
    Text='Werker-Info: Fortsetzen an fremder Werkbank wird abgewiesen.'; Quelle='2026-10-19-v1-63-0-bde-stufe-1-werkbaenke-ag-fertigmeldung' }
 @{ Id='v1.64.0-MaxHauptFa'; Version='1.64.0'; Typ='Einstellung'; Firma='beide'; Phase='Nachher'; Ausfuehrung='anzeigen'
-   Text='/Settings > BDE: BdeTerminalMaxHauptFa = 5 (wirkt laut README nur IDEAL); AKE: Pruefabfrage Q4.'; Quelle='2026-10-19-v1-64-0-bde-terminal-liste-scan-ohne-ag-prio' }
+   Text='BdeTerminalMaxHauptFa entfaellt seit 1.99.78 (in /Settings als verwaist sichtbar) - nichts einstellen.'; Quelle='2026-10-19-v1-64-0-bde-terminal-liste-scan-ohne-ag-prio' }
 @{ Id='v1.67.0-IDEAL-Vault'; Version='1.67.0'; Typ='Einstellung'; Firma='IDEAL'; Phase='Nachher'; Ausfuehrung='anzeigen'
    Text='"Vault-Links anzeigen" aus; enaio entscheidet Gerald.'; Quelle='2026-10-22-v1-67-0-vault-enaio-links-konfigurierbar' }
 @{ Id='v1.68.0-IDEAL-Qr'; Version='1.68.0'; Typ='Einstellung'; Firma='IDEAL'; Phase='Nachher'; Ausfuehrung='anzeigen'

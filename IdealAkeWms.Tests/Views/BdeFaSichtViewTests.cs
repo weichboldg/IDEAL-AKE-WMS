@@ -133,4 +133,15 @@ public class BdeFaSichtViewTests
             .And.Contain("Nicht fortsetzbar: @gesperrt").And.Contain("data-kopf-aktion=\"abschliessen\"");
         Read("wwwroot", "js", "bde-fa-sicht.js").Should().Contain("'/BdeTerminal/ClosePaused'");
     }
+
+    // v1.99.81 (14A): CSV der Matchcode-Spalte ohne Pfeil/„Teil der Baugruppe:“/„Aufträge (n)“ – data-csv-value an jeder Matchcode-Zelle
+    [Theory]
+    [InlineData("Index.cshtml", 1)]
+    [InlineData("Summiert.cshtml", 2)]
+    public void MatchcodeZelle_CsvWertOhneZusatztexte(string view, int zellen)
+    {
+        var html = Read("Views", "BdeTeileliste", view);
+        System.Text.RegularExpressions.Regex.Matches(html, @"<td data-col-key=""matchcode""[^>]*data-csv-value=""@[an]\.Matchcode""").Count.Should().Be(zellen);
+        html.Should().NotMatchRegex(@"<td data-col-key=""matchcode""(?![^>]*data-csv-value)");
+    }
 }

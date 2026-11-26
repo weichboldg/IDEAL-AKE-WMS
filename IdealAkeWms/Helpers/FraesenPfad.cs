@@ -8,7 +8,7 @@ public static class FraesenPfad
     public const int MaxLaenge = 500;
 
     public const string Fehlertext =
-        @"Bitte als UNC-Pfad eintragen (\\server\freigabe\…). Laufwerk Y: an der Fräse = \\idealfs1\Daten$\Produktion\CAM";
+        @"Bitte als UNC-Pfad eintragen (\\server\freigabe\…). Laufwerk Y: an der Fräse = \\idealfs1\Daten$\Produktion\CAM\Format4";
 
     /// <summary>Getrimmt; leer = kein Pfad (null, gueltig). Sonst muss er mit <c>\\</c> beginnen, darf keine Steuerzeichen enthalten
     /// und hoechstens <see cref="MaxLaenge"/> Zeichen lang sein.</summary>
