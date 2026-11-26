@@ -612,3 +612,75 @@ H-1 erledigt (Beleg `site.js:126-135`). Offen nur S-5: `freigabe_entscheidung: D
 Reihenfolge: Teil 1 vor Teil 2 (gemeinsamer Lauf).
 
 **BEREIT ZUR FREIGABE** (zusammen mit Teil 1).
+
+## QA-Nachweis (qa-agent, 2026-11-26) — NICHT Testbereit (Befund F1 braucht Reparatur)
+
+Gepruefter Stand: Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5`, Commit `ce04f887` (Review-Bereich `ce04f887~1..ce04f887`, 17 Dateien).
+
+### 1. Build und Tests (selbst ausgefuehrt)
+
+- `dotnet build IdealAkeWms.slnx`: 0 Fehler, 32 Warnungen (vorbestehend, u. a. CS8620/CS8604/CS8321, NU190x).
+- `dotnet test`: IdealAkeWms.Tests 3774 bestanden / 1 uebersprungen / 0 Fehler (3775); IDEALAKEWMSService.Tests 848 / 0 / 0.
+
+### 2. Code-Review (selbst, synchron)
+
+Gelesen: ganzer Diff, dazu `Index.cshtml` und `_FaHierarchyNode.cshtml` vollstaendig, `FaHierarchyTreeBuilder.TeileAusblenden`, Controller-Index, `fa-hierarchy-tree.js` (Diff + Popover/Sticky), `site.css` FA-Block, `site.js` Pagination-Handler, `PageSize`.
+
+| # | Befund | Fundstelle | Schwere | Behandlung |
+|---|---|---|---|---|
+| F1 | Kopfdaten-Tabelle beim Kombigeraet (`fa-head-table`) ist Bootstrap-`.table` mit `width:100%` in einer `colspan="24"`-Zelle und dehnt sich damit auf die volle Tabellenbreite: auf DEV 4963 px breit bei 1280 px Fenster, Spaltenkoepfe bei x = 33 / 874 / 1867 / 3108 / 3788 / 4469 px. Sichtbar sind ohne Querscrollen nur Montage-Abt. und Kunde; Status, KO-, FE-Termin und AB-Nr. erst nach 1800–4500 px Scrollen — genau die Daten, die beim Kombigeraet die leeren Kopfspalten ersetzen (AK 6). Regression durch 9 → 24 Spalten (vorher ~1230 px). | `IdealAkeWms/Views/FaHierarchy/_FaHierarchyNode.cshtml:209` | mittel | **zur Reparatur zurueck** — Vorschlag: `w-auto` an die innere Tabelle (eine Klasse), Nachtest am Kombigeraet 1059463 |
+| F2 | `.fa-structure-header` hat seit v1.99.83 keinen Verwender mehr (Grep `*.cshtml/*.js/*.cs`: nur noch CSS) — toter Stil, dazu Verweis im Kommentar. | `IdealAkeWms/wwwroot/css/site.css:135-138`, `:1299` | niedrig | mit F1 entfernen (rein kosmetisch) |
+| F3 | Texte: Icon-Titel der Wurzel sagt weiter „oberste Struktur-Zeile“, Legende „HauptFA-Zeile“; Zaehler „1 Teile ausgeblendet“ (Einzahl). | `_FaHierarchyNode.cshtml:59`, `:153` | Hinweis | optional mit F1 |
+| F4 | Kopfdaten-Tabelle nennt „Status“/„FE-Termin“, die Spalten heissen „PPS-Status“/„Fert.-Termin“. Laut D-3 „Inhalt unveraendert“ — gewollt. | `_FaHierarchyNode.cshtml:214-216` | Hinweis | keine Aenderung |
+
+Ohne Befund geprueft (Defektklassen): keine Werte in `<script>`-Bloecken (column-config statisch, `data-recursive-filter` als Attribut); kein `hidden` neben `d-*` (`#faLegendContent` nur `d-none`); keine stillen Fallbacks (leere Kopfzellen = „kein eindeutiger Kopf“, Badge meldet es); keine Array-Bindung; `mitTeilen` ist `bool`, `mitTeilen=abc` → Standard (DEV belegt); Teile-Regel nur an EINER Stelle (`FaHierarchyTreeBuilder.TeileAusblenden`), Kopf-Regel `Count == 1` nur im Partial, JS liest nur `data-teile-ausgeblendet`. Ausduennen nach Pagination und vor `_agStatus.ZuordnenAsync` (`FaHierarchyController.cs:100-103`), `FilterHauptFas` und `Build` unveraendert ueber alle Knoten; `HasChildren` ist berechnet (`FaHierarchyTreeViewModel.cs:103`) → Wurzel ohne verbleibende Kinder hat keinen Chevron (DEV belegt). `RecursiveFilterSearch`-Lesen unveraendert. Popover: Inhalt als Element (kein Sanitizer-Verlust, 4 SVG im Popover auf DEV). Sticky: MutationObserver beobachtet nur die Kopfzeile, `updateSticky` schreibt an `table` → keine Rueckkopplung.
+
+### 3. Nachweisart je AK
+
+| AK | Nachweis | Ergebnis |
+|---|---|---|
+| 1 | DEV (Playwright/Edge): 0 `fa-structure-group-head`, je Struktur eine `fa-hauptfa-row` mit HauptFA-Nr., Unterkopf nur bei 1059463 | OK |
+| 2 | DEV: Hervorheben markiert (`fa-hl`), blendet nichts aus; „Rekursive Filtersuche“ nur Code-Review (User ohne Einstellung) | OK / Rest Manual-UAT |
+| 3 | DEV: Popover „Legende: Knotentypen“, Link `/Help#hilfe-fa-struktur`, Erklaertext am Zaehler weg, ein Satz unter dem Feld | OK |
+| 4 | Test `Kopfspalten_KeysUndLabelsWieFaListe_AlleSichtbar` + DEV: ohne Praeferenz 24 sichtbar; mit alter Praeferenz (Kopie von User 1, Bezeichnung aus) 23 sichtbar, alle 15 neuen dabei | OK |
+| 5 | DEV 1060414: alle 15 Kopfzellen befuellt (Prio leer in Daten), Datum dd.MM.yyyy; jede Knotenzeile 24 Zellen; Waise leere Kopfzellen | OK |
+| 6 | DEV 1059463: Kopfzellen leer, Badge „mehrdeutig (Kombigerät)“, Kopfdaten-Zeile mit 2 Koepfen; Testdaten „ohne Kopfdaten“ → Badge | OK, aber **F1** |
+| 7 | DEV: zugeklappt (4 Zeilen), Chevron → Tiefe 1, Alle auf/zu | OK |
+| 8 | Test `TeileAusblenden_…` + DEV: 755 → 608 Knoten, „142 Knoten · 30 Teile ausgeblendet“, Blatt 73002467 (AG „VM“) sichtbar, 71600169 nicht im DOM | OK |
+| 9 | DEV: Knopf mit Text + `aria-pressed`, URL-Zustand, Filterkarte (Hidden-Feld) und Seitengroessen-Wechsel behalten `mitTeilen`, Zuruecksetzen → `/FaHierarchy`; Blaettern selbst nicht testbar (nur 4 Strukturen, Handler `site.js:125-136` gelesen) | OK / Blaettern Manual-UAT |
+| 10 | Test `Filterkarte_FindetStrukturUeberTeilenummer` + DEV: Suche 71600169 → 1060414 + Hinweis `role=status`; Spaltenfilter „0 von 608 … (Teile ausgeblendet)“; Hervorheben-Hinweis erscheint/verschwindet; bei `mitTeilen=true` keine Hinweise | OK |
+| 11 | DEV: Spaltenfilter Kunde/Datum-Text/Montage-Abt.-Auswahl; Modal 35 Sub-FAs, 128 Zeilen | OK |
+| 12 | DEV: `.fa-toggle` 28 × 28 px, `aria-expanded` false/true/false | OK |
+| 13 | Code + DEV (`title` + `aria-label`, Popover) | OK |
+| 14 | DEV Zaehler je HauptFA-Zeile | OK |
+| 15 | DEV `?filterHauptFa=1060414` → neue Darstellung, Teile aus | OK |
+| 16 | Kontrast | Manual-UAT (nicht rechnerisch nachgeprueft) |
+| 17 | Test `Kopfspalten_…` | OK |
+| 18 | Build/Tests oben | OK |
+| 19 | DEV 1280 px, scrollLeft 1200: Struktur left 0, Matchcode left 341 = `--fa-sticky-left-2`, deckende Hintergruende (Kopf rgb(5,49,83), Filter rgb(248,249,250), Zeile/Hover/Hervorheben); umsortierte Praeferenz (Matchcode hinten) → Klasse `fa-sticky-cols` weg; Scroller: `table-responsive` + Ersatzleiste `table-sticky-scrollbar` (Muster v1.64.1) | OK; Optik Manual-UAT |
+
+### 4. Geaenderte bestehende Tests
+
+- `FaHierarchyStrukturSpaltenTests.StrukturKopfzeilen_ColspanGleichSpaltenzahl`: liest jetzt Index + Partial — Verhalten absichtlich (AK 18, D-3).
+- `TabellenZeilenfarbeTests` Freigabeliste: `fa-head-table` von Index ins Partial — absichtlich (AK 18, D-3).
+Keine „sonstigen“ Aenderungen.
+
+### 5. Checkliste
+
+Keine Migration/SQL (korrekt, Diff ohne `Migrations/`, `SQL/`); Version 1.99.83 in Web + Service; Anwender-Changelog + Hilfe-Abschnitt `hilfe-fa-struktur` vorhanden; TS-204 in `docs/TESTSZENARIEN.md`, TS-62.4/62.6 als abgeloest markiert; Testindex-Zeile 204 vorhanden; Manifest `fa-struktur-uebersicht-info` (Version 1.99.83, IDEAL, Info) vorhanden. **Offen (Orchestrator):** Brain-Changelog `secondbrain/changelog/…v1-99-83…` fehlt noch; `docs/anwender` im Diff nicht geaendert (DoD des Laufs). ADR 0020: keine Einstellung.
+
+### 6. DEV-Deploy und Testlauf
+
+- `dev-deploy.ps1 -Standort IDEAL` (erhoeht): Exit 0, „HTTP 200, Fusszeile v1.99.83“. `-Standort AKE`: Exit 0, v1.99.83 (Regression).
+- Pruefabfragen IDEAL_WMS_DEV: T-1 = 428 Blaetter mit AG; T-2 = 4 Strukturen, 755 Knoten, 180 Baugruppen (1059463: 264/68); T-3 = 1059463 mit 2 Koepfen, 2 Abteilungen (kein Fall „gleiche Abteilung“).
+- Browser: claude-in-chrome lieferte keine Screenshots (CDP-Timeout auch auf `/Help`), daher Playwright-Core mit installiertem Edge (Windows-Anmeldung) gegen http://localhost:8082 — Ergebnisse siehe Tabelle AK; keine Browser-Konsolenfehler.
+- Testdaten (selbst angelegt, danach wieder geloescht): HauptFA 9999901 (Wurzel ohne Kopf + Kaufteil + Waise VaterFA 8888888) → „ohne Kopfdaten · 1 Teile ausgeblendet“, ohne Chevron; „Verwaist (VaterFA 8888888)“, leere Kopfzellen. Zahnrad-Praeferenz fuer User 8 (alt / umsortiert) angelegt und geloescht.
+- AKE 8081: `/FaHierarchy` leitet mit Hinweis auf das Dashboard um (unveraendert); `/ProductionOrders` 200.
+
+### 7. Publish
+
+Nicht ausgefuehrt — erst nach Reparatur F1 und Nach-QA (Paket soll den getesteten Stand tragen).
+
+### Fehlerbericht
+
+Was: F1 (Kopfdaten-Tabelle Kombigeraet auf 4963 px gedehnt). Ursache: `.table` = `width:100%` in `colspan="24"`. Status bleibt **InUmsetzung**; Reparaturversuch 0 von 2.
