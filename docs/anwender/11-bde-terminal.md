@@ -1,6 +1,6 @@
 # 11 – BDE: Arbeitsgänge buchen
 
-Stand: Version 1.99.79 (Doku-Nachzug 1.99.80: Meldung „Terminal nicht zugeordnet“; Scan „läuft bereits“, Sub-FA und Laufzeit in „Meine Buchungen“, Tageshistorie nach Anmeldung; Text), 1.99.78 (Terminal-Seite abgelöst, Kapitel umgeschrieben, Tageshistorie neu; alle Fotos 1.99.78), 1.99.77
+Stand: Version 1.99.81 (Fortsetzen oder Abschließen, Fertig mit Restmenge, Kopf einklappbar, Gruppen-Abschluss je Werkbank, Prüfung aller Buchungen; Text, Fotos von 1.99.78), 1.99.79 (Doku-Nachzug 1.99.80: Meldung „Terminal nicht zugeordnet“; Scan „läuft bereits“, Sub-FA und Laufzeit in „Meine Buchungen“, Tageshistorie nach Anmeldung; Text), 1.99.78 (Terminal-Seite abgelöst, Kapitel umgeschrieben, Tageshistorie neu; alle Fotos 1.99.78), 1.99.77
 (Meine Buchungen, Scan, Tätigkeit), 1.99.76 (FA-Sicht) · Standorte AKE und IDEAL · Bilder aus dem IDEAL-Testsystem
 
 ## Zweck
@@ -39,12 +39,15 @@ Menü **BDE → Terminal**.
 
 ![BDE-Seite: Anmelden mit Personalnummer](bilder/11-01-terminal-operator-angemeldet.jpg)
 
-1. Die Seite öffnet die **Werkbank des Terminals**. Oben rechts lässt sich eine andere BDE-aktive Werkbank wählen.
+1. Die Seite öffnet die **Werkbank des Terminals**. Eine andere BDE-aktive Werkbank wählen kann seit 1.99.81 nur der **BDE-Admin** (oben
+   rechts; der Werker bleibt dabei angemeldet).
 2. **Personalnummer** scannen (Ausweis, auch mit dem Handscanner ohne Antippen) oder eintippen und **Anmelden** drücken.
 3. Der Werker-Balken zeigt Name und Personalnummer, rechts **Tageshistorie** (Abschnitt 4) und **Werker wechseln** (meldet ab, der nächste
    meldet sich an).
 4. Welche Ansicht kommt, legt die Werkbank fest (*BDE-Standardsicht*): an IDEAL-Werkbänken mit BDE-Teileliste die Reiter **Teile Einzeln** /
    **Teile Summiert** (Abschnitt 5), sonst der Reiter **FA** (Abschnitt 2). An AKE gibt es nur den Reiter **FA**.
+5. **Kopf einklappen** (seit 1.99.81): Werker, Werkbank und „Meine Buchungen“ lassen sich mit dem Knopf über dem Kopf einklappen, damit mehr
+   Platz für die Liste bleibt. Eingeklappt zeigt eine Kurzzeile Werker und laufende Buchung; Meldungen bleiben sichtbar. Das Gerät merkt sich die Wahl.
 
 ### 2. Reiter FA: Arbeitsgänge als Tabelle (seit Version 1.99.76)
 
@@ -76,9 +79,17 @@ Mengen gibt man im Fenster **Mengen melden** ein:
 1. **Meine Buchungen** (unter dem Werker-Namen): alle **laufenden** und **pausierten** Buchungen des Werkers – laufende mit
    durchgezogenem Balken und „… läuft“, pausierte mit gestricheltem Balken und „… pausiert“. Die Knöpfe je Zeile:
    - Rüsten läuft: **Pause**, **Rüsten fertig**, **Produktion** (Wechsel vom Rüsten in die Produktion),
-   - Produktion läuft: **Pause**, **Teilfertig**, **Fertig** (jeweils mit dem Fenster „Mengen melden“; bei Fertig unter Sollmenge kommt eine Rückfrage),
+   - Produktion läuft: **Pause**, **Teilfertig**, **Fertig** (jeweils mit dem Fenster „Mengen melden“; Gut ist Pflicht; bei Fertig unter oder über
+     der Sollmenge kommt eine Rückfrage),
    - Tätigkeit läuft: **Beenden**,
-   - pausiert: **Fortsetzen** (setzt als Produktion fort).
+   - pausiert: **Fortsetzen** (setzt als Produktion fort). Die Zeile zeigt immer Werkbank und Pausenbeginn („Kanten, seit 25.11. 14:10“).
+     Geht Fortsetzen nicht mehr (z. B. FA in Sage abgeholt, Arbeitsgang gehört nicht zu dieser Werkbank), steht **„Nicht fortsetzbar: <Grund>“**
+     dabei und statt Fortsetzen der Knopf **Abschließen** (seit 1.99.81): nach einer Rückfrage wird die Buchung beendet, die Zeit bis zur Pause
+     bleibt gebucht, eine Menge wird nicht gemeldet.
+   **Fertig nach Teilmengen** (seit 1.99.81): Wurden schon Teilmengen gemeldet, ist Gut mit dem **Rest** (Sollmenge minus bisher Gut) vorbelegt;
+   das Fenster nennt Soll, bisher und Rest. Ausschuss kann dazukommen. Fertig mit **0 Gut und 0 Ausschuss** geht nur nach Teilmengen (der Rest
+   ist dann schon gemeldet); ohne Teilmenge lehnt das WMS 0/0 ab. Erreicht eine Teilmenge die Sollmenge, sagt die Meldung „Sollmenge erreicht –
+   bitte Fertig melden“.
    Nach jeder Buchung lädt die Seite neu und zeigt oben eine grüne Meldung. Seit 1.99.79 steht bei Arbeitsgängen eines Sub-FA
    „<FA> · Sub-FA <Sub> / <AG>“, und die Laufzeit zählt ohne Neuladen weiter (alle 15 Sekunden).
 2. **Zeiten und Details** (Schalter rechts): blendet je Buchung Startzeit, Laufzeit, Werkbank, Terminal und Personalnummer ein. Die Wahl
@@ -86,8 +97,9 @@ Mengen gibt man im Fenster **Mengen melden** ein:
 3. **Fertig mit weiteren Werkern:** Arbeiten andere noch auf demselben Arbeitsgang (Einstellung Mehrfachbuchung je Arbeitsgang), fragt das
    Fenster **„Weitere aktive Buchungen“**: **Ja, alle beenden** beendet sie („<n> weitere Buchungen beendet.“), **Nein, nur meine** lässt sie laufen.
 4. **Mehrere Produktionen gleichzeitig** (Einstellung gleichzeitiger Abschluss): **Fertig** öffnet **„Alle Produktionsaufträge abschliessen“**
-   mit FA/AG, Sollmenge, Gut, Ausschuss und Haken *Abschl.*; **Alle fertig melden** bucht alle („<n> Buchungen fertig gemeldet.“),
-   **Abbrechen** bucht nichts.
+   mit „Haupt-FA · Sub-FA / AG“, Werkbank, Sollmenge, Gut, Ausschuss und Haken *Abschl.* – seit 1.99.81 nur die Produktionen **derselben
+   Werkbank** wie die angeklickte. Jede Zeile braucht eine Menge (ganze Zahlen); liegt Gut unter Soll, fragt **ein** Fenster für alle Zeilen nach.
+   **Alle fertig melden** bucht alle („<n> Buchungen fertig gemeldet.“), **Abbrechen** bucht nichts.
 5. **FA scannen** (Feld über der Tabelle, auch mit dem Handscanner ohne Antippen): `FA` oder `FA/AG` (bzw. `FA,AG`). Eindeutig: die Zeile wird
    **markiert** (Rahmen und Balken), die Seite blättert zu ihr und der Knopf **Rüsten** bzw. **Fertig melden** ist gewählt. Mehrere offene
    Arbeitsgänge: Fenster **„Arbeitsgang wählen“**. Gelbe Meldung (seit 1.99.79 getrennt): **„nicht gefunden“** bei unbekannter Nummer,
@@ -95,7 +107,10 @@ Mengen gibt man im Fenster **Mengen melden** ein:
    Spaltenfilter ausgeblendet, sagt das eine Meldung – Spaltenfilter zurücksetzen.
 6. **Tätigkeit starten** (Knopf rechts oben): Auswahl der ungeplanten Tätigkeiten (z. B. Reinigung); die Tätigkeit erscheint dann unter
    „Meine Buchungen“ mit **Beenden**.
-7. Jeder Knopf bucht **einmal** – ein zweites Tippen während der Buchung wird ignoriert.
+7. Jeder Knopf bucht **einmal** – ein zweites Tippen während der Buchung wird ignoriert. Im Mengen-Fenster bestätigt auch die Eingabetaste.
+8. **Zweiter Arbeitsgang, während eine Produktion läuft** (seit 1.99.81): Das WMS bucht nichts und sagt „Es läuft noch Ihre Produktion
+   <FA/AG> (seit hh:mm). Solange sie läuft, kann kein zweiter Arbeitsgang starten …“. Die laufende Zeile unter „Meine Buchungen“ ist markiert;
+   dort **Pause** oder **Fertig** melden, dann neu starten.
 
 ### 4. Tageshistorie (seit Version 1.99.78)
 
@@ -105,7 +120,8 @@ Knopf **Tageshistorie** im Werker-Balken oder Menü **BDE → Tageshistorie**.
 
 1. Die Seite zeigt **Ihre Buchungen und Teilmeldungen von heute**, neueste zuerst, an allen Werkbänken.
 2. **Art** *Buchung*: Typ Rüsten, Produktion oder Tätigkeit, Zeit von–bis, Dauer in Minuten, Gut und Ausschuss, Status *läuft*, *pausiert*,
-   *fortgesetzt* oder *beendet*. Stornierte Buchungen fehlen.
+   *fortgesetzt* oder *beendet*. Stornierte Buchungen fehlen. Eine Buchung über Mitternacht (z. B. 22:00–06:00) steht seit 1.99.81 an
+   **beiden** Tagen, dann mit Datum („25.11. 22:00–26.11. 06:00“); die Spalte Auftrag nennt den Sub-FA.
 3. **Art** *Teilmeldung* (Teileliste, IDEAL): Typ **Teilfertig** oder **Fertig**, Auftrag als „FA … / Sub-FA … · Pos. … · Matchcode“, Gut und
    Ausschuss. Meldungen auf Lagerbestell-Zeilen beginnen mit „Lagerbestellung · “. Fehlt FA oder Sub-FA (Wert 0), entfällt der Teil (seit 1.99.79). Die Fertigmeldung einer Baugruppe steht nur einmal da.
 4. Jede Spalte hat einen **Spaltenfilter**, lange Listen werden geblättert. **Spaltenfilter zurücksetzen** hebt alle Filter auf.
@@ -134,11 +150,16 @@ Teile und Baugruppen nach Matchcode, teilfertig oder fertig melden, einzeln oder
 - **Doppelte Buchungen schwer zu erkennen (IDEAL).** In *BDE → Buchungen* zeigt die Spalte „Ziel“ nur Haupt-FA und Arbeitsgang (z. B.
   `1059463/EG`), nicht die Sub-FA. Zur Prüfung Zeit und Werker vergleichen.
 - **Erst den Werker anmelden, dann scannen.** Vor der Anmeldung landet ein Scan im Feld „Personalnummer“, danach im Feld „FA scannen“.
-- „FA … ist bereits verpackt/abgeholt — keine BDE-Buchung mehr möglich.“: Der Auftrag ist in Sage abgeschlossen; nur noch laufende Buchungen beenden.
+- „FA … ist bereits verpackt/abgeholt. Keine BDE-Buchung mehr möglich.“: Der Auftrag ist in Sage abgeschlossen; nur noch laufende Buchungen
+  beenden, eine pausierte **abschließen**.
 - Mengen dürfen nicht negativ sein; Gut- oder Ausschussmenge muss angegeben werden.
 - Ist der Schichtkalender eingeschaltet, pausiert das WMS laufende Buchungen am Schichtende selbst („auto-pausiert“); am nächsten Tag
   **Fortsetzen** unter „Meine Buchungen“.
-- „Dieses Terminal ist nicht dem angemeldeten Benutzer zugeordnet – Seite neu laden. – nichts gebucht.“ (seit 1.99.79): Die Seite war
+- **Alle Buchungen** (Pause, Fortsetzen, Fertig, Teilfertig, Gruppe, Abschließen) prüfen seit 1.99.81 Terminal, Werker und ob die Buchung Ihnen
+  gehört. Eine an einem Terminal gestartete Buchung können Sie an einem anderen Terminal beenden. Mögliche Meldungen: „Diese Buchung gehört nicht
+  dem angemeldeten Werker – Seite neu laden.“, „Dieser Werker ist nicht (mehr) aktiv – bitte neu anmelden.“ und bei einem Fehler im WMS
+  „Serverfehler – nichts sicher gebucht. Seite neu laden und Buchung prüfen …“ (dann unter „Meine Buchungen“ nachsehen).
+- „Dieses Terminal ist nicht dem angemeldeten Benutzer zugeordnet – Seite neu laden. Nichts gebucht.“ (seit 1.99.79): Die Seite war
   noch unter einem anderen Konto offen. Seite neu laden (F5) und die Buchung wiederholen; bleibt die Meldung, die WMS-Betreuung
   informieren (Terminal-Zuordnung prüfen).
 - **Handy (Android):** eigenes lokales WMS-Konto je Gerät mit Formular-Login und eine Terminal-Zuordnung – richtet die WMS-Betreuung ein. Auf

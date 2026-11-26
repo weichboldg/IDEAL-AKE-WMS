@@ -8,6 +8,42 @@
     <div class="col-lg-8">
         <div class="card mb-3">
             <div class="card-header text-white" style="background-color: var(--ake-primary);">
+                <strong>v1.99.81</strong> <span class="text-white-50 ms-2">26.11.2026</span>
+            </div>
+            <div class="card-body">
+                <h6>BDE</h6>
+                <ul>
+                    <li>Alle Buchungsaktionen (Pause, Fortsetzen, Fertig, Teilmenge, Gruppe, Abschließen) prüfen Terminal, aktiven Werker und
+                        ob die Buchung dem Werker gehört. Eine an Terminal A gestartete Buchung kann derselbe Werker an Terminal B beenden.
+                        Fehler zeigen einen festen, verständlichen Text.</li>
+                    <li>Gruppen-Abschluss: nur Buchungen derselben Werkbank, mit Sub-FA und Werkbank je Zeile, jede Zeile braucht eine Menge,
+                        eine Rückfrage, wenn Gut unter Soll liegt.</li>
+                    <li>Fertig melden: nach Teilmengen ist Gut mit dem Rest vorbelegt; Gut ist Pflicht; Rückfrage über der Sollmenge.
+                        Fertig mit 0 Gut / 0 Ausschuss geht nur, wenn vorher Teilmengen gemeldet wurden.</li>
+                    <li>Kopf (Werker, Werkbank, Meine Buchungen) einklappbar, der Zustand bleibt je Gerät. Läuft noch eine Produktion, nennt
+                        die Meldung sie und markiert sie oben.</li>
+                    <li>Pausierte Buchungen zeigen Werkbank und Datum. Geht Fortsetzen nicht mehr (z. B. FA abgeholt), steht der Grund
+                        dabei und der Werker kann die Pause abschließen. Neue Liste &bdquo;BDE-Buchungen › Hängende Pausen&ldquo;
+                        (Schichtleiter sehen, BDE-Admin schließt ab).</li>
+                    <li>Werkbank wechseln im Kopf nur noch für BDE-Admin; der Werker bleibt angemeldet.</li>
+                    <li>Tageshistorie: Buchungen über Mitternacht erscheinen an beiden Tagen mit Datum, Sub-FA in der Auftrag-Spalte.</li>
+                    <li>Teileliste: Glasbestellungen erscheinen nicht mehr bei den Lagerbestellungen; CSV-Export der Matchcode-Spalte ohne
+                        Zusatztexte.</li>
+                </ul>
+                <h6>Fräsen-Pfad (IDEAL)</h6>
+                <ul>
+                    <li>Laufwerk Y: an der Fräse ist <code>\\idealfs1\Daten$\Produktion\CAM\Format4</code>. Das Einmal-Skript für den
+                        Erstimport rechnet so um und wird im Prod-Fenster scharf ausgeführt.</li>
+                </ul>
+                <h6>Hinweis zum Update</h6>
+                <ul>
+                    <li>Keine Datenbank-Migration. SQL/169 setzt bei der Erstanlage jetzt die Änderungsfelder (wirkt nur, wo es noch nicht lief).</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header text-white" style="background-color: var(--ake-primary);">
                 <strong>v1.99.80</strong> <span class="text-white-50 ms-2">25.11.2026</span>
             </div>
             <div class="card-body">

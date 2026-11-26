@@ -1933,8 +1933,9 @@
                 </p>
                 <ol>
                     <li><strong>Werker anmelden:</strong> Personalnummer scannen (auch Handscanner ohne Antippen) oder eintippen, &bdquo;Anmelden&ldquo;.
-                        Im Werker-Balken rechts &bdquo;Tageshistorie&ldquo; und &bdquo;Werker wechseln&ldquo;. Oben rechts laesst sich eine andere
-                        BDE-aktive Werkbank waehlen.</li>
+                        Im Werker-Balken rechts &bdquo;Tageshistorie&ldquo; und &bdquo;Werker wechseln&ldquo;. Eine andere BDE-aktive Werkbank
+                        waehlen kann seit v1.99.81 nur der BDE-Admin (der Werker bleibt dabei angemeldet). Der Kopf mit Werker, Werkbank und
+                        Meine Buchungen laesst sich einklappen; der Zustand bleibt je Geraet, eingeklappt zeigt eine Kurzzeile die laufende Buchung.</li>
                     <li><strong>Reiter:</strong> <em>Teile Einzeln</em> und <em>Teile Summiert</em> (nur IDEAL-Werkbaenke mit BDE-Teileliste und Kuerzel,
                         sonst ausgegraut) sowie <em>FA</em>. Welcher Reiter zuerst kommt, legt die Werkbank fest (<em>BDE-Standardsicht</em>, siehe
                         &bdquo;Werkbank fuer BDE konfigurieren&ldquo;); danach merkt sich das WMS die gewaehlte Sicht je Werker und Werkbank. AKE: nur FA.</li>
@@ -1945,21 +1946,26 @@
                         &mdash; es wird nichts gebucht.</li>
                     <li><strong>Meine Buchungen</strong> (oben im Reiter FA): laufende und pausierte Buchungen des Werkers mit Pause, Teilfertig, Fertig,
                         Ruesten fertig, Produktion, Beenden bzw. Fortsetzen; seit v1.99.79 mit Sub-FA und weiterlaufender Laufzeit. Der Schalter
-                        &bdquo;Zeiten und Details&ldquo; blendet Startzeit, Laufzeit, Werkbank, Terminal und Personalnummer ein (je Werker im Browser gemerkt).</li>
+                        &bdquo;Zeiten und Details&ldquo; blendet Startzeit, Laufzeit, Werkbank, Terminal und Personalnummer ein (je Werker im Browser gemerkt).
+                        Pausierte Buchungen zeigen seit v1.99.81 immer Werkbank und Pausenbeginn.</li>
                     <li><strong>FA scannen:</strong> <code>FA</code>, <code>FA/AG</code> oder <code>FA,AG</code>. Eine eindeutige Zeile wird markiert und
                         angesprungen, bei mehreren offenen Arbeitsgaengen kommt &bdquo;Arbeitsgang waehlen&ldquo;. Gelbe Meldung &bdquo;nicht gefunden&ldquo;,
                         seit v1.99.79 getrennt davon &bdquo;laeuft bereits (offene Buchung)&ldquo; bzw. &bdquo;hat an dieser Werkbank keinen offenen
                         Arbeitsgang&ldquo;.</li>
                     <li><strong>Taetigkeit starten</strong> (rechts oben): ungeplante Taetigkeit wie Wartung oder Reinigung; Ende ueber &bdquo;Beenden&ldquo;
                         unter Meine Buchungen.</li>
-                    <li><strong>Mengen melden:</strong> Teilfertig und Fertig ueber das Fenster &bdquo;Mengen melden&ldquo; (Gut, Ausschuss); Fertig unter
-                        Sollmenge fragt nach. Arbeiten andere Werker auf demselben Arbeitsgang, fragt &bdquo;Weitere aktive Buchungen&ldquo;, ob alle oder
+                    <li><strong>Mengen melden:</strong> Teilfertig und Fertig ueber das Fenster &bdquo;Mengen melden&ldquo; (Gut, Ausschuss); Gut ist Pflicht.
+                        Fertig unter oder ueber der Sollmenge fragt nach. Seit v1.99.81: nach Teilmengen ist Gut mit dem Rest (Soll minus bisher Gut)
+                        vorbelegt; Fertig mit 0 Gut und 0 Ausschuss geht nur, wenn vorher Teilmengen gemeldet wurden. Laeuft noch eine eigene
+                        Produktion, nennt die Meldung sie und markiert sie unter Meine Buchungen &ndash; erst dort Pause oder Fertig melden. Arbeiten andere Werker auf demselben Arbeitsgang, fragt &bdquo;Weitere aktive Buchungen&ldquo;, ob alle oder
                         nur die eigene beendet werden.</li>
                 </ol>
                 <p class="mt-2 mb-1">
                     Nach jeder Buchung laedt die Seite neu und zeigt oben eine <strong>gruene Bestaetigungs-Meldung</strong>. Seit v1.99.79 nehmen die
                     Buchungen nur das Terminal des angemeldeten Benutzers an; sonst kommt &bdquo;Dieses Terminal ist nicht dem angemeldeten Benutzer
-                    zugeordnet &ndash; Seite neu laden.&ldquo; und es wird nichts gebucht.
+                    zugeordnet &ndash; Seite neu laden.&ldquo; und es wird nichts gebucht. Seit v1.99.81 pruefen alle Aktionen zusaetzlich, ob der
+                    Werker aktiv ist und die Buchung ihm gehoert; eine an einem Terminal gestartete Buchung kann derselbe Werker an einem anderen
+                    Terminal beenden.
                 </p>
 
                 <h6 class="mt-3">Tageshistorie (seit v1.99.78)</h6>
@@ -1967,7 +1973,8 @@
                     Knopf &bdquo;Tageshistorie&ldquo; im Werker-Balken oder
                     <a asp-controller="BdeTeileliste" asp-action="Tageshistorie">BDE &rsaquo; Tageshistorie</a>: Buchungen (Ruesten, Produktion,
                     Taetigkeit) und Teilmeldungen (Teilfertig, Fertig; IDEAL) des Werkers von heute an allen Werkbaenken, neueste zuerst, mit
-                    Spaltenfiltern und Blaettern. Stornierte Buchungen fehlen. Ohne angemeldeten Werker kommt zuerst die Anmeldung, danach oeffnet
+                    Spaltenfiltern und Blaettern. Stornierte Buchungen fehlen. Eine Buchung ueber Mitternacht steht seit v1.99.81 an beiden Tagen,
+                    dann mit Datum in der Zeit-Spalte; die Auftrag-Spalte nennt den Sub-FA. Ohne angemeldeten Werker kommt zuerst die Anmeldung, danach oeffnet
                     direkt die Tageshistorie (seit v1.99.79).
                 </p>
 
@@ -1983,8 +1990,8 @@
                     Sobald ein FA in Sage den Status <em>verpackt</em> oder <em>abgeholt</em>
                     traegt, sind am Terminal <strong>keine neuen Buchungen</strong> mehr
                     moeglich &mdash; Start und Fortsetzen werden mit der Meldung
-                    &bdquo;FA &lt;Nr&gt; ist bereits &lt;Status&gt; &mdash; keine BDE-Buchung
-                    mehr moeglich.&ldquo; abgelehnt, und der FA verschwindet aus den
+                    &bdquo;FA &lt;Nr&gt; ist bereits &lt;Status&gt;. Keine BDE-Buchung
+                    mehr m&ouml;glich.&ldquo; abgelehnt, und der FA verschwindet aus den
                     Auswahllisten. <strong>Laufende Buchungen</strong> koennen normal beendet,
                     pausiert und mit Mengen gemeldet werden; ungeplante Taetigkeiten bleiben
                     moeglich. Ohne Zusatzinfo-Daten (Sync aus) greift keine Sperre.
@@ -2065,7 +2072,7 @@
                     <li><strong>Lagerbestellungen (seit v1.99.72):</strong> mit der Werkbank-Option &bdquo;Lagerbestellungen in der Teileliste&ldquo;
                         (nur zusammen mit &bdquo;BDE-Teileliste&ldquo;; wirkt nur bei eingeschalteter Lagerbestellung) zeigt die Liste auch jede
                         Position einer <em>abgeschickten</em> oder <em>teilgelieferten</em> Lagerbestellung, deren Artikel das Kuerzel im Merkmal
-                        Arbeitsschritte traegt. Kennzeichen: Badge &bdquo;Lagerbestellung &lt;Nr&gt;&ldquo; mit dem Kommentar der Bestellung;
+                        Arbeitsschritte traegt; Glasbestellungen nicht (seit v1.99.81). Kennzeichen: Badge &bdquo;Lagerbestellung &lt;Nr&gt;&ldquo; mit dem Kommentar der Bestellung;
                         Abteilung = bestellende Werkbank; Termin (Spalte FE-Termin, auch fuer den KW-Filter) = Abschicken + 10 Arbeitstage
                         (Einstellung <code>BdeTeilelisteLagerbestellungArbeitstage</code>). Fertig melden wie ein Blechteil: keine Lagerbuchung,
                         die Lagerbestellung bleibt unveraendert, nichts an Sage. In <em>Summiert</em> zaehlen sie je Matchcode mit (&bdquo;LB &lt;Nr&gt;&ldquo;).
@@ -2160,12 +2167,20 @@
 
                 <h6 class="mt-3">Pausierte Auftraege fortsetzen</h6>
                 <p>Pausierte Buchungen stehen nach der Anmeldung im Reiter FA unter <strong>Meine Buchungen</strong> (gestrichelter Balken, &bdquo;&hellip; pausiert&ldquo;);
-                    &bdquo;Fortsetzen&ldquo; setzt sie als Produktion fort.</p>
+                    &bdquo;Fortsetzen&ldquo; setzt sie als Produktion fort.
+                    Geht Fortsetzen nicht mehr (z.&nbsp;B. FA abgeholt, Arbeitsgang nicht an dieser Werkbankfamilie), steht seit v1.99.81
+                    &bdquo;Nicht fortsetzbar: &lt;Grund&gt;&ldquo; dabei und statt &bdquo;Fortsetzen&ldquo; der Knopf <strong>&bdquo;Abschlie&szlig;en&ldquo;</strong>:
+                    die Buchung wird beendet, die Zeit bis zur Pause bleibt gebucht, es wird keine Menge gemeldet.</p>
+                <p><strong>H&auml;ngende Pausen</strong> (seit v1.99.81, <a asp-controller="BdeBookings" asp-action="HaengendePausen">BDE-Buchungen &rsaquo;
+                    H&auml;ngende Pausen</a>): alle nie fortgesetzten Pausen aller Werker mit Filter &bdquo;Pausiert bis einschlie&szlig;lich&ldquo;,
+                    Spaltenfiltern und Blaettern. Sehen ab Schichtleiter, &bdquo;Abschlie&szlig;en&ldquo; nur BDE-Admin.</p>
 
                 <h6 class="mt-3">Gleichzeitiger Abschluss mehrerer Auftr&auml;ge</h6>
                 <p>Wenn <code>BdeGleichzeitigerAbschlussBeiMehrfachStart</code> aktiv ist (setzt <code>BdeMehrfachBuchungProOperator</code> voraus), &ouml;ffnet ein Klick auf &bdquo;Fertig&ldquo; bei &ge;2 laufenden Produktionsbuchungen automatisch den <strong>Gruppen-Abschluss-Dialog</strong>:</p>
                 <ul>
-                    <li>Tabelle mit einer Zeile pro aktiver Buchung: FA/AG, Sollmenge, Gut-Menge (Eingabe), Ausschuss-Menge (Eingabe), Abschluss-Checkbox.</li>
+                    <li>Tabelle mit einer Zeile pro aktiver Buchung <strong>derselben Werkbank</strong> (seit v1.99.81): Haupt-FA &middot; Sub-FA / AG, Werkbank, Sollmenge,
+                        Gut-Menge, Ausschuss-Menge (ganze Zahlen, je Zeile Pflicht; die angeklickte Buchung uebernimmt schon eingegebene Mengen),
+                        Abschluss-Checkbox. Liegt Gut unter Soll, kommt eine Sammel-Rueckfrage.</li>
                     <li>Die Abschluss-Checkbox ist standardmaessig aktiviert. Deaktivieren Sie sie, wenn eine Buchung noch nicht endgueltig abgeschlossen werden soll (der Datensatz wird trotzdem beendet, aber <code>IsFinal=false</code> gesetzt).</li>
                     <li>Ein Klick auf &bdquo;Alle fertig melden&ldquo; schliesst alle Buchungen atomar mit demselben Endzeitpunkt &mdash; wichtig fuer korrekte Effektive-Zeit-Berechnung bei paralleler Arbeit.</li>
                     <li>Abbrechen verlaesst den Dialog ohne Aenderungen.</li>

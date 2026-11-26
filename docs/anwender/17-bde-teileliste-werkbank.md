@@ -1,6 +1,6 @@
 # 17 BDE-Teileliste an der Werkbank (vereinfachte Fertigmeldung)
 
-Stand: Version 1.99.79 (Doku-Nachzug 1.99.80: Statustabelle repariert, Blechdicke „–“, Termin einstellbar; Summen-Haken kommt zurück, Text), 1.99.78 (Abschnitt 1 Verweise auf Kapitel 11, Tageshistorie, Text), 1.99.77 (Abschnitt 1 Reiter FA mit Buchungen, Text), 1.99.76 (Wer darf, Reiter, Abschnitt 1, Text), 1.99.73 (Abschnitt 2 und Handy, Text; Fotos 1.99.78), 1.99.72 (Abschnitte 8 und 9, Text; Fotos folgen) bzw. 1.99.43 · nur Standort IDEAL · Bilder aus dem IDEAL-Testsystem
+Stand: Version 1.99.81 (Glasbestellungen nicht in der Liste, CSV-Matchcode ohne Zusatztext, Werkbank wählen nur BDE-Admin; Text), 1.99.79 (Doku-Nachzug 1.99.80: Statustabelle repariert, Blechdicke „–“, Termin einstellbar; Summen-Haken kommt zurück, Text), 1.99.78 (Abschnitt 1 Verweise auf Kapitel 11, Tageshistorie, Text), 1.99.77 (Abschnitt 1 Reiter FA mit Buchungen, Text), 1.99.76 (Wer darf, Reiter, Abschnitt 1, Text), 1.99.73 (Abschnitt 2 und Handy, Text; Fotos 1.99.78), 1.99.72 (Abschnitte 8 und 9, Text; Fotos folgen) bzw. 1.99.43 · nur Standort IDEAL · Bilder aus dem IDEAL-Testsystem
 
 ## Zweck
 
@@ -57,7 +57,7 @@ an Werkbänken mit „BDE-Teileliste (vereinfacht)“ und Kürzel – diese Werk
 
 ![Werker anmelden an der BDE-Teileliste](bilder/17-02-werker-anmelden.jpg)
 
-**Werker wechseln** (rechts im dunklen Balken) meldet den Werker ab. Über **Werkbank** oben rechts lässt sich eine andere Werkbank wählen.
+**Werker wechseln** (rechts im dunklen Balken) meldet den Werker ab. Über **Werkbank** oben rechts lässt sich eine andere Werkbank wählen – seit 1.99.81 nur als **BDE-Admin**, der Werker bleibt angemeldet.
 
 ### 2. Liste lesen – Ansicht „Einzeln“
 
@@ -203,7 +203,7 @@ Voraussetzung (richtet die WMS-Betreuung ein): *Stammdaten → Werkbänke → Be
 ![Werkbank bearbeiten: Schalter „Lagerbestellungen in der Teileliste“ unter „BDE-Teileliste“](bilder/17-10-werkbank-option-lagerbestellungen.jpg)
 
 - Es erscheint jede Position einer **abgeschickten** oder **teilgelieferten** Lagerbestellung, deren Artikel das Kürzel der Werkbank in den
-  Arbeitsschritten trägt. Entwürfe, abgeschlossene und stornierte Bestellungen erscheinen nicht.
+  Arbeitsschritten trägt. Entwürfe, abgeschlossene und stornierte Bestellungen erscheinen nicht, **Glasbestellungen** auch nicht (seit 1.99.81).
 - Kennzeichen in der Spalte Status: **Lagerbestellung <Nr>**, darunter klein der Kommentar der Bestellung.
 - **Menge** = bestellte Menge, **Abteilung** = die bestellende Werkbank, **Hauptauftrag** leer.
 - **FE-Termin** = Tag des Abschickens + **10 Arbeitstage** (ohne Wochenende und Feiertage; die Zahl stellt der Administrator in den
@@ -226,7 +226,8 @@ Voraussetzung (richtet die WMS-Betreuung ein): *Stammdaten → Werkbänke → Be
   Der Link öffnet den Ordner des Fräsprogramms. Öffnet er nicht: **Pfad kopieren**, im Explorer **Strg+L**, einfügen, **Enter**.
   In der Teileliste wird der Pfad nur angezeigt; gepflegt wird er in der *Artikelinfo* (Rolle **Fräsen-Pfad pflegen** mit eigenem Konto,
   zusätzlich **Stammdaten lesen**).
-- Der Knopf **CSV** exportiert die sichtbaren Spalten und ändert die gemerkten Filter nicht mehr.
+- Der Knopf **CSV** exportiert die sichtbaren Spalten und ändert die gemerkten Filter nicht mehr. Die Spalte Matchcode enthält seit 1.99.81 nur den
+  Matchcode (ohne „Teil der Baugruppe“ oder „Aufträge (n)“).
 
 ![Ansicht Summiert mit Material und Blechdicke, Hauptaufträge „LB <Nr>“](bilder/17-09-summiert-material-blechdicke.jpg)
 

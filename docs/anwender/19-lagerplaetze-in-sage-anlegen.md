@@ -1,6 +1,6 @@
 # 19 – Lagerplätze in Sage anlegen
 
-**Stand:** Version 1.99.79 (25.11.2026; Kennung zu lang, Konflikt mit Platz-ID), 1.99.71. Standorte: AKE und IDEAL.
+**Stand:** Version 1.99.81 (26.11.2026; „Gesendet“ nach Dienst-Neustart), 1.99.79 (25.11.2026; Kennung zu lang, Konflikt mit Platz-ID), 1.99.71. Standorte: AKE und IDEAL.
 
 ## 1. Zweck
 
@@ -61,6 +61,8 @@ Der Dienst legt zuerst das Lager in Sage an, danach seine Plätze. Bis dahin ste
 
 - **„Letzter Versuch fehlgeschlagen: …“** bei Status *Offen* heißt: Sage war gerade nicht erreichbar. Nichts tun, der Dienst versucht es selbst
   wieder. Hält es an, die WMS-Betreuung informieren.
+- **„Gesendet“ nach einem Dienst-Neustart:** Steht ein Platz nach einem Dienst-Neustart auf „Gesendet“, ist das bis zu 10 Minuten normal; der
+  Dienst sendet ihn danach selbst erneut. „Erneut senden“ gibt es nur bei Status Fehler. (seit 1.99.81 beschrieben)
 - **Lager im Fehler:** Kann ein neues Lager nicht in Sage angelegt werden, zeigt der rote Hinweis über der Liste den Grund und den Knopf
   **„Erneut senden“**. Solange ist das Lager für neue Plätze gesperrt, und seine Plätze warten.
 
