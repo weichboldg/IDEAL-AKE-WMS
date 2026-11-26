@@ -108,4 +108,25 @@ public class BdeTageshistorieTests
         sp["ausschuss"](zeile).Should().Be("0");
         sp.Keys.Should().Equal("zeit", "art", "typ", "ziel", "werkbank", "dauer", "gut", "ausschuss", "status");
     }
+
+    // v1.99.81 (U-8): Buchung 22:00–06:00 erscheint an beiden Tagen, Zeit-Spalte mit Datum; Sub-FA im Ziel (Muster F-35)
+    [Fact]
+    public async Task UeberMitternacht_AnBeidenTagen_MitDatum_UndSubFa()
+    {
+        var ctx = TestDbContextFactory.Create();
+        var ids = await BdeBookingTestSeed.SeedAsync(ctx);
+        var po = ctx.ProductionOrders.Single();
+        po.SubOrderNumber = "4711";
+        var tag = new DateTime(2026, 11, 25);
+        ctx.BdeBookings.Add(BdeBookingTestSeed.NewBooking(ids, BdeBookingType.Production, BdeBookingStatus.Finished, tag.AddHours(22), tag.AddHours(30)));
+        await ctx.SaveChangesAsync();
+
+        var erster = (await BdeTageshistorie.LadenAsync(ctx, ids.OperatorId, tag)).Single();
+        var zweiter = (await BdeTageshistorie.LadenAsync(ctx, ids.OperatorId, tag.AddDays(1))).Single();
+        (await BdeTageshistorie.LadenAsync(ctx, ids.OperatorId, tag.AddDays(2))).Should().BeEmpty();
+
+        zweiter.Start.Should().Be(erster.Start);
+        BdeTageshistorie.Spalten["zeit"](zweiter).Should().Be("25.11. 22:00–26.11. 06:00");
+        erster.Ziel.Should().StartWith($"{po.OrderNumber} · Sub-FA 4711/");
+    }
 }

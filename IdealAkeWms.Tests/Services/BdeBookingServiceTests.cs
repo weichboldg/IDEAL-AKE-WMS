@@ -878,7 +878,7 @@ public class BdeBookingServiceTests
         result.Outcome.Should().Be(BdeBookingOutcome.InvalidState);
         result.Message.Should().Contain(order!.OrderNumber);
         result.Message.Should().Contain(sageStatus.Trim());
-        result.Message.Should().Contain("keine BDE-Buchung mehr moeglich");
+        result.Message.Should().Contain("Keine BDE-Buchung mehr möglich");
         (await ctx.BdeBookings.CountAsync()).Should().Be(0);
     }
 

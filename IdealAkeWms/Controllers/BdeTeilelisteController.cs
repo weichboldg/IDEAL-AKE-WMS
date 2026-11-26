@@ -164,6 +164,9 @@ public class BdeTeilelisteController : Controller
             vm.NurAgFertigmeldung = WerkbankKuerzelFamilie.NurAgFertigmeldungWirksam(wp, nurFaGlobal: false);
             vm.TerminalId = terminal.Id;
             (vm.KopfLaufend, vm.KopfPausiert) = await _faAngebot.KopfBuchungenAsync(vm.Werker.Id);
+            foreach (var p in vm.KopfPausiert)
+                if (p.WorkOperationId is int pwo && await _booking.FortsetzenSperreAsync(pwo, wp.Id) is { } grund)
+                    vm.PausiertGesperrt[p.BookingId] = grund;
             // E4-5: Scan-Treffer ausserhalb der aktuellen Seite → Seite mit der Zeile; ausgefiltert = sichtbarer Hinweis statt still nichts.
             if (markiert is int m)
             {
@@ -391,7 +394,7 @@ public class BdeTeilelisteController : Controller
             $"AG ist bereits in Arbeit durch {r.CollidingBooking?.BdeOperator?.DisplayName ?? "einen anderen Werker"} an "
             + $"{r.CollidingBooking?.ProductionWorkplace?.Name ?? "einer anderen Werkbank"} seit {r.CollidingBooking?.StartedAt:HH:mm} – nichts gebucht.",
         BdeBookingOutcome.NotFound => "Arbeitsgang nicht gefunden – nichts gebucht.",
-        _ => (r.Message ?? "Aktion nicht möglich") + " – nichts gebucht.",
+        _ => (r.Message ?? "Aktion nicht möglich").TrimEnd('.', ' ') + ". Nichts gebucht.", // v1.99.81 (U-5): wie bde-fa-sicht.js ergebnis()
     };
 
     /// <summary>E4 (F13): Werker nimmt seine eigene Meldung bis zum Schichtende zurueck; danach nur der BDE-Admin.</summary>

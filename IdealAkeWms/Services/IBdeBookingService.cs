@@ -20,6 +20,11 @@ public interface IBdeBookingService
     Task<BdeBookingResult> ReportPartialQuantityAsync(int bookingId, decimal goodQty, decimal scrapQty);
     Task<CloseOthersResult> CloseOtherBookingsOnWorkOperationAsync(int workOperationId, int exceptOperatorId);
     Task<GroupFinishResult> FinishGroupAsync(int operatorId, IReadOnlyList<GroupFinishEntry> entries);
+    /// <summary>v1.99.81 (Entscheid 9): warum ein pausierter AG an dieser Werkbank nicht fortsetzbar ist (null = fortsetzbar).
+    /// Dieselbe Pruefung wie <see cref="ResumeAsync"/> – eine Methode, zwei Leser (Resume und Kopf der FA-Sicht).</summary>
+    Task<string?> FortsetzenSperreAsync(int workOperationId, int workplaceId);
+    /// <summary>v1.99.81 (Entscheid 9): haengende Pause beenden, ohne Mengen (die Zeit ist schon gebucht); Audit-Felder.</summary>
+    Task<BdeBookingResult> ClosePausedAsync(int bookingId);
 }
 
 public record CloseOthersResult(int ClosedCount);

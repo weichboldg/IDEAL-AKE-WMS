@@ -64,13 +64,26 @@
             @foreach (var b in Model.KopfPausiert)
             {
                 var was = Was(b);
-                <li class="bde-kopf-zeile bde-kopf-pausiert" data-booking-id="@b.BookingId">
+                var gesperrt = Model.PausiertGesperrt.GetValueOrDefault(b.BookingId);
+                <li class="bde-kopf-zeile bde-kopf-pausiert" data-booking-id="@b.BookingId" data-bez="@was">
                     <span class="bde-kopf-art">@Art(b) pausiert@(b.Status == BdeBookingStatus.AutoPaused ? " (automatisch)" : "")</span>
                     <span class="bde-kopf-was">@was</span>
-                    <span class="bde-kopf-detail">Pause seit @(b.PausedAt?.ToString("HH:mm") ?? "–"), Start @b.StartedAt.ToString("HH:mm"),
-                        @b.WorkplaceName, Terminal @(b.TerminalName == "" ? "–" : b.TerminalName), Personalnr. @Model.Werker!.PersonnelNumber</span>
+                    @* v1.99.81 (Entscheid 9, U-5 A): Werkbank und Datum immer sichtbar – alte Pausen anderer Werkbänke fallen sonst nicht auf *@
+                    <span class="bde-kopf-wo">@b.WorkplaceName, seit @(b.PausedAt?.ToString("dd.MM. HH:mm") ?? "–")</span>
+                    <span class="bde-kopf-detail">Start @b.StartedAt.ToString("dd.MM. HH:mm"), Terminal @(b.TerminalName == "" ? "–" : b.TerminalName), Personalnr. @Model.Werker!.PersonnelNumber</span>
+                    @if (gesperrt != null)
+                    {
+                        <span class="bde-kopf-hinweis">Nicht fortsetzbar: @gesperrt</span>
+                    }
                     <span class="bde-kopf-knoepfe">
-                        <button type="button" class="btn btn-primary bde-touch" data-kopf-aktion="fortsetzen" aria-label="Fortsetzen @was">Fortsetzen</button>
+                        @if (gesperrt != null)
+                        {
+                            <button type="button" class="btn btn-outline-danger bde-touch" data-kopf-aktion="abschliessen" aria-label="Abschließen @was">Abschließen</button>
+                        }
+                        else
+                        {
+                            <button type="button" class="btn btn-primary bde-touch" data-kopf-aktion="fortsetzen" aria-label="Fortsetzen @was">Fortsetzen</button>
+                        }
                     </span>
                 </li>
             }

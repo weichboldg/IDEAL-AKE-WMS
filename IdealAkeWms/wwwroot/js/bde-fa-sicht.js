@@ -88,7 +88,8 @@
             default:
                 // v1.99.81: Texte, die schon „nichts … gebucht“ sagen (Serverfehler), nicht doppelt ergaenzen
                 var t = json.message || 'Aktion nicht möglich';
-                melden(/nichts/.test(t) ? t : t + ' – nichts gebucht.', 'warning');
+                // v1.99.81 (U-5): eigener Satz statt angehaengtem Strich (sonst „… möglich. – nichts gebucht.“)
+                melden(/nichts/.test(t) ? t : t.replace(/[.\s]*$/, '.') + ' Nichts gebucht.', 'warning');
         }
     }
 
@@ -268,7 +269,7 @@
         box.replaceChildren();  // v1.99.81 (U-9): alte Meldung weg
         // v1.99.81 (U-6): die drei Mengen-Aktionen sperren erst NACH dem Dialog (der offene Dialog verhindert den Doppelklick),
         // sonst stuende „wird gesendet …“ schon waehrend der Eingabe; alle anderen sperren sofort.
-        var mitMenge = /^(pause|teilfertig|fertig)$/.test(btn.dataset.kopfAktion);
+        var mitMenge = /^(pause|teilfertig|fertig|abschliessen)$/.test(btn.dataset.kopfAktion);
         var frei = mitMenge ? function () { } : window.wmsSperren(btn);
         if (!frei) return;
         var sperren = function () { var f = window.wmsSperren(btn); if (f) frei = f; return !!f; };
@@ -292,6 +293,13 @@
             case 'fortsetzen':
                 r = await post('/BdeTerminal/Resume', { pausedBookingId: id, operatorId: operatorId, resumeAs: 2, workplaceId: workplaceId, terminalId: terminalId });
                 ok = 'Fortgesetzt.'; break;
+            case 'abschliessen':
+                // v1.99.81 (Entscheid 9): nicht fortsetzbare Pause beenden, ohne Mengen – Rueckfrage im Modal, dann sperren
+                if (!(await new Promise(function (ja) {
+                    window.bdeBestaetigen('Pause von ' + z.dataset.bez + ' abschließen? Die Zeit bis zur Pause bleibt gebucht, es wird keine Menge gemeldet.',
+                        'Abschließen', function () { ja(true); }, function () { ja(false); });
+                })) || !sperren()) return frei();
+                r = await post('/BdeTerminal/ClosePaused', { bookingId: id, operatorId: operatorId, terminalId: terminalId }); ok = 'Pause abgeschlossen.'; break;
             default: return frei();
         }
         ergebnis(r, ok, frei);

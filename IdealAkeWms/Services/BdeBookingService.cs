@@ -187,18 +187,10 @@ public class BdeBookingService : IBdeBookingService
             // Fold 2 (Spec §10.6): Resume erzeugt eine NEUE Buchung -> gleiche Sperre wie
             // Start. Nur fuer geplante Buchungen — pausierte Activity-Buchungen
             // (WorkOperationId NULL, erreichbar ueber das Paused-Panel) NICHT blocken.
-            if (parent.WorkOperationId.HasValue)
-            {
-                // v1.63.0: Start-Sperre (FA-c6) + Familien-Pruefung (FA-a9) nur fuer geplante Buchungen; eine pausierte
-                // Taetigkeit bleibt an jeder Werkbank fortsetzbar.
-                var noStartError = await EnsureStartAllowedAsync(workplaceId);
-                if (noStartError != null) return noStartError;
-                var familyError = await EnsureWorkOperationInFamilyAsync(parent.WorkOperationId.Value, workplaceId);
-                if (familyError != null) return familyError;
-
-                var packedError = await EnsureOrderNotPackedAsync(parent.WorkOperationId.Value);
-                if (packedError != null) return packedError;
-            }
+            // v1.63.0: Start-Sperre (FA-c6) + Familien-Pruefung (FA-a9) nur fuer geplante Buchungen; eine pausierte
+            // Taetigkeit bleibt an jeder Werkbank fortsetzbar. v1.99.81: dieselbe Pruefung liest der Kopf (FortsetzenSperreAsync).
+            if (parent.WorkOperationId is int woId && await FortsetzenSperreAsync(woId, workplaceId) is { } sperre)
+                return BdeBookingResult.Invalid(sperre);
 
             var multiMa = await ReadBoolSettingAsync(AppSettingKeys.BdeMehrfachBuchungProArbeitsgang);
             var multiOp = await ReadBoolSettingAsync(AppSettingKeys.BdeMehrfachBuchungProOperator);
@@ -526,6 +518,21 @@ public class BdeBookingService : IBdeBookingService
         e.CreatedByWindows = _userSvc.GetWindowsUserName();
     }
 
+    public async Task<string?> FortsetzenSperreAsync(int workOperationId, int workplaceId) =>
+        (await EnsureStartAllowedAsync(workplaceId) ?? await EnsureWorkOperationInFamilyAsync(workOperationId, workplaceId)
+            ?? await EnsureOrderNotPackedAsync(workOperationId))?.Message;
+
+    public async Task<BdeBookingResult> ClosePausedAsync(int bookingId)
+    {
+        var b = await BdeKopfBuchungen.Haengend(_ctx).FirstOrDefaultAsync(x => x.Id == bookingId);
+        if (b == null) return BdeBookingResult.Invalid("Diese Buchung ist nicht (mehr) pausiert – Seite neu laden.");
+        b.Status = BdeBookingStatus.Finished;
+        b.EndedAt ??= DateTime.Now;
+        SetAuditModified(b);
+        await _ctx.SaveChangesAsync();
+        return BdeBookingResult.Success(b);
+    }
+
     private void SetAuditModified(AuditableEntity e)
     {
         e.ModifiedAt = DateTime.Now;
@@ -599,7 +606,7 @@ public class BdeBookingService : IBdeBookingService
 
         if (orderInfo != null && FaZusatzinfoStatus.IstVerpacktOderAbgeholt(orderInfo.SageStatus))
             return BdeBookingResult.Invalid(
-                $"FA {orderInfo.OrderNumber} ist bereits {orderInfo.SageStatus!.Trim()} — keine BDE-Buchung mehr moeglich.");
+                $"FA {orderInfo.OrderNumber} ist bereits {orderInfo.SageStatus!.Trim()}. Keine BDE-Buchung mehr möglich.");
 
         return null;
     }

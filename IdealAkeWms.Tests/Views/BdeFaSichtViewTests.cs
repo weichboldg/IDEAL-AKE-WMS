@@ -122,4 +122,15 @@ public class BdeFaSichtViewTests
         foreach (var k in keys)
             System.Text.RegularExpressions.Regex.Matches(rumpf, $@"<td[^>]*data-col-key=""{k}""").Count.Should().BeGreaterThanOrEqualTo(zeilenarten, $"{view}: Spalte {k}");
     }
+
+    // v1.99.81 (Entscheid 9): Pausiert-Zeile zeigt Werkbank + Datum immer; nicht fortsetzbar → „Abschließen“ mit Grund statt „Fortsetzen“
+    [Fact]
+    public void Pausiert_WerkbankDatumImmer_AbschliessenMitGrund()
+    {
+        var kopf = Read("Views", "BdeTeileliste", "_KopfBuchungen.cshtml");
+        var p = kopf[kopf.IndexOf("Model.KopfPausiert", StringComparison.Ordinal)..];
+        p.Should().Contain("class=\"bde-kopf-wo\">@b.WorkplaceName, seit @(b.PausedAt?.ToString(\"dd.MM. HH:mm\")")
+            .And.Contain("Nicht fortsetzbar: @gesperrt").And.Contain("data-kopf-aktion=\"abschliessen\"");
+        Read("wwwroot", "js", "bde-fa-sicht.js").Should().Contain("'/BdeTerminal/ClosePaused'");
+    }
 }

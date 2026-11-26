@@ -237,6 +237,14 @@ public class BdeTerminalController : Controller
         }
     }
 
+    /// <summary>v1.99.81 (Entscheid 9): eigene haengende Pause abschliessen (nicht fortsetzbar: FA abgeholt, fremde Werkbank).</summary>
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> ClosePaused(int bookingId, int operatorId, int terminalId)
+    {
+        if (await FremdeBuchungAsync(bookingId, operatorId, terminalId) is { } fremd) return fremd;
+        return Json(MapResult(await _bookingSvc.ClosePausedAsync(bookingId)));
+    }
+
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> ReportPartial(int bookingId, int operatorId, int terminalId, decimal goodQty, decimal scrapQty)
     {

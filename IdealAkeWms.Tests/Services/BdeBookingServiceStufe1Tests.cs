@@ -244,7 +244,7 @@ public class BdeBookingServiceStufe1Tests
 
         var r = await svc.ReportCompletionAsync(ids.OperatorId, ids.WorkOperationId, ids.WorkplaceId, ids.TerminalId, 1, 0);
 
-        r.Message.Should().Contain("keine BDE-Buchung mehr moeglich");
+        r.Message.Should().Contain("Keine BDE-Buchung mehr möglich");
     }
 
     [Fact]

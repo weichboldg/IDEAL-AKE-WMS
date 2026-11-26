@@ -165,7 +165,7 @@ public class BdeTeilelisteOptionTests
             StartedAt = new DateTime(2026, 11, 25, 7, 5, 0)
         });
         BdeTeilelisteController.AnstempelnText(r, ruesten: false).Should().Be("AG ist bereits in Arbeit durch Anna Berg an Kanten seit 07:05 – nichts gebucht.");
-        BdeTeilelisteController.AnstempelnText(BdeBookingResult.Invalid("Gesperrt."), true).Should().Be("Gesperrt. – nichts gebucht.");
+        BdeTeilelisteController.AnstempelnText(BdeBookingResult.Invalid("Gesperrt."), true).Should().Be("Gesperrt. Nichts gebucht.");
     }
 
     // v1.99.76 (Spec 2026-11-25-bde-masken-vereinheitlichung E4-7, Antworten 2/13/15): Wirksamkeit an EINEM Ort, ohne NurFA-Parameter (G5).

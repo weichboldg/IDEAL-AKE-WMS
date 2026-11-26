@@ -328,6 +328,29 @@ public class BdeTerminalControllerTests
         NichtsGeaendert(ctx, eigene, fremde);
     }
 
+    // v1.99.81 (Entscheid 9, Review Focus 4): fremde Pause abschliessen → abgewiesen, nichts geaendert; eigene → beendet
+    [Fact]
+    public async Task ClosePaused_Fremd_Abgelehnt_Eigen_Beendet()
+    {
+        var ctx = TestDbContextFactory.Create();
+        var ids = await BdeBookingTestSeed.SeedAsync(ctx);
+        var op2 = await BdeBookingTestSeed.AddSecondOperatorAsync(ctx);
+        var eigene = BdeBookingTestSeed.NewBooking(ids, BdeBookingType.Production, BdeBookingStatus.Paused, DateTime.Now.AddHours(-2), DateTime.Now.AddHours(-1));
+        var fremde = BdeBookingTestSeed.NewBooking(ids, BdeBookingType.Production, BdeBookingStatus.Paused, DateTime.Now.AddHours(-2), DateTime.Now.AddHours(-1));
+        fremde.BdeOperatorId = op2;
+        ctx.BdeBookings.AddRange(eigene, fremde);
+        await ctx.SaveChangesAsync();
+        var c = CreateTerminalController(ctx);
+
+        Antwort(await c.ClosePaused(fremde.Id, ids.OperatorId, ids.TerminalId)).GetProperty("message").GetString().Should().Contain("gehört nicht");
+        Antwort(await c.ClosePaused(eigene.Id, ids.OperatorId, ids.TerminalId + 999)).GetProperty("message").GetString().Should().Contain("nicht dem angemeldeten Benutzer");
+        ctx.BdeBookings.AsNoTracking().Single(x => x.Id == fremde.Id).Status.Should().Be(BdeBookingStatus.Paused);
+        ctx.BdeBookings.AsNoTracking().Single(x => x.Id == eigene.Id).Status.Should().Be(BdeBookingStatus.Paused);
+
+        await c.ClosePaused(eigene.Id, ids.OperatorId, ids.TerminalId);
+        ctx.BdeBookings.AsNoTracking().Single(x => x.Id == eigene.Id).Status.Should().Be(BdeBookingStatus.Finished);
+    }
+
     [Fact]
     public async Task CloseOthers_OhneEigeneBeendeteBuchung_Abgelehnt_NichtsGeaendert()
     {

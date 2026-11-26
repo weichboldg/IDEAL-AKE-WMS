@@ -37,11 +37,13 @@ public static class BdeTageshistorie
         var verknuepft = meldungen.Where(m => m.BdeBookingId != null).Select(m => m.BdeBookingId!.Value).ToHashSet();
 
         var buchungen = await ctx.BdeBookings.AsNoTracking()
-            .Where(b => b.BdeOperatorId == operatorId && !b.IsCancelled && b.StartedAt >= von && b.StartedAt < bis)
+            // v1.99.81 (U-8): „beruehrt den Tag“ – eine Nachtschicht-Buchung erscheint an beiden Tagen
+            .Where(b => b.BdeOperatorId == operatorId && !b.IsCancelled && b.StartedAt < bis && (b.EndedAt == null || b.EndedAt >= von))
             .Select(b => new
             {
                 b.Id, b.BookingType, b.Status, b.StartedAt, b.EndedAt,
                 Fa = b.WorkOperation != null ? b.WorkOperation.ProductionOrder.OrderNumber : null,
+                Sub = b.WorkOperation != null ? b.WorkOperation.ProductionOrder.SubOrderNumber : null,
                 Ag = b.WorkOperation != null ? b.WorkOperation.OperationNumber : null,
                 AgName = b.WorkOperation != null ? b.WorkOperation.Name : null,
                 Taetigkeit = b.BdeActivity != null ? b.BdeActivity.Name : null,
@@ -55,7 +57,7 @@ public static class BdeTageshistorie
                 "Buchung",
                 b.BookingType switch { BdeBookingType.Setup => "Rüsten", BdeBookingType.Production => "Produktion", _ => "Tätigkeit" },
                 b.StartedAt, b.EndedAt,
-                b.Fa != null ? $"{b.Fa}/{b.Ag?.Trim()} — {b.AgName}" : b.Taetigkeit ?? "–",
+                b.Fa != null ? $"{b.Fa}{(string.IsNullOrEmpty(b.Sub) || b.Sub == b.Fa ? "" : $" · Sub-FA {b.Sub}")}/{b.Ag?.Trim()} — {b.AgName}" : b.Taetigkeit ?? "–",
                 b.Werkbank,
                 (int)((b.EndedAt ?? jetzt) - b.StartedAt).TotalMinutes,
                 b.Gut, b.Ausschuss,
@@ -89,7 +91,12 @@ public static class BdeTageshistorie
     /// <summary>Spaltenfilter-Getter = Zelltext der View (Register <c>BdeTeileliste/Tageshistorie</c>).</summary>
     public static readonly IReadOnlyDictionary<string, Func<BdeTageshistorieZeile, string?>> Spalten = new Dictionary<string, Func<BdeTageshistorieZeile, string?>>
     {
-        ["zeit"] = z => z.Start.ToString("HH:mm", De) + (z.Ende is { } e ? "–" + e.ToString("HH:mm", De) : ""),
+        // v1.99.81 (U-8): ueber Mitternacht (oder laufend seit einem Vortag) mit Datum, sonst nur Uhrzeit
+        ["zeit"] = z =>
+        {
+            var format = (z.Ende?.Date ?? DateTime.Today) != z.Start.Date ? "dd.MM. HH:mm" : "HH:mm";
+            return z.Start.ToString(format, De) + (z.Ende is { } e ? "–" + e.ToString(format, De) : "");
+        },
         ["art"] = z => z.Art,
         ["typ"] = z => z.Typ,
         ["ziel"] = z => z.Ziel,

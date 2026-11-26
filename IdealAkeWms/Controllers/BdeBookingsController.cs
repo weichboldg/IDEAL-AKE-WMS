@@ -316,6 +316,35 @@ public class BdeBookingsController : Controller
         ? $"{i.WarehouseRequisitionId.ToString(System.Globalization.CultureInfo.InvariantCulture)} / Pos. {i.Position.ToString(System.Globalization.CultureInfo.InvariantCulture)}"
         : null;
 
+    /// <summary>v1.99.81 (Entscheid 9): pausierte, nie fortgesetzte Buchungen aller Werker (Lesen ab Schichtleiter, Abschliessen nur BDE-Admin).
+    /// Zeitraum in SQL, Spaltenfilter in C# auf der Zelle, dann Pagination (ADR 0005).</summary>
+    public async Task<IActionResult> HaengendePausen(DateTime? pausiertBis = null, int page = 1, int? pageSize = null)
+    {
+        if (page < 1) page = 1;
+        var userDefault = await _userSvc.GetDefaultPageSizeAsync();
+        var size = IdealAkeWms.Services.PageSize.Resolve(pageSize, userDefault);
+        var gefiltert = ColumnFilterHelper.Apply(await BdeKopfBuchungen.HaengendeListeAsync(_ctx, pausiertBis),
+            ColumnFilterHelper.ReadFromQuery(HttpContext?.Request), BdeKopfBuchungen.HaengendeSpalten,
+            ColumnFilterTypes.For("BdeBookings/HaengendePausen")).ToList();
+        ViewBag.PausiertBis = pausiertBis;
+        ViewBag.Pagination = new PaginationState
+        {
+            CurrentPage = page, PageSize = size, PageSizeRaw = IdealAkeWms.Services.PageSize.ResolveRaw(pageSize, userDefault), TotalCount = gefiltert.Count,
+        };
+        return View(gefiltert.Skip((page - 1) * size).Take(size).ToList());
+    }
+
+    [HttpPost]
+    [RequireBdeAdminAccess]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> PauseAbschliessen(int id, [FromServices] IBdeBookingService booking)
+    {
+        var r = await booking.ClosePausedAsync(id);
+        TempData[r.Outcome == BdeBookingOutcome.Success ? "SuccessMessage" : "WarningMessage"] =
+            r.Outcome == BdeBookingOutcome.Success ? "Pause abgeschlossen – ohne Mengen, die Zeit bis zur Pause bleibt gebucht." : r.Message;
+        return RedirectToAction(nameof(HaengendePausen));
+    }
+
     [HttpPost]
     [RequireBdeAdminAccess]
     [ValidateAntiForgeryToken]

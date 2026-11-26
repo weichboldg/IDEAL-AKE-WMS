@@ -1,0 +1,99 @@
+@model List<IdealAkeWms.Services.HaengendePause>
+@inject IdealAkeWms.Services.ICurrentUserService CurrentUserService
+@using IdealAkeWms.Services
+@{
+    ViewData["Title"] = "BDE-Buchungen – Hängende Pausen";
+    DateTime? pausiertBis = ViewBag.PausiertBis;
+    var canAdminBde = await CurrentUserService.CanManageBdeAdminAsync();
+    var sp = BdeKopfBuchungen.HaengendeSpalten;
+}
+@* v1.99.81 (Entscheid 9): pausierte Buchungen ohne Fortsetzung aller Werker – Kontrolle fuer Schichtleiter, Abschliessen nur BDE-Admin.
+   Abschliessen = Status beendet ohne Mengen (die Zeit bis zur Pause ist schon gebucht), Audit-Felder ueber BdeBookingService.ClosePausedAsync. *@
+
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+    <h2 class="mb-0">BDE-Buchungen – Hängende Pausen</h2>
+    <a asp-action="Index" class="btn btn-outline-secondary">Zu den BDE-Buchungen</a>
+</div>
+
+<form method="get" class="card filter-card mb-3">
+    <div class="card-body">
+        <div class="row g-2 align-items-end">
+            <div class="col-md-3">
+                <label class="form-label" for="pausiertBis">Pausiert bis einschließlich</label>
+                <input type="date" id="pausiertBis" name="pausiertBis" class="form-control" value="@(pausiertBis?.ToString("yyyy-MM-dd"))" />
+            </div>
+            <div class="col-md-3">
+                <button type="submit" class="btn btn-primary">Filtern</button>
+            </div>
+        </div>
+        <p class="small text-muted mb-0 mt-2">Pausen, die nie fortgesetzt wurden – etwa weil der FA inzwischen abgeholt ist oder der Werker an einer anderen
+            Werkbank steht. Der Werker sieht sie unter „Meine Buchungen“ und kann sie dort selbst abschließen, wenn Fortsetzen nicht mehr geht.</p>
+    </div>
+</form>
+
+<div class="d-flex justify-content-end mb-1" data-table-toolbar></div>
+<div class="table-responsive">
+    <table class="table table-sm table-striped align-middle mb-0 filterable-table" data-view-key="BdeHaengendePausen" data-server-column-filter="true">
+        <thead>
+            <tr>
+                <th class="text-nowrap" data-filterable data-col-key="pausiert-seit" data-date-filter>Pausiert seit</th>
+                <th class="text-nowrap" data-filterable data-col-key="start" data-date-filter>Start</th>
+                <th data-filterable data-col-key="werker">Werker</th>
+                <th data-filterable data-col-key="werkbank">Werkbank</th>
+                <th data-filterable data-col-key="ziel">Auftrag / Tätigkeit</th>
+                <th data-filterable data-col-key="art">Art</th>
+                <th data-filterable data-col-key="status">Status</th>
+                <th data-col-key="aktion"><span class="visually-hidden">Aktion</span></th>
+            </tr>
+        </thead>
+        <tbody>
+            @if (!Model.Any())
+            {
+                <tr><td colspan="8" class="text-center text-muted py-4">Keine hängenden Pausen. Filter prüfen oder Datum leeren.</td></tr>
+            }
+            @foreach (var p in Model)
+            {
+                <tr>
+                    <td class="text-nowrap" data-col-key="pausiert-seit">@sp["pausiert-seit"](p)</td>
+                    <td class="text-nowrap" data-col-key="start">@sp["start"](p)</td>
+                    <td data-col-key="werker">@p.Werker</td>
+                    <td data-col-key="werkbank">@p.Werkbank</td>
+                    <td data-col-key="ziel">@p.Ziel</td>
+                    <td data-col-key="art">@p.Art</td>
+                    <td data-col-key="status">@p.Status</td>
+                    <td class="text-nowrap" data-col-key="aktion">
+                        @if (canAdminBde)
+                        {
+                            <form method="post" asp-action="PauseAbschliessen" asp-route-id="@p.BookingId" class="d-inline">
+                                <button type="submit" class="btn btn-sm btn-outline-danger" aria-label="Pause abschließen: @p.Werker, @p.Ziel">Abschließen</button>
+                            </form>
+                        }
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+<partial name="_Pagination" model="(IdealAkeWms.Models.ViewModels.PaginationState)ViewBag.Pagination" />
+
+<script type="application/json" id="view-config">
+{ "viewKey": "BdeHaengendePausen", "supportsReorder": true, "supportsSortDefault": false }
+</script>
+<script type="application/json" id="column-config">
+[
+    { "key": "pausiert-seit", "label": "Pausiert seit", "locked": true, "defaultWidth": null },
+    { "key": "start", "label": "Start", "locked": false, "defaultWidth": null },
+    { "key": "werker", "label": "Werker", "locked": false, "defaultWidth": null },
+    { "key": "werkbank", "label": "Werkbank", "locked": false, "defaultWidth": null },
+    { "key": "ziel", "label": "Auftrag / Tätigkeit", "locked": false, "defaultWidth": null },
+    { "key": "art", "label": "Art", "locked": false, "defaultWidth": null },
+    { "key": "status", "label": "Status", "locked": false, "defaultWidth": null },
+    { "key": "aktion", "label": "Aktion", "locked": true, "defaultWidth": null }
+]
+</script>
+
+@section Scripts {
+    <script src="~/js/column-preferences.js" asp-append-version="true"></script>
+    <script src="~/js/table-filter.js" asp-append-version="true"></script>
+}

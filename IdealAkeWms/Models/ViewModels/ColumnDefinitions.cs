@@ -509,6 +509,22 @@ public static class ColumnDefinitions
         ]
     };
 
+    /// <summary>v1.99.81 BdeBookings/HaengendePausen.cshtml (Entscheid 9). Spalten identisch zum inline #column-config JSON der View.</summary>
+    public static readonly ViewConfig BdeHaengendePausen = new("BdeHaengendePausen", "BDE-Buchungen — Hängende Pausen", SupportsReorder: true, SupportsSortDefault: false)
+    {
+        Columns =
+        [
+            new ColumnDef("pausiert-seit", "Pausiert seit", Locked: true),
+            new ColumnDef("start", "Start", Locked: false),
+            new ColumnDef("werker", "Werker", Locked: false),
+            new ColumnDef("werkbank", "Werkbank", Locked: false),
+            new ColumnDef("ziel", "Auftrag / Tätigkeit", Locked: false),
+            new ColumnDef("art", "Art", Locked: false),
+            new ColumnDef("status", "Status", Locked: false),
+            new ColumnDef("aktion", "Aktion", Locked: true),
+        ]
+    };
+
     /// <summary>v1.99.76 BdeTeileliste/Fa.cshtml (Reiter FA, Spec 2026-11-25-bde-masken-vereinheitlichung E4-2). Spalten identisch zum inline #column-config JSON der View.</summary>
     public static readonly ViewConfig BdeTeilelisteFa = new("BdeTeilelisteFa", "BDE — FA-Sicht", SupportsReorder: true, SupportsSortDefault: false)
     {
@@ -1019,6 +1035,7 @@ public static class ColumnDefinitions
         "BdeTeilelisteFa"  => BdeTeilelisteFa,
         "BdeTeilelisteTageshistorie"  => BdeTeilelisteTageshistorie,
         "BdeTeilmeldungen"  => BdeTeilmeldungen,
+        "BdeHaengendePausen"  => BdeHaengendePausen,
         "FaHierarchyStructure"           => FaHierarchyStructure,
         "Beschichtungsauftraege"         => Beschichtungsauftraege,
         "BfAuftraege"                    => BfAuftraege,
