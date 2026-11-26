@@ -18,8 +18,10 @@ affected_code:
   - IdealAkeWms/Controllers/BeschichtungsauftraegeController.cs (PrintModelAsync Z. 320-338, Zuweisung Z. 332)
   - IdealAkeWms/Views/Beschichtungsauftraege/Print.cshtml (Kommentar Z. 70, Tabelle Z. 71-108 summiert, tfoot Summenzeile, CSS Z. 29-35)
   - IdealAkeWms.Tests/Controllers/BeschichtungsauftraegeControllerTests.cs (Print_Uebergeben_JePosition_Reihenfolge_BarcodeNummer Z. 502-511 auf Zeilen umstellen; neue Unit-Tests Summiert)
-  - IdealAkeWms/Views/Help/* (Kurzanleitung Beschichtung, Changelog)
-  - docs/TESTSZENARIEN.md (neues Kapitel, TS-162 AK 16 „eine Zeile je Position“ als überholt kennzeichnen)
+  - IdealAkeWms/Views/Help/Index.cshtml (Z. 1600 „Seit v1.99.41 eine Zeile je Position“ auf summiert umstellen)
+  - IdealAkeWms/Views/Help/Changelog.cshtml (neuer Eintrag)
+  - docs/anwender/15-beschichtung-beschichtungsauftrag.md (Z. 126 „eine Zeile je Position“ auf summiert umstellen; Stand-Version README/00-index)
+  - docs/TESTSZENARIEN.md (neues Kapitel; TS-162 Fall „je Position eine Zeile“ 162.14 Z. 13198 als überholt kennzeichnen; Querverweise Z. 9494 und Z. 12610 „Druck (je Position) TS-162“ auf das neue Kapitel nachziehen)
 open_questions:
   - "1 (entschieden Gerald 2026-11-26: ja, Antwort 11 der Spec 2026-11-18 für Druck/PDF aufgehoben, immer summiert, Pos. laufend 1..n) KONFLIKT mit Freigabe-Antwort 11 der Spec 2026-11-18 (Druck je Position, Gerald 2026-11-18): wird sie für den Auftragsdruck aufgehoben, Druck/PDF also wieder summiert je Artikelnummer (ohne Umschalter)?"
   - "2 (entschieden Gerald 2026-11-26: ja, Summe der Mengen + Anzahl Positionen) Was zählt die Summenzeile: Summe der Mengen (Stück) oder Anzahl Positionen/Zeilen? Empfehlung: Summe der Mengen, Anzahl Positionen in Klammern."
@@ -49,7 +51,7 @@ gleichen Teilen in verschiedenen Sub-FAs wird der Brief lang und unübersichtlic
 **In-Scope**
 
 - Bildschirmdruck `Beschichtungsauftraege/Print/{id}` und PDF `Beschichtungsauftraege/Pdf/{id}` (eine View, ein Modell):
-  Positionen **immer** summiert je Artikelnummer, kein Umschalter.
+  Positionen **immer** summiert je Artikelnummer, kein Umschalter; Positionen ohne Artnr bleiben je eine eigene Zeile (S1).
 - Summenzeile am Tabellenende „Summe Teile im Auftrag“.
 
 **Out-of-Scope**
@@ -70,7 +72,9 @@ gleichen Teilen in verschiedenen Sub-FAs wird der Brief lang und unübersichtlic
 - `BeschichtungsauftraegeDruck` kennt nur `IstDruckbar` und `Sortiert` (`Models/ViewModels/BeschichtungsauftraegeViewModels.cs:135-145`).
   Die frühere Summierung `BeschichtungsauftraegeDruck.Summiere` gibt es im Code nicht mehr (Suche `Summiere` im Web-Projekt:
   nur `SageSdataFaTreeBuilder.Summiere`, ein anderes Modul). Sie wurde mit v1.99.41 E5 (Commit `b1ce8608` laut QA-Nachweis der
-  Spec 2026-11-18) entfernt; der Dev-Lauf kann sie aus dem Commit davor als Vorlage holen.
+  Spec 2026-11-18) entfernt. ~~Der Dev-Lauf kann sie aus dem Commit davor als Vorlage holen.~~ *(überholt, Kritische Prüfung
+  SOLLTE 2)*: **nicht als Vorlage verwenden** - sie war nur ein Adapter auf `AggregateSummiert` mit Schlüssel `(HauptFA, Artnr)` ohne
+  `OhneFa`, ohne Verpackt und mit alphabetischer Reihenfolge nach Artnr; Schlüssel und Reihenfolge weichen von S1/S3/S4 ab.
 - `Print.cshtml:70-108`: Spalten Pos. (laufend `i + 1`, `:90`), Haupt-Artnr., Artnr. (+ Badge „ohne FA“, `:96`), Matchcode, Breite,
   Höhe, Tiefe, Menge (`FormatMass`, Format `0.###`, `:103`), Verpackt (`☑ verpackt` / `☐ offen`, `:104`). Kein `<tfoot>`, keine Summe.
 - Sichtbare Spalten folgen der Detailtabelle (`PrintVisibleColumns.ResolveAsync` mit Katalog
@@ -98,11 +102,11 @@ aufgehoben. Der Druck ist immer summiert je Artikel; die Spalte Pos. bleibt und 
 
 | ID | Anforderung |
 |---|---|
-| S1 | Druck und PDF zeigen **immer** je Artikel eine Zeile (Antwort 1). Schlüssel: `Artnr` getrimmt (leer = ein Schlüssel) **und** `OhneFa` (freie Positionen nicht mit FA-Positionen mischen, Antwort 3). |
-| S2 | Menge = Summe der Positionsmengen, Format `0.###` wie heute (`FormatMass`). Haupt-Artnr., Matchcode, Breite/Höhe/Tiefe aus der ersten Position in Druckreihenfolge (`Sortiert`). Die Maße einer Summenzeile sollen einheitlich sein (Antwort 3); weichen sie innerhalb der Zeile ab, wird trotzdem summiert und die Zeile trägt den Text „Maße uneinheitlich“ (gedruckt, nicht nur Farbe). Vergleich wie `AggregateSummiert` (`BeschichtungsauftragService.cs:237`): Breite, Höhe, Tiefe je gegen die erste Position. |
+| S1 | Druck und PDF zeigen **immer** je Artikel eine Zeile (Antwort 1). Schlüssel: `Artnr` getrimmt **und** `OhneFa` (freie Positionen nicht mit FA-Positionen mischen, Antwort 3). **Positionen ohne Artnr** (`string.IsNullOrWhiteSpace(Artnr)`; `Artnr` ist nullable, `BeschichtungsauftragPosition.cs:28`) werden **nicht** summiert: jede bleibt eine eigene Zeile (Schlüssel = Positions-Id; Antwort Gerald zur Kritischen Prüfung „Je Position eigene Zeile“). ~~leer = ein Schlüssel~~ *(überholt)* |
+| S2 | Menge = Summe der Positionsmengen, Format `0.###` wie heute (`FormatMass`). Haupt-Artnr., Matchcode, Breite/Höhe/Tiefe aus der ersten Position in Druckreihenfolge (`Sortiert`). Die Maße einer Summenzeile sollen einheitlich sein (Antwort 3); weichen sie innerhalb der Zeile ab, wird trotzdem summiert und die Zeile trägt den Text „Maße uneinheitlich“ (gedruckt, nicht nur Farbe). Vergleich wie `AggregateSummiert` (`BeschichtungsauftragService.cs:237`): Breite, Höhe, Tiefe je gegen die erste Position. **Fester Ort des Hinweises:** zweite Zeile in der Verpackt-Zelle - die Spalte Verpackt ist immer sichtbar (kein `ShowCol`, `Print.cshtml:82/104`), der Hinweis kann also nicht durch ausgeblendete Maß- oder Artnr-Spalten verschwinden. |
 | S3 | Pos. = laufende Nummer 1..n der **Summenzeilen** (Antwort 1 + Nachfrage: „Sind 10 Zeilen 1-10“). Reihenfolge = Reihenfolge der jeweils ersten Position in `Sortiert` (freie Positionen zuletzt). |
-| S4 | Verpackt-Spalte je Summenzeile: alle verpackt → „☑ verpackt“; keine → „☐ offen“; sonst „◩ n von m verpackt“. Text immer dabei. |
-| S5 | Summenzeile in `<tfoot>`: Beschriftung „Summe Teile im Auftrag“, Wert = Summe aller Mengen, dahinter „(m Positionen)“ mit m = Anzahl Auftragspositionen (Antwort 2). Steht unter der Menge-Spalte; ist Menge ausgeblendet, steht der Wert in der Beschriftungszelle. `colspan` folgt den sichtbaren Spalten (`ShowCol`). |
+| S4 | Verpackt-Spalte je Summenzeile: alle verpackt → „☑ verpackt“; keine → „☐ offen“; sonst „◩ n von m verpackt“. Text immer dabei. Die Glyphe „◩“ (U+25E9) ist im Headless-Edge-PDF anders als ☑/☐ nicht erprobt: im PDF prüfen; wird sie nicht dargestellt (Ersatzkästchen), entfällt sie und es bleibt der Text „n von m verpackt“. |
+| S5 | Summenzeile in `<tfoot>`: Beschriftung „Summe Teile im Auftrag“, Wert = Summe aller Mengen, dahinter „(m Positionen)“ mit m = Anzahl Auftragspositionen (Antwort 2); bei m = 1 Einzahl „(1 Position)“. Steht unter der Menge-Spalte; ist Menge ausgeblendet, steht der Wert in der Beschriftungszelle. `colspan` folgt den sichtbaren Spalten (`ShowCol`). |
 | S6 | `<tfoot>` wiederholt sich im Druck nicht auf jeder Seite (`tfoot { display: table-row-group; }`), damit die Summe nur am Ende steht. |
 | S7 | Kein Umschalter, keine Einstellung, keine Standort-Weiche: AKE und IDEAL drucken gleich (Antwort 4). Detailseite unverändert. |
 | S8 | Druck der Vorschlagsliste Beschichtung (`FaHierarchyBeschichtung/Print`, `PrintSummiert`) bleibt unverändert (Antwort 5). |
@@ -114,7 +118,9 @@ Ponytail-Leiter: keine neue Klasse, keine neue Datei außer Tests.
 1. `BeschichtungsauftraegeDruck` (`ViewModels.cs:135`) bekommt eine reine Funktion `Summiert(IEnumerable<BeschichtungsauftragPosition>)`
    → `List<BeschichtungsauftragDruckZeile>` (record im selben File: `HauptArtnr`, `Artnr`, `Matchcode`, `OhneFa`, `Breite`, `Hoehe`,
    `Tiefe`, `Menge`, `Positionen`, `Verpackt`, `MasseUneinheitlich`). Intern erst `Sortiert(...)`, dann `GroupBy` mit
-   Reihenfolge der ersten Position (LINQ `GroupBy` erhält die Quellreihenfolge).
+   Reihenfolge der ersten Position (LINQ `GroupBy` erhält die Quellreihenfolge). Gruppenschlüssel: bei gefüllter Artnr
+   `(Artnr.Trim(), OhneFa)`, bei leerer Artnr die Positions-Id (eigene Zeile, S1). Die alte `Summiere` aus `b1ce8608^` nicht
+   zurückholen (siehe Ist-Stand).
 2. `BeschichtungsauftragPrintViewModel.Positionen` wird `Zeilen` (Typ Druckzeile); `Summe => Zeilen.Sum(z => z.Menge)`,
    `PositionenGesamt => Zeilen.Sum(z => z.Positionen)`. Der Kommentar `:118-119` („summiert je Artnr“) stimmt dann wieder.
    Der `<summary>`-Kommentar `:123` („v1.99.41 A11: je Position“) und der `Sortiert`-Kommentar `:140-141` („Rueckfrage 11 hebt
@@ -125,8 +131,10 @@ Ponytail-Leiter: keine neue Klasse, keine neue Datei außer Tests.
 4. `Print.cshtml`: Schleife über `Zeilen` (`:86-106`), Pos. = `i + 1` je Zeile, Zellen nach S2-S4, `<tfoot>` nach S5/S6. Kommentar
    `:70` auf die neue Regel ändern (v1.99.41-Hinweis als überholt markieren).
 5. Frontend: Skill `frontend-design` ausdrücklich aufrufen (CLAUDE.md). Druckbild ruhig halten wie v1.99.42 (Linien nur
-   horizontal, `Print.cshtml:21-31`); Summenzeile fett, obere Linie wie `thead`. Hinweis „Maße uneinheitlich“ klein unter den
-   Maßen bzw. am Artnr. (wie Badge `.ohne-fa`, `:34`), als Text lesbar auch im Schwarzweißdruck.
+   horizontal, `Print.cshtml:21-31`); Summenzeile fett, obere Linie wie `thead`. Hinweis „Maße uneinheitlich“ als zweite Zeile
+   in der Verpackt-Zelle (S2; Stil wie Badge `.ohne-fa`, `:34`), als Text lesbar auch im Schwarzweißdruck.
+   ~~klein unter den Maßen bzw. am Artnr.~~ *(überholt, Kritische Prüfung SOLLTE 6)*. Einzahl/Mehrzahl „Position(en)“ in der
+   Summenzeile nach S5.
 6. Tests: `Print_Uebergeben_JePosition_Reihenfolge_BarcodeNummer` (`BeschichtungsauftraegeControllerTests.cs:502-511`, prüft heute
    `vm.Positionen` je Position) auf `vm.Zeilen` umstellen und umbenennen; `Druck_Sortiert_FreiePositionenZuletzt` (`:513-526`)
    bleibt. Neue reine Unit-Tests für `Summiert` (AK 10).
@@ -151,38 +159,50 @@ Keine. Der Druck liest nur (`GetDetailAsync`), es wird nichts geschrieben.
 
 1. Auftrag mit drei Positionen derselben Artnr (Mengen 2, 3, 5) und einer anderen Artnr (Menge 1): Druck zeigt zwei Zeilen,
    Mengen „10“ und „1“, Pos. 1 und 2.
-2. Summenzeile zeigt „Summe Teile im Auftrag 11 (4 Positionen)“ (Summe der Mengen + Anzahl Positionen, Antwort 2).
+2. Summenzeile zeigt „Summe Teile im Auftrag 11 (4 Positionen)“ (Summe der Mengen + Anzahl Positionen, Antwort 2); Auftrag mit
+   genau einer Position zeigt „(1 Position)“.
 3. Gemischte Haken in einer Summenzeile (2 von 3 verpackt): Verpackt-Zelle „◩ 2 von 3 verpackt“; alle → „☑ verpackt“; keine → „☐ offen“.
+   Im PDF ist die Zelle lesbar (keine Ersatzkästchen; sonst Glyphe weglassen, Text bleibt, S4).
 4. Freie Position (ohne FA) mit derselben Artnr wie eine FA-Position: zwei getrennte Zeilen, die freie mit Badge „ohne FA“ und zuletzt.
 5. Positionen derselben Artnr mit verschiedenen Maßen: bleiben eine Summenzeile; sie zeigt die Maße der ersten Position und den
-   Text „Maße uneinheitlich“. Bei gleichen Maßen erscheint der Text nicht.
+   Text „Maße uneinheitlich“ als zweite Zeile in der Verpackt-Zelle. Bei gleichen Maßen erscheint der Text nicht. Sind Breite,
+   Höhe, Tiefe und Artnr. über die Spaltenauswahl ausgeblendet, steht der Hinweis trotzdem in der Verpackt-Zelle.
 6. Spalte Menge über die Spaltenauswahl der Detailseite ausgeblendet: Summenzeile zeigt den Wert trotzdem, Tabelle bleibt bündig.
 7. Mehrseitiger Ausdruck: Kopfzeile wiederholt sich, Summenzeile steht nur einmal am Ende.
-8. PDF (`/Beschichtungsauftraege/Pdf/{id}`) zeigt dieselben Zeilen und dieselbe Summe wie der Bildschirmdruck.
+8. PDF (`/Beschichtungsauftraege/Pdf/{id}`) zeigt dieselben Zeilen und dieselbe Summe wie der Bildschirmdruck; ☑, ☐ und ◩ (bzw.
+   der Text ohne ◩) sind im PDF lesbar.
 9. Detailseite des Auftrags zeigt weiter jede Position einzeln mit eigenem Haken.
-10. Unit-Test `Summiert`: Gruppierung, Reihenfolge, Verpackt-Zählung, `MasseUneinheitlich`, leere Artnr, freie Positionen getrennt.
+10. Unit-Test `Summiert`: Gruppierung, Reihenfolge, Verpackt-Zählung, `MasseUneinheitlich`, leere Artnr (null, "" und nur
+    Leerzeichen) je Position eine eigene Zeile, freie Positionen getrennt.
 11. Build und alle Tests grün.
 12. Gleiches Druckbild an AKE und IDEAL (DEV beider Standorte): summiert, Pos. 1..n, Summenzeile; keine Standort-Weiche im Code.
 13. Druck der Vorschlagsliste Beschichtung (`/FaHierarchyBeschichtung/Print`, `/FaHierarchyBeschichtung/PrintSummiert`) unverändert, ohne Summenzeile.
 14. Pos.-Spalte: Auftrag mit 10 Summenzeilen zeigt Pos. 1 bis 10 lückenlos aufsteigend, unabhängig von den Positionsnummern der Auftragspositionen.
+15. Zwei Positionen ohne Artnr (verschiedener Matchcode, Mengen 2 und 3): Druck zeigt zwei eigene Zeilen mit Menge „2“ und „3“ und
+    eigenem Matchcode, keine Zusammenfassung; beide zählen in der Summenzeile mit.
 
 ## Test-Szenarien
 
-Neues Kapitel in `docs/TESTSZENARIEN.md` (Nummer beim Dev-Start prüfen, Stand jetzt nächste freie TS-203), Index in
-`secondbrain/tests/testszenarien-index.md`. In TS-162 den Fall „eine Zeile je Position“ (AK 16 der Spec 2026-11-18) als überholt
-kennzeichnen, nicht löschen.
+Neues Kapitel in `docs/TESTSZENARIEN.md`; die TS-Nummer legt erst der Dev-Lauf fest (nächste freie beim Dev-Start; Stand
+2026-11-26 wäre es TS-205, TS-203/204 sind vergeben, `docs/TESTSZENARIEN.md:14760/:14819`; Teil 2 und 3 laufen parallel).
+~~Stand jetzt nächste freie TS-203~~ *(überholt)*. Index in `secondbrain/tests/testszenarien-index.md`. In TS-162 den Fall
+„je Position eine Zeile“ (162.14, `:13198`; AK 16 der Spec 2026-11-18) als überholt kennzeichnen, nicht löschen; die
+Querverweise `:9494` und `:12610` („Druck (je Position) TS-162“) auf das neue Kapitel zeigen lassen.
 
 - **Vorbedingung:** Beschichtungsauftrag im Status Übergeben mit mindestens 4 Positionen, davon 3 mit gleicher Artnr aus
   verschiedenen Sub-FAs, eine freie Position (ohne FA), gemischte Verpackt-Haken.
 - **x.1** Drucken → Zeilen summiert, Pos. laufend, Summenzeile (AK 1, 2).
 - **x.2** Verpackt-Zelle bei gemischten Haken (AK 3).
 - **x.3** Freie Position gleicher Artnr getrennt und zuletzt (AK 4).
-- **x.4** Maße uneinheitlich (AK 5).
+- **x.4** Maße uneinheitlich → Hinweis in der Verpackt-Zelle; danach Breite/Höhe/Tiefe und Artnr. ausblenden und erneut drucken →
+  Hinweis weiter sichtbar (AK 5).
 - **x.5** Menge-Spalte ausgeblendet, dann drucken (AK 6).
 - **x.6** Langer Auftrag (> 1 Seite) drucken (AK 7).
-- **x.7** PDF gleich Druck (AK 8).
+- **x.7** PDF gleich Druck, Zeichen ☑/☐/◩ im PDF lesbar (AK 3, 8).
 - **x.8** Auftrag mit 10 verschiedenen Artikeln (bzw. 10 Summenzeilen) → Pos. 1-10 lückenlos (AK 14).
 - **x.9** Gleiche Schritte x.1-x.7 auf DEV AKE und DEV IDEAL (AK 12).
+- **x.10** Auftrag mit zwei Positionen ohne Artnr → zwei eigene Zeilen, nicht summiert (AK 15).
+- **x.11** Auftrag mit genau einer Position → Summenzeile „(1 Position)“ (AK 2).
 - **Negativ:** Auftrag im Entwurf → Druck abgelehnt wie heute; Detailseite unverändert je Position (AK 9); Auftrag mit gleichen
   Maßen je Artikel → kein Hinweis „Maße uneinheitlich“ (AK 5); Vorschlagsliste-Druck unverändert ohne Summenzeile (AK 13).
 
@@ -207,6 +227,8 @@ kennzeichnen, nicht löschen.
 > [!success] Alle fünf entschieden (Gerald 2026-11-26, Chat; siehe Freigabe-Antworten + Nachfrage). Im Rumpf eingearbeitet:
 > 1 → S1/S3/Konflikt-Abschnitt, 2 → S5/AK 2, 3 → S1/S2/AK 5, 4 → S7/AK 12/`standort: beide`, 5 → Out-of-Scope/S8/AK 13.
 > Keine neuen offenen Punkte.
+> Kritische Prüfung 2026-11-26: SOLLTE 1 entschieden (Gerald: „Je Position eigene Zeile“ → S1/AK 10/AK 15), SOLLTE 2-7 eingearbeitet
+> (Ist-Stand, Test-Szenarien-Nummer, affected_code, S5/AK 2, S2/AK 5, S4/AK 3/AK 8).
 
 1. **Konflikt mit Freigabe-Antwort 11 (Spec 2026-11-18).** Dort wurde der Auftragsdruck am 2026-11-18 auf **je Position**
    umgestellt (hob Teil-4-Antwort 6 „summiert“ auf). Wird Antwort 11 jetzt für Druck und PDF des Auftrags aufgehoben, also immer

@@ -18,17 +18,17 @@ affected_code:
   - IdealAkeWms/Services/KommissionierauftragListe.cs (NEU, rein/DB-frei - Summenzeilen je Artikel+Ziel+BG aus den Zeilen-ViewModels)
   - IdealAkeWms/Services/PickingOrderVerteilung.cs (NEU, rein/DB-frei - Ist-Menge einer Summenzeile in Positionsreihenfolge auf offene PickingOrderLines verteilen)
   - IdealAkeWms/Services/IPickingTransferService.cs (PickingSelectionItem + PickingItemIds)
-  - IdealAkeWms/Services/PickingTransferService.cs (TransferOrderLinesAsync Z. 53-73 - Summenzeilen vor der Pruefung expandieren; Buchung Z. 191-241 unveraendert)
+  - IdealAkeWms/Services/PickingTransferService.cs (TransferOrderLinesAsync Z. 53-73 - Summenzeilen vor der Pruefung expandieren, eigener Text "inzwischen umgebucht ... bitte Seite neu laden"; catch Z. 256-261 - DbUpdateConcurrencyException als Meldung (K12, wirkt auch fuer die Stueckliste); Buchung Z. 191-241 unveraendert)
   - IdealAkeWms/Models/FaHierarchyBomItem.cs + IdealAkeWms/Data/Repositories/FaHierarchyBomRepository.cs (Z. 174-194 - Arbeitsbereich durchreichen)
   - IdealAkeWms/Models/ViewModels/BomViewModels.cs (IstListe, KannListe, Summenzeilen, Arbeitsbereich, Abteilung)
-  - IdealAkeWms/Views/Picking/Bom.cshtml (Umschalter im Auftragskopf Z. 47-57; Liste-Tabelle; collectPickedItems Z. 1601-1618; Druck-Reihenfolge Z. 1404-1420)
+  - IdealAkeWms/Views/Picking/Bom.cshtml (Umschalter im Auftragskopf Z. 47-57; Liste-Tabelle; collectPickedItems Z. 1601-1618 + doTransfer mit window.wmsSperren (K12, beide Masken); Druck/PDF-POST Z. 1404-1426 mit Formularfeld visibleColumns; Filter-/Baum-Skript Z. 923-1343 fuer die Liste pruefen (K14); Stueckliste sonst unveraendert (K13))
   - IdealAkeWms/Views/Picking/_AuftragListeTabelle.cshtml (NEU, Partial - thead/tbody/column-config der Liste)
   - IdealAkeWms/Controllers/PickingController.cs (AuftragDrucken GET/POST Z. 602-613 + RenderAuftragDruckenAsync Z. 615-671 - Parameter ansicht/visibleColumns/pdf, Zweig summierter Druck + PDF ueber [FromServices] IRazorViewRenderer/IPdfRenderService; Auftrag: [FromServices] PdfRenderStatus fuer den Knopf)
   - IdealAkeWms/Views/Picking/PrintAuftragListe.cshtml (NEU - Aufbau/Stil wie FaHierarchyKommissionierListen/PrintSummiert.cshtml, Spalten per ShowCol)
   - IdealAkeWms/wwwroot/js/print-visible-columns.js (unveraendert wiederverwendet, data-print-link am Druckknopf der Liste)
   - IdealAkeWms/Models/ViewModels/ColumnDefinitions.cs (neue ViewConfig KommissionierauftragListe neben Bom Z. 260 + Lookup Z. 1061)
   - IdealAkeWms/Models/AppSettingDefinitions.cs (Wirkungstext FaHierarchyKommissionierlistenAktiv)
-  - IdealAkeWms.Tests (KommissionierauftragListeTests, PickingOrderVerteilungTests, PickingTransferServiceTests, PickingControllerTests, ViewKeyDriftGuardTests)
+  - IdealAkeWms.Tests (KommissionierauftragListeTests inkl. Dedupe/K4b/K4c, PickingOrderVerteilungTests, PickingTransferServiceTests inkl. Alles-oder-nichts bei Fehler in Zeile 2, PickingControllerTests, ViewKeyDriftGuardTests)
   - IdealAkeWms/Views/Help/* (Kommissionierung), Changelog
   - scripts/deploy/nachlauf.psd1
   - docs/TESTSZENARIEN.md
@@ -87,6 +87,8 @@ Drucken/Abschließen und Fotos gelten in beiden Masken.
   KO-Auftrag (Antwort 6 / Nachfrage zu 6). Die Liste-Maske ist eine Neu-Implementierung am KO-Auftrag.
 - Neuer Endpunkt (der summierte Druck ist ein Zweig von `AuftragDrucken`), neue Rolle, neue Einstellung, Migration.
 - Bestellen/Lagerbestellung in der Liste (Antwort 8: weglassen; nur in der Stückliste).
+- Nachbuchen auf eine teilgebuchte Position im selben Auftrag (Antwort B-1, Variante a: Rest wird angezeigt und geht beim
+  Teilabschluss in den Folgeauftrag; eine zweite Bewegung je Zeile wäre eine Datenmodell-Änderung).
 - ~~Summierter Auftragsdruck; `AuftragDrucken` (v1.97.0) bleibt je Position, nur die Reihenfolge kommt aus der Liste (Rückfrage 9).~~
   *Überholt durch Antwort 9 – siehe In-Scope.*
 - ~~PDF-Download des Auftragsdrucks (Rückfrage 10, Empfehlung: nur Browserdruck).~~ *Überholt durch Antwort 10: der PDF-Knopf
@@ -190,15 +192,19 @@ Drucken/Abschließen und Fotos gelten in beiden Masken.
 | K1 | Auftragskopf der Auftragsseite zeigt einen Umschalter (Bootstrap `btn-group`, zwei Links) „Stückliste“ / „Liste“; aktive Maske hervorgehoben **und** mit `aria-current`. Filtertext bleibt beim Wechsel erhalten. |
 | K2 | Standard ohne `ansicht`: „Liste“, wenn `FaHierarchyKommissionierlistenAktiv = true` **und** `Hierarchical` (Quelle FaHierarchie); sonst „Stückliste“. Ungültiger Wert = Standard. |
 | K3 | Ist die Kommissionierliste aus oder die Quelle nicht FaHierarchie, gibt es keinen Umschalter; `ansicht=liste` wird ignoriert (AKE unverändert). |
-| K4 | ~~Maske „Liste“: gleiche Zeilen wie die Stückliste des Auftrags (je Auftragszeile), flach: kein Einrücken, kein Chevron, keine versteckten Kinder; Baugruppen-Zeilen mit Kennzeichen „BG“ (Text). Sortierung Komm.-Ziel → Hauptlagerplatz → Position (natürliche Sortierung, leere zuletzt).~~ *Überholt durch Antwort 2 (summiert) – neu:* Maske „Liste“: **eine Summenzeile je (Ressourcenummer getrimmt/groß, Komm.-Ziel getrimmt, BG-Kennzeichen)** über die Zeilen des Auftrags (Schlüssel wie `AggregateSummiert` ohne HauptFA, da ein Auftrag zu genau einem FA gehört; BG im Schlüssel, damit `IsBaugruppe` je Zeile eindeutig bleibt). Flach: kein Einrücken, kein Chevron, keine versteckten Kinder; Baugruppen-Zeilen mit Kennzeichen „BG“ (Text, Antwort 4). Sortierung Komm.-Ziel → Hauptlagerplatz → erste Position der Summenzeile (natürliche Sortierung) → Artikelnummer; leere Werte zuletzt (Antwort 3; bewusst nicht die Artnr-Sortierung der Summiert-Ansicht `KommissionierListenService.cs:270-272`). |
+| K4 | ~~Maske „Liste“: gleiche Zeilen wie die Stückliste des Auftrags (je Auftragszeile), flach: kein Einrücken, kein Chevron, keine versteckten Kinder; Baugruppen-Zeilen mit Kennzeichen „BG“ (Text). Sortierung Komm.-Ziel → Hauptlagerplatz → Position (natürliche Sortierung, leere zuletzt).~~ *Überholt durch Antwort 2 (summiert) – neu:* Maske „Liste“: **eine Summenzeile je (Ressourcenummer getrimmt/groß, Komm.-Ziel getrimmt, BG-Kennzeichen)** über die Zeilen des Auftrags (Schlüssel wie `AggregateSummiert` ohne HauptFA, da ein Auftrag zu genau einem FA gehört; BG im Schlüssel, damit `IsBaugruppe` je Zeile eindeutig bleibt). Flach: kein Einrücken, kein Chevron, keine versteckten Kinder; Baugruppen-Zeilen mit Kennzeichen „BG“ (Text, Antwort 4). Sortierung Komm.-Ziel → Hauptlagerplatz → erste Position der Summenzeile (natürliche Sortierung) → Artikelnummer; leere Werte zuletzt – auch leere Positionen, die `NaturalPositionComparer` sonst **zuerst** sortiert (`Services/NaturalPositionComparer.cs:13`, Hinweis H-1; `Summiere` und `Verteile` regeln „leer zuletzt“ selbst) (Antwort 3; bewusst nicht die Artnr-Sortierung der Summiert-Ansicht `KommissionierListenService.cs:270-272`). |
 | K4a | Werte einer Summenzeile: **Menge Soll** = Σ `SollMenge` aller Zeilen der Gruppe; **Pos.** = alle Positionen, natürliche Reihenfolge, „, “-getrennt; **Menge Ist** = Eingabefeld, vorbelegt mit Σ Soll der offenen Zeilen (Offen/Gepickt), daneben „bereits gebucht x“ = Σ `IstMenge` der umgebuchten Zeilen, wenn es welche gibt; Artikeleigenschaften (Matchcode, Bezeichnung 1/2, Artikelgruppe, Beschaffung, Kategorie, Hauptlagerplatz, Lagerplatz) aus der ersten Zeile (je Artikel konstant, Muster `AggregateSummiert` `:264-268`); **Arbeitsbereich**, Sage-Pos., Vater-Sub-FA, Ebene, Baugruppe = verschiedene Werte über `VormontageService.FormatTexte`. **Abteilung** = `AbteilungJeHauptFa` des HauptFA (für alle Zeilen gleich). |
-| K4b | Zeilenzustand: mindestens eine offene Zeile → Summenzeile bearbeitbar (Haken, Ist, Quell-Lagerplatz); alle Zeilen umgebucht/entfallen/übertragen → Statustext wie heute (`ZeilenStatusText`, bei gemischtem Status „teilweise umgebucht (n von m Pos.)“), keine Eingaben. |
+| K4b | Zeilenzustand: mindestens eine offene Zeile → Summenzeile bearbeitbar (Haken, Ist, Quell-Lagerplatz); alle Zeilen umgebucht/entfallen/übertragen → Statustext wie heute (`ZeilenStatusText`, bei gemischtem Status „teilweise umgebucht (n von m Pos.)“), keine Eingaben. **Rest teilgebuchter Positionen (Antwort B-1, Variante a):** hat die Gruppe eine `Umgebucht`-Zeile mit Ist < Soll und ist der Auftrag noch Offen/InArbeit, zeigt die Summenzeile sichtbar „Rest x aus Pos. y geht beim Abschluss in den Folgeauftrag“ (je betroffene Position, mehrere über `FormatTexte`). Dieser Rest ist in diesem Auftrag **nicht** nachbuchbar (eine Bewegung je Zeile, `PickingTransferService.cs:61-62`, `Models/PickingOrder.cs:100`); die Ist-Vorbelegung und die Obergrenze der Verteilung sind nur das Soll der offenen Zeilen. Beim teilweisen Abschluss entsteht der Rest im Folgeauftrag (`PickingOrderWorkflow.cs:207-209`). |
+| K4c | **Auftragszeilen ohne Stücklistenposition** (Kritische Prüfung S-5): Zeilen des Auftrags, deren Schlüssel (`PickingOrderRestmengen.Schluessel`) in der aktuellen Stückliste fehlt (Stückliste geschrumpft), gehen in Liste und summiertem Druck nicht still verloren: sie werden als eigene Summenzeilen mitgeführt (Schlüssel Artikel + leeres Ziel, Werte aus der Zeile: Artnr., Pos., Soll, Ist, Status; Artikeleigenschaften leer) **und** ein Banner über Liste und Druck nennt „x Auftragszeilen ohne Stücklistenposition“. Sie sind wie andere offene Zeilen buchbar. Die Maske „Stückliste“ bleibt unverändert (zeigt sie wie heute nicht, S-8). |
 | K5 | ~~Spalten der Liste … ausgeblendet: Bezeichnung 2, Abteilung, Vater-Sub-FA, Sage-Position.~~ *Überholt durch Antwort 1 + Nachfrage zu 1 – neu:* eigener View-Key `KommissionierauftragListe`, Spaltenauswahl/Umsortieren über das Zahnrad wie überall. **Sichtbar:** Haken, Komm.-Ziel, Hauptlagerplatz, Pos., Artnr. (Ressourcenummer), Matchcode, Bezeichnung 1, Menge Soll, Menge Ist, Lagerplatz, Quell-Lagerplatz, Arbeitsbereich, Abteilung, Bezeichnung 2, Artikelgruppe, Beschaffung, Kategorie. **Über das Zahnrad (Standard ausgeblendet):** Baugruppe, Sage-Pos., Ebene, Vater-Sub-FA (letzte zwei nur bei voller Struktur, wie `Bom.cshtml:218-222`). Keine Spalten Bestellen/Lagerbestellung und kein Sammel-Bestellknopf in der Liste (Antwort 8). |
 | K6 | In der Liste funktionieren: Haken je Summenzeile, Ist-Menge, Quell-Lagerplatz, Artikel-Scan (hakt die Summenzeile an), Umbuchung auf Kommissionierwagen (Auswahl + Scan, Konflikt-Dialog „trotzdem buchen“), „Auftrag drucken“ (summiert, K11), „Auftrag abschließen“, Fotos, Filterfeld, Schreibschutz bei Status ≠ Offen/InArbeit. |
 | K7 | Umschalten verliert nichts Gebuchtes (alles liegt in `PickingOrderLine`); nicht gespeicherte Haken/Ist-Eingaben gehen wie bei jedem Seitenwechsel verloren – der Umschalter fragt nach, wenn Haken gesetzt sind (vorhandenes `confirm`-Muster). Gewählte Maske wird nicht gemerkt (Antwort 5). |
-| K8 | **Verteil-Buchung** (Antwort 2 + Nachfrage zu 2): Haken an einer Summenzeile = Buchung der eingegebenen Ist-Menge auf die **offenen** Zeilen der Gruppe (Offen/Gepickt), sortiert nach `BomPosition` (`NaturalPositionComparer`), jede Zeile bis zu ihrem `SollMenge`, bis die Ist-Menge aufgebraucht ist. Unterdeckung: die zuletzt erreichte Zeile wird mit dem Rest teilgebucht (`Umgebucht`, Ist < Soll), nicht erreichte Zeilen bleiben `Offen` (beides geht beim teilweisen Abschluss wie heute in den Folgeauftrag). Überdeckung (Ist > Σ offenes Soll): abgelehnt mit Meldung, nichts gebucht – folgt aus „jede bis zu ihrem Soll“ und der vorhandenen Regel Ist ≤ Soll (`PickingTransferService.cs:68-69`). Ist ≤ 0 oder keine Zahl: abgelehnt wie heute. Gebucht wird je Zeile über die unveränderte Buchungsschleife (eine Bewegung je Zeile, eine Transaktion für die ganze Auswahl, Bestandsabzug je Zeile). |
+| K8 | **Verteil-Buchung** (Antwort 2 + Nachfrage zu 2): Haken an einer Summenzeile = Buchung der eingegebenen Ist-Menge auf die **offenen** Zeilen der Gruppe (Offen/Gepickt), sortiert nach `BomPosition` (`NaturalPositionComparer`), jede Zeile bis zu ihrem `SollMenge`, bis die Ist-Menge aufgebraucht ist. Unterdeckung: die zuletzt erreichte Zeile wird mit dem Rest teilgebucht (`Umgebucht`, Ist < Soll), nicht erreichte Zeilen bleiben `Offen` (beides geht beim teilweisen Abschluss wie heute in den Folgeauftrag). Überdeckung (Ist > Σ offenes Soll): abgelehnt mit Meldung, nichts gebucht – folgt aus „jede bis zu ihrem Soll“ und der vorhandenen Regel Ist ≤ Soll (`PickingTransferService.cs:68-69`). Ist ≤ 0 oder keine Zahl: abgelehnt wie heute. Gebucht wird je Zeile über die unveränderte Buchungsschleife (eine Bewegung je Zeile, eine Transaktion für die ganze Auswahl, Bestandsabzug je Zeile). Zeilen ohne Position werden in der Verteilung **zuletzt** bedient (H-1). Ist eine Zeile der Summenzeile inzwischen nicht mehr offen, wird die ganze Auswahl abgelehnt mit genau: „<Artnr> (Pos. <Pos>) ist inzwischen umgebucht oder abgeschlossen – nichts gebucht, bitte Seite neu laden.“ (eigener Text der Expansion; der vorhandene Text `PickingTransferService.cs:62` „… ist bereits umgebucht oder abgeschlossen.“ bleibt für Einzelzeilen, S-2). Bestandsmeldung und Negativ-Ausweichen gelten je verteilter Zeile, nicht für die Summe (`:199-207`, H-4). |
+| K12 | **Gleichzeitiger Zugriff** (S-1, gilt für Liste **und** Stückliste, weil Service und Skript geteilt sind): `PickingOrderLine.RowVersion` ist Concurrency-Token (`ApplicationDbContext.cs:1767ff`); eine `DbUpdateConcurrencyException` beim Speichern wird in `TransferOrderLinesAsync` nach dem vorhandenen Rollback/`ChangeTracker.Clear` (`PickingTransferService.cs:256-261`) in eine `InvalidOperationException` „Auftrag wurde inzwischen geändert – nichts gebucht, bitte Seite neu laden.“ übersetzt (Muster `WarehousePickingController.cs:436-438`), `AuftragUmbuchen` liefert sie wie andere Fehler als `BadRequest` (`PickingController.cs:470-473`) statt HTTP 500. Der Knopf „Gepickte Artikel umbuchen“ wird während der Anfrage mit `window.wmsSperren` gesperrt (`wwwroot/js/site.js:243-249`, Muster Abschluss `Bom.cshtml:1693`) und nach Antwort freigegeben. Bewusste Ausnahme von K13: Verhaltensverbesserung auch in der Stückliste. |
+| K13 | **Regression** (S-8): `/Picking/Bom/{id}` (FA-Stückliste, Vorbau, FA-Vervollständigung, `PrintBom`, Lagerbestellung) und die Auftragsseite in der Maske „Stückliste“ (Baum, Filter-Badges, Komm.-Ziel-Dropdown, Bestellen, Druck je Position) verhalten sich unverändert – Ausnahme nur K12. |
+| K14 | **Filter in der Liste wie in der Stückliste** (S-3): Das Partial verwendet dieselben `data-col-key` wie `Bom.cshtml` (`procurement`, `article-group`, `description1`, `kommissionieren`, `position`, `resource-number`, `matchcode`, `quantity`, `ist-menge`, `category`, `hauptlagerplatz`, `sage-position`, `ebene`, `vater-sub-fa`, `storage-location`, `source-location`, `pick-control`, `assembly-group`; neu nur `arbeitsbereich`, `montage-abteilung`). Damit gelten Standardfilter aus dem Benutzerprofil (`Bom.cshtml:1296-1313`), das Komm.-Ziel-Mehrfach-Dropdown mit „Alle Ziele“ (`:923-1218`), Filter-Badges und der Leerzustand `#bomKzEmptyState` (`:1334-1343`) auch in der Liste; sie wirken auf die Summenzeilen (Ziel ist je Summenzeile eindeutig). `expandAncestorsOfMatching` (`:1226`) und `updateBomVisibility` (`:961`) müssen ohne `data-parent-pos` wirkungslos bleiben – im Dev-Lauf prüfen, sonst mit `istListe` umgehen. |
 | K9 | Quell-Lagerplatz einer Summenzeile: ein Auswahlfeld, vorbelegt mit dem Vorschlag je Artikel (offene Zeilen haben keinen gespeicherten Platz, siehe Ist-Stand); alle verteilten Zeilen der Summenzeile bekommen diesen Platz. Reicht der Bestand nicht und ist Negativbuchung erlaubt, weicht wie heute je Zeile der Negativ-Lagerplatz ein (`PickingTransferService.cs:199-207`). |
-| K11 | **Summierter Auftragsdruck** (Antwort 9 + Nachfragen Gerald zum Druck): „Auftrag drucken“ aus der Liste druckt die Summenzeilen des KO-Auftrags – **alle** Summenzeilen des Auftrags, auch weggefilterte (wie der heutige Auftragsdruck, `Bom.cshtml:1405-1406`), in der Zeilenreihenfolge der Liste (inkl. Spaltensortierung). Spalten = die zur Klickzeit in der Liste eingeblendeten (Muster v1.47.0 „nur sichtbare Spalten“), ohne Haken; Menge Ist = gebuchte Summe, Quell-Lagerplatz = Text (gespeicherter Platz bzw. Vorschlag wie `PickingController.cs:629-632`). Aussehen wie der PDF-Druck der Kommissionierliste (`PrintSummiert.cshtml`: Stil, Banner „Summierte Ansicht“, Kopf mit Barcode, `table.positions`); Kopf mit KO-Nummer + Barcode, FA, Bereich, Status, Fälligkeit wie `PrintPicking`. Aus der Maske „Stückliste“ bleibt der Druck je Position unverändert. **PDF-Knopf** (Antwort 10) neben „Auftrag drucken“ in der Liste: lädt dasselbe Dokument als PDF (dieselbe View, dieselben Summenzeilen, Reihenfolge und sichtbaren Spalten), Muster `PdfSummiert`; nur sichtbar, wenn der PDF-Dienst verfügbar ist (`PdfRenderStatus.IsAvailable`, Muster `Summiert.cshtml:106`); Fehler beim Rendern → Warnmeldung auf der Auftragsseite (Liste), kein leeres PDF. |
+| K11 | **Summierter Auftragsdruck** (Antwort 9 + Nachfragen Gerald zum Druck): „Auftrag drucken“ aus der Liste druckt die Summenzeilen des KO-Auftrags – **alle** Summenzeilen des Auftrags, auch weggefilterte (wie der heutige Auftragsdruck, `Bom.cshtml:1405-1406`), in der Zeilenreihenfolge der Liste (inkl. Spaltensortierung). Spalten = die zur Klickzeit in der Liste eingeblendeten (Muster v1.47.0 „nur sichtbare Spalten“), ohne Haken; Menge Ist = gebuchte Summe, Quell-Lagerplatz = Text je Zeile (gespeicherter Platz bzw. Vorschlag wie `PickingController.cs:629-632`), bei mehreren verschiedenen (z. B. Negativ-Ausweichplatz einer Zeile) über `VormontageService.FormatTexte` zusammengefasst, ebenso der Status (S-6); Rest-Hinweis (K4b) und Banner „ohne Stücklistenposition“ (K4c) erscheinen auch im Druck. Aussehen wie der PDF-Druck der Kommissionierliste (`PrintSummiert.cshtml`: Stil, Banner „Summierte Ansicht“, Kopf mit Barcode, `table.positions`); Kopf mit KO-Nummer + Barcode, FA, Bereich, Status, Fälligkeit wie `PrintPicking`. Aus der Maske „Stückliste“ bleibt der Druck je Position unverändert. **PDF-Knopf** (Antwort 10) neben „Auftrag drucken“ in der Liste: lädt dasselbe Dokument als PDF (dieselbe View, dieselben Summenzeilen, Reihenfolge und sichtbaren Spalten), Muster `PdfSummiert`; nur sichtbar, wenn der PDF-Dienst verfügbar ist (`PdfRenderStatus.IsAvailable`, Muster `Summiert.cshtml:106`); Fehler beim Rendern → Warnmeldung auf der Auftragsseite (Liste), kein leeres PDF. |
 | K10 | Filterfeld (`filterText`) wirkt in der Liste auf die Auftragszeilen **vor** dem Summieren (`PickingController.cs:384-393` bleibt vor der Summierung); eine Summenzeile zeigt und bucht dann nur die passenden Zeilen. |
 
 ## Technischer Loesungsentwurf
@@ -220,7 +226,11 @@ Die einzige neue Logik sind zwei reine, unit-getestete Funktionen: Summieren und
 2. **Neu `Services/KommissionierauftragListe.cs`** (static, DB-frei): `Summiere(...)` gruppiert die Zeilen-ViewModels mit
    Auftragszeile nach K4-Schlüssel, füllt K4a/K4b und sortiert nach K4. Ergebnis je Summenzeile u. a.: `OffeneZeilenIds`
    (Positionsreihenfolge), `Positionen` (alle, für Anzeige und Druck-Reihenfolge), `SollSumme`, `OffenSoll`, `GebuchtIst`,
-   `IsBaugruppe`, `QuellVorschlagId`, Artikeleigenschaften, `Arbeitsbereich`, `Abteilung`, `StatusText`.
+   `IsBaugruppe`, `QuellVorschlagId`, Artikeleigenschaften, `Arbeitsbereich`, `Abteilung`, `StatusText`, `RestHinweis` (K4b).
+   Zusätzlich: je `PickingItemId` deduplizieren, bevor summiert wird (H-2: `zeileByKey` nimmt je Schlüssel die erste Zeile,
+   `PickingController.cs:288-290`, zwei Stücklisten-Items mit gleichem Schlüssel ergäben sonst doppeltes Soll und eine doppelte Id);
+   Auftragszeilen ohne Stücklisten-Item (K4c) aus `auftrag.Zeilen` als eigene Summenzeilen anhängen und zählen
+   (`OhneStuecklistenposition` für das Banner); leere Positionen/Ziele/Hauptlagerplätze zuletzt (H-1).
 3. **Arbeitsbereich durchreichen:** `FaHierarchyBomItem.Arbeitsbereich` (neu) in `FaHierarchyBomRepository.cs:174-194` aus
    `node.Arbeitsbereich` setzen, `BomItemViewModel.Arbeitsbereich` in `PickingController.cs:345-379` übernehmen. Keine Migration (Spalte
    existiert am Knoten).
@@ -247,9 +257,12 @@ Die einzige neue Logik sind zwei reine, unit-getestete Funktionen: Summieren und
    (Antwort 6: bestehende Kommissionierliste nicht anfassen) – der kopierte Stilblock bekommt einen `ponytail:`-Kommentar
    („Stil aus PrintSummiert kopiert; gemeinsames Partial, wenn beide sich ändern“).
    Im Partial: Druckknopf `data-print-link="KommissionierauftragListe"` (+ `print-visible-columns.js` einbinden) und `ansicht=liste` in
-   der href; das Sortier-POST-Skript (`Bom.cshtml:1404-1426`) übernimmt `action = getAttribute('href')` schon mit Query – im Dev-Lauf
-   prüfen, dass `visibleColumns` auch im POST-Fall ankommt (Reihenfolge der beiden Klick-Handler), sonst als Formularfeld setzen; bei
-   Summenzeilen alle Positionen aus `data-positionen` in die `reihenfolge` übernehmen.
+   der href. ~~Im Dev-Lauf prüfen, dass `visibleColumns` auch im POST-Fall ankommt …~~ *Festgelegt (S-4):* im POST-Weg (Druck und
+   PDF, `Bom.cshtml:1404-1426`) liest das Skript die sichtbaren `th[data-col-key]` selbst aus dem `thead` und sendet sie als
+   Formularfeld `visibleColumns` (Muster `PrintBom`-Handler `Bom.cshtml:1398` `addField('visibleColumns', …)`) – unabhängig von der
+   Reihenfolge der Klick-Handler; bei Summenzeilen alle Positionen aus `data-positionen` in die `reihenfolge` übernehmen. Der Druck nimmt
+   die Summenzeilen inkl. K4c (Zeilen ohne Stücklistenposition) – er druckt also weiterhin **alle** `auftrag.Zeilen` wie heute
+   (`PickingController.cs:660`), nur summiert (S-5).
 6b. **PDF-Knopf (Antwort 10, Muster `PdfSummiert` `FaHierarchyKommissionierListenController.cs:333-366`):** kein neuer Endpunkt –
    `AuftragDrucken` GET/POST bekommen zusätzlich `bool pdf = false`. Bei `pdf && ansicht == "liste"`: dasselbe ViewModel wie 6a,
    `html = await viewRenderer.RenderToStringAsync(ControllerContext, "PrintAuftragListe", vm)`,
@@ -273,19 +286,30 @@ Die einzige neue Logik sind zwei reine, unit-getestete Funktionen: Summieren und
    `InvalidOperationException` bei `ist <= 0` oder `ist > Σ SollMenge` („Ist-Menge x größer als offenes Soll y“).
 9. **`PickingSelectionItem.PickingItemIds`** (`List<int>?`, neu): gesetzt = Summenzeile, dann ist `PickingItemId` leer.
    `TransferOrderLinesAsync` expandiert solche Items **vor** der vorhandenen Prüfung (`PickingTransferService.cs:53`): Zeilen des Auftrags zu
-   den Ids holen (fremde Id → vorhandene Meldung „gehört nicht zu Auftrag“), nicht offene Zeilen → vorhandene Meldung „bereits
-   umgebucht … bitte Seite neu laden“ (Stand des Servers zählt, nicht der Seite), Ist-Text mit `TryMenge` parsen, `Verteile`, je Anteil
+   den Ids holen (fremde Id → vorhandene Meldung „gehört nicht zu Auftrag“), nicht offene Zeilen → ~~vorhandene Meldung „bereits
+   umgebucht … bitte Seite neu laden“~~ eigene Meldung nach K8 („… ist inzwischen umgebucht oder abgeschlossen – nichts gebucht, bitte
+   Seite neu laden.“, S-2; Stand des Servers zählt, nicht der Seite), Ist-Text mit `TryMenge` parsen, `Verteile`, je Anteil
    ein `PickingSelectionItem` mit `PickingItemId`, gleichem `SourceStorageLocationId`, `IsBaugruppe` und `IstMenge` als Invariant-Text.
    Danach läuft die bestehende Prüfung und Buchung unverändert (Doppelauswahl-Prüfung `:55-56` greift auch über Summenzeilen).
+   **K12:** im `catch` von `DoTransferAsync` (`:256-261`) nach Rollback und `ChangeTracker.Clear` eine `DbUpdateConcurrencyException`
+   als `InvalidOperationException` mit dem K12-Text weiterwerfen (übrige Ausnahmen unverändert); `AuftragUmbuchen` bleibt unverändert
+   (fängt `InvalidOperationException` schon, `PickingController.cs:470-473`).
 10. **Skript:** `collectPickedItems` (`Bom.cshtml:1601-1618`): hat der Haken `data-ids`, `PickingItemIds` statt `PickingItemId` senden
     (`items[i].PickingItemIds[j]`). ~~Druck-Reihenfolge (`:1404-1420`): bei Summenzeilen alle Positionen aus `data-positionen` in
-    Reihenfolge anhängen.~~ *Nach Antwort 9 in Etappe A (Schritt 6a).* Der Rest (Konflikt-Dialog, Status-Modal, Scan) bleibt.
+    Reihenfolge anhängen.~~ *Nach Antwort 9 in Etappe A (Schritt 6a).* `doTransfer` sperrt den Umbuchen-Knopf mit
+    `window.wmsSperren` und gibt ihn in `success`/`error` frei (K12; wirkt in beiden Masken). Der Rest (Konflikt-Dialog, Status-Modal,
+    Scan) bleibt.
 11. **Partial:** Haken `.picking-checkbox` mit `data-ids` (offene Zeilen) und `data-is-baugruppe`, `.ist-menge` (vorbelegt `OffenSoll`,
     `aria-label` mit Artikel), `.source-location-select` (Vorschlag je Artikel), nur wenn `!ReadOnly` und offene Zeilen.
 12. **Tests B:** `PickingOrderVerteilungTests` (genau, Unterdeckung mitten in der zweiten Zeile, Überdeckung, 0/negativ,
-    Positionsreihenfolge „10, 9, 10.1“ natürlich), `PickingTransferServiceTests` (Summenzeile bucht n Bewegungen in einer Transaktion,
-    Bestand über zwei Zeilen am selben Platz, eine Zeile inzwischen umgebucht → Abbruch ohne Buchung, gemischt Summen- und
-    Einzelzeile, Doppel-Id über Summen- und Einzelzeile → Abbruch).
+    Positionsreihenfolge „10, 9, 10.1“ natürlich, Zeile ohne Position zuletzt), `PickingTransferServiceTests` (Summenzeile bucht n
+    Bewegungen, Bestand über zwei Zeilen am selben Platz, eine Zeile inzwischen umgebucht → Abbruch ohne Buchung mit K8-Text, gemischt
+    Summen- und Einzelzeile, Doppel-Id über Summen- und Einzelzeile → Abbruch; **Alles-oder-nichts statt „eine Transaktion“** (S-7,
+    InMemory hat keine Transaktion, `PickingTransferService.cs:188-189`): Bestand reicht nur für die erste verteilte Zeile,
+    `NegativeBuchungErlaubt` aus → Fehler in Zeile 2, danach **keine** Bewegung gespeichert und beide Zeilen `Offen`).
+    `KommissionierauftragListeTests` zusätzlich: doppelte `PickingItemId` nur einmal gezählt (H-2), Zeile ohne Stücklisten-Item als
+    eigene Summenzeile + Zähler (K4c), Rest-Hinweis bei `Umgebucht` mit Ist < Soll (K4b). Die echte Concurrency-Ausnahme (K12) ist nicht
+    InMemory-testbar → Manual-UAT x.6.
 13. Frontend: Skill `frontend-design` ausdrücklich aufrufen. Umschalter groß genug für Tablet-Bedienung, Kontrast AA, aktive Maske
     nicht nur über Farbe; BG-Kennzeichen als Text.
 
@@ -353,10 +377,10 @@ auditiert (`:243-249`). Abschließen und Fotos unverändert. Kommissionier-Umbuc
 3. Liste flach, **eine Zeile je Artikel + Komm.-Ziel**; Menge Soll = Summe der Auftragszeilen, Pos. listet alle Positionen; sortiert Komm.-Ziel → Hauptlagerplatz → erste Position → Artikel; Baugruppen mit „BG“, nicht eingerückt.
 4. Sichtbare Spalten genau: Haken, Komm.-Ziel, Hauptlagerplatz, Pos., Artnr., Matchcode, Bezeichnung 1, Menge Soll, Menge Ist, Lagerplatz, Quell-Lagerplatz, Arbeitsbereich, Abteilung, Bezeichnung 2, Artikelgruppe, Beschaffung, Kategorie; Baugruppe, Sage-Pos. (und bei voller Struktur Ebene, Vater-Sub-FA) über das Zahnrad einblendbar.
 5. Verteilung genau: Artikel mit zwei offenen Zeilen (Pos. 10 Soll 3, Pos. 20 Soll 2), Ist 5 → beide `Umgebucht` mit Ist 3 und 2, zwei Bewegungen.
-6. Unterdeckung: dieselbe Lage, Ist 4 → Pos. 10 Ist 3 `Umgebucht`, Pos. 20 Ist 1 `Umgebucht` (teilgeliefert); Ist 2 → Pos. 10 Ist 2 `Umgebucht`, Pos. 20 bleibt `Offen`. Teilweiser Abschluss legt die Reste wie heute im Folgeauftrag an.
+6. Unterdeckung: dieselbe Lage, Ist 4 → Pos. 10 Ist 3 `Umgebucht`, Pos. 20 Ist 1 `Umgebucht` (teilgeliefert); Ist 2 → Pos. 10 Ist 2 `Umgebucht`, Pos. 20 bleibt `Offen`; die Summenzeile zeigt danach „Rest 1 aus Pos. 10 geht beim Abschluss in den Folgeauftrag“, Ist vorbelegt mit 2 (nur Pos. 20); eine spätere Eingabe 3 wird abgelehnt („größer als offenes Soll 2“), Eingabe 2 bucht Pos. 20. Teilweiser Abschluss legt die Reste (1 aus Pos. 10) wie heute im Folgeauftrag an (Antwort B-1, Variante a).
 7. Überdeckung: Ist 6 → Meldung „größer als offenes Soll“, nichts gebucht (keine Bewegung, kein Zeilenstatus geändert).
-8. Summenzeile mit bereits umgebuchter Zeile: verteilt nur auf die offenen; Anzeige „bereits gebucht x“; alle Zeilen erledigt → keine Eingaben, Statustext.
-9. Zeile inzwischen von anderer Seite umgebucht → Buchung der ganzen Auswahl abgelehnt („bitte Seite neu laden“), nichts gebucht.
+8. Summenzeile mit bereits umgebuchter Zeile: verteilt nur auf die offenen; Anzeige „bereits gebucht x“ und – bei Ist < Soll – der Rest-Hinweis (K4b); alle Zeilen erledigt → keine Eingaben, Statustext.
+9. Zeile inzwischen von anderer Seite umgebucht → Buchung der ganzen Auswahl abgelehnt mit genau „<Artnr> (Pos. <Pos>) ist inzwischen umgebucht oder abgeschlossen – nichts gebucht, bitte Seite neu laden.“, nichts gebucht. Echter Gleichstand (zwei Geräte buchen gleichzeitig dieselbe Zeile) → eine Buchung gewinnt, die andere erhält „Auftrag wurde inzwischen geändert – nichts gebucht, bitte Seite neu laden.“ als Meldung, keine Fehlerseite (K12, Manual-UAT).
 10. Wagen-Konflikt aus der Liste: Konflikt-Dialog wie aus der Stückliste, „trotzdem buchen“ bucht alle verteilten Zeilen.
 11. Artikel-Scan in der Liste hakt die Summenzeile an; „Auftrag abschließen“ und Foto hochladen funktionieren aus der Liste.
 11a. „Auftrag drucken“ aus der Liste: ein Dokument im Aufbau des PDF-Drucks der Kommissionierliste (Banner „Summierte Ansicht“, Kopf mit Barcode – hier KO-Nummer –, Tabelle im selben Stil), Inhalt = alle Summenzeilen des Auftrags in der Reihenfolge der Liste (auch nach Spaltensortierung), Spalten = genau die in der Liste eingeblendeten ohne Haken (Zahnrad: z. B. Kategorie ausblenden → fehlt im Druck; Sage-Pos. einblenden → erscheint).
@@ -367,7 +391,12 @@ auditiert (`:243-249`). Abschließen und Fotos unverändert. Kommissionier-Umbuc
 14. Kommissionierlisten aus (oder AKE): kein Umschalter, `?ansicht=liste` zeigt die Stückliste.
 15. Haken gesetzt, Umschalter geklickt → Rückfrage; Abbrechen bleibt auf der Seite.
 16. `/FaHierarchyKommissionierListen` (Liste, Summiert, Druck) unverändert, kein neuer Link.
-17. Tests grün: `KommissionierauftragListeTests`, `PickingOrderVerteilungTests`, `PickingTransferServiceTests` (Summenzeile), `PickingControllerTests` (Standard je Einstellung, `ansicht`, ungültiger Wert), `ViewKeyDriftGuardTests`; Build grün.
+17. Tests grün: `KommissionierauftragListeTests` (inkl. H-2, K4b, K4c), `PickingOrderVerteilungTests`, `PickingTransferServiceTests` (Summenzeile, Alles-oder-nichts bei Fehler in Zeile 2, K8-Text), `PickingControllerTests` (Standard je Einstellung, `ansicht`, ungültiger Wert, Druck/PDF), `ViewKeyDriftGuardTests`; Build grün.
+18. Auftragszeile ohne Stücklistenposition (K4c): erscheint in Liste und summiertem Druck als eigene Zeile, Banner „x Auftragszeilen ohne Stücklistenposition“ in beiden; in der Stückliste unverändert nicht sichtbar.
+19. Doppelklick auf „Gepickte Artikel umbuchen“ (Liste und Stückliste): Knopf während der Anfrage gesperrt, genau eine Buchung (K12).
+20. Liste: Standardfilter aus dem Benutzerprofil (Beschaffung, Artikelgruppe, Bezeichnung 1, Komm.-Ziel) sind vorbelegt, Komm.-Ziel-Dropdown mit „Alle Ziele“, Filter-Badges und Leerzustand wie in der Stückliste (K14).
+21. Druck: Summenzeile mit zwei verschiedenen Quell-Lagerplätzen bzw. Status zeigt beide, „, “-getrennt (K11/S-6).
+22. `/Picking/Bom/{id}` (FA-Stückliste inkl. Druck, Lagerbestellung, Bestellen) und die Auftragsseite in „Stückliste“ (Baum, Filter-Badges, Komm.-Ziel-Dropdown, Druck je Position) verhalten sich unverändert – einzige Ausnahme Knopf-Sperre und Konflikt-Meldung (K12, K13).
 
 ## Test-Szenarien
 
@@ -377,20 +406,34 @@ Neues Kapitel in `docs/TESTSZENARIEN.md` (Nummer beim Dev-Start prüfen; nach Te
 - **Vorbedingung:** IDEAL-Testsystem, `FaHierarchyKommissionierlistenAktiv = true`, freigegebener HauptFA mit offenem
   Kommissionierauftrag (≥ 5 Zeilen, verschiedene Ziele/Lagerplätze, eine Baugruppe, **mindestens ein Artikel an zwei Positionen
   mit gleichem Ziel**), Bestand am Quell-Lagerplatz, aktiver Kommissionierwagen, Benutzer mit Picking-Recht. Soll-Mengen der
-  Doppel-Positionen vor dem Test notieren (Beispiel unten: 3 und 2).
-- **x.1** Auftrag öffnen → Liste (AK 1), umschalten (AK 2), Summierung/Sortierung/BG (AK 3), Spaltensatz und Zahnrad (AK 4).
-- **x.2** Verteilung genau (AK 5): Ist = Summe, umbuchen; in der Stückliste beide Positionen `Umgebucht`, Bestandsbewegungen prüfen.
-- **x.3** Unterdeckung (AK 6) an einem zweiten Auftrag/Artikel: Ist 4 bzw. 2, danach „Auftrag abschließen – teilweise“ → Folgeauftrag
-  enthält die Reste.
+  Doppel-Positionen vor dem Test notieren (Beispiel unten: 3 und 2). Im Benutzerprofil Standardfilter (z. B. Komm.-Ziel) gesetzt.
+  **Hinweis (H-8):** Die Testbuchungen erzeugen echte WMS-Bestandsbewegungen (Umbuchungen auf den Wagen) auf dem IDEAL-Testsystem;
+  keine Sage-Wirkung (`PickingTransferService.cs:14-15`). Nach dem Test ggf. per Rückbuchung aufräumen.
+- **x.1** Auftrag öffnen → Liste (AK 1), umschalten (AK 2), Summierung/Sortierung/BG (AK 3), Spaltensatz und Zahnrad (AK 4);
+  Standardfilter, „Alle Ziele“-Dropdown, Badges, Leerzustand (AK 20).
+- **x.2** Verteilung genau (AK 5): Ist = Summe, umbuchen; in der Stückliste beide Positionen `Umgebucht`, Bestandsbewegungen prüfen
+  (je Position eine Bewegung; Bestandsmeldung/Negativ-Ausweichen gelten je Position, H-4).
+- **x.3** Unterdeckung (AK 6) an einem zweiten Auftrag/Artikel: Ist 4 bzw. 2; bei Ist 2 Rest-Hinweis „Rest 1 aus Pos. 10 …“ prüfen,
+  Eingabe 3 → abgelehnt, Eingabe 2 → Pos. 20 gebucht; danach „Auftrag abschließen – teilweise“ → Folgeauftrag enthält den Rest 1 aus
+  Pos. 10.
 - **x.4** Überdeckung (AK 7): Ist > Summe → Meldung, nichts gebucht.
-- **x.5** Teilweise gebuchte Summenzeile (AK 8): eine Position in der Stückliste umbuchen, zur Liste wechseln, Rest buchen.
-- **x.6** Zwei Browser-Fenster, dieselbe Zeile in einem umbuchen, im anderen die Summenzeile buchen → Ablehnung (AK 9).
+- **x.5** Teilweise gebuchte Summenzeile (AK 8): eine Position in der Stückliste mit Ist < Soll umbuchen, zur Liste wechseln → „bereits
+  gebucht“ + Rest-Hinweis, Rest der offenen Positionen buchen.
+- **x.6** Zwei Browser-Fenster, dieselbe Zeile in einem umbuchen, im anderen die Summenzeile buchen → Ablehnung mit dem AK-9-Text;
+  zwei Geräte gleichzeitig „umbuchen“ → eine Buchung, die andere Meldung „Auftrag wurde inzwischen geändert …“, keine Fehlerseite
+  (AK 9); Doppelklick auf „Gepickte Artikel umbuchen“ → Knopf gesperrt, eine Buchung (AK 19).
+- **x.6a** Auftragszeile ohne Stücklistenposition (AK 18): auf DEV eine Stücklistenposition nach Auftragserzeugung entfernen lassen
+  (Nachtlauf/Testdaten), Auftrag öffnen → eigene Zeile + Banner in Liste und Druck.
 - **x.7** Wagen mit fremdem FA → Konflikt-Dialog, „trotzdem buchen“ (AK 10); Scan, Foto, Abschließen (AK 11).
 - **x.7a** Druck aus der Liste (AK 11a): Kommissionierliste → Summiert → „PDF“ eines HauptFA öffnen als Vergleich; im KO-Auftrag
   (Liste) per Zahnrad eine Spalte aus- und eine einblenden, nach Hauptlagerplatz sortieren, Filtertext setzen, „Auftrag drucken“ →
   gleiches Aussehen wie das PDF, alle Summenzeilen trotz Filter, Reihenfolge und Spalten wie in der Liste. Umschalten auf Stückliste,
   „Auftrag drucken“ → Druck je Position wie bisher (AK 11b). Zurück zur Liste, PDF-Knopf → PDF-Datei mit gleichem Inhalt,
-  Reihenfolge und Spalten wie der Browserdruck, neben das Kommissionierlisten-PDF legen (AK 11c).
+  Reihenfolge und Spalten wie der Browserdruck, neben das Kommissionierlisten-PDF legen (AK 11c). Summenzeile mit zwei
+  Quell-Lagerplätzen (eine Position über Negativ-Ausweichplatz gebucht) → beide im Druck (AK 21).
+- **x.9 Regression (AK 22):** `/Picking/Bom/{id}` eines FA öffnen (FA-Stückliste): Baum, Filter-Badges, „Stückliste drucken“,
+  Lagerbestellung unverändert; Vorbau/FA-Vervollständigung-Stückliste stichprobenhaft; Auftragsseite in „Stückliste“: Baum,
+  Komm.-Ziel-Dropdown, Bestellen, „Auftrag drucken“ je Position unverändert.
 - **Negativ x.7b:** PDF-Dienst aus/nicht verfügbar (DEV: wie bei der Kommissionierliste) → kein PDF-Knopf; Fehler beim Rendern →
   Warnmeldung, Auftragsseite bleibt in der Liste.
 - **x.8** Abgeschlossenen Auftrag öffnen (AK 12); Spaltenauswahl Liste vs. Stückliste (AK 13); Umschalter mit gesetzten Haken (AK 15).
@@ -401,8 +444,8 @@ Neues Kapitel in `docs/TESTSZENARIEN.md` (Nummer beim Dev-Start prüfen; nach Te
 
 | # | Etappe | Status | Commit |
 |---|--------|--------|--------|
-| A | Umschalter, summierte Anzeige, summierter Auftragsdruck und PDF-Knopf (Schritte 1–7 inkl. 6a, 6b): Spalten, Sortierung, BG, Arbeitsbereich/Abteilung, ViewConfig, `PrintAuftragListe`, PDF über `IPdfRenderService`; Liste noch ohne Haken/Ist/Quell-Lagerplatz. Build + Tests grün, keine Migration. AK 1–4, 11a–11c, 12–14, 16. | offen | – |
-| B | Verteil-Buchung (Schritte 8–12): `PickingOrderVerteilung`, `PickingItemIds`, Expansion in `TransferOrderLinesAsync`, Skript + Partial-Eingaben. Build + Tests grün, keine Migration. AK 5–11, 15, 17. Hängt an keiner offenen Rückfrage. | offen | – |
+| A | Umschalter, summierte Anzeige, summierter Auftragsdruck und PDF-Knopf (Schritte 1–7 inkl. 6a, 6b): Spalten, Sortierung, BG, Arbeitsbereich/Abteilung, ViewConfig, `PrintAuftragListe`, PDF über `IPdfRenderService`; Liste noch ohne Haken/Ist/Quell-Lagerplatz; inkl. Rest-Hinweis (K4b), Zeilen ohne Stücklistenposition (K4c), Filter wie Stückliste (K14), Dedupe/leer zuletzt (H-1/H-2), `visibleColumns` als Formularfeld (S-4), mehrwertige Druckwerte (S-6). Build + Tests grün, keine Migration. AK 1–4, 11a–11c, 12–14, 16, 18, 20–22. | offen | – |
+| B | Verteil-Buchung (Schritte 8–12): `PickingOrderVerteilung`, `PickingItemIds`, Expansion in `TransferOrderLinesAsync` mit K8-Text, Concurrency-Meldung + Knopf-Sperre (K12), Skript + Partial-Eingaben, Alles-oder-nichts-Test. Build + Tests grün, keine Migration. AK 5–11, 15, 17, 19 (AK 22 erneut prüfen). Hängt an keiner offenen Rückfrage. | offen | – |
 
 *Schnitt bestätigt (Antwort 7):* ein Lauf, ein Worktree (Bündel `2026-08-07-ideal-teile-1-5`), ein Merge; Etappen sind nur
 Commits. Branch während der Arbeit mit `scripts/sync-worktree.ps1` aktuell halten. Etappe A allein ist nicht auslieferungsfähig (Standard

@@ -21,8 +21,8 @@ affected_code:
   - IdealAkeWms/Views/PickingLeitstand/Index.cshtml (Filterkarte Schalter, flache Darstellung, Zählzeile, Banner)
   - IdealAkeWms/Views/PickingLeitstand/_PickingLeitstandRow.cshtml + Skript in Index.cshtml (Knopf „Alle Sub-FAs fertigmelden“ in der Zeilen-Aktion, nur HauptFA-Zeile; zusammengefasste Zellen zeigen die Zusammenfassung, schreiben die HauptFA-Zeile, Antwort 7; bei SubFaBestimmt Neuladen nach Speichern + Hinweis, Antwort 8; gesperrt nur W4 und W3 (LackNurSubFa), Antwort 9)
   - IdealAkeWms/wwwroot/js/fa-work-step-status.js (nur additiv: CustomEvent wms:fa-status-gespeichert nach resp.ok, Antwort 8; FA-Abarbeitungsliste unverändert)
-  - IdealAkeWms.Tests (Repository InMemory faNrUeberSubFa, Unit-Tests Zusammenfassung, Controller)
-  - IdealAkeWms/Views/Help/Index.cshtml (Abschnitt „Leitstand (Kommissionier-Freigabe)“), Changelog
+  - IdealAkeWms.Tests (Repository InMemory faNrUeberSubFa, Unit-Tests Zusammenfassung, Controller; BESTEHENDE brechen und werden angepasst (Kritische Prüfung S-3) - Moq-Setups/Verifies von GetForLeitstandGroupedAsync mit 8 It.IsAny in PickingLeitstandControllerTests.cs:172/:230/:246/:1050 und ProductionOrdersControllerTests.cs:118/:678 (CS0854, optionaler Parameter in Expression Tree), Gruppen-Tests vm.Groups PickingLeitstandControllerTests.cs:185/:242/:269 rufen Index(..., mitSubFa: true))
+  - IdealAkeWms/Views/Help/Index.cshtml (Abschnitt „Leitstand (Kommissionier-Freigabe)“: Lack-T bei „Lackteile nur an Sub-FAs“ über „Sub-FAs anzeigen“ erledigen (B-1), Eigenwert der HauptFA nur mit Schalter sichtbar (H-1), HauptFA erledigt = Auftrag weg (S-1)), Changelog
   - scripts/deploy/nachlauf.psd1
   - docs/TESTSZENARIEN.md
 open_questions:
@@ -77,6 +77,12 @@ Freigabe eindeutig.
 - Freigabe-Logik, Kaskade „Alle Sub-FAs fertigmelden“, Kommissionieraufträge: nur Ort des Knopfs ändert sich (Antwort 3).
 - Backlog [[2026-09-25-leitstand-subfa-readonly-stueckliste]] (schreibgeschützte Sub-FA-Stückliste): betrifft nur noch die
   Ansicht „Sub-FAs anzeigen“, bleibt eigener Eintrag.
+- **HauptFA erledigt = Auftrag erledigt (Kritische Prüfung S-1, bestätigt Gerald 2026-11-26):** Ist die HauptFA-Zeile erledigt,
+  fertig kommissioniert oder storniert (`showDone`-Filter `ProductionOrderRepository.cs:158-159`), verschwindet der Auftrag ohne Banner,
+  auch wenn Sub-FAs offen sind; sichtbar mit „Erledigte anzeigen“. Das Banner (L5) zählt nur Aufträge **ganz ohne** HauptFA-Zeile
+  (`:184-190`). Bewusste Abgrenzung, gleich wie Q-4 der FA-Liste.
+- Kein Sammel-Schreibweg für Lack-T erledigt an Sub-FAs (Kritische Prüfung B-1, Gerald: „bei 9 (b) bleiben“): Bei „Lackteile nur
+  an Sub-FAs“ (W3) wird über „Sub-FAs anzeigen“ erledigt gemeldet; Hilfetext und Manifest-Info sagen das ausdrücklich.
 
 ## Fachliche Anforderungen
 
@@ -176,8 +182,8 @@ Freigabe eindeutig.
 | ID | Anforderung |
 |---|---|
 | L1 | Hierarchischer Modus, Schalter „Sub-FAs anzeigen“ aus (Standard, Antwort 2): eine Zeile je HauptFA (`IsHauptFa`). Paginierung und Zähler über HauptFA-Zeilen. Zählzeile „x Aufträge (nur HauptFA)“. |
-| L2 | Filter (Filterkarte, Spaltenfilter, Datums-/VK-VA-/Matchcode-Filter in C#) wirken auf die HauptFA-Zeile, und zwar auf den **angezeigten** Wert (bei VK–VA also auf die Zusammenfassung, L9). **FA-Nr. ohne Schalter trifft nur die HauptFA-Nummer**, eine Sub-FA-Nummer findet nichts; die Suche über Sub-FA-Nummern gibt es nur mit eingeschaltetem Schalter (Antwort 4) - dort wie heute (Zeile trifft `OrderNumber` oder `SubOrderNumber`, `ProductionOrderRepository.cs:124-128`, `:332-334`). *(überholt: „Ausnahme FA-Nr.: auch eine Sub-FA-Nummer findet ihren HauptFA“.)* |
-| L3 | Darstellung ohne Gruppenkopf (flacher Zweig der View); der Knopf „Alle Sub-FAs fertigmelden“ steht in den Zeilen-Aktionen (`row-actions`) der HauptFA-Zeile, nur mit Picking-Recht, gleicher Dialog und gleiche Aktion `CascadeDone` (Antwort 3). |
+| L2 | Filter (Filterkarte, Spaltenfilter, Datums-/VK-VA-/Matchcode-Filter in C#) wirken auf die HauptFA-Zeile, und zwar auf den **angezeigten** Wert (bei VK–VA also auf die Zusammenfassung, L9). **FA-Nr. ohne Schalter trifft nur die HauptFA-Nummer**, eine Sub-FA-Nummer findet nichts; die Suche über Sub-FA-Nummern gibt es nur mit eingeschaltetem Schalter (Antwort 4) - dort wie heute (Zeile trifft `OrderNumber` oder `SubOrderNumber`, `ProductionOrderRepository.cs:124-128`, `:332-334`). Ist der FA-Nr.-Filter (Karte oder Spalte) ohne Schalter gesetzt und gibt es 0 Treffer, zeigt die Seite `alert-info` „Keine HauptFA mit dieser Nummer – Sub-FA-Nummern findet „Sub-FAs anzeigen““ mit Link auf dieselbe URL plus `mitSubFa=true` (Kritische Prüfung S-2: der QR-Scan der FA-Nr. sendet sofort ab, `Index.cshtml:512-515`, vom Werkstattpapier kommt oft eine Sub-FA-Nummer; nur Hinweis, keine Gegenentscheidung zu Antwort 4). *(überholt: „Ausnahme FA-Nr.: auch eine Sub-FA-Nummer findet ihren HauptFA“.)* |
+| L3 | Darstellung ohne Gruppenkopf (flacher Zweig der View); der Knopf „Alle Sub-FAs fertigmelden“ steht in den Zeilen-Aktionen (`row-actions`) der HauptFA-Zeile, nur mit Picking-Recht und nur bei `SubFaAnzahl > 0` (Kritische Prüfung S-4), gleicher Dialog und gleiche Aktion `CascadeDone` (Antwort 3). |
 | L4 | Freigabe-Haken, „Freigeben“/„Zurücknehmen“, Prioritätsfeld, Kommissionierer, KO-Links nur an der HauptFA-Zeile, sichtbar und bedienbar wie heute. Sub-FA-Zeilen haben **in keiner Ansicht** (auch nicht mit Schalter) Bulk-Haken oder Freigabe-Knopf; der Server lehnt eine Sub-FA-Freigabe weiter ab (Antworten 1 und 3; Bestand, siehe Ist-Stand - nicht ändern, nur absichern). |
 | L5 | Banner (melden statt still), wenn offene Aufträge keine HauptFA-Zeile haben: „n Aufträge ohne HauptFA-Zeile – nur mit „Sub-FAs anzeigen“ sichtbar, Freigabe dort nicht möglich.“ mit Link auf die Ansicht mit Sub-FAs. Gezählt mit demselben `showDone`-Filter (`CountGruppenOhneHauptFaAsync`, vorhanden). |
 | L6 | Schalter „Sub-FAs anzeigen“ an: heutige Gruppenansicht unverändert, Sub-FA-Zeilen mit ihren **eigenen** Werten (Antwort 2). Der Schalter steht in der URL (`mitSubFa=true`), Pagination und „Zurücksetzen“ nehmen ihn mit bzw. setzen ihn zurück. |
@@ -185,7 +191,7 @@ Freigabe eindeutig.
 | L8 | *(überholt durch Antwort 5: „Spalten Lack-T, Glas, Zukauf, VK-VA an der HauptFA-Zeile zeigen deren eigene Werte“)* → ersetzt durch L9. |
 | L9 | Ohne Schalter zeigt die HauptFA-Zeile in Lack-T (und damit Beschicht.-Termin), Glas, Zukauf und VK–VA die **Zusammenfassung über alle Zeilen ihres Auftrags** (HauptFA-Zeile + alle Sub-FA-Zeilen mit derselben `OrderNumber`) nach der Zusammenfassungsregel unten (Antwort 5). Die Zusammenfassung wird **vor** den Memory-Filtern gebildet und unabhängig von den Listenfiltern über alle Zeilen des Auftrags gerechnet. |
 | L10 | Zusammengefasste Zellen bleiben bedienbar; ein Klick an der HauptFA-Zeile schreibt **nur die HauptFA-Zeile** (eigene `ProductionOrderPickingStatus`-Zeile bzw. eigener `FaWorkStep`), Sub-FA-Werte bleiben unverändert, die Anzeige bleibt die Zusammenfassung (Antwort 7, Variante c). Verhalten je Fall siehe „Klickverhalten“: wo Sub-FAs den Wert bestimmen (W1, W2, W5), bedienbar mit Neuladen nach dem Speichern und Hinweis „Sub-FA bestimmt den Wert weiter“ (Antwort 8, Variante ii); gesperrt nur W4 (kein `FaWorkStep` an der HauptFA-Zeile, Text „Arbeitsgang nur an Sub-FAs …“) und W3 (Lack-T erledigt an HauptFA-Zeile ohne eigene Lackteile, Text „Lackteile nur an Sub-FAs …“, Antwort 9 b). *(überholt: „W1-W3, W5 bedienbar … nur W4 gesperrt“; überholt: „für die Fälle W1-W4 gilt Rückfrage 8“; überholt: „Bis zur Antwort baut der Dev-Lauf die Empfehlung (nur Anzeige, gesperrt …)“.)* |
-| L11 | Die FA-Nr.-Zelle der HauptFA-Zeile zeigt als Text, wie viele Sub-FAs eingeflossen sind („+ n Sub-FAs“, nur wenn n > 0), damit erkennbar ist, dass die Werte zusammengefasst sind (nicht nur Farbe). |
+| L11 | Die FA-Nr.-Zelle der HauptFA-Zeile zeigt als Text, wie viele Sub-FAs eingeflossen sind („+ n Sub-FAs“, nur wenn n > 0), damit erkennbar ist, dass die Werte zusammengefasst sind (nicht nur Farbe). n = nicht stornierte Sub-FA-Zeilen **inklusive erledigter** (Basis der Zusammenfassungsregel), nicht die gefilterten Gruppenzeilen wie das heutige Badge (`Index.cshtml:213`). Die FA-Nr.-Zelle trägt `data-csv-value` mit der FA-Nummer, damit „+ n Sub-FAs“ nicht in der CSV-Spalte FA-Nr. landet (`csv-export.js:85`) (Kritische Prüfung S-4). |
 
 ### Zusammenfassungsregel je Spalte (Antwort 5; bestätigt mit Antwort 6, VK–VA geändert)
 
@@ -274,7 +280,8 @@ vorhandener flacher View-Zweig, vorhandener Dialog. Neu sind nur ein Parameter, 
      nicht stornierten Zeilen der Aufträge (eine Abfrage, `AsNoTracking`, `WHERE OrderNumber IN (...) AND IsCancelled = 0`),
      unabhängig von `showDone` (Basis der Zusammenfassungsregel). Bei mehr als 2100 Parametern in Blöcken wie
      `GetWorkStepPivotAsync` (`IFaWorkStepRepository.cs:19`, „Chunked in 1000er-Bloecken“).
-2. **Controller `Index`:** Parameter `bool mitSubFa = false`. Im hierarchischen Zweig (`:208-209`)
+2. **Controller `Index`:** Parameter `bool mitSubFa = false` als **letzter** Parameter (Positionsaufrufe in Tests, z. B.
+   `_controller.Index(null, null, "Mustermann", false, 1, null)`, bleiben gültig; Kritische Prüfung S-3). Im hierarchischen Zweig (`:208-209`)
    `nurHauptFa: !mitSubFa, faNrUeberSubFa: false` (mit Schalter ist `nurHauptFa` aus, der Parameter wirkt dann nicht).
    Bei `nurHauptFa`:
    - Zeilen-Ids aller Aufträge der geladenen Gruppen über `GetZeilenIdsJeAuftragAsync`; die **eine** Id-Liste (HauptFA + Sub-FA)
@@ -298,8 +305,11 @@ vorhandener flacher View-Zweig, vorhandener Dialog. Neu sind nur ein Parameter, 
    `Model.Hierarchical`. Zweigwahl `Model.Hierarchical && !Model.NurHauptFa` → Gruppen, sonst flacher Zweig. Zählzeile L1, Banner L5
    (`alert-warning`, Text, nicht nur Farbe). `data-hierarchical` nur bei Gruppenansicht `true`, damit `fa-liste-gruppierung.js` nichts
    sucht. Spaltenkopf-`title` von Lack-T, Glas, Zukauf, VK–VA im Nur-HauptFA-Modus um „zusammengefasst aus HauptFA und Sub-FAs“ ergänzen.
+   Hinweis bei FA-Nr.-Filter ohne Treffer (L2, S-2): eine Bedingung `NurHauptFa && FA-Nr.-Filter gesetzt && keine Items`. FA-Nr.-Zelle
+   mit `data-csv-value` (L11).
 5. **Row-Partial:** Knopf `btn-cascade-done` (gleiche Klasse, `data-order-number`) in der `row-actions`-Zelle bei
-   `Model.Hierarchical && isHauptFaRow && Model.CanPick && Model.NurHauptFa` (neues Feld im `PickingLeitstandRowContext`). Das Skript
+   `Model.Hierarchical && isHauptFaRow && Model.CanPick && Model.NurHauptFa` und `SubFaAnzahl > 0` des Items (neues Feld im
+   `PickingLeitstandRowContext`; `SubFaAnzahl > 0` nach S-4). Das Skript
    `:460-` sucht nur `.btn-cascade-done` und braucht keine Änderung; `e.stopPropagation()` ist im flachen Zweig harmlos.
    Zusammengefasste Zellen nach L10 (Antworten 7 und 8): Wert = Zusammenfassung, `data-id`/`FaWorkStepId` = HauptFA-Zeile, bedienbar.
    Bei `SubFaBestimmt`: `data-neu-laden="true"` an der `<td>`, sichtbarer Kurztext „Sub-FA bestimmt den Wert weiter“ und `title`
@@ -313,6 +323,11 @@ vorhandener flacher View-Zweig, vorhandener Dialog. Neu sind nur ein Parameter, 
    bleiben unverändert (L4).
 6. Frontend: Skill `frontend-design` ausdrücklich aufrufen. Bootstrap-Muster der Filterkarte, Trefferflächen ≥ 24 px, Kontrast AA;
    gesperrte Zellen nicht nur über Ausgrauen kenntlich machen (Text im `title`, Zählhinweis L11).
+7. **Hilfe `Views/Help/Index.cshtml`**, Abschnitt „Leitstand (Kommissionier-Freigabe)“, ausdrücklich: (a) Zeigt Lack-T „Lackteile nur an
+   Sub-FAs“, wird Lack-T erledigt über „Sub-FAs anzeigen“ an den Sub-FA-Zeilen gesetzt (B-1). (b) Der eigene Wert der HauptFA-Zeile ist
+   nur mit „Sub-FAs anzeigen“ sichtbar. Beispiel: Lack-T erledigt an der HauptFA gesetzt, Zelle zeigt wegen offener Sub-FA trotzdem leer;
+   Zurücknehmen nur dort (H-1). (c) Ist die HauptFA erledigt, fertig kommissioniert oder storniert, verschwindet der Auftrag, auch mit offenen
+   Sub-FAs; sichtbar mit „Erledigte anzeigen“ (S-1). (d) Sub-FA-Nummern findet die FA-Nr.-Suche nur mit „Sub-FAs anzeigen“.
 
 ## Migrations-/SQL-Auswirkungen
 
@@ -333,10 +348,12 @@ LEFT JOIN dbo.ProductionOrderPickingStatus ps ON ps.ProductionOrderId = po.Id
 WHERE po.OrderNumber = N'<HauptFA>'
 ORDER BY CASE WHEN po.SubOrderNumber = N'' OR po.SubOrderNumber = po.OrderNumber THEN 0 ELSE 1 END, po.SubOrderNumber;
 
--- P-3: offene Aufträge ohne HauptFA-Zeile (gleiche Abfrage wie die Manifest-Prüfung unten)
+-- P-3: offene Aufträge ohne HauptFA-Zeile (gleiche Abfrage wie die Manifest-Prüfung unten).
+-- Zeilenfilter wie showDone = false im Banner (ProductionOrderRepository.cs:158-159, :184-190), inkl. IsDonePicking (Kritische Prüfung S-1).
 SELECT COUNT(DISTINCT po.OrderNumber) AS OhneHauptFa
 FROM dbo.ProductionOrders po
-WHERE po.IsDone = 0 AND po.IsCancelled = 0
+LEFT JOIN dbo.ProductionOrderPickingStatus ps ON ps.ProductionOrderId = po.Id
+WHERE po.IsDone = 0 AND po.IsCancelled = 0 AND ISNULL(ps.IsDonePicking, 0) = 0
   AND NOT EXISTS (SELECT 1 FROM dbo.ProductionOrders h
                   WHERE h.OrderNumber = po.OrderNumber
                     AND (h.SubOrderNumber = N'' OR h.SubOrderNumber = h.OrderNumber));
@@ -385,14 +402,20 @@ HauptFA-Zeile über die vorhandenen Endpunkte (`/api/picking-status/toggle`, `/a
    gibt sie frei und legt Kommissionieraufträge an wie heute.
 3. Ohne Schalter: FA-Nr.-Filter (Karte und Spalte) mit einer Sub-FA-Nummer zeigt **keine** Zeile; mit der HauptFA-Nummer die HauptFA-Zeile.
    Mit Schalter: dieselbe Sub-FA-Nummer zeigt die Gruppe mit der passenden Sub-FA-Zeile (wie heute). *(überholt: „FA-Nr.-Filter mit einer
-   Sub-FA-Nummer zeigt die HauptFA-Zeile ihres Auftrags“.)*
+   Sub-FA-Nummer zeigt die HauptFA-Zeile ihres Auftrags“.)* Ohne Schalter und ohne Treffer zeigt die Seite den Hinweis „Keine HauptFA mit
+   dieser Nummer – Sub-FA-Nummern findet „Sub-FAs anzeigen““; der Link öffnet dieselbe Suche mit Schalter und zeigt die Gruppe (S-2).
+   Mit Treffern oder ohne FA-Nr.-Filter kein Hinweis.
 4. Artikelnummer-Filter mit der Artikelnummer einer Sub-FA (nicht des HauptFA) zeigt ohne Schalter nichts (Filter auf HauptFA-Zeile, Antwort 4).
 5. „Alle Sub-FAs fertigmelden“ in den Zeilen-Aktionen öffnet denselben Dialog mit denselben Zahlen; Fertigmelden wirkt wie heute.
+   An einer HauptFA ohne Sub-FAs (n = 0) fehlt der Knopf (S-4).
 6. Schalter „Sub-FAs anzeigen“ an: Darstellung identisch zu heute (Gruppen, Sub-FA-Zeilen mit eigenen Werten, Badge, Kopf-Knopf).
    Seitenwechsel behält den Schalter, „Zurücksetzen“ schaltet ihn aus.
 7. Schalter an: Sub-FA-Zeilen haben weder Bulk-Haken noch „Freigeben“; ein direkt abgesetzter `ToggleRelease`-POST mit einer Sub-FA-Id
    ändert nichts und meldet „Kommissionierung erfolgt nur am HauptFA …“ (Antworten 1 und 3).
-8. Auftrag ohne HauptFA-Zeile (Testdaten): Banner nennt die Anzahl; mit Schalter ist die Gruppe sichtbar.
+8. Auftrag ohne HauptFA-Zeile (Testdaten): Banner nennt die Anzahl; mit Schalter ist die Gruppe sichtbar. HauptFA-Zeile „Als erledigt
+   markieren“ (fertig kommissioniert) bei offenen Sub-FAs: Der Auftrag verschwindet ohne Banner, die Banner-Zahl ändert sich nicht;
+   mit „Erledigte anzeigen“ ist er wieder da (S-1, Out-of-Scope). Manifest-Prüfung P-3 und Banner liefern auf denselben Daten dieselbe
+   Zahl.
 9. AKE (flacher Modus): Leitstand unverändert, kein Schalter, kein Banner, keine Zusammenfassung.
 10. FA-Liste `/ProductionOrders` an der IDEAL unverändert (v1.99.82-Verhalten: eine Zeile je HauptFA, FA-Nr. findet auch über Sub-FA-Nummer,
     Lack-T = eigener Wert).
@@ -402,7 +425,9 @@ HauptFA-Zeile über die vorhandenen Endpunkte (`/api/picking-status/toggle`, `/a
     zweite mit Lackteilen nicht → Lack-T nicht erledigt; beide erledigt → erledigt; c) Glas nur an einer Sub-FA → Glas gesetzt; Zukauf ebenso;
     d) VK an einer Sub-FA Fertig, an der anderen Offen → **InBearbeitung** (Antwort 6); eine InBearbeitung → InBearbeitung; alle Fertig →
     Fertig; alle Offen → Offen; keine Zeile mit VK → Zelle leer; e) eine stornierte Sub-FA mit Glas zählt nicht; eine erledigte Sub-FA mit VK Fertig zählt mit.
-13. FA-Nr.-Zelle der HauptFA-Zeile zeigt „+ n Sub-FAs“ bei n > 0, nichts bei n = 0 (L11).
+13. FA-Nr.-Zelle der HauptFA-Zeile zeigt „+ n Sub-FAs“ bei n > 0, nichts bei n = 0 (L11). n = nicht stornierte Sub-FA-Zeilen inkl.
+    erledigter (eine erledigte Sub-FA zählt mit, eine stornierte nicht). Der CSV-Export schreibt in die Spalte FA-Nr. nur die FA-Nummer,
+    ohne „+ n Sub-FAs“ (S-4).
 14. VK-Spaltenfilter „fertig“ ohne Schalter trifft genau die HauptFA-Zeilen, deren **zusammengefasster** VK-Wert Fertig ist (L2).
 15. Klick an der HauptFA-Zeile (Antwort 7): In K1/K2 (z. B. HauptFA ohne Sub-FAs; Glas, wenn keine Sub-FA Glas trägt) ändert der Klick nur
     die Statuszeile bzw. den `FaWorkStep` der HauptFA-Zeile (DB-Prüfung: Sub-FA-Zeilen unverändert, `ModifiedBy` der HauptFA-Zeile gesetzt);
@@ -426,7 +451,16 @@ HauptFA-Zeile über die vorhandenen Endpunkte (`/api/picking-status/toggle`, `/a
 18. Repository-Test InMemory: `nurHauptFa` + `faNrUeberSubFa: false` trifft mit Sub-FA-Nummer nichts, mit HauptFA-Nummer die HauptFA-Zeile;
     `faNrUeberSubFa` Default (`true`) unverändert (bestehende Tests `FaListeNurHauptFaTests` grün); `GetZeilenIdsJeAuftragAsync` liefert
     HauptFA- und Sub-FA-Zeilen ohne stornierte.
+    Bestehende Tests (S-3): Die Moq-Setups und Verifies von `GetForLeitstandGroupedAsync` (`PickingLeitstandControllerTests.cs:172`,
+    `:230`, `:246`, `:1050`, `ProductionOrdersControllerTests.cs:118`, `:678`) sind auf den neuen Parameter angepasst; optionale Argumente
+    sind in Expression Trees nicht erlaubt (CS0854). Tests, die `vm.Groups` auswerten (`PickingLeitstandControllerTests.cs:185`, `:242`,
+    `:269`), rufen `Index(..., mitSubFa: true)` und sichern damit AK 6. Ein neuer Controller-Test prüft im Verify
+    `nurHauptFa: true, faNrUeberSubFa: false` ohne Schalter. `mitSubFa` ist letzter Parameter von `Index`; Positionsaufrufe bleiben
+    unverändert.
 19. Build und alle Tests grün.
+20. Hilfe „Leitstand (Kommissionier-Freigabe)“ enthält die vier Punkte aus Lösungsentwurf Schritt 7: Lack-T bei „Lackteile nur an Sub-FAs“
+    über den Schalter (B-1), Eigenwert der HauptFA nur mit Schalter sichtbar (H-1), HauptFA erledigt = Auftrag weg (S-1), Sub-FA-Nummern-Suche
+    nur mit Schalter. Die Manifest-Info nennt B-1 ausdrücklich.
 
 ## Test-Szenarien
 
@@ -438,7 +472,8 @@ Neues Kapitel in `docs/TESTSZENARIEN.md` (Nummer beim Dev-Start prüfen; nach Te
 - **x.1** Leitstand öffnen → nur HauptFA-Zeilen, „+ n Sub-FAs“ in der FA-Nr.-Zelle (AK 1, 13).
 - **x.2** HauptFA anhaken, „Markierte freigeben“ (AK 2).
 - **x.3** FA-Nr.-Filter mit Sub-FA-Nummer ohne und mit Schalter; FA-Nr. mit HauptFA-Nummer; Artikelfilter mit Sub-FA-Artikel (AK 3, 4).
-- **x.4** Kaskade aus der Zeile (AK 5).
+  Sub-FA-Nummer ohne Schalter, auch per QR-Scan: Hinweis „Keine HauptFA mit dieser Nummer …“, Link → Gruppe mit Schalter (AK 3, S-2).
+- **x.4** Kaskade aus der Zeile; an HauptFA ohne Sub-FAs kein Knopf (AK 5). CSV-Export: Spalte FA-Nr. ohne „+ n Sub-FAs“ (AK 13).
 - **x.5** Schalter „Sub-FAs anzeigen“, Seite 2, Zurücksetzen (AK 6); an Sub-FA-Zeilen kein Freigabe-Haken (AK 7).
 - **x.6** Zusammenfassung: mit Schalter Einzelwerte an den Sub-FAs setzen, Schalter aus, Werte an der HauptFA-Zeile prüfen - Fälle a) bis e)
   (AK 12, d mit gemischt Fertig/Offen → „In Bearbeitung“); VK-Spaltenfilter (AK 14).
@@ -450,7 +485,9 @@ Neues Kapitel in `docs/TESTSZENARIEN.md` (Nummer beim Dev-Start prüfen; nach Te
   Schalter aus → Haken gesetzt, weiter gesperrt. Negativ: Speicherfehler (z. B.
   Sitzung abgelaufen) → alter Wert, Meldung, kein Neuladen; FA-Abarbeitungsliste Status ändern → kein Neuladen (AK 16).
   *(überholt: „Fälle W1-W5 anlegen und Sperre plus Text „bestimmt durch Sub-FA“ prüfen“.)*
-- **x.7** Banner mit Auftrag ohne HauptFA-Zeile (AK 8, ggf. nur per Testdaten).
+- **x.7** Banner mit Auftrag ohne HauptFA-Zeile (AK 8, ggf. nur per Testdaten). HauptFA mit offenen Sub-FAs „Als erledigt markieren“ →
+  Auftrag weg, Banner-Zahl unverändert, mit „Erledigte anzeigen“ wieder da (AK 8, S-1).
+- **x.8** Hilfe-Abschnitt „Leitstand (Kommissionier-Freigabe)“ öffnen: vier Punkte aus AK 20 vorhanden.
 - **Negativ:** AKE-Leitstand (AK 9); FA-Liste IDEAL (AK 10); Benutzer ohne Leitstand-Recht (AK 11); direkter `ToggleRelease`-POST mit
   Sub-FA-Id (AK 7, Entwicklerwerkzeuge oder Testfall im Controller-Test).
 
@@ -471,8 +508,8 @@ Neues Kapitel in `docs/TESTSZENARIEN.md` (Nummer beim Dev-Start prüfen; nach Te
 
 | Id | Version | Typ | Firma | Phase | Ausführung | Text |
 |---|---|---|---|---|---|---|
-| `Pruefung/LeitstandOhneHauptFaZeile` | (Dev-Lauf) | Pruefung | IDEAL | Nachher | anzeigen | P-3 als `COUNT`. „Offene Aufträge ohne HauptFA-Zeile: im Leitstand nur mit „Sub-FAs anzeigen“ sichtbar und nicht freigebbar. Materialisierung prüfen.“ |
-| `v<Version>-LeitstandNurHauptFa` | (Dev-Lauf) | Info | IDEAL | Nachher | anzeigen | „Der Leitstand zeigt nur noch HauptFA-Zeilen. Lack-T, Glas, Zukauf und VK–VA fassen dort HauptFA und alle Sub-FAs zusammen. Sub-FAs über den Schalter „Sub-FAs anzeigen“ in der Filterkarte; die FA-Nr.-Suche nach Sub-FA-Nummern nur dort. „Alle Sub-FAs fertigmelden“ steht jetzt in der Zeile.“ |
+| `Pruefung/LeitstandOhneHauptFaZeile` | (Dev-Lauf) | Pruefung | IDEAL | Nachher | anzeigen | P-3 als `COUNT` (mit `IsDonePicking`-Filter, gleiche Zahl wie das Banner, S-1). „Offene Aufträge ohne HauptFA-Zeile: im Leitstand nur mit „Sub-FAs anzeigen“ sichtbar und nicht freigebbar. Materialisierung prüfen.“ |
+| `v<Version>-LeitstandNurHauptFa` | (Dev-Lauf) | Info | IDEAL | Nachher | anzeigen | „Der Leitstand zeigt nur noch HauptFA-Zeilen. Lack-T, Glas, Zukauf und VK–VA fassen dort HauptFA und alle Sub-FAs zusammen. Sub-FAs über den Schalter „Sub-FAs anzeigen“ in der Filterkarte; die FA-Nr.-Suche nach Sub-FA-Nummern nur dort. Steht bei Lack-T „Lackteile nur an Sub-FAs“, wird Lack-T erledigt nur über „Sub-FAs anzeigen“ gesetzt. Ist die HauptFA erledigt, verschwindet der Auftrag auch mit offenen Sub-FAs. „Alle Sub-FAs fertigmelden“ steht jetzt in der Zeile.“ |
 
 - **Publish-Befehle:** `dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWMSWeb` (im Worktree).
 
@@ -486,6 +523,9 @@ Neues Kapitel in `docs/TESTSZENARIEN.md` (Nummer beim Dev-Start prüfen; nach Te
 > Nachtrag 2: 8 entschieden (ii) - bedienbar, Neuladen nach dem Speichern, Hinweis „Sub-FA bestimmt den Wert weiter“; nur W4 bleibt
 > gesperrt (kein `FaWorkStep` an der HauptFA-Zeile). Neu offen: 9 (W3).
 > Nachtrag 3: 9 entschieden (b) - W3 gesperrt mit „Lackteile nur an Sub-FAs“. Keine Rückfrage mehr offen.
+> Nachtrag 4: Die Kritische Prüfung ist eingearbeitet. B-1 (bei 9 b bleiben, Hilfe und Manifest) und S-1 (HauptFA erledigt = Auftrag weg,
+> Out-of-Scope) hat Gerald beantwortet. S-2 bis S-4 und H-1 sind in L2/L3/L11, Lösungsentwurf 2/4/5/7, AK 3/5/8/13/18/20 und x.3/x.4/x.7/x.8
+> übernommen. Keine Rückfrage offen.
 
 1. **Freigabe-Haken am HauptFA – was fehlte genau?** Der Haken und „Freigeben“ stehen seit v1.46.0 an der HauptFA-Zeile
    (`_PickingLeitstandRow.cshtml:20-31`, `:241-285`). Sie fehlen nur, wenn `LeitstandAktiv` aus ist, der Benutzer kein
