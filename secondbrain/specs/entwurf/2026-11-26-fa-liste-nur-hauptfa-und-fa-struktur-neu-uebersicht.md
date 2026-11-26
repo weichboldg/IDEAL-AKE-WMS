@@ -20,7 +20,7 @@ test- und mergebar; beide aendern nur die Web-App, keine Migration.
 | # | Spec | Zweck | depends_on | SQL-Nummern |
 |---|---|---|---|---|
 | 1 | [[2026-11-26-fa-liste-nur-hauptfa-und-fa-struktur-neu-teil-1-spec]] | FA-Liste zeigt je HauptFA eine Zeile, Strukturfelder (Kopf + Wurzel) im Zahnrad, Knopf je Zeile in die FA-Struktur | – | keine (nur Lesen) |
-| 2 | [[2026-11-26-fa-liste-nur-hauptfa-und-fa-struktur-neu-teil-2-spec]] | Entscheidungsvorlage FA-Struktur: Varianten A/B/C, Empfehlung B (Baugruppen-Baum, Teile per Schalter) | Teil 1 (Sprungziel; technisch unabhaengig) | keine |
+| 2 | [[2026-11-26-fa-liste-nur-hauptfa-und-fa-struktur-neu-teil-2-spec]] | FA-Struktur Variante D (Gerald 2026-11-26): je HauptFA eine Zeile mit Kopfspalten (Keys/Labels wie FA-Liste), Baum per Chevron, Teile per Knopf; ~~Entscheidungsvorlage A/B/C, Empfehlung B~~ | Teil 1 (Sprungziel; Kopfspalten-Keys aus Teil 1 — Teil 1 zuerst bauen) | keine |
 
 ## Abhaengigkeiten ausserhalb dieses Splits
 
