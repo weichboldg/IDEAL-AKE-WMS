@@ -1129,6 +1129,13 @@ IDEAL-View), zeigen Baum und Listen fuer denselben Knoten unterschiedliche Werte
 (Artikel gewinnt in den Listen), gehoert aber als „kein Fehler" in den UAT-Vermerk. Backlog-Kandidat, den
 Baum spaeter ebenfalls auf den Artikelstamm umzustellen: [[2026-09-15-matchcode-nachlese]].
 
+**Nachtrag v1.99.82 ([[2026-11-26-fa-liste-nur-hauptfa-und-fa-struktur-neu-teil-1-spec]], Freigabe-Antwort 6):** Die
+**FA-Liste an der IDEAL** (hierarchischer Modus, nur HauptFA-Zeilen) liest jetzt wie die Stückliste zuerst den Matchcode der
+Strukturwurzel (`FaHierarchyNode.Matchcode`, getrimmt) und nur als Rückfall `Article.Matchcode`
+(`ProductionOrdersController.StrukturFelderSetzen`). Die Regel steht damit an zwei Orten (dort und `PickingController` über
+`FaHierarchyBomItem.Matchcode`) — wer sie ändert, ändert beide. **Warum:** Endgeräte fehlen oft im Artikelstamm (siehe unten), und
+FA-Liste und FA-Struktur sollen für dieselbe Zeile denselben Wert zeigen. Die übrigen Listen und AKE bleiben bei `Article.Matchcode`.
+
 ### `Articles` ist eine gefilterte Projektion von `KHKArtikel` — gefertigte Endgeraete fehlen evtl.
 `SageImportService.SyncArticlesAsync` befuellt `Articles` nur mit Artikeln, die in
 `KHKPpsRessourcenPositionen` vorkommen ODER `IstBestellartikel = -1 AND Aktiv = -1` sind. Ein gefertigtes
