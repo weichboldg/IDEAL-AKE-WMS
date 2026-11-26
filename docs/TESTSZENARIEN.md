@@ -15049,7 +15049,7 @@ WHERE po.IsDone = 0 AND po.IsCancelled = 0 AND ISNULL(ps.IsDonePicking, 0) = 0
 - **TS-208.2 Massenfreigabe (AK 2):** HauptFA anhaken, „Markierte freigeben“ → freigegeben, Prio vergeben; Kommissionierliste wie TS-79.
 - **TS-208.3 Suche (AK 3, 4, S-2):** FA-Nr.-Filter mit HauptFA-Nummer → Treffer. Mit Sub-FA-Nummer ohne Schalter (auch per QR-Scan) → kein Treffer,
   Hinweis „Keine HauptFA mit dieser Nummer – Sub-FA-Nummern findet „Sub-FAs anzeigen““; Link → Gruppe mit Schalter und Sub-FA-Zeile.
-  Artikelfilter mit Sub-FA-Artikel → HauptFA-Zeile wird gefunden.
+  Artikelfilter mit der Artikelnummer einer Sub-FA (nicht des HauptFA) ohne Schalter → keine Zeile (Filter wirkt auf die HauptFA-Zeile, AK 4).
 - **TS-208.4 Kaskade, CSV (AK 5, 13):** HauptFA mit Sub-FAs: „Alle Sub-FAs fertigmelden“ in der Zeile → Sub-FAs fertig, Meldung; an HauptFA ohne
   Sub-FAs kein Knopf; Benutzer ohne Picking-Recht kein Knopf. CSV-Export: Spalte FA-Nr. ohne „+ n Sub-FAs“.
 - **TS-208.5 Schalter (AK 6, 7):** „Sub-FAs anzeigen“ anhaken → bisherige Gruppenansicht mit allen Sub-FA-Zeilen und ihren eigenen Werten; Seite 2,

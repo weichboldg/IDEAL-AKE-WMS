@@ -583,7 +583,7 @@ else if (Model.Hierarchical)
                         if (!resp.ok) {
                             cb.checked = !value;
                             alert('Fehler beim Speichern.');
-                        } else if (cb.closest('[data-neu-laden]')) {
+                        } else if (cb.closest('[data-neu-laden="true"]')) {
                             // v1.99.88 (Antwort 8): Sub-FA bestimmt den Wert mit -> sofort neu zusammenfassen.
                             location.reload();
                         }
@@ -596,7 +596,7 @@ else if (Model.Hierarchical)
 
             // v1.99.88 (Antwort 8): VK–VA gespeichert (Ereignis aus fa-work-step-status.js) -> neu laden, wenn Sub-FAs mitbestimmen.
             document.addEventListener('wms:fa-status-gespeichert', function (e) {
-                if (e.target.closest && e.target.closest('[data-neu-laden]')) location.reload();
+                if (e.target.closest && e.target.closest('[data-neu-laden="true"]')) location.reload();
             });
         });
     </script>
