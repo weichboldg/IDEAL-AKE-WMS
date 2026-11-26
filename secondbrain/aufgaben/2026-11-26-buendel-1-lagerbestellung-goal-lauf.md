@@ -71,6 +71,10 @@ Start-Stand Worktree: v1.99.85 (c8814cdf), höchstes TS 206 (TS-205 reserviert f
 
 ## Paket
 
+- `publish\paket27-v1.99.89.zip` (Publish 6144f36d), 237 845 857 Bytes, SHA-256 `CD1BF3683788CF609BD8CF69E6A2CF99FBCC512080610E00FA8FC8ABA03141FD`
+- `\AKENET01.ake.at\Installsourcen`: Größe + SHA-256 identisch (OK)
+- `\IDEALWEB01.ideal.ideal-ake.at\InstallSourcen`: Größe + SHA-256 identisch (OK)
+
 ## Offen fuer Gerald (Schranke 2)
 
 - v1.99.87: Manual-UAT TS-205 am Testsystem (Zahnrad 205.4/205.5, Browser-Druckvorschau 205.6, ◩ im Server-PDF 205.7);
