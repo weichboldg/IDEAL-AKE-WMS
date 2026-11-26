@@ -7,7 +7,7 @@ namespace IdealAkeWms.Services;
 /// <summary>Eine laufende oder pausierte Buchung eines Werkers (Kopf der FA-Sicht, Panels des Terminals).</summary>
 public sealed record BdeKopfBuchung(int BookingId, BdeBookingType Typ, BdeBookingStatus Status, DateTime StartedAt, DateTime? PausedAt,
     int? WorkOperationId, string OrderNumber, string OperationNumber, string OperationName, string ActivityName, string WorkplaceName,
-    decimal? TargetQuantity, string TerminalName, string SubOrderNumber = "");
+    decimal? TargetQuantity, string TerminalName, string SubOrderNumber = "", int? WorkplaceId = null);
 
 /// <summary>
 /// v1.99.77 (Spec 2026-11-25-bde-masken-vereinheitlichung E4-4): Abfragen der Kopf-Buchungen an EINEM Ort; die FA-Sicht rendert sie
@@ -35,7 +35,8 @@ public static class BdeKopfBuchungen
             b.ProductionWorkplace != null ? b.ProductionWorkplace.Name : "",
             b.WorkOperation != null ? (decimal?)b.WorkOperation.ProductionOrder!.Quantity : null,
             b.BdeTerminal != null ? (b.BdeTerminal.Description ?? b.BdeTerminal.User.Name) : "",
-            b.WorkOperation != null ? b.WorkOperation.ProductionOrder!.SubOrderNumber : "")) // v1.99.79 F-35
+            b.WorkOperation != null ? b.WorkOperation.ProductionOrder!.SubOrderNumber : "", // v1.99.79 F-35
+            b.ProductionWorkplaceId)) // v1.99.81 (3A): Gruppen-Abschluss nur je Werkbank
         .ToListAsync();
 
     /// <summary>Laufzeit „h:mm h“ seit Start (Stand Seitenaufbau; nie negativ).</summary>

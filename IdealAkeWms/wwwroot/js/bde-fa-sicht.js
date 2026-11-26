@@ -146,46 +146,74 @@
         m.show();
     }
 
+    // v1.99.81 (3A, U-2): Gruppen-Abschluss. Zeile = Haupt-FA · Sub-FA / AG Name, Werkbank, Soll. Die angeklickte Buchung uebernimmt die
+    // schon eingegebenen Mengen (letzteFertig), die anderen Felder sind leer und Pflicht; Gut unter Soll -> eine Sammel-Rueckfrage.
+    var letzteFertig = null;
     function gruppe(json) {
         var tbody = document.getElementById('group-finish-rows');
         tbody.replaceChildren.apply(tbody, json.bookings.map(function (b) {
             var tr = document.createElement('tr');
             tr.dataset.bookingId = b.bookingId;
+            tr.dataset.soll = b.targetQuantity != null ? b.targetQuantity : '';
+            var vorbelegt = letzteFertig && String(letzteFertig.id) === String(b.bookingId) ? letzteFertig : null;
             var fa = document.createElement('td');
-            fa.textContent = b.orderNumber + '/' + b.operationNumber + (b.operationName ? ' ' + b.operationName : '');
+            fa.textContent = b.orderNumber + (b.subOrderNumber && b.subOrderNumber !== b.orderNumber ? ' · Sub-FA ' + b.subOrderNumber : '')
+                + ' / ' + (b.operationNumber || '').trim() + (b.operationName ? ' ' + b.operationName : '');
+            var wb = document.createElement('td');
+            wb.textContent = b.workplaceName || '–';
             var soll = document.createElement('td');
+            soll.className = 'text-end';
             soll.textContent = b.targetQuantity != null ? fmt(b.targetQuantity) : '–';
-            tr.append(fa, soll);
-            [['group-qty-good', 'Gut'], ['group-qty-scrap', 'Ausschuss']].forEach(function (f) {
+            tr.append(fa, wb, soll);
+            [['group-qty-good', 'Gut', vorbelegt && vorbelegt.gut], ['group-qty-scrap', 'Ausschuss', vorbelegt && vorbelegt.aus]].forEach(function (f) {
                 var td = document.createElement('td'), i = document.createElement('input');
-                i.type = 'number'; i.min = '0'; i.step = '0.01'; i.value = '0'; i.className = 'form-control ' + f[0];
+                i.type = 'number'; i.min = '0'; i.step = '1'; i.required = true; i.inputMode = 'numeric';
+                i.value = f[2] != null ? f[2] : '';
+                i.className = 'form-control bde-gruppe-menge ' + f[0];
                 i.setAttribute('aria-label', f[1] + ' ' + fa.textContent);
                 td.appendChild(i); tr.appendChild(td);
             });
             var abs = document.createElement('td'), c = document.createElement('input');
             abs.className = 'text-center';
             c.type = 'checkbox'; c.checked = true; c.className = 'form-check-input group-is-final';
-            c.setAttribute('aria-label', 'Abschliessen ' + fa.textContent);
+            c.setAttribute('aria-label', 'Abschließen ' + fa.textContent);
             abs.appendChild(c); tr.appendChild(abs);
             return tr;
         }));
-        var m = modal('group-finish-modal'), ok = document.getElementById('group-finish-confirm');
-        ok.onclick = async function () {
+        var el = document.getElementById('group-finish-modal'), m = modal('group-finish-modal'), ok = document.getElementById('group-finish-confirm');
+        var zeilen = function () { return Array.prototype.slice.call(tbody.querySelectorAll('tr[data-booking-id]')); };
+        async function senden() {
             var frei = window.wmsSperren(ok);
             if (!frei) return;
-            var eintraege = Array.prototype.map.call(tbody.querySelectorAll('tr[data-booking-id]'), function (r) {
+            var eintraege = zeilen().map(function (r) {
                 return {
                     bookingId: parseInt(r.dataset.bookingId, 10),
-                    goodQty: parseFloat(r.querySelector('.group-qty-good').value) || 0,
-                    scrapQty: parseFloat(r.querySelector('.group-qty-scrap').value) || 0,
+                    goodQty: parseFloat(r.querySelector('.group-qty-good').value),
+                    scrapQty: parseFloat(r.querySelector('.group-qty-scrap').value),
                     isFinal: r.querySelector('.group-is-final').checked
                 };
             });
             var r = await post('/BdeTerminal/FinishGroup', { operatorId: operatorId, terminalId: terminalId, entriesJson: JSON.stringify(eintraege) });
-            if (r.outcome === 'Success') { neuLaden(r.closedCount + ' Buchungen fertig gemeldet.'); return; }
+            if (r.outcome === 'Success') { neuLaden(r.closedCount + (r.closedCount === 1 ? ' Buchung' : ' Buchungen') + ' fertig gemeldet.'); return; }
             frei();
             m.hide();
-            melden((r.message || 'Gruppen-Abschluss fehlgeschlagen') + ' – nichts gebucht.', 'warning');
+            ergebnis(r, '');
+        }
+        ok.onclick = function () {
+            // Pflichtfelder: das erste leere/ungueltige Feld meldet der Browser selbst
+            if (!Array.prototype.every.call(tbody.querySelectorAll('input[type="number"]'), function (i) { return i.reportValidity(); })) return;
+            var unter = zeilen().filter(function (r) {
+                var s = zahl(r.dataset.soll), g = parseFloat(r.querySelector('.group-qty-good').value);
+                return r.querySelector('.group-is-final').checked && s != null && g < s;
+            });
+            if (!unter.length) { senden(); return; }
+            var text = unter.map(function (r) { return r.cells[0].textContent + ': Gut ' + fmt(parseFloat(r.querySelector('.group-qty-good').value)) + ' von ' + fmt(zahl(r.dataset.soll)); });
+            // erst den Gruppen-Dialog schliessen (keine gestapelten Modals); „Abbrechen“ oeffnet ihn mit den Eingaben wieder
+            el.addEventListener('hidden.bs.modal', function () {
+                window.bdeBestaetigen('Gutmenge unter Soll: ' + text.join('; ') + '. Trotzdem alle fertig melden?', 'Alle fertig melden',
+                    senden, function () { m.show(); });
+            }, { once: true });
+            m.hide();
         };
         m.show();  // „Abbrechen“ bucht nichts
     }
@@ -213,6 +241,7 @@
                 r = await post('/BdeTerminal/ReportPartial', { bookingId: id, operatorId: operatorId, terminalId: terminalId, goodQty: q.gut, scrapQty: q.aus }); ok = 'Teilmenge gemeldet.'; break;
             case 'fertig':
                 if (!(q = await mengen(soll, null)) || !(await gutOk(q.gut, soll))) return frei();
+                letzteFertig = { id: id, gut: q.gut, aus: q.aus };
                 r = await post('/BdeTerminal/Finish', { bookingId: id, operatorId: operatorId, terminalId: terminalId, goodQty: q.gut, scrapQty: q.aus }); ok = 'Fertig gemeldet.'; break;
             case 'ruesten-fertig': r = await post('/BdeTerminal/Finish', { bookingId: id, operatorId: operatorId, terminalId: terminalId }); ok = 'Rüsten beendet.'; break;
             case 'produktion': r = await start(z.dataset.woId, false); ok = 'Produktion gestartet.'; break;

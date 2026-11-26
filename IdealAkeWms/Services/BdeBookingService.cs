@@ -295,8 +295,8 @@ public class BdeBookingService : IBdeBookingService
         if (packedError != null) return packedError;
 
         if (IstNegativ(goodQty, scrapQty)) return BdeBookingResult.Invalid(NegativeMengeMeldung);
-        if ((goodQty ?? 0) == 0 && (scrapQty ?? 0) == 0)
-            return BdeBookingResult.Invalid("Bitte eine Gut- oder Ausschussmenge angeben.");
+        if (await NullMengeFehlerAsync(workOperationId, goodQty, scrapQty, istFinal) is { } nullFehler)
+            return BdeBookingResult.Invalid(nullFehler);
 
         if (await _ctx.BdeBookingQuantities.AnyAsync(q => q.IsFinal && !q.BdeBooking!.IsCancelled
                 && q.BdeBooking.WorkOperationId == workOperationId))
@@ -345,6 +345,8 @@ public class BdeBookingService : IBdeBookingService
 
         if (b.BookingType == BdeBookingType.Production && !goodQty.HasValue && !scrapQty.HasValue)
             return BdeBookingResult.QuantityRequired(b);
+        if (b.BookingType == BdeBookingType.Production && await NullMengeFehlerAsync(b.WorkOperationId, goodQty, scrapQty, istFinal: true) is { } nullFehler)
+            return BdeBookingResult.Invalid(nullFehler);
 
         await FinishAndSaveAsync(b, goodQty, scrapQty);
         return BdeBookingResult.Success(b);
@@ -360,7 +362,29 @@ public class BdeBookingService : IBdeBookingService
 
         _ctx.BdeBookingQuantities.Add(CreatePartialQuantity(b, goodQty, scrapQty));
         await _ctx.SaveChangesAsync();
-        return BdeBookingResult.Success(b);
+
+        // v1.99.81 (U-3): wie die Teileliste – Speichern bleibt erlaubt, ab Soll ein Hinweis
+        var soll = await _ctx.WorkOperations.Where(w => w.Id == b.WorkOperationId).Select(w => (decimal?)w.ProductionOrder.Quantity).FirstOrDefaultAsync();
+        return BdeBookingResult.Success(b, soll is decimal s && s > 0 && await BisherGutAsync(b.WorkOperationId) >= s
+            ? "Sollmenge erreicht – bitte Fertig melden." : null);
+    }
+
+    /// <summary>v1.99.81 (Entscheid 4, F-22): Summe Gut aller nicht stornierten Mengen (Teil und Final) des Arbeitsgangs.</summary>
+    private async Task<decimal> BisherGutAsync(int? workOperationId) =>
+        await _ctx.BdeBookingQuantities.Where(q => !q.BdeBooking!.IsCancelled && q.BdeBooking.WorkOperationId == workOperationId)
+            .SumAsync(q => (decimal?)q.GoodQuantity) ?? 0m;
+
+    /// <summary>v1.99.81 (Entscheid 4, F-22, U-4): Gut 0 + Ausschuss 0 ist nur als ABSCHLUSS erlaubt und nur, wenn am Arbeitsgang schon
+    /// nicht stornierte Teilmengen (IsFinal = false) liegen – dieselbe Bedingung wie BdeTeilelisteService (nullErlaubt). Gilt fuer FA-Sicht
+    /// (Finish), Gruppe (FinishGroup) und Kern (ReportCompletionCore, Baugruppe). null = ok.</summary>
+    private async Task<string?> NullMengeFehlerAsync(int? workOperationId, decimal? goodQty, decimal? scrapQty, bool istFinal)
+    {
+        if ((goodQty ?? 0) != 0 || (scrapQty ?? 0) != 0) return null;
+        if (istFinal && await _ctx.BdeBookingQuantities.AnyAsync(q => !q.IsFinal && !q.BdeBooking!.IsCancelled
+                && q.BdeBooking.WorkOperationId == workOperationId))
+            return null;
+        return istFinal ? "Gut 0 und Ausschuss 0 nur nach einer Teilmeldung – bitte eine Gut- oder Ausschussmenge angeben."
+            : "Bitte eine Gut- oder Ausschussmenge angeben.";
     }
 
     public async Task<GroupFinishResult> FinishGroupAsync(int operatorId, IReadOnlyList<GroupFinishEntry> entries)
@@ -383,6 +407,12 @@ public class BdeBookingService : IBdeBookingService
             return new GroupFinishResult(0, "Gruppen-Abschluss nur für Produktion.");
         if (bookings.Any(b => b.Status == BdeBookingStatus.Finished))
             return new GroupFinishResult(0, "Bereits beendete Buchung enthalten.");
+        // v1.99.81 (3A): jede Zeile braucht eine Menge; 0/0 nur nach Teilmeldung (gleiche Regel wie Einzel-Fertig)
+        if (entries.Any(e => !e.GoodQty.HasValue && !e.ScrapQty.HasValue))
+            return new GroupFinishResult(0, "Bitte für jede Zeile eine Gut- oder Ausschussmenge angeben.");
+        foreach (var e in entries)
+            if (await NullMengeFehlerAsync(bookings.First(x => x.Id == e.BookingId).WorkOperationId, e.GoodQty, e.ScrapQty, e.IsFinal) is { } nullFehler)
+                return new GroupFinishResult(0, nullFehler);
 
         var now = DateTime.Now;
         foreach (var entry in entries)

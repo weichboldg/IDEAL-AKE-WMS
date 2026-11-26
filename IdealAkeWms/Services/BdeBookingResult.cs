@@ -18,7 +18,7 @@ public class BdeBookingResult
     public BdeBooking? CollidingBooking { get; init; }
     public string? Message { get; init; }
 
-    public static BdeBookingResult Success(BdeBooking b) => new() { Outcome = BdeBookingOutcome.Success, Booking = b };
+    public static BdeBookingResult Success(BdeBooking b, string? hinweis = null) => new() { Outcome = BdeBookingOutcome.Success, Booking = b, Message = hinweis };
     public static BdeBookingResult Collision(BdeBooking colliding) => new() { Outcome = BdeBookingOutcome.CollisionOtherOperator, CollidingBooking = colliding };
     public static BdeBookingResult QuantityRequired(BdeBooking current) => new() { Outcome = BdeBookingOutcome.QuantityRequired, Booking = current };
     public static BdeBookingResult Invalid(string msg) => new() { Outcome = BdeBookingOutcome.InvalidState, Message = msg };

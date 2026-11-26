@@ -135,16 +135,11 @@ public class BdeTerminalController : Controller
 
                 if (groupSetting && multiOp)
                 {
-                    var activeProductions = await _ctx.BdeBookings
-                        .Include(b => b.WorkOperation)
-                            .ThenInclude(wo => wo!.ProductionOrder)
-                        .Where(b => b.BdeOperatorId == booking.BdeOperatorId
-                                 && b.BookingType == BdeBookingType.Production
-                                 && b.Status == BdeBookingStatus.Running
-                                 && b.EndedAt == null
-                                 && !b.IsCancelled)
-                        .OrderBy(b => b.StartedAt)
-                        .ToListAsync();
+                    // v1.99.81 (3A, U-2): dieselbe Abfrage wie der Kopf (Sub-FA, Werkbank), nur Produktion an der Werkbank der angeklickten
+                    // Buchung – eine laufende Buchung an einer anderen Werkbank des Werkers gehoert nicht in diese Gruppe.
+                    var activeProductions = (await BdeKopfBuchungen.LaufendeAsync(_ctx, booking.BdeOperatorId))
+                        .Where(b => b.Typ == BdeBookingType.Production && b.WorkplaceId == booking.ProductionWorkplaceId)
+                        .ToList();
 
                     if (activeProductions.Count >= 2)
                     {
@@ -153,11 +148,13 @@ public class BdeTerminalController : Controller
                             outcome = "GroupFinishRequired",
                             bookings = activeProductions.Select(b => new
                             {
-                                bookingId = b.Id,
-                                orderNumber = b.WorkOperation != null ? b.WorkOperation.ProductionOrder!.OrderNumber : "",
-                                operationNumber = b.WorkOperation != null ? b.WorkOperation.OperationNumber : "",
-                                operationName = b.WorkOperation != null ? b.WorkOperation.Name : "",
-                                targetQuantity = b.WorkOperation != null ? (decimal?)b.WorkOperation.ProductionOrder!.Quantity : null,
+                                bookingId = b.BookingId,
+                                orderNumber = b.OrderNumber,
+                                subOrderNumber = b.SubOrderNumber,
+                                operationNumber = b.OperationNumber,
+                                operationName = b.OperationName,
+                                workplaceName = b.WorkplaceName,
+                                targetQuantity = b.TargetQuantity,
                                 startedAt = b.StartedAt
                             }).ToArray()
                         });

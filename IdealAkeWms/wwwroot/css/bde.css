@@ -1,6 +1,8 @@
 .bde-terminal .btn-lg { min-height: 60px; font-size: 1.2rem; }
 .bde-terminal .form-control-lg { font-size: 1.3rem; }
 .bde-terminal input[type="number"] { font-size: 1.5rem; text-align: center; }
+/* v1.99.81 (3A): Mengenfelder im Gruppen-Abschluss feste Breite, damit 4-stellige Mengen lesbar bleiben */
+.bde-terminal .bde-gruppe-menge { width: 7.5rem; min-width: 7.5rem; }
 .bg-orange { background: var(--ake-orange); color: #fff; }
 
 .bde-operator-badge {

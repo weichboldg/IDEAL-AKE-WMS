@@ -40,4 +40,18 @@ public class BdeFaSichtViewTests
                      "ReportCompletion", "FinishGroup", "CloseOthers" })
             js.Should().Contain($"'/BdeTerminal/{aktion}'", "bestehende JSON-Aktionen statt neuer Buchungswege");
     }
+
+    // v1.99.81 (3A, 10A): Gruppen-Abschluss breit, Werkbank-Spalte, ganze Zahlen, Pflichtfelder, eine Sammel-Rueckfrage unter Soll
+    [Fact]
+    public void GruppenAbschluss_Breit_WerkbankSpalte_PflichtUndGanzzahlig()
+    {
+        var dialoge = Read("Views", "Shared", "_BdeDialoge.cshtml");
+        var gruppe = dialoge[dialoge.IndexOf("id=\"group-finish-modal\"")..dialoge.IndexOf("id=\"close-others-modal\"")];
+        gruppe.Should().Contain("modal-xl").And.Contain(">Werkbank<").And.Contain("btn-outline-secondary");
+
+        var js = Read("wwwroot", "js", "bde-fa-sicht.js");
+        var fn = js[js.IndexOf("function gruppe(")..js.IndexOf("var start = function")];
+        fn.Should().Contain("i.required = true").And.Contain("i.step = '1'").And.Contain("subOrderNumber").And.Contain("workplaceName")
+            .And.Contain("window.bdeBestaetigen").And.Contain("letzteFertig");
+    }
 }

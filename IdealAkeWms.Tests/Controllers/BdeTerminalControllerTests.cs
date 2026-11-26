@@ -400,4 +400,57 @@ public class BdeTerminalControllerTests
 
         text.Should().StartWith("Serverfehler").And.NotContain("InvalidOperationException").And.NotContain("geheimes Detail");
     }
+
+    // v1.99.81 (3A, Review Focus 3): Gruppen-Antwort mit Sub-FA + Werkbank je Zeile, nur Buchungen der Werkbank der angeklickten Buchung
+    [Fact]
+    public async Task Finish_Gruppe_SubFaUndWerkbank_NurEigeneWerkbank()
+    {
+        var ctx = TestDbContextFactory.Create();
+        var ids = await BdeBookingTestSeed.SeedAsync(ctx);
+        var wo2 = await BdeBookingTestSeed.AddSecondWorkOperationAsync(ctx, ids);
+        ctx.ProductionOrders.Single(p => p.Id == ids.ProductionOrderId).SubOrderNumber = "SUB-42";
+        var andereWb = new ProductionWorkplace { Name = "Andere Werkbank", BdeAktiv = true, CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t" };
+        ctx.ProductionWorkplaces.Add(andereWb);
+        await ctx.SaveChangesAsync();
+        var wo3 = new WorkOperation { ProductionOrderId = ids.ProductionOrderId, OperationNumber = "30", Name = "Dritter", ProductionWorkplaceId = andereWb.Id,
+            Sequence = 30, IsReportable = true, CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t" };
+        ctx.WorkOperations.Add(wo3);
+        await ctx.SaveChangesAsync();
+        var b1 = BdeBookingTestSeed.NewBooking(ids, BdeBookingType.Production, BdeBookingStatus.Running, DateTime.Now.AddHours(-1));
+        var b2 = BdeBookingTestSeed.NewBooking(ids, BdeBookingType.Production, BdeBookingStatus.Running, DateTime.Now.AddMinutes(-30), workOperationId: wo2);
+        var b3 = BdeBookingTestSeed.NewBooking(ids, BdeBookingType.Production, BdeBookingStatus.Running, DateTime.Now.AddMinutes(-20), workOperationId: wo3.Id);
+        b3.ProductionWorkplaceId = andereWb.Id;
+        ctx.BdeBookings.AddRange(b1, b2, b3);
+        await ctx.SaveChangesAsync();
+
+        var json = Antwort(await CreateTerminalController(ctx, multiOp: true, groupFinish: true).Finish(b1.Id, ids.OperatorId, ids.TerminalId, 5m, 0m));
+
+        json.GetProperty("outcome").GetString().Should().Be("GroupFinishRequired");
+        var zeilen = json.GetProperty("bookings").EnumerateArray().ToList();
+        zeilen.Select(z => z.GetProperty("bookingId").GetInt32()).Should().BeEquivalentTo(new[] { b1.Id, b2.Id });
+        zeilen.Should().OnlyContain(z => z.GetProperty("subOrderNumber").GetString() == "SUB-42");
+        zeilen.Should().OnlyContain(z => z.GetProperty("workplaceName").GetString() == "Werkbank");
+    }
+
+    // Nur eine Buchung an dieser Werkbank -> kein Gruppen-Dialog, normales Fertig
+    [Fact]
+    public async Task Finish_Gruppe_ZweiteBuchungAndereWerkbank_EinzelFertig()
+    {
+        var ctx = TestDbContextFactory.Create();
+        var ids = await BdeBookingTestSeed.SeedAsync(ctx);
+        var andereWb = new ProductionWorkplace { Name = "Andere Werkbank", BdeAktiv = true, CreatedAt = DateTime.Now, CreatedBy = "t", CreatedByWindows = "t" };
+        ctx.ProductionWorkplaces.Add(andereWb);
+        await ctx.SaveChangesAsync();
+        var wo2 = await BdeBookingTestSeed.AddSecondWorkOperationAsync(ctx, ids);
+        var b1 = BdeBookingTestSeed.NewBooking(ids, BdeBookingType.Production, BdeBookingStatus.Running, DateTime.Now.AddHours(-1));
+        var b2 = BdeBookingTestSeed.NewBooking(ids, BdeBookingType.Production, BdeBookingStatus.Running, DateTime.Now.AddMinutes(-30), workOperationId: wo2);
+        b2.ProductionWorkplaceId = andereWb.Id;
+        ctx.BdeBookings.AddRange(b1, b2);
+        await ctx.SaveChangesAsync();
+
+        var json = Antwort(await CreateTerminalController(ctx, multiOp: true, groupFinish: true).Finish(b1.Id, ids.OperatorId, ids.TerminalId, 10m, 0m));
+
+        json.GetProperty("outcome").GetString().Should().Be("Success");
+        ctx.BdeBookings.AsNoTracking().Single(b => b.Id == b2.Id).Status.Should().Be(BdeBookingStatus.Running);
+    }
 }

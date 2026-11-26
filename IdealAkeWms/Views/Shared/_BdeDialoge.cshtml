@@ -21,10 +21,10 @@
 </div>
 
 <div class="modal fade bde-terminal" id="group-finish-modal" tabindex="-1" aria-labelledby="groupFinishTitel" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
+    <div class="modal-dialog modal-xl">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="groupFinishTitel">Alle Produktionsauftr&auml;ge abschliessen</h5>
+                <h5 class="modal-title" id="groupFinishTitel">Alle laufenden Arbeitsg&auml;nge an dieser Werkbank fertig melden</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schliessen"></button>
             </div>
             <div class="modal-body">
@@ -32,11 +32,12 @@
                     <table class="table table-sm">
                         <thead>
                             <tr>
-                                <th>FA / AG</th>
-                                <th>Sollmenge</th>
-                                <th>Gut</th>
-                                <th>Ausschuss</th>
-                                <th>Abschl.</th>
+                                <th scope="col">FA / AG</th>
+                                <th scope="col">Werkbank</th>
+                                <th scope="col" class="text-end">Soll</th>
+                                <th scope="col">Gut</th>
+                                <th scope="col">Ausschuss</th>
+                                <th scope="col" class="text-center">Abschlie&szlig;en</th>
                             </tr>
                         </thead>
                         <tbody id="group-finish-rows"></tbody>
@@ -44,7 +45,7 @@
                 </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary btn-lg" data-bs-dismiss="modal">Abbrechen</button>
+                <button type="button" class="btn btn-outline-secondary btn-lg" data-bs-dismiss="modal">Abbrechen</button>
                 <button type="button" class="btn btn-primary btn-lg" id="group-finish-confirm">Alle fertig melden</button>
             </div>
         </div>
