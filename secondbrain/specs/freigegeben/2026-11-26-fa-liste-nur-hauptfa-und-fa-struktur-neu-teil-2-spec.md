@@ -2,7 +2,7 @@
 type: spec
 title: "IDEAL FA-Struktur uebersichtlicher (Variante D: eine Zeile je HauptFA mit Kopfspalten, Baum per Chevron, Teile per Knopf)"
 slug: 2026-11-26-fa-liste-nur-hauptfa-und-fa-struktur-neu-teil-2-spec
-status: InUmsetzung
+status: Testbereit
 created: 2026-11-26
 updated: 2026-11-26
 source_backlog: "[[2026-11-26-fa-liste-nur-hauptfa-und-fa-struktur-neu]]"
@@ -483,11 +483,14 @@ abgeloest sind nur die Schritte zur Struktur-Kopfzeile und zur immer sichtbaren 
 
 ## Deploy
 
-*Vorlaeufig — der qa-agent bestaetigt gegen den echten Diff.*
+*Final (qa-agent Nach-QA 2026-11-26, gegen den echten Diff `ce04f887~1..9cde9c6f`):*
 
-- **Web-App:** ja (Views, Partial, JS, CSS, Controller, TreeBuilder-Methode, ColumnDefinitions, Hilfe)
-- **Service:** nein
-- **Migration:** nein (kein Schema, kein `SQL/XX`, keine Daten- oder Einmal-Skripte; T-1..T-3 sind Testdaten-Abfragen vor dem UAT, kein Deploy-Schritt)
+- **deploy.web:** ja (Views/Partial FaHierarchy, JS, `site.css`, Controller, `FaHierarchyTreeBuilder.TeileAusblenden`, ColumnDefinitions, Hilfe, Changelog, `AppVersion`)
+- **deploy.service:** nur `AppVersion` 1.99.83 (keine Funktionsaenderung) — mit ausrollen, damit Web und Dienst denselben Stand tragen
+- **deploy.migration:** nein (keine Datei unter `*/Migrations/`, kein `SQL/XX`, kein Einmal-Skript; T-1..T-3 sind Testdaten-Abfragen vor dem UAT, kein Deploy-Schritt)
+- **Paket:** `C:\Git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-07-ideal-teile-1-5\publish` (v1.99.83, Commit `9cde9c6f`, Web + Dienst + `SQL\` + `deploy\`, `publish-info.txt`); traegt Teil 1 (v1.99.82) mit. Ablauf Mensch: Paket → Testsystem (`deploy\Update-IdealAkeWms.ps1`) → Test → Merge. Reihenfolge ohne DB-Schritt: Backup nach Hausregel, Web + Dienst aktualisieren, Manifest-Info anzeigen.
+- Nach dem Merge nur dann neu aus `main` publishen, wenn der Merge getestete Dateien mit parallelen `main`-Aenderungen zusammengefuehrt hat.
+- *Vorlaeufige Fassung des spec-agent:* Web ja, Service nein, Migration nein — bestaetigt bis auf „Service: nur AppVersion“.
 - **Manifest-Eintraege** (`scripts/deploy/nachlauf.psd1`):
   - Id `fa-struktur-uebersicht-info`, Version = Version des Laufs, Typ `Info`, Firma `IDEAL`, Phase `Nachher`, Ausfuehrung `anzeigen`,
     Text „FA-Struktur: je HauptFA eine Zeile mit allen Auftragsdaten als Spalten – alle sichtbar, ueber das Zahnrad ausblendbar; Struktur und Matchcode bleiben beim Querscrollen stehen. Baugruppen per Pfeil aufklappen, Kaufteile/Material ueber den Knopf „Teile anzeigen“ (Teile mit Arbeitsschritten bleiben immer sichtbar). Gespeicherte Spalteneinstellungen bleiben, neue Spalten kommen sichtbar dazu.“
@@ -684,3 +687,74 @@ Nicht ausgefuehrt — erst nach Reparatur F1 und Nach-QA (Paket soll den geteste
 ### Fehlerbericht
 
 Was: F1 (Kopfdaten-Tabelle Kombigeraet auf 4963 px gedehnt). Ursache: `.table` = `width:100%` in `colspan="24"`. Status bleibt **InUmsetzung**; Reparaturversuch 0 von 2.
+
+## Nach-QA (qa-agent, 2026-11-26, Reparaturversuch 1 von 2) — Testbereit
+
+Gepruefter Stand: Commit `9cde9c6f` (HEAD), Review-Bereich `ce04f887..9cde9c6f` (2 Commits: `1ae5f420` Fix F1–F3, `9cde9c6f` Doku), 6 Dateien.
+
+### 1. Build und Tests (selbst ausgefuehrt)
+
+- `dotnet build IdealAkeWms.slnx`: 0 Fehler, 32 Warnungen (vorbestehend).
+- `dotnet test`: IdealAkeWms.Tests 3774 bestanden / 1 uebersprungen / 0 Fehler (3775); IDEALAKEWMSService.Tests 848 / 0 / 0.
+
+### 2. Code-Review des Reparatur-Diffs (selbst, synchron)
+
+Gelesen: ganzer Diff `ce04f887..9cde9c6f`; dazu fuer die Doku gegengeprueft `NavigationKatalog.cs:16,107-108` (Menue „Produktion/BDE › FA-Liste/FA-Struktur“), `_ProductionOrderRow.cshtml:150-155` (Knopf FA-Struktur, gleicher Tab), `Views/FaHierarchy/Index.cshtml:75,105-127` (Hinweistext, Legende/Hilfe-Knopf), `_FaHierarchyNode.cshtml:56-75` (Icons Haus/Box/Wagen/Punkt), `Help/Index.cshtml:1251` (Anker `hilfe-fa-struktur`), `FaHierarchyTreeBuilder.cs:98-111`, `ProductionOrderRepository.cs:100-190` (`CountGruppenOhneHauptFaAsync`, `BuildLeitstandQuery`), `ProductionOrder.cs:29-30` (`IsHauptFa`), `FaHierarchyNodeRepository.cs:28-45`.
+
+| # | Befund | Fundstelle | Schwere | Behandlung |
+|---|---|---|---|---|
+| F1 | behoben: innere Tabelle `w-auto` in `.fa-head-wrap {position:sticky; left:0; width:max-content}` statt `table-responsive`. | `_FaHierarchyNode.cshtml:208-209`, `site.css:1316-1322` | – | DEV nachgemessen (unten) |
+| F2 | behoben: `.fa-structure-header` samt Kommentar entfernt; Grep `fa-structure-header` in `IdealAkeWms/` ohne Treffer; Kommentar an `.fa-liste-group-head` nennt jetzt die Werte selbst (8,2:1). | `site.css` | – | erledigt |
+| F3 | behoben: Icon-Titel/`aria-label` „Wurzel / Endprodukt (HauptFA-Zeile)“ (DEV belegt), Zaehler Einzahl „1 Teil ausgeblendet“ per Bedingung (DEV-Daten haben keinen Fall mit genau 1, nur Code-Review). | `_FaHierarchyNode.cshtml:59,153` | – | erledigt |
+| D1 | Doku A-8.10, Abfrage 1 „= Zahl im Hinweis der FA-Liste“ stimmt nur ungefaehr: der Code (`BuildLeitstandQuery`, `showDone=false`) schliesst zusaetzlich Zeilen mit `PickingStatus.IsDonePicking` aus — die Abfrage kann hoeher zaehlen als der Hinweis. Abfrage 3 filtert `VerschwundenSeit IS NULL`, die FA-Struktur zeigt verschwundene Knoten aber mit (`GetAllAsync` ohne Filter) — eine verschwundene Zeile mit Arbeitsschritten bleibt sichtbar, fehlt aber in der Liste. Alle drei Abfragen laufen auf IDEAL_WMS_DEV fehlerfrei (0 / 1059463×2 / Teile-Liste mit 73002467 „VM“). | `docs/betrieb/08-diagnose-abfragen.md` A-8.10 | Hinweis | nicht blockierend; Vorschlag an den Orchestrator: in Abfrage 1 `AND NOT EXISTS (SELECT 1 FROM dbo.ProductionOrderPickingStatus ps WHERE ps.ProductionOrderId = po.Id AND ps.IsDonePicking = 1)` ergaenzen (Tabelle/Spalten auf IDEAL_WMS_DEV per `sys.columns` belegt), in Abfrage 3 den `VerschwundenSeit`-Filter streichen |
+| D2 | `docs/anwender/20-…md` verweist auf `bilder/20-01…20-03.jpg`, die noch fehlen; `docs/anwender/README.md` sagt schon „mit Fotos“. | `docs/anwender/20-fa-liste-und-fa-struktur.md:11,31,45` | Hinweis | Orchestrator macht die Fotos laut Auftrag nach dieser QA; vor dem Paket-ZIP nachziehen |
+
+Doku sonst inhaltlich gegen den Code richtig: Menuepfade, Knopf „FA-Struktur“ im selben Fenster, Hinweistext der Filterkarte woertlich (`Index.cshtml:75`), Legende (gruenes Haus/blaue Box/Einkaufswagen/grauer Punkt), Teile-Regel (`SubFA = 0` und keine Arbeitsschritte), Kopfspalten-Liste = AK 4.
+Defektklassen im Reparatur-Diff: keine `<script>`-Werte, kein `hidden` neben `d-*`, keine Fallbacks, keine Bindung, keine doppelte Regel (Einzahl nur im Partial).
+
+### 3. Nachweisart je AK (Kurzregression)
+
+DEV IDEAL http://localhost:8082, Playwright-Core mit installiertem Edge (Windows-Anmeldung), 1280 × 900; keine Browser-Konsolenfehler.
+
+| AK | Ergebnis Nach-QA |
+|---|---|
+| F1 / 6 | 1059463: `fa-head-table` **638 px** breit (vorher 4963), Zelle 4979 px; alle 6 Koepfe (Montage-Abt. 9–116 … AB-Nr. 578–645 px) ohne Querscrollen sichtbar; bei `scrollLeft` 1500 und Maximum 3747 bleibt sie bei x = 0–637 im Sichtbereich, alle 6 Koepfe sichtbar (`position: sticky`); 2 Kopfzeilen (WKS/FKV); Kopfzellen der HauptFA-Zeile leer, Badge „mehrdeutig (Kombigerät)“; Kopfdaten-Zeile auf- und zugeklappt sichtbar; mit `mitTeilen=true` gleich. Screenshot gesichtet. **OK** |
+| 1 | 0 `fa-structure-group-head`, 4 HauptFA-Zeilen, Unterkopf nur 1059463 — OK |
+| 4 | 24 Spalten sichtbar (ohne Praeferenz) — OK |
+| 5 | 1060414: 15 Kopfzellen befuellt (Prio leer in Daten), Datum dd.MM.yyyy; jede Knotenzeile 24 Zellen — OK |
+| 7 | 4 Zeilen zugeklappt, „Alle auf“ 608, „Alle zu“ zurueck — OK |
+| 8 | Zaehler „217/142/124/125 Knoten · 47/30/36/34 Teile ausgeblendet“, Gesamt „608 Knoten (Teile ausgeblendet)“; 73002467 (AG „VM“) im DOM, 71600169 nicht; `mitTeilen=true` → 264/172/160/159 Knoten, 71600169 da — OK |
+| 19 | `scrollLeft` 1200: Struktur left 0 (341 px), Matchcode left 341 = `--fa-sticky-left-2`, Kopf rgb(5,49,83), Filter rgb(248,249,250), Zeile weiss; einziger Querscroller `div.table-responsive` (keine Seitenleiste) — OK; Optik weiter Manual-UAT |
+| Rest (2, 3, 9–17) | unveraendert durch den Reparatur-Diff (nur Klasse/CSS/Texte); Ergebnis aus dem ersten Lauf gilt |
+| 18 | Build/Tests oben — OK |
+
+### 4. Geaenderte bestehende Tests
+
+Keine im Bereich `ce04f887..9cde9c6f` (Diff ohne Testdateien).
+
+### 5. Checkliste
+
+Keine Migration/SQL (korrekt). Version 1.99.83 Web + Dienst. Doku-DoD: `docs/anwender` Kapitel 20 + README, `docs/betrieb` 00-Index + A-8.10 nachgezogen (Fotos offen, D2). Manifest `fa-struktur-uebersicht-info` in `scripts/deploy/nachlauf.psd1` (auch im Paket, Zeile 715). ADR 0020: keine Einstellung. **Offen beim Orchestrator:** Brain-Changelog v1.99.83, Fotos, Paket-ZIP/Shares.
+
+### 6. DEV-Deploy und Testlauf
+
+- Shell erhoeht (Administrator = True). `dev-deploy.ps1 -Standort IDEAL -Quelle <worktree>`: Exit 0, „HTTP 200, Fusszeile v1.99.83“, „Fertig: IDEAL v1.99.83“. `-Standort AKE` (Regression): Exit 0, „HTTP 200, Fusszeile v1.99.83“. Fusszeile im Browser „IDEAL-AKE WMS v1.99.83“.
+- Testlauf: siehe Abschnitt 3; A-8.10-Abfragen per `sqlcmd -S . -E -C -d IDEAL_WMS_DEV` ausgefuehrt. Keine Testdaten angelegt.
+
+### 7. Publish
+
+`C:\Git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-07-ideal-teile-1-5\publish\` — Zielordner vorher geleert; `IDEALAKEWMSWeb` und `IDEALAKEWMSWebService` (beide Exit 0, DLL-Version `1.0.0+9cde9c6f…`), `SQL\` (157 Dateien), `deploy\` (6 Dateien). `publish-info.txt`: Version 1.99.83, Commit `9cde9c6f9ccfa02af3246fe9131c2d34c0b66d28`, Branch `feature/2026-08-07-ideal-teile-1-5`, Erstellt 2026-11-26 16:59, Komponenten Web + Dienst.
+
+### Manuelle Testcheckliste (Mensch, Schranke 2)
+
+1. Paket `publish\` auf das IDEAL-Testsystem (`deploy\Update-IdealAkeWms.ps1`), Fusszeile v1.99.83, Manifest-Info `fa-struktur-uebersicht-info` erscheint.
+2. TS-204 komplett am Testsystem (mit BDE an, damit AG-Status sichtbar).
+3. Kombigeraet: Kopfdaten-Zeile schmal, beim Querscrollen links stehend — Optik am Terminal (F1).
+4. AK 19 Optik bei 1280 px (Sticky-Spalten, keine durchscheinenden Zellen, Hervorheben-Farbe).
+5. AK 2 mit „Rekursive Filtersuche“ an (Benutzer mit Einstellung).
+6. AK 9 Blaettern mit `mitTeilen=true` (DEV hatte nur 4 Strukturen).
+7. AK 16 Kontrast (Knopf, Badges, Hinweiszeile, Zaehler) am Terminal.
+8. Zaehler Einzahl „1 Teil ausgeblendet“ an einer Struktur mit genau einem ausgeblendeten Teil (auf DEV kein Fall).
+9. Benutzer mit alter Zahnrad-Praeferenz: neue Spalten kommen sichtbar dazu.
+10. AKE: `/FaHierarchy` weiter nicht erreichbar, FA-Liste unveraendert.
+11. Danach Merge (Schranke 2).
