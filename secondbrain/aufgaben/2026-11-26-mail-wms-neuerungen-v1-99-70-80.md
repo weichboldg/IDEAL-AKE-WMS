@@ -2,7 +2,7 @@
 type: aufgabe
 status: entwurf
 date: 2026-11-25
-version: 1.99.80
+version: 1.99.81
 source: "[[2026-11-25-kommission-lagerplatz-bde-goal-lauf]]"
 ---
 # Mail-Entwurf: WMS-Neuerungen v1.99.70 bis v1.99.80
@@ -10,15 +10,15 @@ source: "[[2026-11-25-kommission-lagerplatz-bde-goal-lauf]]"
 > [!warning] Nur Entwurf – nicht gesendet
 > Versand durch einen Menschen. Vorher: Versionen auf den Zielsystemen eingespielt? Confluence-Seiten sind seit 2026-11-26 übernommen (IDs und Versionen in
 > [[2026-11-25-kommission-lagerplatz-bde-goal-lauf]], Abschnitt „Doku-Nachzug v1.99.80“); die Links unten sind eingesetzt.
-> Stand des Codes: alles **Testbereit**, noch nicht gemergt und nicht ausgerollt – das Datum „ab …“ erst nach dem Deploy eintragen.
+> Stand des Codes: v1.99.70–80 **Testbereit**, v1.99.81 feature-complete (QA offen), noch nicht gemergt und nicht ausgerollt – das Datum „ab …“ erst nach dem Deploy eintragen.
 
-**Betreff:** WMS – Neuerungen ab Version 1.99.80: BDE-Seite, Teilfertigmeldung, Kommissionier-Nachtrag, Lagerplätze in Sage
+**Betreff:** WMS – Neuerungen ab Version 1.99.81: BDE-Seite, Teilfertigmeldung, Kommissionier-Nachtrag, Lagerplätze in Sage
 
 ---
 
 Hallo zusammen,
 
-mit dem Update auf WMS-Version **1.99.80** (ab [Datum]) ändern sich einige Abläufe. Unten steht je Bereich, was neu ist und was Sie tun
+mit dem Update auf WMS-Version **1.99.81** (ab [Datum]) ändern sich einige Abläufe. Unten steht je Bereich, was neu ist und was Sie tun
 müssen. Was nur für einen Standort gilt, ist mit **(AKE)** oder **(IDEAL)** markiert; alles andere gilt an beiden Standorten.
 
 ## Werker / BDE
@@ -32,15 +32,22 @@ müssen. Was nur für einen Standort gilt, ist mit **(AKE)** oder **(IDEAL)** ma
   „Fertig melden“ schließt die Zeile ab. Eine eigene Meldung lässt sich zurücknehmen.
   WMS-Anleitung 17 – BDE-Teileliste an der Werkbank: https://ideal-ake.atlassian.net/wiki/spaces/AKEDOKUMEN/pages/688160769
 - **Tageshistorie.** Der Knopf im Werker-Balken (oder Menü *BDE → Tageshistorie*) zeigt alle Ihre Buchungen und Meldungen von heute.
-- **Meldung „Dieses Terminal ist nicht dem angemeldeten Benutzer zugeordnet“:** Seite neu laden. Es wurde nichts gebucht. Bleibt die
-  Meldung, bitte beim BDE-Admin melden.
+- **Alle Buchungen nur am eigenen Terminal und vom eigenen Werker.** Pause, Teilfertig, Fertig, Fortsetzen und Abschließen nimmt das WMS
+  nur an, wenn das Terminal Ihrem Benutzer zugeordnet ist und die Buchung dem angemeldeten Werker gehört. Kommt die Meldung „Dieses Terminal
+  ist nicht dem angemeldeten Benutzer zugeordnet“ oder „Diese Buchung gehört nicht dem angemeldeten Werker“: Seite neu laden, es wurde nichts
+  gebucht. Bleibt die Meldung, bitte beim BDE-Admin melden.
+- **Fertig nach Teilmengen (seit 1.99.81).** Nach einer Teilfertigmeldung schlägt „Fertig“ die Restmenge vor; ein Teil davon kann als
+  Ausschuss eingetragen werden. Ist die Sollmenge schon gemeldet, darf „Fertig“ mit 0 / 0 abschließen.
+- **Pause nicht mehr fortsetzbar (seit 1.99.81).** Ist der Auftrag inzwischen abgeholt oder abgeschlossen, zeigt „Meine Buchungen“ den Grund
+  und den Knopf „Abschließen“. Der Kopf der BDE-Seite lässt sich einklappen; die Werkbank wechselt nur noch der BDE-Admin.
 - **Blechdicke und Fräsen-Pfad (IDEAL).** Die Teileliste zeigt die Blechdicke (fehlt der Wert, steht „–“). Den Fräsen-Pfad können Sie über
   das Zahnrad einblenden und mit „Pfad kopieren“ übernehmen.
 
 ## Lager / Kommissionierung
 
 - **Fehlende Kommissionieraufträge kommen nachts von selbst.** Ein nächtlicher Lauf legt für freigegebene Fertigungsaufträge die noch
-  fehlenden Kommissionieraufträge an. Sie müssen dafür nichts mehr drücken.
+  fehlenden Kommissionieraufträge an. Sie müssen dafür nichts mehr drücken. **Wichtig:** Der Lauf startet beim ersten Dienststart nach dem
+  Update sofort und legt dann auf einen Schlag alle bisher fehlenden Aufträge an – bitte am Update-Tag mit mehr neuen Aufträgen rechnen.
   WMS-Anleitung 01 – Kommissionierung: https://ideal-ake.atlassian.net/wiki/spaces/AKEDOKUMEN/pages/681082881
 - **Hinweis „⚠ Stückliste kleiner“.** Wurde die Stückliste in Sage verkleinert, zeigt das WMS diesen Hinweis. Bereits offene Zeilen werden
   nicht gekürzt – bitte die Menge prüfen.

@@ -217,6 +217,9 @@ Beschichtungsauftrag-Muster); Zuweisung an den Einkauf ist Hand-Schritt unter `/
 | `BdeTeilelisteController` | BDE-Terminal (wie `BdeTerminalController`) | Teileliste lesen, Summiert, FA-Sicht (v1.99.76), Melden (POST/PRG), Anstempeln Rüsten/Produktion (POST/PRG, v1.99.76), Zurücknehmen, Filter speichern/zurücksetzen; v1.99.77 `Index` mit `markiert` (Scan-Markierung, blättert zur Zeile), Kopf-Buchungen; Buchen per JS über die `BdeTerminal`-JSON-Aktionen (keine neue Action); v1.99.78 `Tageshistorie` (Buchungen + Teilmeldungen des Werkers von heute, Server-Spaltenfilter, Pagination). Seit v1.99.78 leitet `BdeTerminalController.Index` immer hierher (`workplaceId ?? Terminal-Default`); `Views/BdeTerminal/` gibt es nicht mehr, `BdeTerminalController` hat nur noch JSON-Aktionen + `StartProductionForOrder` |
 | `BdeBookingsController.Teilmeldungen` / `TeilmeldungSpalten` | Lesen ab BDE-Schichtleiter | Admin-Liste der Teilmeldungen (Spaltenfilter, Pagination) |
 | `BdeBookingsController.StornoTeilmeldung` | `[RequireBdeAdminAccess]` | Storno mit Pflichtgrund |
+| `BdeBookingsController.HaengendePausen` (v1.99.81) | Lesen ab BDE-Schichtleiter | nie fortgesetzte Pausen aller Werker, Filter „Pausiert bis“, Server-Spaltenfilter, Pagination |
+| `BdeBookingsController.PauseAbschliessen` (v1.99.81) | `[RequireBdeAdminAccess]` | Pause ohne Mengen abschließen (`IBdeBookingService.ClosePausedAsync`) |
+| `BdeTerminalController.ClosePaused` (v1.99.81) | BDE-Terminal + Wächter (Terminal, aktiver Werker, eigene Buchung) | eigene pausierte Buchung abschließen; ab v1.99.81 laufen **alle** Buchungs-POSTs durch `WaechterAsync`/`FremdeBuchungAsync` (ADR [[0039-bde-werker-personalnummer-identifiziert-nicht-authentisiert]]) |
 
 ## Arbeitsgang-Stammdaten: Sage-AG (v1.99.27)
 
