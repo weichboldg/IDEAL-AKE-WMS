@@ -1873,7 +1873,10 @@
                     <dd>Sind die Kommissionierlisten eingeschaltet und kommt die Stückliste aus der FA-Struktur, öffnet der Auftrag in der Maske „Liste“: eine Zeile je
                         Artikel und Kommissionierziel (Baugruppen getrennt), Sollmenge summiert, alle Positionen in der Spalte „Pos.“, sortiert nach Kommissionierziel,
                         Hauptlagerplatz und erster Position. Umschalten über „Stückliste | Liste“ oben im Auftrag (nicht gespeichert; nicht gespeicherte Haken und
-                        Ist-Mengen gehen dabei nach Rückfrage verloren). Umgebucht wird vorerst in der Maske „Stückliste“. „bereits gebucht“ nennt die schon
+                        Ist-Mengen gehen dabei nach Rückfrage verloren). Umgebucht wird direkt in der Liste: Haken, Ist-Menge (vorbelegt mit dem offenen Soll) und
+                        Quell-Lagerplatz; die Ist-Menge geht in Positionsreihenfolge auf die Positionen, jede bis zu ihrem Soll (zu wenig: die letzte erreichte
+                        Position bleibt teilgeliefert; mehr als das offene Soll wird abgelehnt). Gebucht wird alles oder nichts; hat inzwischen jemand anderes
+                        umgebucht, kommt „… bitte Seite neu laden“. Bestellen und Lagerbestellung gibt es nur in der Stückliste. „bereits gebucht“ nennt die schon
                         umgebuchte Menge; ein Hinweis „Rest … geht beim Abschluss in den Folgeauftrag“ zeigt Reste teilgebuchter Positionen. Zeilen, deren
                         Position in der aktuellen Stückliste fehlt, tragen „ohne Stückliste“ und werden oben gemeldet. Die Liste hat eine eigene Spaltenauswahl.</dd>
                     <dt>Druck</dt>

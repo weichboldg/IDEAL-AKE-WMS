@@ -4,6 +4,7 @@ using IdealAkeWms.Data.Repositories;
 using IdealAkeWms.Models;
 using IdealAkeWms.Services;
 using IdealAkeWms.Tests.Helpers;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Moq;
 
@@ -377,5 +378,105 @@ public class PickingTransferServiceTests
         await FluentActions.Awaiting(() => service.TransferOrderLinesAsync(zeile.PickingOrderId, target.Id, false, new() { Sel("5"), Sel("5") }, null, User, WinUser))
             .Should().ThrowAsync<InvalidOperationException>().WithMessage("*mehrfach*");
         ctx.StockMovements.Count(m => m.MovementType == MovementType.Umbuchung).Should().Be(0);
+    }
+
+    // ── v1.99.89 (Spec 2026-11-26 Teil 3, K8/K12, AK 5–9): Summenzeile der Maske „Liste“ = Verteil-Buchung ──
+
+    private static PickingSelectionItem Summe(string ist, int src, params PickingOrderLine[] zeilen)
+        => new() { PickingItemIds = zeilen.Select(z => z.Id).ToList(), SourceStorageLocationId = src, IstMenge = ist };
+
+    [Fact]
+    public async Task Summenzeile_Unterdeckung_VerteiltInPositionsreihenfolge_ZweiBewegungen_AK5_AK6()
+    {
+        using var ctx = CreateContext();
+        var order = AddOrder(ctx);
+        var target = AddLocation(ctx, "TARGET");
+        var src = AddLocation(ctx, "SRC");
+        var art = AddArticle(ctx, "ART-001");
+        AddStock(ctx, art.Id, src.Id, 4);   // reicht genau fuer beide verteilten Zeilen am selben Platz
+        var z20 = KommissionierTestHelper.AddZeile(ctx, order.Id, art.ArticleNumber, 2, null, PickingOrderLineStatus.Offen, "20");
+        var z10 = KommissionierTestHelper.AddZeile(ctx, order.Id, art.ArticleNumber, 3, null, PickingOrderLineStatus.Offen, "10");
+
+        var r = await CreateService(ctx).TransferOrderLinesAsync(z10.PickingOrderId, target.Id, false, new() { Summe("4", src.Id, z20, z10) }, null, User, WinUser);
+
+        r.TransferredCount.Should().Be(2);
+        ctx.StockMovements.Where(m => m.MovementType == MovementType.Umbuchung).Select(m => m.Quantity).Should().BeEquivalentTo(new[] { 3m, 1m });
+        ctx.PickingOrderLines.Single(z => z.Id == z10.Id).Should().Match<PickingOrderLine>(z => z.Status == PickingOrderLineStatus.Umgebucht && z.IstMenge == 3m && z.SourceStorageLocationId == src.Id);
+        ctx.PickingOrderLines.Single(z => z.Id == z20.Id).Should().Match<PickingOrderLine>(z => z.Status == PickingOrderLineStatus.Umgebucht && z.IstMenge == 1m);
+    }
+
+    [Fact]
+    public async Task Summenzeile_ZeileInzwischenUmgebucht_GanzeAuswahlAbgelehnt_K8Text_AK9()
+    {
+        using var ctx = CreateContext();
+        var order = AddOrder(ctx);
+        var target = AddLocation(ctx, "TARGET");
+        var src = AddLocation(ctx, "SRC");
+        var art = AddArticle(ctx, "ART-001");
+        var art2 = AddArticle(ctx, "ART-002");
+        AddStock(ctx, art.Id, src.Id, 100);
+        AddStock(ctx, art2.Id, src.Id, 100);
+        var z10 = KommissionierTestHelper.AddZeile(ctx, order.Id, art.ArticleNumber, 3, null, PickingOrderLineStatus.Offen, "10");
+        var z20 = KommissionierTestHelper.AddZeile(ctx, order.Id, art.ArticleNumber, 2, null, PickingOrderLineStatus.Umgebucht, "20");
+        var einzel = KommissionierTestHelper.AddZeile(ctx, order.Id, art2.ArticleNumber, 1, src.Id, PickingOrderLineStatus.Offen, "30");
+
+        var act = () => CreateService(ctx).TransferOrderLinesAsync(z10.PickingOrderId, target.Id, false, new()
+        {
+            new PickingSelectionItem { PickingItemId = einzel.Id, SourceStorageLocationId = src.Id, IstMenge = "1" },
+            Summe("5", src.Id, z10, z20),
+        }, null, User, WinUser);
+
+        await act.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("ART-001 (Pos. 20) ist inzwischen umgebucht oder abgeschlossen – nichts gebucht, bitte Seite neu laden.");
+        ctx.StockMovements.Count(m => m.MovementType == MovementType.Umbuchung).Should().Be(0);
+        ctx.PickingOrderLines.Single(z => z.Id == einzel.Id).Status.Should().Be(PickingOrderLineStatus.Offen);
+    }
+
+    [Fact]
+    public async Task Summenzeile_Ueberdeckung_UndDoppelteIdMitEinzelzeile_Abgelehnt_AK7()
+    {
+        using var ctx = CreateContext();
+        var order = AddOrder(ctx);
+        var target = AddLocation(ctx, "TARGET");
+        var src = AddLocation(ctx, "SRC");
+        var art = AddArticle(ctx, "ART-001");
+        AddStock(ctx, art.Id, src.Id, 100);
+        var z10 = KommissionierTestHelper.AddZeile(ctx, order.Id, art.ArticleNumber, 3, null, PickingOrderLineStatus.Offen, "10");
+        var z20 = KommissionierTestHelper.AddZeile(ctx, order.Id, art.ArticleNumber, 2, null, PickingOrderLineStatus.Offen, "20");
+        var service = CreateService(ctx);
+
+        await FluentActions.Awaiting(() => service.TransferOrderLinesAsync(z10.PickingOrderId, target.Id, false, new() { Summe("6", src.Id, z10, z20) }, null, User, WinUser))
+            .Should().ThrowAsync<InvalidOperationException>().WithMessage("ART-001: Ist-Menge 6 größer als offenes Soll 5.");
+        await FluentActions.Awaiting(() => service.TransferOrderLinesAsync(z10.PickingOrderId, target.Id, false, new()
+            {
+                Summe("5", src.Id, z10, z20),
+                new PickingSelectionItem { PickingItemId = z20.Id, SourceStorageLocationId = src.Id, IstMenge = "2" },
+            }, null, User, WinUser))
+            .Should().ThrowAsync<InvalidOperationException>().WithMessage("*mehrfach*");
+        ctx.StockMovements.Count(m => m.MovementType == MovementType.Umbuchung).Should().Be(0);
+        ctx.PickingOrderLines.Should().OnlyContain(z => z.Status == PickingOrderLineStatus.Offen);
+    }
+
+    /// <summary>S-7: InMemory hat keine Transaktion – nachgewiesen wird „alles oder nichts“: Fehler in der zweiten verteilten Zeile
+    /// (Bestand reicht nur fuer die erste, Negativbuchung aus) → keine Bewegung gespeichert, beide Zeilen offen.</summary>
+    [Fact]
+    public async Task Summenzeile_FehlerInZweiterZeile_AllesOderNichts()
+    {
+        using var ctx = CreateContext();
+        var order = AddOrder(ctx);
+        var target = AddLocation(ctx, "TARGET");
+        var src = AddLocation(ctx, "SRC");
+        var art = AddArticle(ctx, "ART-001");
+        AddStock(ctx, art.Id, src.Id, 3);
+        var z10 = KommissionierTestHelper.AddZeile(ctx, order.Id, art.ArticleNumber, 3, null, PickingOrderLineStatus.Offen, "10");
+        var z20 = KommissionierTestHelper.AddZeile(ctx, order.Id, art.ArticleNumber, 2, null, PickingOrderLineStatus.Offen, "20");
+
+        await FluentActions.Awaiting(() => CreateService(ctx, negativeBuchungErlaubt: "false").TransferOrderLinesAsync(
+                z10.PickingOrderId, target.Id, false, new() { Summe("5", src.Id, z10, z20) }, null, User, WinUser))
+            .Should().ThrowAsync<InvalidOperationException>().WithMessage("Nicht genügend Bestand*");
+
+        ctx.StockMovements.Count(m => m.MovementType == MovementType.Umbuchung).Should().Be(0);
+        ctx.PickingOrderLines.AsNoTracking().Should().OnlyContain(z => z.Status == PickingOrderLineStatus.Offen && z.IstMenge == null);
+        ctx.PickingOrders.AsNoTracking().Single().Status.Should().Be(PickingOrderStatus.Offen);
     }
 }

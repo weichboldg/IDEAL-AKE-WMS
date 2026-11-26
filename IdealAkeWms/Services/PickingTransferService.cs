@@ -50,6 +50,10 @@ public class PickingTransferService : IPickingTransferService
         if (selectedItems == null || selectedItems.Count == 0)
             throw new InvalidOperationException("Keine Artikel zum Umbuchen ausgewählt.");
 
+        // v1.99.89 (K8): Summenzeilen der Maske „Liste“ vor der Pruefung in Einzelzeilen aufloesen – danach laeuft alles wie bisher
+        // (Doppelauswahl-Pruefung greift auch ueber Summen- und Einzelzeile).
+        selectedItems = selectedItems.SelectMany(i => i.PickingItemIds is { Count: > 0 } ids ? Verteile(auftrag, ids, i) : new[] { i }).ToList();
+
         // Auswahl pruefen (alles vor der ersten Buchung): Zeile gehoert zum Auftrag, ist nicht umgebucht, Ist-Menge > 0 und ≤ Soll.
         var auswahl = new List<(PickingOrderLine Zeile, decimal Ist, PickingSelectionItem Item)>();
         if (selectedItems.GroupBy(i => i.PickingItemId).Any(g => g.Count() > 1))
@@ -105,6 +109,33 @@ public class PickingTransferService : IPickingTransferService
 
         var count = await DoTransferAsync(auftrag, auswahl, targetStorageLocationId, faText, appUserId, displayName, windowsUser);
         return new PickingTransferResult { Success = true, TransferredCount = count };
+    }
+
+    /// <summary>K8: Summenzeile → je verteilter Zeile ein Einzel-Item (gleicher Quell-Platz und BG-Kennzeichen, Ist als Invariant-Text).
+    /// Stand des Servers zaehlt: ist eine Zeile inzwischen nicht mehr offen, wird die ganze Auswahl abgelehnt.</summary>
+    private static IEnumerable<PickingSelectionItem> Verteile(PickingOrder auftrag, List<int> ids, PickingSelectionItem item)
+    {
+        var zeilen = ids.Distinct().Select(id => auftrag.Zeilen.FirstOrDefault(z => z.Id == id)
+            ?? throw new InvalidOperationException($"Zeile {id} gehört nicht zu Auftrag {auftrag.Nummer}.")).ToList();
+        var nichtOffen = zeilen.FirstOrDefault(z => z.Status is not (PickingOrderLineStatus.Offen or PickingOrderLineStatus.Gepickt));
+        if (nichtOffen != null)
+            throw new InvalidOperationException(
+                $"{nichtOffen.ArticleNumber} (Pos. {nichtOffen.BomPosition}) ist inzwischen umgebucht oder abgeschlossen – nichts gebucht, bitte Seite neu laden.");
+        var artikel = zeilen[0].ArticleNumber;
+        if (string.IsNullOrWhiteSpace(item.IstMenge))
+            throw new InvalidOperationException($"{artikel}: Ist-Menge angeben.");
+        if (!BeschichtungsauftraegeController.TryMenge(item.IstMenge, out var ist))
+            throw new InvalidOperationException($"{artikel}: Ist-Menge „{item.IstMenge}“ ist keine Zahl.");
+        List<(PickingOrderLine Zeile, decimal Menge)> anteile;
+        try { anteile = PickingOrderVerteilung.Verteile(zeilen, ist); }
+        catch (InvalidOperationException ex) { throw new InvalidOperationException($"{artikel}: {ex.Message}"); }
+        return anteile.Select(a => new PickingSelectionItem
+        {
+            PickingItemId = a.Zeile.Id,
+            SourceStorageLocationId = item.SourceStorageLocationId,
+            IsBaugruppe = item.IsBaugruppe,
+            IstMenge = a.Menge.ToString(System.Globalization.CultureInfo.InvariantCulture),
+        }).ToList();
     }
 
     private static string PickingOrderStatusText(PickingOrderStatus s) => Models.ViewModels.PickingOrderListItem.StatusText(s).ToLowerInvariant();
@@ -258,6 +289,9 @@ public class PickingTransferService : IPickingTransferService
             if (transaction != null) await transaction.RollbackAsync();
             _context.ChangeTracker.Clear(); // keine halben Zeilen-/Bewegungsstaende im Context lassen
             _logger.LogError(ex, "Umbuchung Kommissionierauftrag {Nummer} fehlgeschlagen. Transaktion zurückgerollt.", auftrag.Nummer);
+            // v1.99.89 (K12): RowVersion-Konflikt (zweites Geraet war schneller) als Meldung statt HTTP 500 – AuftragUmbuchen liefert BadRequest.
+            if (ex is DbUpdateConcurrencyException)
+                throw new InvalidOperationException("Auftrag wurde inzwischen geändert – nichts gebucht, bitte Seite neu laden.", ex);
             throw;
         }
         finally

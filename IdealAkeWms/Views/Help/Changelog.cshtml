@@ -14,7 +14,8 @@
                 <h6>Kommissionierauftrag: Maske „Liste“ (IDEAL)</h6>
                 <ul>
                     <li>Kommissionieraufträge mit Stückliste aus der FA-Struktur öffnen bei aktiven Kommissionierlisten in der neuen Maske <strong>Liste</strong>: eine Zeile je Artikel und Kommissionierziel (Baugruppen getrennt), Sollmenge summiert, alle Positionen in der Spalte „Pos.“, sortiert nach Kommissionierziel, Hauptlagerplatz und Position.</li>
-                    <li>Umschalter <strong>Stückliste | Liste</strong> oben im Auftrag. Umgebucht wird vorerst in der Maske „Stückliste“; die Liste zeigt bereits Gebuchtes und einen Hinweis auf Reste, die beim Abschluss in den Folgeauftrag gehen.</li>
+                    <li>Umschalter <strong>Stückliste | Liste</strong> oben im Auftrag. Die Liste zeigt bereits Gebuchtes und einen Hinweis auf Reste, die beim Abschluss in den Folgeauftrag gehen.</li>
+                    <li><strong>Umbuchen in der Liste:</strong> Haken, Ist-Menge (vorbelegt mit dem offenen Soll) und Quell-Lagerplatz je Zeile. Die Ist-Menge wird in Positionsreihenfolge auf die Positionen verteilt, jede bis zu ihrem Soll; bei zu wenig bleibt die letzte erreichte Position teilgeliefert, mehr als das offene Soll wird abgelehnt. Gebucht wird alles oder nichts; war ein anderes Gerät schneller, kommt „bitte Seite neu laden“. Der Artikel-Scan hakt die Zeile an. Der Umbuchen-Knopf ist während des Sendens gesperrt (auch in der Stückliste).</li>
                     <li>Auftragszeilen, deren Position in der aktuellen Stückliste fehlt, stehen mit dem Kennzeichen „ohne Stückliste“ in der Liste und werden oben gemeldet.</li>
                     <li><strong>Auftrag drucken</strong> aus der Liste druckt summiert mit den eingeblendeten Spalten in der Reihenfolge der Liste; zusätzlich <strong>PDF</strong>, wenn die PDF-Erzeugung eingerichtet ist. Aus der Stückliste druckt der Auftrag wie bisher je Position.</li>
                 </ul>

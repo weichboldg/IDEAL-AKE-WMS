@@ -5,6 +5,9 @@ namespace IdealAkeWms.Services;
 public class PickingSelectionItem
 {
     public int PickingItemId { get; set; }
+    /// <summary>v1.99.89 (K8): gesetzt = Summenzeile der Maske „Liste“ (offene Zeilen in Positionsreihenfolge); die Ist-Menge wird auf
+    /// diese Zeilen verteilt (<see cref="PickingOrderVerteilung"/>), <see cref="PickingItemId"/> bleibt dann leer.</summary>
+    public List<int>? PickingItemIds { get; set; }
     public int? SourceStorageLocationId { get; set; }
     public bool IsBaugruppe { get; set; }
     /// <summary>v1.88.0: Ist-Menge als Text (keine feste Request-Kultur → Komma/Punkt); Pflicht.</summary>

@@ -131,8 +131,8 @@ else if (Model.BackController == "Picking")
                 @if (!Model.ReadOnly)
                 {
                     @* data-hw-scan-kamera-ziel (v1.66.1, Ziel-Lagerplatz v1.66.2): bei offenem Kamera-Fenster nimmt es auch den Hardware-Scan an (Handheld). *@
-                    @* v1.99.89: in der Liste erst mit der Verteil-Buchung (Etappe B) – ohne Haken fuehrte der Scan ins Leere. *@
-                    <button type="button" id="btnScanBomArticle" class="btn btn-sm btn-secondary" title="Artikel QR-Code scannen zum Kommissionieren" data-hw-scan-kamera-ziel @(Model.IstListe ? "hidden" : "")>
+                    @* v1.99.89 (AK 11): in der Liste hakt der Scan die Summenzeile (tr[data-article-number]) an. *@
+                    <button type="button" id="btnScanBomArticle" class="btn btn-sm btn-secondary" title="Artikel QR-Code scannen zum Kommissionieren" data-hw-scan-kamera-ziel>
                         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16">
                             <path d="M1.5 1a.5.5 0 0 0-.5.5v3a.5.5 0 0 1-1 0v-3A1.5 1.5 0 0 1 1.5 0h3a.5.5 0 0 1 0 1zM11 .5a.5.5 0 0 1 .5-.5h3A1.5 1.5 0 0 1 16 1.5v3a.5.5 0 0 1-1 0v-3a.5.5 0 0 0-.5-.5h-3a.5.5 0 0 1-.5-.5M.5 11a.5.5 0 0 1 .5.5v3a.5.5 0 0 0 .5.5h3a.5.5 0 0 1 0 1h-3A1.5 1.5 0 0 1 0 14.5v-3a.5.5 0 0 1 .5-.5m15 0a.5.5 0 0 1 .5.5v3a1.5 1.5 0 0 1-1.5 1.5h-3a.5.5 0 0 1 0-1h3a.5.5 0 0 0 .5-.5v-3a.5.5 0 0 1 .5-.5"/>
                             <path d="M3 4.5a.5.5 0 0 1 1 0v7a.5.5 0 0 1-1 0zm2 0a.5.5 0 0 1 1 0v7a.5.5 0 0 1-1 0zm2 0a.5.5 0 0 1 1 0v7a.5.5 0 0 1-1 0zm2 0a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v7a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5zm3 0a.5.5 0 0 1 1 0v7a.5.5 0 0 1-1 0z"/>
@@ -162,7 +162,8 @@ else if (Model.BackController == "Picking")
    markierte Anzahl + den jeweiligen Bulk-Button dauerhaft, auch beim Durchscrollen langer
    Stuecklisten. Zwei unabhaengige Abschnitte (Lagerbestellung + Bedarfsmeldung); jeder erscheint
    nur bei >=1 Markierung, der ganze Balken ist ausgeblendet wenn keine Auswahl aktiv ist. *@
-@if ((ViewBag.LagerbestellungAktiv == true && ViewBag.CanOrderWarehouse == true) || (ViewBag.BestellungenAktiv == true && !Model.ReadOnly))
+@* v1.99.89 (K5/Antwort 8): kein Sammel-Bestellknopf in der Liste – die Haken dort sind Verteil-Buchung, keine Bedarfsmeldung. *@
+@if ((ViewBag.LagerbestellungAktiv == true && ViewBag.CanOrderWarehouse == true && !Model.IstListe) || (ViewBag.BestellungenAktiv == true && !Model.ReadOnly && !Model.IstListe))
 {
     <div id="bomBulkActionBar" class="bulk-action-bar" style="display:none;">
         @if (ViewBag.LagerbestellungAktiv == true && ViewBag.CanOrderWarehouse == true)
@@ -1662,12 +1663,15 @@ else
                 document.querySelectorAll('.picking-checkbox:checked').forEach(function (cb) {
                     var row = cb.closest('tr');
                     var pickingItemId = cb.getAttribute('data-id');
+                    // v1.99.89 (K8): Summenzeile der Liste – offene Zeilen-Ids, der Server verteilt die Ist-Menge
+                    var ids = cb.getAttribute('data-ids');
                     var isBaugruppe = cb.getAttribute('data-is-baugruppe') === 'true';
                     var sourceSelect = row.querySelector('.source-location-select');
                     var sourceLocationId = sourceSelect ? sourceSelect.value : '';
                     var istInput = row.querySelector('.ist-menge');
                     items.push({
-                        PickingItemId: parseInt(pickingItemId),
+                        PickingItemId: ids ? null : parseInt(pickingItemId),
+                        PickingItemIds: ids ? ids.split(',').map(function (x) { return parseInt(x); }) : null,
                         SourceStorageLocationId: sourceLocationId ? parseInt(sourceLocationId) : null,
                         IsBaugruppe: isBaugruppe,
                         IstMenge: istInput ? istInput.value : ''
@@ -1685,12 +1689,21 @@ else
                         return;
                     }
 
+                    // v1.99.89 (K12, AK 19): Umbuchen-Knopf waehrend der Anfrage sperren – kein zweites Absenden per Doppelklick
+                    var freigabe = window.wmsSperren(Array.prototype.slice.call(transferForm.querySelectorAll('button[type="submit"]'))
+                        .concat([document.getElementById('btnForceTransfer')]));
+                    if (!freigabe) return;
+
                     var formData = new FormData(transferForm);
                     if (force) formData.set('forceTransfer', 'true');
 
                     // Items als indexed form fields hinzufügen
                     items.forEach(function (item, idx) {
-                        formData.set('items[' + idx + '].PickingItemId', item.PickingItemId);
+                        if (item.PickingItemIds) {
+                            item.PickingItemIds.forEach(function (id, j) { formData.set('items[' + idx + '].PickingItemIds[' + j + ']', id); });
+                        } else {
+                            formData.set('items[' + idx + '].PickingItemId', item.PickingItemId);
+                        }
                         if (item.SourceStorageLocationId !== null) {
                             formData.set('items[' + idx + '].SourceStorageLocationId', item.SourceStorageLocationId);
                         }
@@ -1706,6 +1719,7 @@ else
                         contentType: false,
                         headers: { 'RequestVerificationToken': token },
                         success: function (data) {
+                            freigabe();
                             if (data && data.conflict) {
                                 // Kommissionierwagen-Konflikt
                                 conflictLocationId = data.locationId;
@@ -1720,6 +1734,7 @@ else
                             }
                         },
                         error: function (xhr) {
+                            freigabe();
                             alert(xhr.responseText || 'Fehler beim Umbuchen.');
                         }
                     });

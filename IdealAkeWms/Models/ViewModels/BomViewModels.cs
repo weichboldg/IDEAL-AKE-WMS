@@ -105,6 +105,13 @@ public class AuftragSummenzeile
     public decimal SollSumme { get; set; }
     /// <summary>Σ Soll der offenen Zeilen (Offen/Gepickt) – Vorbelegung der Ist-Menge (Etappe B).</summary>
     public decimal OffenSoll { get; set; }
+    /// <summary>v1.99.89 (K8): Ids der offenen Zeilen in Positionsreihenfolge – Haken <c>data-ids</c>, Verteilung serverseitig.</summary>
+    public List<int> OffeneZeilenIds => Zeilen.Where(z => z.Status is PickingOrderLineStatus.Offen or PickingOrderLineStatus.Gepickt).Select(z => z.Id).ToList();
+    /// <summary>v1.99.89 (K6): alle offenen Zeilen schon gepickt (Haken vorbelegt wie <c>BomItemViewModel.IsPicked</c>).</summary>
+    public bool AlleOffenenGepickt => Zeilen.Any(z => z.Status == PickingOrderLineStatus.Gepickt)
+        && Zeilen.All(z => z.Status is not PickingOrderLineStatus.Offen);
+    /// <summary>v1.99.89 (K9): Quell-Lagerplatz-Vorschlag je Artikel (aus der ersten Stuecklisten-Zeile der Gruppe); K4c-Zeilen ohne.</summary>
+    public int? QuellVorschlagId { get; set; }
     /// <summary>Σ Ist der umgebuchten Zeilen; null, wenn keine umgebucht ist.</summary>
     public decimal? GebuchtIst { get; set; }
     /// <summary>Keine Zeile mehr offen: keine Eingaben, <see cref="StatusText"/> zeigen (K4b).</summary>

@@ -151,8 +151,15 @@ Sind die Kommissionierlisten eingeschaltet, öffnet der Auftrag bei IDEAL in der
 - **bereits gebucht x** zeigt, was schon umgebucht ist. Der Hinweis **„⚠ Rest … aus Pos. … geht beim Abschluss in den Folgeauftrag“** nennt
   Reste teilgebuchter Positionen. Ganz umgebuchte Zeilen sind grau mit „✓ gepickt“.
 - Zeilen mit **„ohne Stückliste“** gehören zum Auftrag, ihre Position fehlt aber in der aktuellen Stückliste (oben gelb gemeldet).
-- **Umgebucht wird vorerst in der Maske „Stückliste“** (Link im blauen Hinweis). Wer dort Haken gesetzt oder Ist-Mengen geändert hat und
-  umschaltet, wird vorher gefragt – ungespeicherte Eingaben gehen sonst verloren.
+- **Umbuchen direkt in der Liste:** Haken setzen (oder Artikel scannen), **Ist-Menge** prüfen – vorbelegt ist das noch offene Soll aller
+  Positionen der Zeile –, **Quell-Lagerplatz** wählen, unten den Ziel-Lagerplatz (Wagen) wählen und **„Gepickte Artikel umbuchen“**.
+  Die Ist-Menge wird in Positionsreihenfolge verteilt, jede Position bis zu ihrem Soll. Beispiel Pos. 10 Soll 3 und Pos. 20 Soll 2:
+  Ist 5 → 3 und 2; Ist 4 → 3 und 1 (Pos. 20 teilgeliefert, der Rest geht beim Abschluss in den Folgeauftrag); Ist 2 → nur Pos. 10 mit 2,
+  Pos. 20 bleibt offen. Mehr als das offene Soll wird abgelehnt („größer als offenes Soll“).
+- Gebucht wird **alles oder nichts**: Fehlt an einer Position Bestand, wird gar nichts gebucht. Hat inzwischen jemand anderes umgebucht,
+  kommt „… bitte Seite neu laden“ – Seite neu laden und nochmals buchen.
+- Bestellen und Lagerbestellung gibt es nur in der Maske „Stückliste“.
+- Wer Haken gesetzt oder Ist-Mengen geändert hat und umschaltet, wird vorher gefragt – ungespeicherte Eingaben gehen sonst verloren.
 - Die Liste hat eine eigene Spaltenauswahl (Zahnrad), unabhängig von der Stückliste.
 
 ### 5. Zeilen anhaken, Ist-Menge und Quell-Lagerplatz prüfen

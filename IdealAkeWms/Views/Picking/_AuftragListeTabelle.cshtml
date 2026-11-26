@@ -3,7 +3,8 @@
     v1.99.89 (Spec 2026-11-26 Teil 3, K4/K5/K14): Maske „Liste“ des Kommissionierauftrags – eine Zeile je Artikel + Komm.-Ziel (+ BG),
     flach (kein data-parent-pos, kein Chevron, kein Einruecken). Gleiche Tabellen-Id und dieselben data-col-key wie Bom.cshtml, damit
     Filter-, Spalten-, Badge- und Druck-Skript der Seite unveraendert greifen. Eigener View-Key = eigene Spaltenauswahl (AK 13).
-    Etappe A: noch ohne Haken/Ist-Eingabe/Quell-Lagerplatz – gebucht wird in der Maske „Stückliste“ (Etappe B: Verteil-Buchung).
+    Etappe B (K8/K9): Haken je Summenzeile mit data-ids (offene Zeilen in Positionsreihenfolge), Ist-Menge (vorbelegt offenes Soll) und
+    Quell-Lagerplatz – der Server verteilt die Ist-Menge auf die Zeilen (PickingOrderVerteilung).
 *@
 @{
     var de = System.Globalization.CultureInfo.GetCultureInfo("de-DE");
@@ -15,13 +16,6 @@
     <div class="alert alert-warning py-2 mb-2" role="alert">
         <strong>@Model.OhneStuecklistenposition Auftragszeile@(Model.OhneStuecklistenposition == 1 ? "" : "n") ohne Stücklistenposition</strong>
         – die Stückliste hat sich seit der Auftragserzeugung geändert. Diese Zeilen stehen mit dem Kennzeichen „ohne Stückliste“ in der Liste.
-    </div>
-}
-@if (!Model.ReadOnly)
-{
-    <div class="alert alert-info py-2 mb-2" role="note">
-        Umbuchen vorerst in der Maske
-        <a href="@Url.Action("Auftrag", new { id = Model.Auftrag!.Id, ansicht = "stueckliste", filterText = Model.FilterText })" class="alert-link maske-umschalter">Stückliste</a>.
     </div>
 }
 
@@ -75,6 +69,14 @@
                             {
                                 <span class="text-muted small" title="@s.StatusText">&#10003; @s.StatusText</span>
                             }
+                            else
+                            {
+                                <input type="checkbox" class="form-check-input picking-checkbox"
+                                       data-ids="@string.Join(",", s.OffeneZeilenIds)"
+                                       data-is-baugruppe="@s.IsBaugruppe.ToString().ToLower()"
+                                       aria-label="@s.Ressourcenummer kommissioniert"
+                                       @(s.AlleOffenenGepickt ? "checked" : "") />
+                            }
                         </td>
                     }
                     <td>@s.Kommissionieren</td>
@@ -92,6 +94,17 @@
                     <td>@s.Bezeichnung1</td>
                     <td class="text-end">@s.SollSumme.ToString("N3")</td>
                     <td class="text-end" data-csv-value="@(s.GebuchtIst?.ToString("N3"))">
+                        @if (!Model.ReadOnly && !s.Erledigt)
+                        {
+                            @* K8: Vorbelegung = offenes Soll; der Server verteilt in Positionsreihenfolge, jede Zeile bis zu ihrem Soll *@
+                            <input type="text" inputmode="decimal" class="form-control form-control-sm text-end ist-menge"
+                                   value="@s.OffenSoll.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture)"
+                                   aria-label="Ist-Menge @s.Ressourcenummer" style="min-width: 80px;" />
+                            @if (s.OffeneZeilenIds.Count > 1)
+                            {
+                                <div class="small text-body-secondary text-start">verteilt auf Pos. @string.Join(", ", s.Zeilen.Where(z => s.OffeneZeilenIds.Contains(z.Id)).Select(z => z.BomPosition ?? "–"))</div>
+                            }
+                        }
                         @if (s.Erledigt)
                         {
                             @s.GebuchtIst?.ToString("N3")
@@ -130,7 +143,23 @@
                     </td>
                     @if (!Model.ReadOnly)
                     {
-                        <td></td>
+                        <td>
+                            @if (!s.Erledigt)
+                            {
+                                @* K9: ein Platz fuer alle verteilten Zeilen; Optionen per Ajax wie Bom.cshtml (Skript der Seite) *@
+                                <select class="form-select form-select-sm source-location-select"
+                                        data-article-number="@s.Ressourcenummer"
+                                        aria-label="Quell-Lagerplatz @s.Ressourcenummer"
+                                        style="min-width: 200px;">
+                                    <option value="">--</option>
+                                    @if (s.QuellVorschlagId is { } vorschlag && Model.AllStorageLocations.FirstOrDefault(sl => sl.Id == vorschlag) is { } pre)
+                                    {
+                                        var qty = s.StockLocations.FirstOrDefault(sl => sl.StorageLocationId == pre.Id)?.Quantity;
+                                        <option value="@pre.Id" selected>@(qty > 0 ? $"{pre.Code} ({qty:N3})" : pre.Code)</option>
+                                    }
+                                </select>
+                            }
+                        </td>
                     }
                     <td>@s.Arbeitsbereich</td>
                     <td>@s.Abteilung</td>

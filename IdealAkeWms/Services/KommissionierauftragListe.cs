@@ -39,6 +39,7 @@ public static class KommissionierauftragListe
                 s.KategorieName = erstes.KategorieName;
                 s.Hauptlagerplatz = erstes.Hauptlagerplatz;
                 s.StockLocations = erstes.StockLocations;
+                s.QuellVorschlagId = erstes.SourceStorageLocationId;
                 s.Baugruppe = VormontageService.FormatTexte(g.Select(x => x.Item.Baugruppe));
                 s.SagePosition = VormontageService.FormatTexte(g.Select(x => x.Item.SagePosition));
                 s.Ebene = VormontageService.FormatTexte(g.Select(x => x.Item.Ebene.ToString(CultureInfo.InvariantCulture)));
