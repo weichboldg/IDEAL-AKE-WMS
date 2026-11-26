@@ -193,6 +193,6 @@ public class LieferterminOffeneBestellungenTests
             .Should().Contain("\"key\": \"liefertermin\", \"label\": \"Liefertermin\", \"locked\": false, \"defaultWidth\": null, \"defaultHidden\": true")
             .And.Contain("data-col-key=\"liefertermin\"").And.Contain("target=\"_blank\"");
         ViewText("Articles", "Info.cshtml").Should().Contain("Offene Bestellungen").And.Contain("Sync:EinkaufBestellungenEnabled")
-            .And.Contain("Keine offene Bestellung für diesen Artikel.").And.Contain("bereits vollständig erfasst").And.Contain(" überfällig");
+            .And.Contain("Keine offene Bestellung für diesen Artikel.").And.Contain("bereits vollständig erfasst").And.Contain(">überfällig</div>");
     }
 }

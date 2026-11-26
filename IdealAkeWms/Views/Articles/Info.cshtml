@@ -1,4 +1,4 @@
-@model IdealAkeWms.Models.ViewModels.ArticleInfoViewModel?
+﻿@model IdealAkeWms.Models.ViewModels.ArticleInfoViewModel?
 @{
     ViewData["Title"] = "Artikelinfo";
     var notFound = ViewBag.NotFound as string;
@@ -237,7 +237,7 @@
                                                 }</td>
                                             <td>@IdealAkeWms.Controllers.PurchaseOrdersController.LieferterminText(line.Liefertermin)@if (line.Liefertermin < heuteOb)
                                                 {
-                                                    <span class="text-danger fw-semibold"> überfällig</span>
+                                                    <div class="small text-danger fw-semibold">überfällig</div>
                                                 }</td>
                                         </tr>
                                     }
