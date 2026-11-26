@@ -28,3 +28,5 @@ letztes Paket 21. Main-Tag `backup/main-vor-fa-liste-hauptfa-2026-11-26` (d653b9
 - 2026-11-26 Start, beide Specs auf InUmsetzung.
 - 2026-11-26 Teil 1 feature-complete im Worktree (wip 557a9062): Build 0 Fehler, Tests Web 3770 / Service 848 gruen; TS-203 + Index; naechster Schritt qa-agent Teil 1.
 - 2026-11-26 qa-agent Teil 1: Build 0 Fehler, Tests 3770/1 skip + 848 gruen, DEV IDEAL + AKE v1.99.82 (Exit 0), TS-203 auf DEV OK bis auf NICHT MOEGLICH (Daten/Rechte), Publish worktree\publish 1.99.82; Befunde Q-1..Q-9 ohne Blocker, offen Q-8 Brain-Nachzug am Laufende. Status Testbereit.
+- 2026-11-26 Brain Teil 1 nachgezogen (a2e4a58a: Changelog v1.99.82, feature-map, Fallstrick Matchcode = Q-8 Teil Brain).
+- 2026-11-26 Teil 2 feature-complete im Worktree (wip ce04f887): Build 0 Fehler, Tests Web 3774 / Service 848 gruen; TS-204 + Index; naechster Schritt qa-agent Teil 2.
