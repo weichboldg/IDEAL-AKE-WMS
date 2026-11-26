@@ -2,7 +2,7 @@
 type: spec
 title: "IDEAL FA-Struktur uebersichtlicher (Variante D: eine Zeile je HauptFA mit Kopfspalten, Baum per Chevron, Teile per Knopf)"
 slug: 2026-11-26-fa-liste-nur-hauptfa-und-fa-struktur-neu-teil-2-spec
-status: Testbereit
+status: InUmsetzung
 created: 2026-11-26
 updated: 2026-11-26
 source_backlog: "[[2026-11-26-fa-liste-nur-hauptfa-und-fa-struktur-neu]]"
@@ -758,3 +758,14 @@ Keine Migration/SQL (korrekt). Version 1.99.83 Web + Dienst. Doku-DoD: `docs/anw
 9. Benutzer mit alter Zahnrad-Praeferenz: neue Spalten kommen sichtbar dazu.
 10. AKE: `/FaHierarchy` weiter nicht erreichbar, FA-Liste unveraendert.
 11. Danach Merge (Schranke 2).
+
+## Nachtrag v1.99.84 (Gerald 2026-11-26, auf Zuruf nach Vorschau-Screenshots)
+
+Entscheidungen Gerald (Chat 2026-11-26): „Ist das Zeichen HauptFA in der FA-Liste jetzt überflüssig? Ja“; graue Linie nach Matchcode
+weg; „Bezeichnung bitte mal ausblenden“; Arbeitsgänge gleich nach Matchcode — „Passt gut. Bitte umsetzen“.
+
+- N-1: FA-Liste (Teil 1): Zeichen „HauptFA“ an der FA-Nummer entfällt (`_ProductionOrderRow.cshtml`). Kombigerät-Zeichen bleibt.
+- N-2: FA-Struktur: `border-right` der angehefteten Matchcode-Spalte entfällt (`site.css`).
+- N-3: FA-Struktur: `description` mit `DefaultHidden` (ColumnDefinitions + `#column-config`); gespeicherte Präferenzen bleiben.
+- N-4: FA-Struktur: Spalte `operations` an Position 3 direkt nach `matchcode` (ColumnDefinitions, Kopf-/Filterzeile, `#column-config`, Knotenzeile).
+- Test `V1_99_84_ArbeitsgaengeNachMatchcode_BezeichnungAnfangsAusgeblendet`; TS-204.8; Version 1.99.84; Worktree-Commit `d6e2183f`.
