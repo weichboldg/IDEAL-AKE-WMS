@@ -2,7 +2,7 @@
 type: spec
 title: "IDEAL FA-Liste: nur HauptFA-Zeilen, Strukturfelder im Zahnrad, Sprung in die FA-Struktur"
 slug: 2026-11-26-fa-liste-nur-hauptfa-und-fa-struktur-neu-teil-1-spec
-status: InUmsetzung
+status: Testbereit
 created: 2026-11-26
 updated: 2026-11-26
 source_backlog: "[[2026-11-26-fa-liste-nur-hauptfa-und-fa-struktur-neu]]"
@@ -36,7 +36,7 @@ epic: false
 etappen: []
 deploy:
   web: true
-  service: false
+  service: true
   migration: false
 freigabe_entscheidung: "Antworten 1-6 (Gerald 2026-11-26): Sub-FA ganz weg; 16 Spalten + Material ausgeblendet; Matchcode Struktur zuerst, dann Artikelstamm; eigene Spalte PPS-Status; AKE-Spalten unveraendert"
 freigabe_von: Gerald
@@ -333,11 +333,12 @@ abgeloest“ kennzeichnen, nicht loeschen.
 
 ## Deploy
 
-*Vorlaeufig — der qa-agent bestaetigt gegen den echten Diff.*
+*Final (qa-agent 2026-11-26, gegen den echten Diff `557a9062~1..557a9062`).*
 
-- **Web-App:** ja (Controller, Repository, Views, ColumnDefinitions)
-- **Service:** nein
-- **Migration:** nein
+- **Web-App:** ja (Controller, Repositories, ViewModels, ColumnDefinitions, ColumnFilterSyntax, Views, site.css, `fa-liste-wiederholung.js` geloescht)
+- **Service:** nur Versionsstand (`IDEALAKEWMSService/AppVersion.cs` 1.99.82), fachlich keine Aenderung — mit dem Buendel-Paket ohnehin mitgeliefert
+- **Migration:** nein (keine Datei unter `*/Migrations/`, kein `SQL/`)
+- **Paket:** `C:\Git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-07-ideal-teile-1-5\publish` (Web + Service + SQL + deploy, `publish-info.txt` Version 1.99.82, Commit 557a9062f43649535267f9b3155a874bfd249565). Ablauf: Paket auf das Testsystem → `deploy\Update-IdealAkeWms.ps1` → TS-203 testen → Merge. Nach dem Merge nur dann neu aus `main` publishen, wenn der Merge getestete Dateien mit parallelen main-Aenderungen zusammengefuehrt hat.
 - **Manifest-Eintraege** (`scripts/deploy/nachlauf.psd1`):
   - Id `fa-liste-nur-hauptfa-info`, Version = Version des Laufs, Typ `Info`, Firma `IDEAL`, Phase `Nachher`, Ausfuehrung `anzeigen`,
     Text „FA-Liste zeigt nur noch HauptFA-Zeilen; Sub-FAs ueber den Knopf FA-Struktur. 17 weitere Strukturfelder (u. a. PPS-Status, RAL, Material) per Zahnrad einblendbar. Matchcode kommt bevorzugt aus der FA-Struktur, sonst aus dem Artikelstamm (wie Stueckliste).“
@@ -402,3 +403,131 @@ Keiner.
 - **H-5 Zusatzfund OSEON-Knopf** an der IDEAL bleibt bewusst draussen — als Backlog-Notiz festhalten, wenn gewuenscht.
 
 **BEREIT ZUR FREIGABE** (S-1 erledigt; S-2/S-3 sind Verbesserungen, die der Dev-Lauf mitnehmen kann).
+
+## QA-Nachweis (qa-agent 2026-11-26)
+
+Geprueft: Commit `557a9062` (Diff `557a9062~1..557a9062`, 25 Dateien) im Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5`,
+Arbeitsbaum sauber. Ergebnis: **Testbereit** (keine blockierenden Befunde).
+
+### 1. Build und Tests
+
+- `dotnet build IdealAkeWms.slnx`: **0 Fehler**, 32 Warnungen (vorbestehend; `FormatDateWithKw` unbenutzt in `ProductionOrders/Index.cshtml:8` gab es schon vor dem Commit).
+- `dotnet test`: `IdealAkeWms.Tests` **3770 bestanden / 1 uebersprungen / 0 Fehler** (3771); `IDEALAKEWMSService.Tests` **848 / 0 / 0**.
+
+### 2. Code-Review (selbst, in diesem Lauf)
+
+Gelesen: Repository (`BuildLeitstandQuery`, `GetForLeitstandGroupedAsync`, `CountGruppenOhneHauptFaAsync`, `ApplyLeitstandColumnFilter`),
+`FaHierarchyNodeRepository` und Decorator, Controller-Index (beide Zweige, Filter-Schluesselmengen, Postfilter, `StrukturFelderSetzen`),
+ViewModel, `ColumnDefinitions`, Register `ColumnFilterSyntax`, `Index.cshtml`, `_ProductionOrderRow.cshtml`, `column-preferences.js`
+(unbekannte Keys), Tests, Manifest. Fehlerklassen-Check: kein Modellwert in `<script>` (`#column-config` ist statisches JSON, auf DEV per
+JSON-Parser gelesen: 42 Eintraege), kein `hidden` mit `d-*`, keine stille Fallback-Zahl (`Leer()` macht leer zu null, nicht zu einem Wert),
+keine Formulare/Array-Binding, keine reine Browser-Validierung, HauptFA-Regel nur ueber `ProductionOrder.IsHauptFa` (eine Definition).
+
+| # | Schwere | Befund | Behandlung |
+|---|---|---|---|
+| Q-1 | Hinweis | (a) Negierter FA-Nr.-Spaltenfilter: Subquery `ProductionOrderRepository.cs:168-174` bedeutet „Auftrag hat eine Zeile, die x NICHT enthaelt“. Da jede Zeile die HauptFA-Nummer in `OrderNumber` traegt, ist das gleichwertig mit dem Filter auf der HauptFA-Zeile: `!<HauptFA>` blendet den Auftrag aus, `!<Sub-FA-Nr.>` laesst ihn stehen. DEV belegt: `!1064052` → 3 Auftraege, `!1065209` (Sub-FA von 1064052) → 4. Kein Fehler. | akzeptiert, kein Fix |
+| Q-2 | Hinweis | (b) Badge „HauptFA“ (`_ProductionOrderRow.cshtml:48-51`) steht jetzt an jeder Zeile und traegt keine Information mehr. | kosmetisch; Entscheidung Mensch |
+| Q-3 | Hinweis | (c) FA-Nr.-Spaltenfilter (LIKE/Subquery) nicht InMemory testbar. | auf DEV gegen echten SQL Server geprueft (siehe 6): Karte und Spalte mit Sub-FA 1065209 → HauptFA 1064052 |
+| Q-4 | Hinweis | Auftraege, deren HauptFA-Zeile erledigt/storniert/fertig kommissioniert ist, waehrend Sub-FA-Zeilen offen sind, verschwinden **ohne** Banner: `CountGruppenOhneHauptFaAsync` (`ProductionOrderRepository.cs:184-190`) zaehlt nur Auftraege ganz ohne HauptFA-Zeile. Entspricht exakt F6/W-2; an der IDEAL wird nur am HauptFA kommissioniert (v1.46.0), fachlich also „Auftrag fertig“. DEV: 1035235/1037045/1039413/1043153 (HauptFA `IsDonePicking`) nur mit „Erledigte anzeigen“. | akzeptiert, Mensch bestaetigt fachlich |
+| Q-5 | kosmetisch | Zaehlzeile ohne Einzahl: „1 Aufträge“ (`Index.cshtml:81`); das Banner unterscheidet Einzahl. | offen, nicht blockierend |
+| Q-6 | Hinweis | Die neuen Datums-Keys stehen in `FaListDateColumnKeys` (`ProductionOrdersController.cs:495-497`) und wirken damit auch im Flachmodus, wenn jemand `colf_neuer-pt-pps` von Hand in die URL schreibt (dann fallen alle AKE-Zeilen raus). Ueber die Oberflaeche nicht erreichbar. | akzeptiert |
+| Q-7 | Hinweis | Matchcode-Regel „Struktur zuerst, getrimmt“ steht jetzt an zwei Orten (`ProductionOrdersController.StrukturFelderSetzen`, `PickingController.cs:353/:555` ueber `FaHierarchyBomItem.Matchcode`). Gleiche Regel, heute kein Drift. | in `fallstricke.md` festhalten (Q-8) |
+| Q-8 | offen (Pflicht Lauf-Ende) | Brain-Nachzug fehlt noch: `secondbrain/changelog/` v1.99.82, `feature-map.md`, `fallstricke.md` (Kritische Pruefung S-1: FA-Liste IDEAL = Matchcode wie Stueckliste), `docs/anwender`/`docs/betrieb` (DoD). | Orchestrator am Ende des /goal-Laufs |
+| Q-9 | Hinweis | S-3 Last (Postfilter laden alle Gruppen plus Kopf- und Wurzel-Batch): auf DEV nur 8 Auftraege, nicht messbar. | Manual-UAT am Testsystem |
+
+Ohne Befund geprueft: Paginierung (`TotalCount` = Gruppen = HauptFA-Zeilen), Reihenfolge (Wurzel-Batch vor `MapItem`, Matchcode-Filter auf
+angezeigtem Wert), Kombigeraet (`groupHead` null → Kopffelder leer, Wurzel befuellt), Zahlenfilter (de-AT-Text, Parser ersetzt Komma),
+Leitstand unveraendert (`nurHauptFa` Default false), alte Praeferenz mit `parent-sub-order-number` (`column-preferences.js:93/187` filtert unbekannte Keys).
+
+### 3. Beweisart je Akzeptanzkriterium
+
+| AK | Beweis |
+|---|---|
+| 1 | Test `NurHauptFa_JeAuftragEineZeile_SubFaAusgeschlossen` + DEV |
+| 2 | Test (TotalGroupCount) + DEV „4 Aufträge“, „1–4 von 4“; Seitengroesse: Manual-UAT (zu wenig Daten) |
+| 3 | Karte: Test `NurHauptFa_FaNrKarte_FindetHauptFaAuchUeberSubFa`; Spalte: **Manual-UAT**, auf DEV OK |
+| 4 | Postfilter-Tests; Matchcode/Datum auf DEV OK; Artikel/Kunde: Manual-UAT |
+| 5 | Tests DefaultHidden/Drift/Postfilter je Typ; Rendering/Zahnrad: **Manual-UAT**, auf DEV OK |
+| 6 | Test `Kombigeraet_KopfLeer_WurzelBefuellt` + DEV 1059463 |
+| 7 | **Manual-UAT**, auf DEV OK |
+| 8 | Test `CountGruppenOhneHauptFa_*` + DEV (Testzeile → Banner, entfernt → kein Banner) |
+| 9 | Drift-Waechter + DEV |
+| 10 | **Manual-UAT**, DEV AKE OK |
+| 11 | Test `DriftWaechter_KatalogThUndColumnConfigDeckungsgleich` |
+| 12 | Diff: keine Migration/SQL; Service-Projekt nur `AppVersion.cs` (Versionspflicht) |
+| 13 | Build/Tests gruen, neue Tests vorhanden |
+| 14 | Test `Matchcode_StrukturZuerst_ArtikelstammRueckfall` + DEV (1060414) |
+| 15 | Test `Kopf_FelderAusOrderInfo` + DEV |
+| 16 | DEV: Definition unveraendert; Werte Manual-UAT (S-1 unbelegt) |
+| 17 | Test `NeueSpalten_DefaultHidden_UndGruppenansichtEntfernt`; Leitstand DEV OK; FaCompletion/FaWorklist: **Manual-UAT** |
+
+### 4. Geaenderte bestehende Tests
+
+| Test | Art |
+|---|---|
+| `PickingLeitstandControllerTests` (4 Stellen), `ProductionOrdersControllerTests.SetupGrouped`, Ctor/Mock in `ProductionOrdersControllerSlimTests` und `ProductionOrdersControllerTests` | nur Typ/Signatur |
+| `ProductionOrdersControllerTests.cs:677` Verify jetzt `nurHauptFa: true` | Verhalten absichtlich geaendert (AK 1) |
+| `TableToolbarHostTests.cs:96` Anker der Zaehlzeile | Verhalten absichtlich geaendert (AK 2) |
+| `TableScriptScopedSelectorTests.FaListeWiederholung_StaysScoped` entfernt | Datei absichtlich geloescht (AK 17) |
+
+Keine Kategorie „Sonstiges“.
+
+### 5. Checkliste
+
+Migration/SQL/FreshInstall/AgentJobs: entfaellt. Audit-Felder: entfaellt (nur Lesen). Version 1.99.82 in beiden `AppVersion.cs`, `Changelog.cshtml`,
+Hilfe `Index.cshtml`, `docs/TESTSZENARIEN.md` TS-203 (TS-69/TS-73 abgeloest markiert), Index-Zeile 203, Manifest `fa-liste-nur-hauptfa-info`: vorhanden.
+Offen: Q-8. ADR 0020: keine neue Einstellung.
+
+### 6. DEV-Deploy und Testlauf
+
+Standort laut Frontmatter IDEAL; AKE zusaetzlich als Regression. Elevated Shell: ja.
+- `dev-deploy.ps1 -Standort IDEAL`: Exit 0, „HTTP 200, Fusszeile v1.99.82“, „Fertig: IDEAL v1.99.82 auf http://localhost:8082/“.
+- `dev-deploy.ps1 -Standort AKE`: Exit 0, „HTTP 200, Fusszeile v1.99.82“, „Fertig: AKE v1.99.82 auf http://localhost:8081/“.
+
+Pruefabfragen IDEAL_WMS_DEV: Master `true`; W-1 = 0; W-2 = 0; W-3: 5 Koepfe, 5 Status, 4 RAL, 4 Montagestd., 4 Neuer PT; Kombigeraet 1059463.
+
+| Schritt | Durchgefuehrt | Ergebnis | Status |
+|---|---|---|---|
+| 203.1 | Liste im Browser | 4 Zeilen je HauptFA, keine Gruppen/Sub-FA, „4 Aufträge (eine Zeile je HauptFA …)“; `showDone=true` → 8 | OK |
+| 203.1 Seitengroesse | – | nur 8 Auftraege | NICHT MOEGLICH (Datenmenge) |
+| 203.2 Karte | `filterOrderNumber=1065209` | genau 1064052 | OK |
+| 203.2 Spalte | `colf_order-number=1065209` | genau 1064052 | OK |
+| 203.2 Artikel/Kunde | – | nicht ausgefuehrt | offen |
+| 203.3.1 | Zahnrad | 17 neue Eintraege, ausgeblendet; kein Artikeltyp/BxHxT, kein „Übergeordnete Sub-FA“ | OK |
+| 203.3.2 | RAL eingeblendet | 1060414 „9004 matt“, 1065036/1064052 „0“, Kombigeraet leer = DB | OK |
+| 203.3.3 | Filter | `ral=9004`→1, `ral=xyz`→0, `montagestunden=>10`→2, `neuer-pt-pps=>=12.08.2026`→1, `beschichtung-retour=kw30`→1, `fertigungsmenge==1`→4, `material=-`→4, `arbeitsbereich=H3`→4 | OK |
+| 203.3.4 | `pps-status=ENDMONTAGE` | 3; Sage-Status/Werkbank/Kaeltemittel/Ventil/Ausfuehrung/Maschine in `#column-config` unveraendert | OK |
+| 203.3.5 | Reload | Auswahl bleibt | OK |
+| 203.4 | Matchcode | 1060414 Wurzel „KTE 3-76-3T RAL“ statt Stamm „KTE-L3-76-3T RAL 2024“; Filter `KTE 3-76`→1, `KTE-L3`→0 | OK |
+| 203.4 Endgeraet ohne Stamm | – | auf DEV alle mit Stammtreffer | NICHT MOEGLICH (Daten) |
+| 203.5 | Kombigeraet 1059463 | Badge „mehrdeutig (Kombigerät)“, Kopfspalten leer | OK |
+| 203.6 | Knopf 1064052 geklickt | `/FaHierarchy?filterHauptFa=1064052`, gleicher Tab, Struktur 1064052 | OK (Tastatur offen) |
+| 203.7.1 | Testzeile 9990203/9990204 angelegt | Banner „1 Auftrag ohne HauptFA-Zeile wird … – Struktur unter FA-Struktur“, Link `/FaHierarchy`; Zeile geloescht → kein Banner | OK |
+| 203.7.2 | Leerzustand | colspan 42 = 42 `<th>` = 42 `<td>` je Zeile | OK |
+| 203.7.3 | HTML/Zahnrad | kein `parent-sub-order-number`, kein `data-hierarchical`, keine Gruppen-Skripte | OK |
+| 203.7.4 | AKE FA-Liste | 22 Spalten, `#column-config` 22 Keys wie vorher inkl. `parent-sub-order-number`, kein FA-Struktur-Knopf, kein Banner | OK |
+| 203.7.5 | Leitstand IDEAL | gruppiert (8 Gruppen) | OK |
+| 203.7.5 FaCompletion/FaWorklist | – | DEV-Benutzer AccessDenied | NICHT MOEGLICH (Rechte) |
+| 203.7.6 | – | kein Benutzer ohne Recht | NICHT MOEGLICH |
+| 203.8 | Fusszeile/Changelog/Hilfe | v1.99.82, Changelog-Karte, Hilfe-Abschnitt | OK; Update-Skript offen |
+
+DEV-Nebeneffekt: Spaltenpraeferenz „ProductionOrders“ meines Benutzers auf DEV IDEAL hat RAL eingeblendet.
+
+### 7. Publish
+
+`C:\Git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-07-ideal-teile-1-5\publish\`: Zielordner vorher geleert, `IDEALAKEWMSWeb` und `IDEALAKEWMSWebService`
+(beide Exit 0), `SQL\`, `deploy\` kopiert; `fa-liste-wiederholung.js` nicht mehr im Paket. `publish-info.txt`: Version 1.99.82,
+Commit 557a9062f43649535267f9b3155a874bfd249565, Branch feature/2026-08-07-ideal-teile-1-5, Erstellt 2026-11-26 16:28.
+Manifest-Eintrag `fa-liste-nur-hauptfa-info` vorhanden (`scripts/deploy/nachlauf.psd1:712-714`).
+
+### Manuelle Test-Checkliste (Mensch, Testsystem)
+
+1. Paket einspielen (`deploy\Update-IdealAkeWms.ps1`): Info `fa-liste-nur-hauptfa-info` an der IDEAL sichtbar, an AKE nicht (TS-203.8).
+2. TS-203.1 mit vollem Bestand: Seitengroesse 25, Seite 2 setzt fort.
+3. TS-203.2: Artikelnummer- und Kunde-Filter (Karte und Spalte).
+4. TS-203.3: je eine Kopf-, Wurzel-, Datums-, Zahl-Spalte und Material gegen die FA-Struktur; Antwortzeit eines Filters auf eine neue Spalte bei vollem Bestand (S-3, Ziel unter 3 s).
+5. TS-203.4: Endgeraet ohne Artikelstamm-Eintrag → Wurzel-Matchcode, Filter trifft.
+6. TS-203.6: Knopf per Tastatur (Tab, Enter).
+7. TS-203.7: Bannerzahl = W-2 am Testsystem; FaCompletion und FaWorklist gruppieren unveraendert; Benutzer ohne Recht → kein Zugriff; Benutzer mit alter Praeferenz (mit „Übergeordnete Sub-FA“) → Seite laedt sauber.
+8. AKE-Testsystem: FA-Liste unveraendert (TS-203.7.4).
+9. Q-2 (HauptFA-Badge), Q-5 (Einzahl) entscheiden; Q-4 fachlich bestaetigen.
