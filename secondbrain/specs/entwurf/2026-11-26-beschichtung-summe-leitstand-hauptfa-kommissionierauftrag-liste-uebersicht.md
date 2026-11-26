@@ -30,7 +30,7 @@ fachlich und technisch **unabhängig**; die `depends_on`-Kette regelt nur die Re
 |---|---|---|---|---|
 | [[2026-11-26-beschichtung-summe-leitstand-hauptfa-kommissionierauftrag-liste-teil-1-spec]] | Beschichtungsauftrag Druck/PDF immer summiert je Artikel, Summenzeile „Summe Teile im Auftrag“; hebt Antwort 11 der Spec 2026-11-18 auf (Rückfrage 1) | beide (Rückfrage 4) | v1.99.82 / TS-203 | keine |
 | [[2026-11-26-beschichtung-summe-leitstand-hauptfa-kommissionierauftrag-liste-teil-2-spec]] | Leitstand hierarchisch nur HauptFA-Zeilen, Schalter „Sub-FAs anzeigen“, Banner bei fehlender HauptFA-Zeile; Freigabe-Haken am HauptFA existiert bereits (Befund klären) | IDEAL | v1.99.83 / TS-204 | keine |
-| [[2026-11-26-beschichtung-summe-leitstand-hauptfa-kommissionierauftrag-liste-teil-3-spec]] | Kommissionierauftrag-Seite mit Umschalter Stückliste/Liste, Standard „Liste“ bei `FaHierarchyKommissionierlistenAktiv`; Liste je Artikel summiert, Ist-Menge in Positionsreihenfolge auf die Zeilen verteilt (Epic, Etappen A/B, Rückfrage 7) | IDEAL | v1.99.84 / TS-205 | keine |
+| [[2026-11-26-beschichtung-summe-leitstand-hauptfa-kommissionierauftrag-liste-teil-3-spec]] | Kommissionierauftrag-Seite mit Umschalter Stückliste/Liste, Standard „Liste“ bei `FaHierarchyKommissionierlistenAktiv`; Liste je Artikel summiert, Ist-Menge in Positionsreihenfolge auf die Zeilen verteilt, Auftragsdruck aus der Liste summiert im Stil des Kommissionierlisten-PDF (Epic, Etappen A/B) | IDEAL | v1.99.84 / TS-205 | keine |
 
 Versionen und TS-Nummern sind Vorschläge zum Schreibzeitpunkt (letzte belegte TS-202); der Dev-Lauf prüft beide erneut.
 **SQL-Nummernblock:** keiner der Teile braucht ein Schema-, Daten- oder Einmal-Skript. Manifest: Teil 1 keine Einträge; Teil 2 eine
