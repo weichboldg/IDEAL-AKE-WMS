@@ -310,4 +310,10 @@ Manual-UAT: Neuladen nach dem Hinzufügen im Browser, Kontrast, Groß/Klein in S
   als seinen Auftrag. Antworte je Frage in **fett** hinter dem Pfeil.
 -->
 
-1. Stücklisten-Schnellerfassung: Hinweis nur beim Öffnen des Entwurfs (Vorschlag) oder auch in der Stücklisten-Rückmeldung? →
+1. Stücklisten-Schnellerfassung: Hinweis nur beim Öffnen des Entwurfs (Vorschlag) oder auch in der Stücklisten-Rückmeldung? → **Nur beim Öffnen des Entwurfs (Vorschlag), keine Erweiterung der Stücklisten-Rückmeldung.** (Gerald im Chat 2026-11-26: „Ok“)
+
+Weitere Aussagen Gerald (Chat 2026-11-26, keine Antwort auf Frage 1):
+- „Der Hinweis blockiert nichts. Ok“ – Vorschlag bestätigt.
+- „IDEAL lesen wir dann auch“ – am Standort IDEAL werden die offenen Bestellungen künftig ebenfalls gelesen
+  (`Sync:EinkaufBestellungenEnabled` dort einschalten, Betriebsschritt, nicht Teil dieser Spec). Der Text „Liefertermin unbekannt …“
+  bleibt nur als Rückfall für einen leeren Cache.
