@@ -320,3 +320,20 @@ entfaellt (kein Epic). Gliederung in Teil A/B als zwei Commits, siehe Umfang.
 4. Summiert (kommagetrennt, Filter je Position?) →
 5. Anzeige Ist Lagerartikel (Ja/Nein?) →
 6. Default-Sichtbarkeit (ausgeblendet?) →
+
+## Pruefergebnisse P-1 bis P-5 (2026-11-26, Hauptsession, nur gelesen, idealsql2\SAGE100TEST)
+
+- **Korrektur View-Name:** IDEAL-Test liest laut `ServiceSettings` `Sync:FaHierarchyListeViewName = [vw_IDEAL_AKE_WMS_FAListe]`
+  (DB `IDEAL`), nicht `vw_IDEAL-AKE_Kommissionierung_FAListe` (die gibt es nur noch in `IDEAL_TEST_2026_05_03`). Die Spec-Abfragen
+  P-1 bis P-4 sind auf diesen Namen umzulesen; Prod-Name vor Umsetzung gegen Prod-`ServiceSettings` pruefen.
+- **P-2:** `vw_IDEAL_AKE_WMS_FAListe` hat `Verwendungsart` **und zusaetzlich `IstLagerartikel`** (sowie `Artikeltyp`, `Blechdicke`).
+  → Ist Lagerartikel kann wie Verwendungsart aus der View kommen, statt aus dem Artikelmerkmal.
+- **P-1:** View-Definition nicht lesbar (`VIEW DEFINITION` fehlt, `OBJECT_DEFINITION` = NULL) → Herkunft bleibt Rueckfrage an IDEAL/Sage-Betreuung.
+- **P-3:** 1305 Zeilen: `Verwendungsart = 'VT'` 606, NULL 699. Kreuztabelle: **VT genau dann, wenn `IstLagerartikel = -1`** (606/606),
+  NULL genau dann, wenn 0 (699/699). → Rueckfrage an Walter: ist „VT“ die einzige Auspraegung, und ist Verwendungsart fachlich
+  etwas anderes als Ist Lagerartikel?
+- **P-4:** Artikeltyp Position vs. `KHKArtikel.USER_OSArtikeltyp` (Mandant 1): 7 von 1305 abweichend, alle mit Position = NULL und
+  Artikel = EP (6) bzw. FT (1). IstLagerartikel Position vs. Artikel: 0 Abweichungen. → Quelle fachlich fast gleichgueltig;
+  ⭐ View/Position, Artikel als Rueckfall bei NULL waere die Variante ohne Luecken.
+- **P-5:** WMS-Artikelmerkmal `USER_OSIstLagerartikel` nur Wert `-1` (1287 von 27438 Artikeln) – bestaetigt Befund 3
+  (fehlendes Merkmal = kein Lagerartikel oder nie gelesen).
