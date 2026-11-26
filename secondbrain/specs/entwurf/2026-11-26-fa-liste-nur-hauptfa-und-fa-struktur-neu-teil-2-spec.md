@@ -602,3 +602,13 @@ Geprueft: Spec inkl. Freigabe-Antworten 1-10, Backlog-Notiz, Uebersicht, Teil 1 
 - **H-5 Deploy plausibel:** Web only, keine Migration, Manifest-Info ok; Text um „alle Spalten sichtbar, Zahnrad zum Ausblenden“ ergaenzen (S-1).
 
 **NACHBESSERUNG NOETIG: Teil 1 unbeantwortet (B-1) und Antwort 8 nicht in Rumpf/AK (S-1).**
+
+### Nachpruefung (2026-11-26, nach Rework 5690e85c)
+
+B-1 erledigt (Teil 1 beantwortet, Kopfspalten in D-2 = 7 FA-Listen-Keys + 8 Teil-1-Kopffelder, Material bewusst keine
+Kopfspalte). S-1 erledigt (AK 4: alle 24 sichtbar), S-2 erledigt (AK 19 sticky Struktur/Matchcode, kein Projektmuster
+vorhanden → Minimum CSS sticky + ResizeObserver), S-3 erledigt (keine Vorbehalte mehr in AK/D-5), S-4 erledigt (AK 10),
+H-1 erledigt (Beleg `site.js:126-135`). Offen nur S-5: `freigabe_entscheidung: D` setzt der Mensch.
+Reihenfolge: Teil 1 vor Teil 2 (gemeinsamer Lauf).
+
+**BEREIT ZUR FREIGABE** (zusammen mit Teil 1).
