@@ -58,6 +58,15 @@ public class FaStrukturVarianteDTests
             .Should().BeEquivalentTo(new[] { 100 });
 
     [Fact]
+    public void V1_99_84_ArbeitsgaengeNachMatchcode_BezeichnungAnfangsAusgeblendet()
+    {
+        var cols = ColumnDefinitions.FaHierarchyStructure.Columns;
+        cols.Select(c => c.Key).Take(3).Should().Equal("structure", "matchcode", "operations");
+        cols.Single(c => c.Key == "description").DefaultHidden.Should().BeTrue();
+        cols.Single(c => c.Key == "operations").DefaultHidden.Should().BeFalse();
+    }
+
+    [Fact]
     public void Kopfspalten_KeysUndLabelsWieFaListe_AlleSichtbar()
     {
         var kopf = new[] { "customer", "pps-status", "konstruktions-termin", "production-date", "montage-abteilung", "ab-nummer",

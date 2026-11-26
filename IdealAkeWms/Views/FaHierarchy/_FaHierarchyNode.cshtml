@@ -154,6 +154,19 @@
         }
     </td>
     <td data-col-key="matchcode" class="fa-cell-matchcode text-muted small">@n.Matchcode</td>
+    @* Arbeitsgaenge als Symbole (v1.52.0, Status Teil 2 v1.55.0) – seit v1.99.73 im gemeinsamen Partial _FaAgSymbole.
+       Seit v1.99.83 sitzt hier an der HauptFA-Zeile auch der Knopf „Arbeitsgänge" (frueher Kopfzeile). *@
+    <td data-col-key="operations">
+        <partial name="_FaAgSymbole" model="Model.Arbeitsgaenge" />
+        @if (s != null && s.HasWorkOperations)
+        {
+            <button type="button" class="btn btn-sm btn-outline-secondary py-0 ms-1 fa-wo-btn"
+                    data-hauptfa="@s.HauptFA" aria-haspopup="dialog"
+                    title="Erkannte Arbeitsgänge aller Sub-FAs dieser Struktur anzeigen">
+                Arbeitsgänge
+            </button>
+        }
+    </td>
     <td data-col-key="description">@vDescription</td>
     <td data-col-key="customer">@kCustomer</td>
     <td data-col-key="pps-status">@kPpsStatus</td>
@@ -171,19 +184,6 @@
     <td data-col-key="montagestunden" class="text-end">@kMontageStd</td>
     <td data-col-key="bemerkung-uhrzeit">@kBemerkungUhrzeit</td>
     <td data-col-key="workarea">@n.Arbeitsbereich</td>
-    @* Arbeitsgaenge als Symbole (v1.52.0, Status Teil 2 v1.55.0) – seit v1.99.73 im gemeinsamen Partial _FaAgSymbole.
-       Seit v1.99.83 sitzt hier an der HauptFA-Zeile auch der Knopf „Arbeitsgänge" (frueher Kopfzeile). *@
-    <td data-col-key="operations">
-        <partial name="_FaAgSymbole" model="Model.Arbeitsgaenge" />
-        @if (s != null && s.HasWorkOperations)
-        {
-            <button type="button" class="btn btn-sm btn-outline-secondary py-0 ms-1 fa-wo-btn"
-                    data-hauptfa="@s.HauptFA" aria-haspopup="dialog"
-                    title="Erkannte Arbeitsgänge aller Sub-FAs dieser Struktur anzeigen">
-                Arbeitsgänge
-            </button>
-        }
-    </td>
     <td data-col-key="picking-target">
         @if (!string.IsNullOrEmpty(n.Kommissionieren))
         {

@@ -1,11 +1,11 @@
 # 20 – FA-Liste und FA-Struktur (IDEAL)
 
 Gilt für **IDEAL** (hierarchische Fertigungsaufträge). An AKE bleibt die FA-Liste unverändert.
-Stand: Version **1.99.83** (26.11.2026).
+Stand: Version **1.99.84** (26.11.2026).
 
 ## FA-Liste: eine Zeile je Auftrag (ab 1.99.82)
 
-*Fertigungsaufträge › FA-Liste* (Seitentitel „Fertigungsaufträge“) zeigt je Auftrag genau **eine Zeile**, die des HauptFA. Sub-FAs stehen nicht mehr in der
+*Fertigungsaufträge › FA-Liste* (Seitentitel „Fertigungsaufträge“) zeigt je Auftrag genau **eine Zeile**, die des HauptFA. Ein eigenes Zeichen „HauptFA“ gibt es seit 1.99.84 nicht mehr. Sub-FAs stehen nicht mehr in der
 Liste; sie sehen Sie über den Knopf **FA-Struktur** in der Zeile (öffnet die FA-Struktur dieses HauptFA im selben Fenster).
 
 ![FA-Liste IDEAL: je Auftrag eine Zeile, Knopf FA-Struktur, Zeichen Kombigerät](bilder/20-01-fa-liste-hauptfa.jpg)
@@ -25,8 +25,10 @@ Liste; sie sehen Sie über den Knopf **FA-Struktur** in der Zeile (öffnet die F
 
 *Fertigungsaufträge › FA-Struktur* zeigt je HauptFA **eine Zeile** – die oberste Zeile der Struktur. Daneben stehen die Auftragsdaten als
 Spalten: Kunde, PPS-Status, KO-Termin, Fert.-Termin, Montage-Abt., AB-Nr., Prio, Liefertermin, AB-Pos., Beschichter, RAL,
-Beschicht. retour, Neuer PT (PPS), Montage-Std., Bemerkung/Uhrzeit. Alle sind sichtbar; über das Zahnrad blenden Sie aus, was Sie
-nicht brauchen. **Struktur** und **Matchcode** bleiben beim Querscrollen links stehen.
+Beschicht. retour, Neuer PT (PPS), Montage-Std., Bemerkung/Uhrzeit. Gleich nach dem Matchcode steht die Spalte **Arbeitsgänge** mit dem
+Status je Arbeitsgang: Haken = erledigt, Sanduhr = läuft, Dreieck = überfällig, Kreis = offen, ohne Zeichen = ohne Status.
+**Bezeichnung** ist anfangs ausgeblendet; über das Zahnrad blenden Sie Spalten ein und aus (Ihre gespeicherte Einstellung bleibt).
+**Struktur** und **Matchcode** bleiben beim Querscrollen links stehen.
 
 ![FA-Struktur: HauptFA-Zeilen mit Kopfspalten, Zähler „Knoten · Teile ausgeblendet“, Knöpfe Teile anzeigen, Legende, Hilfe](bilder/20-02-fa-struktur-hauptfa-zeilen.jpg)
 

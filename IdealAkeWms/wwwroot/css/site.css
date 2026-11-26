@@ -1435,7 +1435,7 @@ th:hover .col-resize-handle {
 #faTree.fa-sticky-cols [data-col-key="structure"],
 #faTree.fa-sticky-cols [data-col-key="matchcode"] { position: sticky; z-index: 1; }
 #faTree.fa-sticky-cols [data-col-key="structure"] { left: 0; }
-#faTree.fa-sticky-cols [data-col-key="matchcode"] { left: var(--fa-sticky-left-2, 0); border-right: 1px solid #adb5bd; }
+#faTree.fa-sticky-cols [data-col-key="matchcode"] { left: var(--fa-sticky-left-2, 0); } /* v1.99.84: keine Trennlinie (Gerald) */
 #faTree.fa-sticky-cols > thead [data-col-key="structure"],
 #faTree.fa-sticky-cols > thead [data-col-key="matchcode"] { z-index: 2; }
 

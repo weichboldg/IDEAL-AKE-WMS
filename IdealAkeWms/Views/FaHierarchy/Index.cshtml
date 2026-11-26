@@ -138,6 +138,7 @@ else
                 <tr>
                     <th data-col-key="structure">Struktur</th>
                     <th data-col-key="matchcode">Matchcode</th>
+                    <th data-col-key="operations">Arbeitsgänge</th>
                     <th data-col-key="description">Bezeichnung</th>
                     <th data-col-key="customer">Kunde</th>
                     <th data-col-key="pps-status">PPS-Status</th>
@@ -155,7 +156,6 @@ else
                     <th data-col-key="montagestunden">Montage-Std.</th>
                     <th data-col-key="bemerkung-uhrzeit">Bemerkung/Uhrzeit</th>
                     <th data-col-key="workarea">Arbeitsbereich</th>
-                    <th data-col-key="operations">Arbeitsgänge</th>
                     <th data-col-key="picking-target">Komm.-Ziel</th>
                     <th data-col-key="quantity">Soll / Fert.</th>
                     <th data-col-key="subfa">SubFA</th>
@@ -167,6 +167,7 @@ else
                 <tr class="filter-row">
                     <th data-col-key="structure"><input type="text" class="form-control form-control-sm fa-col-filter" data-filter-key="structure" placeholder="Artnr. filtern..." aria-label="Struktur/Artnr. filtern" /></th>
                     <th data-col-key="matchcode"><input type="text" class="form-control form-control-sm fa-col-filter" data-filter-key="matchcode" placeholder="filtern..." aria-label="Matchcode filtern" /></th>
+                    <th data-col-key="operations"><input type="text" class="form-control form-control-sm fa-col-filter" data-filter-key="operations" placeholder="z. B. KA" aria-label="Arbeitsgänge filtern" /></th>
                     <th data-col-key="description"><input type="text" class="form-control form-control-sm fa-col-filter" data-filter-key="description" placeholder="filtern..." aria-label="Bezeichnung filtern" /></th>
                     <th data-col-key="customer"><input type="text" class="form-control form-control-sm fa-col-filter" data-filter-key="customer" placeholder="filtern..." aria-label="Kunde filtern" /></th>
                     <th data-col-key="pps-status"><select class="form-select form-select-sm fa-col-filter" data-filter-key="pps-status" aria-label="PPS-Status filtern"><option value="">(alle)</option></select></th>
@@ -184,7 +185,6 @@ else
                     <th data-col-key="montagestunden"><input type="text" class="form-control form-control-sm fa-col-filter" data-filter-key="montagestunden" placeholder="filtern..." aria-label="Montage-Std. filtern" /></th>
                     <th data-col-key="bemerkung-uhrzeit"><input type="text" class="form-control form-control-sm fa-col-filter" data-filter-key="bemerkung-uhrzeit" placeholder="filtern..." aria-label="Bemerkung/Uhrzeit filtern" /></th>
                     <th data-col-key="workarea"><select class="form-select form-select-sm fa-col-filter" data-filter-key="workarea" aria-label="Arbeitsbereich filtern"><option value="">(alle)</option></select></th>
-                    <th data-col-key="operations"><input type="text" class="form-control form-control-sm fa-col-filter" data-filter-key="operations" placeholder="z. B. KA" aria-label="Arbeitsgänge filtern" /></th>
                     <th data-col-key="picking-target"><select class="form-select form-select-sm fa-col-filter" data-filter-key="picking-target" aria-label="Komm.-Ziel filtern"><option value="">(alle)</option></select></th>
                     <th data-col-key="quantity"><input type="text" class="form-control form-control-sm fa-col-filter" data-filter-key="quantity" placeholder="filtern..." aria-label="Soll/Fert. filtern" /></th>
                     <th data-col-key="subfa"><input type="text" class="form-control form-control-sm fa-col-filter" data-filter-key="subfa" placeholder="filtern..." aria-label="SubFA filtern" /></th>
@@ -232,7 +232,8 @@ else
 [
     { "key": "structure",           "label": "Struktur",          "locked": true,  "defaultWidth": null },
     { "key": "matchcode",           "label": "Matchcode",         "locked": true,  "defaultWidth": null },
-    { "key": "description",         "label": "Bezeichnung",       "locked": false, "defaultWidth": null },
+    { "key": "operations",          "label": "Arbeitsgänge",      "locked": false, "defaultWidth": null },
+    { "key": "description",         "label": "Bezeichnung",       "locked": false, "defaultWidth": null, "defaultHidden": true },
     { "key": "customer",            "label": "Kunde",             "locked": false, "defaultWidth": null },
     { "key": "pps-status",          "label": "PPS-Status",        "locked": false, "defaultWidth": null },
     { "key": "konstruktions-termin","label": "KO-Termin",         "locked": false, "defaultWidth": null },
@@ -249,7 +250,6 @@ else
     { "key": "montagestunden",      "label": "Montage-Std.",      "locked": false, "defaultWidth": null },
     { "key": "bemerkung-uhrzeit",   "label": "Bemerkung/Uhrzeit", "locked": false, "defaultWidth": null },
     { "key": "workarea",            "label": "Arbeitsbereich",    "locked": false, "defaultWidth": null },
-    { "key": "operations",          "label": "Arbeitsgänge",      "locked": false, "defaultWidth": null },
     { "key": "picking-target",      "label": "Komm.-Ziel",        "locked": false, "defaultWidth": null },
     { "key": "quantity",            "label": "Soll / Fert.",      "locked": false, "defaultWidth": null },
     { "key": "subfa",               "label": "SubFA",             "locked": false, "defaultWidth": null },

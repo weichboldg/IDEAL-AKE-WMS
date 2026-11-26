@@ -45,10 +45,7 @@
     }
     <td>
         <strong>@faCellNumber</strong>
-        @if (isHauptFaRow)
-        {
-            <span class="badge rounded-pill bg-secondary ms-1" title="Diese Zeile ist die HauptFA selbst, nicht eine ihrer Sub-FAs.">HauptFA</span>
-        }
+        @* v1.99.84: Zeichen „HauptFA“ entfaellt – seit v1.99.82 ist jede IDEAL-Zeile eine HauptFA-Zeile (Gerald 2026-11-26). *@
         @if (Model.Hierarchical && item.IsAmbiguous)
         {
             <span class="badge bg-info text-dark ms-1" title="HauptFA mit mehreren Auftragsköpfen (Kombigerät) – Kopfdaten je Variante in der FA-Struktur">mehrdeutig (Kombigerät)</span>

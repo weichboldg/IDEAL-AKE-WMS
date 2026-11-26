@@ -662,7 +662,9 @@ public static class ColumnDefinitions
         [
             new ColumnDef("structure",      "Struktur",       Locked: true),
             new ColumnDef("matchcode",      "Matchcode",      Locked: true),
-            new ColumnDef("description",    "Bezeichnung",    Locked: false),
+            new ColumnDef("operations",     "Arbeitsgänge",   Locked: false),
+            // v1.99.84 (Gerald 2026-11-26): Arbeitsgaenge direkt nach Matchcode, Bezeichnung anfangs ausgeblendet.
+            new ColumnDef("description",    "Bezeichnung",    Locked: false, DefaultHidden: true),
             // v1.99.83 (Variante D, D-2): Kopfspalten der HauptFA-Zeile, Keys/Labels identisch mit ProductionOrders
             // (Test FaStrukturVarianteDTests), bewusst OHNE DefaultHidden (Freigabe-Antwort 8).
             new ColumnDef("customer",            "Kunde",             Locked: false),
@@ -681,7 +683,6 @@ public static class ColumnDefinitions
             new ColumnDef("montagestunden",      "Montage-Std.",      Locked: false),
             new ColumnDef("bemerkung-uhrzeit",   "Bemerkung/Uhrzeit", Locked: false),
             new ColumnDef("workarea",       "Arbeitsbereich", Locked: false),
-            new ColumnDef("operations",     "Arbeitsgänge",   Locked: false),
             new ColumnDef("picking-target", "Komm.-Ziel",     Locked: false),
             new ColumnDef("quantity",       "Soll / Fert.",   Locked: false),
             new ColumnDef("subfa",          "SubFA",          Locked: false),

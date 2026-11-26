@@ -14768,7 +14768,7 @@ Artikelstamm-Eintrag. Benutzer mit Picking-Recht und einer nur mit Tracking-Rech
 vorab laufen lassen (W-2 = erwartete Bannerzahl).
 
 **TS-203.1 Nur HauptFA-Zeilen (AK 1/2)**
-1. `/ProductionOrders` öffnen → je Auftrag genau eine Zeile (FA-Nr. = HauptFA, Zeichen „HauptFA“), keine Gruppen-Kopfzeile,
+1. `/ProductionOrders` öffnen → je Auftrag genau eine Zeile (FA-Nr. = HauptFA; seit v1.99.84 ohne Zeichen „HauptFA“, TS-204.8), keine Gruppen-Kopfzeile,
    keine Sub-FA-Zeile, kein Auf-/Zuklapp-Pfeil.
 2. Zählzeile „n Aufträge“ (ohne „· m Sub-FAs“); Seitengröße 25 → 25 Zeilen, Seite 2 setzt fort.
 
@@ -14871,10 +14871,19 @@ ein Teil (`SubFA = 0`) **mit** Arbeitsschritten. Prüfabfragen T-1…T-3 aus der
    Auswahl bleibt, neue Spalten erscheinen sichtbar. Struktur und Matchcode bleiben gesperrt.
 
 **TS-204.7 Angeheftete Spalten (AK 19)**
-1. Fenster schmal ziehen, horizontal scrollen → Struktur und Matchcode bleiben links stehen, rechts davon eine Trennlinie,
+1. Fenster schmal ziehen, horizontal scrollen → Struktur und Matchcode bleiben links stehen, seit v1.99.84 ohne Trennlinie,
    kein Durchscheinen der gescrollten Zellen; Kopf- und Filterzeile ebenso.
 2. Struktur aufklappen (Spalte wird breiter) → Matchcode rückt mit, keine Überlappung.
 3. Über das Zahnrad Matchcode hinter eine andere Spalte verschieben → nichts ist mehr angeheftet, keine überlappenden Zellen.
+
+**TS-204.8 Nachbesserung v1.99.84 (Gerald 2026-11-26)**
+Vorbedingung: Benutzer **ohne** gespeicherte Zahnrad-Einstellung für FA-Liste und FA-Struktur (sonst gilt dessen Einstellung).
+1. `/ProductionOrders` (IDEAL) → an der FA-Nummer kein Zeichen „HauptFA“ mehr; „mehrdeutig (Kombigerät)“ bleibt beim Kombigerät.
+2. `/FaHierarchy` → Spaltenfolge Struktur, Matchcode, **Arbeitsgänge**, Kunde …; „Bezeichnung“ ist nicht sichtbar.
+3. Ohne Querscrollen sind die Arbeitsgang-Kästchen mit Status zu sehen (Haken erledigt, Sanduhr läuft, Dreieck überfällig, Kreis offen).
+4. Zahnrad → „Bezeichnung“ einblenden → Spalte erscheint mit Werten; Seite neu laden → bleibt eingeblendet.
+5. Nach Matchcode keine graue senkrechte Linie mehr; beim Querscrollen bleiben Struktur und Matchcode trotzdem deckend stehen.
+- Negativ: Benutzer **mit** älterer gespeicherter Einstellung → seine Reihenfolge/Sichtbarkeit bleibt unverändert (Bezeichnung sichtbar, Arbeitsgänge hinten).
 
 **Negativfälle**
 - Benutzer ohne Tracking-Recht → `/FaHierarchy` verweigert (unverändert).
