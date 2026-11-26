@@ -1,7 +1,7 @@
 ---
 type: backlog
 typ: bug
-status: offen
+status: in-spec
 created: 2026-11-26
 quelle: "Gerald im Chat 2026-11-26: alle Befunde als Backlog, Spec nach der Schluss-QA von [[2026-11-26-buendel-1-lagerbestellung-goal-lauf]]"
 standort: AKE, IDEAL

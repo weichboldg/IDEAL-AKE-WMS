@@ -1,6 +1,6 @@
 ---
 type: aufgabe
-status: in-arbeit
+status: erledigt
 created: 2026-11-26
 worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"
 branch: "feature/2026-08-07-ideal-teile-1-5"
@@ -60,6 +60,8 @@ Start-Stand Worktree: v1.99.85 (c8814cdf), höchstes TS 206 (TS-205 reserviert f
   [[2026-11-26-lagerbestellung-artikelnummer-varianten]] (Spec 1 H-1..H-3), [[2026-11-26-kommissionierauftrag-filter-springt-auf-bom]] (Teil 3 Zusatzfund A),
   [[2026-11-26-kommissionierauftrag-liste-nachbesserungen]] (Teil 3 R-1..R-5).
 - **Nach der Schluss-QA (Teil 3) dieses Laufs: /spec für alle sieben** (Entwürfe nach specs/entwurf, Schranke 1 bleibt).
+- Erledigt 2026-11-26: alle sieben als Entwurf (ea1561ea Kommissionierauftrag, ee61fad3 Leitstand F-1..F-3, dazu Beschichtungsauftrag-Druck +
+  Lagerbestellung-Varianten), Backlog-Notizen `in-spec`; Rückfragen stehen in den Specs, warten auf Gerald (Schranke 1).
 
 ## Fuer spaetere Confluence-Uebernahme (geaenderte Kapitel)
 
