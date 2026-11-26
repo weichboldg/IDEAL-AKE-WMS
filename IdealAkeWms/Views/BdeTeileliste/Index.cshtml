@@ -114,7 +114,12 @@
                 if (!kind && z.Kinder.Count > 0)
                 {
                     <button type="button" class="btn btn-outline-secondary bde-touch ms-1 bde-tl-teile" data-bs-toggle="collapse" data-bs-target="[data-eltern='@i']"
-                            aria-expanded="@(z.Aufgeklappt ? "true" : "false")" aria-controls="@string.Join(" ", z.Kinder.Select((_, j) => $"kind-{i}-{j}"))">Teile (@z.Kinder.Count)<span class="bde-tl-teile-zeichen" aria-hidden="true"></span></button>
+                            aria-expanded="@(z.Aufgeklappt ? "true" : "false")" aria-controls="@string.Join(" ", z.Kinder.Select((_, j) => $"kind-{i}-{j}"))">Teile (@(z.KinderGesamt > z.Kinder.Count ? $"{z.Kinder.Count} von {z.KinderGesamt}" : z.Kinder.Count.ToString()))<span class="bde-tl-teile-zeichen" aria-hidden="true"></span></button>
+                }
+                else if (!kind && z.KinderGesamt > 0)
+                {
+                    @* v1.99.81 (Task 4b): Filter blendet alle Teile aus – sagen statt still weglassen *@
+                    <span class="small text-body-secondary ms-1">Teile: 0 von @z.KinderGesamt passen zum Filter</span>
                 }
                 else if (!kind)
                 {

@@ -95,18 +95,33 @@ public class BdeTeilelisteAgStatusTests
         var bg = d.Zeilen.Should().ContainSingle().Which;
         bg.Node.Matchcode.Should().Be("Baugruppe");
         bg.Aufgeklappt.Should().BeTrue();
-        bg.Kinder.Single(k => k.Treffer).Node.Matchcode.Should().Be("Kind eins");
-        bg.Kinder.Count(k => k.Treffer).Should().Be(1);
+        // v1.99.81 (Task 4b): nur das passende Kind bleibt, KinderGesamt fuer „1 von 2“
+        bg.Kinder.Should().ContainSingle().Which.Node.Matchcode.Should().Be("Kind eins");
+        bg.Kinder.Single().Treffer.Should().BeTrue();
+        bg.KinderGesamt.Should().Be(2);
+    }
+
+    // v1.99.81 (Task 4b, Gerald: Arbeitsbereich OG-01 an Baugruppe → darunter auch nur OG-01): Eltern passen, Kinder werden trotzdem gefiltert
+    [Fact]
+    public void Filter_ElternTreffer_NurPassendeKinder_NichtAufgeklappt()
+    {
+        var d = BdeTeilelisteService.Bauen(Baugruppe(), Array.Empty<FaHierarchyOrderInfo>(), "KA", Array.Empty<BdeTeilMeldung>(), KeineAuftraege,
+            null, false, new Dictionary<string, string> { ["arbeitsschritte"] = "KA" });
+
+        var bg = d.Zeilen.Single(z => z.Node.Matchcode == "Baugruppe");
+        bg.Kinder.Should().ContainSingle().Which.Node.Matchcode.Should().Be("Kind zwei", "Kind eins hat nur LA");
+        bg.KinderGesamt.Should().Be(2);
+        bg.Aufgeklappt.Should().BeFalse("die Baugruppe passt selbst, Kinder sind keine Treffer");
     }
 
     [Fact]
-    public void Filter_ElternTreffer_NichtAufgeklappt_KeinTreffer()
+    public void Filter_ElternTreffer_KeinKindPasst_KinderLeer()
     {
         var d = BdeTeilelisteService.Bauen(Baugruppe(), Array.Empty<FaHierarchyOrderInfo>(), "KA", Array.Empty<BdeTeilMeldung>(), KeineAuftraege,
             null, false, new Dictionary<string, string> { ["matchcode"] = "Baugruppe" });
 
         var bg = d.Zeilen.Should().ContainSingle().Which;
-        bg.Aufgeklappt.Should().BeFalse();
-        bg.Kinder.Should().HaveCount(2).And.OnlyContain(k => !k.Treffer);
+        bg.Kinder.Should().BeEmpty();
+        bg.KinderGesamt.Should().Be(2, "die View meldet „0 von 2 passen zum Filter“");
     }
 }

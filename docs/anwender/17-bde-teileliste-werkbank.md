@@ -105,7 +105,9 @@ z. B. `erledigt`, `überfällig` oder ein Kürzel. Lagerbestell-Zeilen zeigen di
 hinterlegte Zeilen (mit „↳“) auf – mit allen Spalten inkl. AG-Status, aber **nur zum Ansehen** (kein Haken, kein Melden). Beim Sortieren
 bleiben die Teile unter ihrer Baugruppe; das Zahnrad blendet Spalten auch in den Teilen aus.
 Trifft ein Spaltenfilter (z. B. Matchcode) nur ein Teil, erscheint die Baugruppe **aufgeklappt** und das Teil hat links einen dunklen Balken
-und das Zeichen **◆ Treffer**.
+und das Zeichen **◆ Treffer**. Seit 1.99.81 zeigt ein aktiver Spaltenfilter auch unter einer passenden Baugruppe nur die Teile, die
+selbst passen (z. B. Arbeitsbereich OG-01 → nur OG-01-Teile); der Knopf heißt dann **Teile (1 von 3)**, passt keines:
+„Teile: 0 von 3 passen zum Filter“.
 
 **Am Handy (schmaler als 992 px, seit 1.99.73):**
 

@@ -14711,8 +14711,11 @@ Kürzel IF.
 
 **TS-202.5 Abteilung filtern und Werkbank wechseln (Task 4b)**
 1. IDEAL, Teile Summiert: Spaltenfilter Abteilung auf einen vorhandenen Wert (DEV IDEAL z. B. „FKV“) → nur Zeilen dieser Abteilung, auch
-   Baugruppenzeilen und aufgeklappte Aufträge; Teile Einzeln und FA-Sicht gleich. **Offen:** der ursprünglich gemeldete Fehler war im Code nicht
-   nachzustellen – bitte mit dem konkreten Wert aus der Meldung wiederholen.
+   Baugruppenzeilen und aufgeklappte Aufträge; Teile Einzeln und FA-Sicht gleich.
+1a. Teile Einzeln, Baugruppe mit Teilen in verschiedenen Arbeitsbereichen (IDEAL-Testsystem z. B. A-TUER-A-385-705-SW-V01, FA 1069494:
+   OG-01, Teile S-01/S-01/OG-01): Spaltenfilter Arbeitsbereich = OG-01 → Baugruppe sichtbar, Knopf „Teile (1 von 3)“, aufgeklappt nur
+   A-Z-TUER-SCHARNIER-BEILAGE-100-V01. Negativ: Filter, den kein Teil erfüllt (Matchcode = Name der Baugruppe) → „Teile: 0 von 3 passen
+   zum Filter“, kein Knopf. Ohne Filter → „Teile (3)“ wie bisher.
 2. BDE-Admin: Auswahl „Werkbank“ im Kopf → W2 → Seite von W2, Werker bleibt angemeldet, gemerkter Filter je Werkbank.
 3. Werker ohne Admin-Recht: Auswahl „Werkbank“ ist da, Wechsel → Personalnummer-Eingabe der neuen Werkbank (wie vor 1.99.81, Werker nicht
    übernommen).

@@ -60,7 +60,9 @@ public sealed class TeilelisteZeile
     /// <summary>E3-1: Vorgabe Gut bei "Fertig" = Soll - gemeldet, mindestens 0.</summary>
     public decimal Rest => Math.Max(0, Node.Sollmenge - Gemeldet);
     /// <summary>v1.99.73 (E1-2): direkte Kinder einer Baugruppe als eigene Zeilen (nur Anzeige, dieselben Getter wie die Eltern).</summary>
-    public IReadOnlyList<TeilelisteZeile> Kinder { get; init; } = Array.Empty<TeilelisteZeile>();
+    public IReadOnlyList<TeilelisteZeile> Kinder { get; set; } = Array.Empty<TeilelisteZeile>();
+    /// <summary>v1.99.81 (Task 4b): Anzahl Kinder vor dem Spaltenfilter (Hinweis „x von y“, wenn der Filter Teile ausblendet).</summary>
+    public int KinderGesamt { get; set; }
     /// <summary>v1.99.73 (E1-1): AG-Status je Arbeitsschritt-Token (WorkOperation oder Teilmeldung); ohne Lauf neutral.</summary>
     public IReadOnlyList<FaArbeitsschrittSymbol> Arbeitsgaenge { get; init; } = Array.Empty<FaArbeitsschrittSymbol>();
     /// <summary>v1.99.73 (E1-3): Kinderzeile traf den Spaltenfilter (die Eltern selbst nicht oder ebenfalls).</summary>
@@ -435,14 +437,21 @@ public class BdeTeilelisteService
 
         // E1-3: Eltern bleiben, wenn sie selbst ODER ein Kind passt. Kind-Treffer nur, wenn die Eltern selbst nicht passen (sonst
         // waere z. B. ein Haupt-FA-Filter an jedem Kind ein „Treffer“); Pagination zaehlt weiter nur Elternzeilen.
+        // v1.99.81 (Task 4b, Gerald): auch unter einer passenden Baugruppe nur die Teile, die selbst passen (Arbeitsbereich OG-01
+        // → nur OG-01-Teile); KinderGesamt haelt fest, wie viele es ohne Filter waeren.
         var typen = ColumnFilterTypes.For("BdeTeileliste/Index");
         if (ColumnFilterHelper.HasAny(colf, typen))
         {
             var liste = zeilen.ToList();
             var passt = ColumnFilterHelper.Apply(liste.Concat(liste.SelectMany(z => z.Kinder)), colf, SpaltenZeile(kopf, beschichtet, zusatz), typen)
                 .ToHashSet(ReferenceEqualityComparer.Instance);
-            foreach (var z in liste.Where(z => !passt.Contains(z)))
-                foreach (var k in z.Kinder) k.Treffer = passt.Contains(k);
+            foreach (var z in liste)
+            {
+                z.KinderGesamt = z.Kinder.Count;
+                z.Kinder = z.Kinder.Where(passt.Contains).ToList();
+                if (!passt.Contains(z))
+                    foreach (var k in z.Kinder) k.Treffer = true;
+            }
             zeilen = liste.Where(z => passt.Contains(z) || z.Aufgeklappt);
         }
 
