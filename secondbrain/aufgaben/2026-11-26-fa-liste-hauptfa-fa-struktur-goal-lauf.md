@@ -66,4 +66,4 @@ letztes Paket 21. Main-Tag `backup/main-vor-fa-liste-hauptfa-2026-11-26` (d653b9
 ## Offen fuer Gerald (Schranke 2)
 
 - Manual-UAT TS-203 + TS-204 (Kontrast, echtes Blaettern mit `mitTeilen`, Einzahl „1 Teil“, rekursive Filtersuche), dann EIN Merge.
-- Manual-UAT TS-204.8 (v1.99.84). Teil 1: Q-2 erledigt (Zeichen entfernt, v1.99.84); Q-4 Auftraege mit erledigtem HauptFA fallen ohne Banner weg (fachlich bestaetigen); Q-5 „1 Auftraege“ ohne Einzahl; Q-9 Antwortzeit auf dem Testsystem (Ziel < 3 s).
+- Manual-UAT TS-204.8 (v1.99.84). Teil 1: Q-2 erledigt (Zeichen entfernt, v1.99.84); Q-4 erledigt: Gerald 2026-11-26 „passt so“ (Auftrag mit erledigtem HauptFA faellt ohne Banner weg, bewusst); Q-5 „1 Auftraege“ ohne Einzahl; Q-9 Antwortzeit auf dem Testsystem (Ziel < 3 s).

@@ -654,3 +654,9 @@ GROUP BY CASE WHEN hps.HasCoatingParts = 1 THEN N'HauptFA hat eigene Lackteile (
   Für x.6/x.6b braucht es per Schalter angelegte Testdaten. Dabei entstehen echte Statusänderungen auf dem Testsystem, nicht auf Prod.
 
 NACHBESSERUNG NOETIG: B-1 (Lack-T erledigt an Sub-FAs nur noch über „Sub-FAs anzeigen“ – Häufigkeit mit P-5 klären, 9 (b) bestätigen); S-1 Abgrenzung „HauptFA erledigt“ bestätigen.
+
+**Antworten Gerald 2026-11-26 (Chat) zur Kritischen Prüfung:**
+- B-1: „Bei 9 (b) bleiben“ – W3-Zelle gesperrt mit „Lackteile nur an Sub-FAs“, erledigt wird über „Sub-FAs anzeigen“; kein
+  Sammel-Schreibweg. Hilfetext und Manifest-Info sagen das ausdrücklich.
+- S-1: „Ja, passt so“ – ist die HauptFA-Zeile erledigt, fertig kommissioniert oder storniert, ist der Auftrag für den Leitstand
+  erledigt; kein Banner (bewusste Abgrenzung, gleich wie Q-4 der FA-Liste).
