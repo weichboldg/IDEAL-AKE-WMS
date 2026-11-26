@@ -1,6 +1,6 @@
 ---
 type: backlog
-status: offen
+status: in-spec
 created: 2026-11-26
 quelle: Walter (IDEAL), weitergeleitet von Gerald im Chat 2026-11-26; Prüfung gegen idealweb01:88 (v1.99.81)
 ---
