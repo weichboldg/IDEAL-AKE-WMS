@@ -99,7 +99,7 @@ Wichtige Verhaltensregeln, die in Repositories stecken (Details in [[fallstricke
 | `OseonSyncService.cs` | OSEON → Auftraege, AGs, Artikelkategorien | `Sync:OseonTrackingEnabled`, `Sync:OseonArticleCategoryEnabled` |
 | `EnaioDmsSyncService.cs` | enaio-View → `EnaioDmsDocuments` (Full-Sync, kein Delta) | `Sync:EnaioDmsEnabled` |
 | `BomCacheSyncService.cs` | Stueckliste → `CachedBomHeader`/`CachedBomItem` (**raw SQL**); **beide** Einstiege (`SyncBomCacheAsync`, `SyncSpecificArticleNumbersAsync` aus `SageImportService`) | `Sync:BomCacheEnabled` + **Klasse-D-Gate** (Master `true` → Skip, v1.36.0) |
-| `CoatingDetectionService.cs` | BOM-Cache → `HasCoatingParts` (AKE-Heuristik: Artikelkategorie = `LackierteilKategorieName`) | `Sync:CoatingDetectionEnabled` + **Klasse-D-Gate** |
+| `CoatingDetectionService.cs` | BOM-Cache → `HasCoatingParts` (AKE-Heuristik: Artikelkategorie = `LackierteilKategorieName`) | `Sync:CoatingDetectionEnabled` + **Klasse-D-Gate**; seit v1.99.25 nur bei effektiver Kennzeichen-Quelle Artikelkategorie (`IHierarchicalModeReader.GetBeschichtungQuellenAsync` → `BeschichtungResolver.ResolveQuellen`), sonst Counts `uebersprungen_quelle_fastruktur`. Der Sage-Import-Hook (`SageImportService.NeueAuftraegeHookAsync`) braucht seit v1.99.25 ebenfalls `CoatingDetectionEnabled`. FA-Materialisierung schreibt das Flag nur bei Quelle FaStruktur, mit Audit `ModifiedBy = "FaMaterialization"` ([[0028-beschichtungsquelle-je-achse-ueber-appsettings-mit-automatisch]]) |
 | `FaWorkStepDetectionService.cs` | BOM-Cache → `FaWorkSteps` (nur-hinzufuegend; AKE-Heuristik: `Bezeichnung`-Contains) | `Sync:FaWorkStepDetectionEnabled` + **Klasse-D-Gate** |
 | `ProductionWorkplaceSyncService.cs` | Sage `KHKPpsArbeitsplaetze` → `ProductionWorkplace` (**legt Werkbaenke an**, Sage fuehrend fuer Nummer/Name/Kuerzel; Abweichung nachziehen+melden; Reader `SageArbeitsplatzReader`, raw ADO.NET); seit v1.63.0 kennzeichnet `SageMissingSince` (Nummer nicht mehr in der Quelle, rohe Zeilen, Empty-Guard, selbstheilend, nie loeschen; Counts `nicht_in_sage`, `nicht_in_sage_neu`, `wieder_in_sage`) | Doppel-Gate `ProduktionsauftragHierarchisch` + `Sync:ProductionWorkplaceSyncEnabled` (beide im `SyncWorker`) — v1.44.0 |
 | `OperationConfigSyncService.cs` | Sage-View (`Sync:OperationConfigSyncViewName`, Spalten `Arbeitsgangnummer, Bezeichnung, AG`) → `OperationConfigs` (**legt nur an**: Offset 0, Quelle `Sage`; nie ueberschreiben/loeschen; einzige Bestandsaenderung Quelle `Manual` → `Sage`; Kennzeichnung `SageMissingSince` fuer Quelle ≠ `ExternalSystem`; je Eintrag speichern, `DbUpdateConcurrencyException` = Warnung + `fehler`). Reader `SageArbeitsplatzReader` wiederverwendet, reine Entscheidung `Plan(...)` | EIN Gate `Sync:OperationConfigSyncEnabled` (kein Master), Block nach der Werkbank-Anlage — v1.61.0, standortneutral |
@@ -324,7 +324,7 @@ Quellen-Weiche je Abgleich: [[0019-quellen-weiche-view-sdata-je-abgleich]]. Ordn
 | Lagerplätze | `ISageLagerplatzReader` | `SageLagerplatzReader` | `SdataLagerplatzReader` | `LagerplatzQuelleSwitch` / `Sync:Quelle:Lagerplaetze` |
 | Lagerbestand | `ISageBestandReader` | `SageBestandReader` | `SdataBestandReader` | `BestandQuelleSwitch` / `Sync:Quelle:Lagerbestand` |
 | Artikel | `ISageArtikelReader` (neu, aus `SageImportService`) | `SageArtikelReader` | `SdataArtikelReader` | `ArtikelQuelleSwitch` (gesperrt P-R1) / `Sync:Quelle:Artikel` |
-| FA-Struktur | `ISageFaStrukturReader` (neu, aus `FaHierarchySyncService`) | `SageFaStrukturReader` | `SdataFaStrukturReader` (Kanten + Positionen) | `FaStrukturQuelleSwitch` (gesperrt P-F2) / `Sync:Quelle:FaStruktur` |
+| FA-Struktur | `ISageFaStrukturReader` (neu, aus `FaHierarchySyncService`) | `SageFaStrukturReader` | `SdataFaStrukturReader` (Kanten + Positionen; seit v1.99.26 Knotenfelder `FelderSetzen`, Köpfe `FaKoepfeLesenAsync` über `dtsFaBelegsuche`) | `FaStrukturQuelleSwitch` (Hybrid `HybridAsync`, RealTimeData nur im Vergleich `RealTimeDataErlaubt`; Umschalten gesperrt bis P-FS3, `SageQuelleSperre`) / `Sync:Quelle:FaStruktur` |
 | Werkbank + Arbeitsgang | `ISageArbeitsplatzReader` | `SageArbeitsplatzReader` | `SdataArbeitsplatzReader` | `ArbeitsplatzQuelleSwitch` / `Sync:Quelle:Arbeitsplaetze` |
 | Lagerbuchungs-Lookup | `ISageBuchungLookupReader` | `SageBuchungLookupReader` | `SdataBuchungLookupReader` | `BuchungLookupQuelleSwitch` / `Sync:Quelle:LagerbuchungLookup` |
 
@@ -336,8 +336,274 @@ Quellen-Weiche je Abgleich: [[0019-quellen-weiche-view-sdata-je-abgleich]]. Ordn
   - `StillstandsgruendeSyncService` (`Sync:StillstandsgruendeEnabled`, `StillstandsgruendeSync`; Counts gelesen, neu, aktualisiert, unveraendert, uebersprungen, nicht_in_sage, nicht_in_sage_neu, wieder_in_sage).
   - `KontokorrentSyncService` (`Sync:KreditorenEnabled`/`Sync:DebitorenEnabled`, `KontokorrentSync`, Läufe Kreditoren/Debitoren, `where KtoArt eq 'K'|'D'`; Counts gelesen, neu, aktualisiert, verknuepft, unveraendert, uebersprungen, nicht_in_sage, nicht_in_sage_neu, wieder_in_sage, moegliche_dubletten).
   - `ArtikelLieferantSyncService` (`Sync:ArtikelLieferantEnabled`, `ArtikelLieferantSync`, nach Artikel; Counts gelesen, neu, aktualisiert, unveraendert, entfernt, hauptlieferant, artikel_fehlt, kreditor_fehlt, uebersprungen).
-  - `EinkaufBestellungenSyncService` (v1.84.0, `Sync:EinkaufBestellungenEnabled`, Lauf „Offene Bestellungen (Sage)“ = `SyncLogServices.EinkaufBestellungen`, nach Artikel-Lieferanten; nur `EinkaufPositionenInfo where Belegkennzeichen eq 'EBB'`; Counts positionen, koepfe, uebernommen, belegart_ausgeschlossen, artikel_fehlt, kreditor_fehlt, lagerplatz_fehlt, einheit_abweichend, lieferant_gesperrt, uebersprungen; Empty-Guard).
+  - `EinkaufBestellungenSyncService` (v1.84.0, `Sync:EinkaufBestellungenEnabled`, Lauf „Offene Bestellungen (Sage)“ = `SyncLogServices.EinkaufBestellungen`, nach Artikel-Lieferanten; nur `EinkaufPositionenInfo where Belegkennzeichen eq 'EBB'`; **seit v1.99.15 zwei Abfragen EBB + EBZ** (Rahmenabrufe, [[2026-11-11-wareneingang-teil-3-rahmenabrufe-spec]]), Empty-Guard je Belegart, zusätzliche Counts `positionen_ebb`, `positionen_ebz`; Counts positionen, koepfe, uebernommen, belegart_ausgeschlossen, artikel_fehlt, kreditor_fehlt, lagerplatz_fehlt, einheit_abweichend, lieferant_gesperrt, uebersprungen; Empty-Guard). **Seit v1.99.33** nach dem Empty-Guard `KoepfeAsync`: GET `dtsEKBelegMst.Sage.Wawi` (`KHKEKBelege_USER_AB`, `KHKEKBelege_USER_Kom`, `where` nur `BelID` in 50er-OR-Blöcken, `orderBy BelID`), Zuordnung über `BelID`; Counts `ab_nummer`, `kommission`, `kopf_ohne_treffer`, `kopf_zu_lang`; Feld fehlt / Lesefehler (Werte vom letzten Lauf) / zu lang → Warnung.
 - G10: Lagerplatz-/Lagerbestand-Abgleich mailen Lesefehler nur bei Quelle SData/Vergleich (View wie bisher ohne Mail).
 - Umbuchung: `SageLagerbuchungUmbuchungAktiv` (Default false); einzige Typliste `SageBookingEnqueueDecision` (`BookableTypes`, `Buchungsart`,
   `IstUmbuchungMitFaBezug`); Nacherfassung `EnqueueMissingAsync(..., umbuchungAktiv)`.
 - Outbox `SageStammdatenOutbox` ohne Worker (G5); `LagerplatzSyncService` übernimmt manuelle Plätze mit Übergabe Offen/Fehler bei gleichem Code.
+
+## Sage-Wareneingang (v1.99.4, [[2026-11-08-wareneingang-teil-2-sage-we-beleg-rahmenabrufe-spec]])
+
+- `SageWareneingangService.RunOnceAsync` (Dienst), aufgerufen als eigener Schritt im `SageBookingWorker`-Takt, Gate **nur**
+  `SageWareneingangBelegAktiv` (ServiceSetting, Default aus, AKE). Eine Gruppe (`SageWeVorgang`) = ein POST `$service/StandardBelegService`
+  (`SageWareneingangClient`, Payload `SageWareneingangPayloadBuilder`, Belegübernahme EBB → ELL). Status vor dem POST auf Gesendet (+1 Versuch),
+  Erfolg → Uebergeben + Belegnummer, Fehler bleibt (Variante B, kein Auto-Retry), haengend nach `Sync:SageLagerbuchungStuckMinutes` → Fehler
+  „Ergebnis unklar“. Aktivitaets-Protokoll `SageWareneingang` („Sage-Wareneingang“), Counts `gesendet`, `uebergeben`, `fehler`, `unklar`; kein
+  Lauf-Eintrag ohne Arbeit. Antwort kommt als SData-Atom-XML (Schreibtest 2026-11-12).
+- **v1.99.9 `Sync:SageSystemKuerzel`** (String, Default leer, Kategorie „Sage-Lagerbuchung“, beide Standorte; Format `^([A-Z][A-Z0-9]{0,4})?$`,
+  Serverprüfung `SettingDefinition.Muster`): System-Kürzel der Memo-Kennungen `WE#<K>#<Id>#` (Sage-Wareneingang) und `SM#<K>#<id>#`
+  (Sage-Lagerbuchung). Leer = altes Format (Produktion). Gelesen vom `SageBookingWorker` je Takt **ohne** Safe-Fallback
+  (`SageSystemKuerzel.Pruefen`, ungültig → Takt bricht ab) und von der Liste „Sage-Wareneingänge“ (Spalte Memo). Verwendete Kennung gespeichert in
+  `PurchaseOrderReceipts.SageWeKennung` / `SageBookingQueueItems.SageKennung` (SQL/144); Regel `SageWareneingang.Kennung` /
+  `SageBookingCorrelation.Kennung`. DEV-Absicherung setzt `DEV`. [[2026-11-12-v1-99-9-sage-system-kuerzel]]
+
+- **v1.99.31 Anstoß „Offene Bestellungen“ nach Übergabe** ([[2026-11-16-offene-bestellungen-sofort-neu-lesen-einkauf-kw-filter-spec]]):
+  `RunOnceAsync` gibt die Zahl übergebener Belege zurück (0 ohne Arbeit); der `SageBookingWorker` summiert sie und ruft nach dem
+  Sage-WE-Schritt `AnstossOffeneBestellungenAsync` → `EinkaufBestellungenSyncService.TryRunExclusiveAsync(dryRun, anlass)`. Entscheidung
+  `SageBookingWorker.AnstossEntscheidung(offen, minuten, gateAn, letzter, jetzt)`: 0 Belege nichts; `minuten <= 0` oder Gate aus verwirft; sonst
+  sofort bzw. nach Ablauf des Fensters. Key **`Sync:EinkaufBestellungenNachWeMinuten`** (Int, Default 2, 0–60, Kategorie „Sage-Abgleich
+  (SData)“, Standort AKE). Gates `Sync:EinkaufBestellungenEnabled` + `WorkerSettings:SyncDryRun`. **Sperre:** `static SemaphoreSlim` in
+  `EinkaufBestellungenSyncService` – `RunAsync` wartet, `TryRunExclusiveAsync` liefert false (Anstoß bleibt offen). Info-Zeile „Anlass: …“ im
+  Lauf „Offene Bestellungen (Sage)“; Fehler → Warnungslauf unter `SageWareneingang`, Reset, der reguläre Lauf holt nach.
+
+## Lieferverzug-Mails (v1.99.10, [[2026-11-12-offene-bestellungen-mahnmail-lieferverzug-spec]])
+
+- Lauf im `SyncWorker` direkt nach „Offene Bestellungen (Sage)“, Gate `Lieferverzug:MailAktiv` (Default aus), `RunResilientAsync("Lieferverzug-Mails")`.
+  Aktivitaets-Protokoll `SyncLogServices.LieferverzugMail` („Lieferverzug-Mails“). Quelle nur der Cache `SagePurchaseOrderLines`, schreibt nie nach Sage.
+- Dateien (`IDEALAKEWMSService/Services/`): `LieferverzugPlaner.cs` (reiner Helper: Zeitfenster Mo–Fr ab Stunde, Faelligkeit `heute >= Termin + N` und
+  Rest > 0, Statuskette Kreditor-Mails aus → kein Kreditor → gesperrt → inaktiv → abgeschaltet → keine/ungueltige Adresse → Stand > 24 h → Wiederholung
+  je (BelPosId, Liefertermin) → Testbetrieb/gesendet, Grenze je Lauf alle-oder-keine), `LieferverzugMailHtml.cs` (Kreditor-Mail DE+EN, Einkauf-Liste,
+  CI je `Lieferverzug:Standort`, Text-Teil), `LieferverzugMailService.cs` (Ablauf, `LesenAsync` = Einstellungen DB-first, Protokollzeilen nur nach
+  `true` vom Mailservice, sofort gespeichert). Counts `faellig`, `kreditoren`, `einkauf_gesendet`, `kreditor_gesendet`, `testbetrieb_umgeleitet`,
+  `kreditor_geplant` (DryRun), `ohne_adresse`, `abgeschaltet`, `gesperrt`, `kein_kreditor`, `inaktiv`, `nicht_dran`, `ausgesetzt`, `nicht_gesendet`,
+  `fehler`. Kein Lauf-Eintrag ohne Arbeit oder ausserhalb des Zeitfensters.
+- „Einmal am Tag“ = irgendeine `PurchaseOrderReminders`-Zeile mit `SentAt` heute (nicht Arbeitsspeicher). Wiederholung zaehlt nur Zeilen des aktuellen
+  Modus (`Testbetrieb` = Einstellung): Testbetrieb simuliert die Wiederholung, der Echtbetrieb beginnt danach frisch (Grenze je Lauf faengt die Welle).
+- Rest-Regel: `ErfasstJeBelPos.Rest(mengeOffen, syncedAt)` / `RestAus` – dieselbe Funktion wie `PurchaseOrderReceiveRow.Rest`. Dafuer ist
+  `IPurchaseOrderReceiptRepository` jetzt auch im Dienst registriert.
+- `IMailService.SendMitOptionenAsync(MailNachricht)` (Absender, Reply-To, eingebettete Bilder per CID, liefert `false` bei stillem Ueberspringen); die
+  alte `SendAsync` delegiert an denselben Kern. **`MailSettings:PickupDirectory`** (appsettings, nur DEV/QA): Mails als `.eml` in den Ordner statt SMTP,
+  hat Vorrang vor `SmtpHost`. Logo `Branding/IDEAL_AKE_Logo_rgb_klein.jpg` als EmbeddedResource `IdealAkeLogo.jpg` im Dienst-Projekt.
+- Adressregel EINMAL: `IdealAkeWms/Services/MailAdressen.cs` (`IstGueltig` = nackte Adresse, `Liste` = Komma/Semikolon/Zeilenumbruch) – genutzt von
+  `SettingValidator` (neuer Kenner `SettingDefinition.Mail` = `SettingMail.Eine|Liste`), `CreditorsController` (Erinnerungsadresse) und dem Planer.
+
+| Key | Typ | Default | Zweck |
+|---|---|---|---|
+| `Lieferverzug:MailAktiv` | Bool | `false` | Hauptschalter |
+| `Lieferverzug:TageNachTermin` | Int 0–60 | `3` | Kalendertage nach Liefertermin |
+| `Lieferverzug:Uhrzeit` | Int 0–23 | `7` | Versand ab Stunde, Mo–Fr |
+| `Lieferverzug:EinkaufAktiv` | Bool | `true` | Sammelliste an den Einkauf |
+| `Lieferverzug:EinkaufEmpfaenger` | String (Mail-Liste) | (leer) | Empfaenger der Sammelliste und der Testbetrieb-Mails |
+| `Lieferverzug:KreditorAktiv` | Bool | `false` | Erinnerung an Kreditoren |
+| `Lieferverzug:Testbetrieb` | Bool | `true` | Kreditor-Mails an den Einkauf umleiten |
+| `Lieferverzug:KreditorWiederholTage` | Int 1–60 | `7` | Wiederholabstand je Position |
+| `Lieferverzug:KreditorTageNachTermin` | Int 0–60 | `3` | ab v1.99.19: Kreditor-Schwelle; wirksam = Maximum mit `TageNachTermin` |
+| `Lieferverzug:MaxAlterTage` | Int 0–3650 | `180` | ab v1.99.19: ältere Positionen (EBB+EBZ) nicht an Kreditoren, sondern „Zu klären“ in der Sammelliste; 0 = keine Grenze |
+| `Lieferverzug:KreditorMitRahmenabrufen` | Bool | `false` | ab v1.99.19: EBZ-Positionen auch an Kreditoren (sonst nur Sammelliste) |
+| `Lieferverzug:KreditorMaxJeLauf` | Int 1–500 | `30` | Grenze echter Kreditor-Mails je Lauf (Warnung + Fehlermail) |
+| `Lieferverzug:KreditorAbsender` | String (eine Mail) | (leer = `MailSettings:FromAddress`) | Absender der Kreditor-Mail (Freigabe-Antwort 7) |
+| `Lieferverzug:AntwortAdresse` | String (eine Mail) | (leer = erste Einkauf-Adresse) | Reply-To der Kreditor-Mail |
+| `Lieferverzug:Standort` | Choice AKE/IDEAL | `AKE` | CI (Hausfarbe, Firmenadresse) |
+
+## Wareneingang-CSV (v1.99.11, [[2026-11-12-wareneingang-barcode-lieferschein-csv-export-spec]])
+
+- `WareneingangCsvService.RunOnceAsync(pfad, wiederholung)` (Dienst), eigener Schritt im `SageBookingWorker`-Takt **nach** dem Sage-WE-Schritt, in
+  eigenem `try`. Gate: derselbe gelesene Wert `SageWareneingangBelegAktiv` **und** `WareneingangCsvAktiv` (Safe-Lesen, Fehler = aus) **und**
+  `WareneingangCsvPfad` nicht leer. Legt je Sage-WE-Vorgang mit Barcode, dessen Receipts alle `Uebergeben` sind, eine Zeile in
+  `WareneingangCsvExporte` an (`system:wareneingang-csv`), schreibt höchstens 10 Dateien je Takt (`.tmp` → `File.Move` auf `.csv`, nie
+  überschreiben), wiederholt Schreibfehler nach Abstand bis zur Grenze; Kollision/ungültiger Barcode nie automatisch. **Seit v1.99.33** Name über `Dateiname(barcode, start, belegt)`: `<Barcode>.csv`, sonst
+  `<Barcode>_n.csv` (Start = Zeilen mit gleichem Barcode und `Datei`, belegt = `Datei` anderer Zeilen oder Datei im Ordner); `KollisionText`
+  entsteht nicht mehr, Altzeilen bleiben „nie automatisch“. Aktivitäts-Protokoll
+  `SyncLogServices.WareneingangCsv` („Wareneingang-CSV“), Counts `geschrieben`, `fehler`, Warnung je Fehler, kein Eintrag ohne Arbeit.
+- Gemeinsame Regeln Web/Dienst: `IdealAkeWms/Services/WareneingangCsv.cs` (Keys, Barcode-Regel, Pfad-Muster, Texte, `StatusText`, `Hinweise`).
+
+| Key | Typ | Default | Wirkung |
+|---|---|---|---|
+| `WareneingangCsvAktiv` | Bool | `false` | CSV-Übergabe an (wirkt nur mit `SageWareneingangBelegAktiv`), AKE |
+| `WareneingangCsvPfad` | String (Muster: leer oder UNC) | (leer = nichts) | Zielordner `\\server\freigabe[\ordner]` |
+| `Sync:WareneingangCsvMaxWiederholungen` | Int 0–10 | `3` | automatische Wiederholungen nach Schreibfehler |
+| `Sync:WareneingangCsvWiederholAbstandMinuten` | Int 5–1440 | `15` | Mindestabstand Fehler → Wiederholung |
+
+
+## Nachtrag 2026-11-14 (Wochenend-Lauf): Einkauf und Artikel-Lieferanten seit v1.99.19
+
+- **Letzte Bestellung (v1.99.21, SQL/148):** `IDEALAKEWMSService/Services/Sdata/ArtikelLieferantSyncService.cs`, Methode
+  `LetzteBestellungAsync` nach dem Hauptschritt des Laufs „Artikel-Lieferanten“ (Gate unveraendert `Sync:ArtikelLieferantEnabled`, kein eigener
+  Schalter). Liest SData `EinkaufPositionenAllInfo` (EBB und EBZ, `Belegdatum` ab heute minus 3 Jahre, `orderBy=BelPosId`, alle Seiten),
+  juengster Beleg je Artikel + `A0Empfaenger` (Datum↓, BelId↓, BelPosId↓), speichert `MengeBasis` in `ArticleSuppliers.LetzteBestellmenge`/
+  `LetzteBestellungAm`/`LetzteBestellungBeleg`. Kein Treffer = Werte geleert; Lesefehler oder 0 EBB = Warnung, Werte bleiben. Counts
+  `letzte_bestellung_*`. Laufzeit am AKE-Test ca. 5–6 min laenger (Q-3 in [[2026-11-13-v1-99-21-einkauf-letzte-bestellmenge]]).
+  **Seit v1.99.30 abgeloest:** eigener `IDEALAKEWMSService/Services/Sdata/LetzteBestellungSyncService.cs` (SyncLog-Service `LetzteBestellung`,
+  Aufruf im `SyncWorker` nach dem Artikel-Lieferanten-Lauf, `RunWennFaelligAsync`), nur zu `Sync:LetzteBestellungUhrzeitNacht` (3) /
+  `Sync:LetzteBestellungUhrzeitMittag` (12) je einmal pro Tag und Fenster, Gate weiter `Sync:ArtikelLieferantEnabled`. `MengeBasis <= 0` zaehlt
+  nicht. Bestellungen bei Lieferanten ohne Artikel-Lieferant-Zeile → `ArticleLastOrdersUnassigned`. Counts `positionen`, `positionen_ebz`,
+  `menge_null`, `gefunden`, `aktualisiert`, `geleert`, `lesefehler` ([[2026-11-16-v1-99-30-bestellvorschlaege-nachbesserung]]).
+- **Bedarfsregel (v1.99.30, Web):** `IdealAkeWms/Services/PlannedConsumptionService.cs` (`IPlannedConsumptionService.GetJeArtikelAsync`) – EINE
+  Stelle fuer Artikelinfo und Bestellvorschlaege: offene FAs (`!IsDone && !IsCancelled && !IsDonePicking`) mit Stuecklisten-Treffer
+  (`IBomCacheRepository.GetComponentMengePerDeviceAsync`, flach Menge × Quantity, hierarchisch Sollmenge), Rest = Soll − Ausbuchungen zum FA
+  (`IStockMovementRepository.GetAusbuchungenJeFaAsync`), je FA max(Rest, Bedarfsmeldungen), Artikel max(FA-Teil, Lagerbestellungen);
+  `EinkaufOffeneBedarfe` steuert Lagerbestellungen/Bedarfsmeldungen. `ArtikelBedarf.AngerechnetBis`/`NaechsterBedarf` fuer die Dringlichkeit.
+- **Bestellvorschlaege (v1.99.20, Web):** `IdealAkeWms/Services/PurchaseProposalCalculator.cs` – eine Rechenstelle: Fehlmenge F aus WMS-Bestand,
+  Sage verfuegbar, offenen Bedarfen (`EinkaufOffeneBedarfe`), offen bestellt (Cache `SagePurchaseOrderLines`, Rest-Regel `ErfasstJeBelPos.Rest`)
+  und Meldebestand; Menge V = (⌊F/L⌋+1)×L mit L = letzte Bestellmenge, ohne Bestellung in 3 Jahren Fallback `ArticleSageDetail.Bestellmenge`
+  (`HinweisFallback`), Aufrunden auf `Mindestbestellmenge` nur bei vergleichbarer Einheit und `UmrechnungsfaktorEK = 1`. Kein Schreibweg,
+  kein Dienst-Lauf. E5 (Dispo-Stapel, schreibt an Sage) blockiert.
+- **Lieferverzug Lief.-Art.-Nr. (v1.99.19):** `LieferverzugMailService`/`LieferverzugMailHtml` lesen `ArticleSupplier.SageBestellnummer` je
+  Artikel + Kreditor der Bestellung; ohne Lauf „Artikel-Lieferanten“ bleibt die Spalte leer. Abschnitt „Zu klären“ = `ZuKlaeren` des Plans
+  (Altersgrenze `Lieferverzug:MaxAlterTage`), Count `zu_klaeren`.
+- **Offene Bestellungen (Sage):** `IDEALAKEWMSService/Services/Sdata/EinkaufBestellungenSyncService.cs` (EBB + seit v1.99.15 EBZ); Belegnummer
+  seit v1.99.22 bis 45 Zeichen (SQL/149).
+
+## BDE-Teileliste (v1.99.32)
+
+- Web: `IdealAkeWms/Services/BdeTeilelisteService.cs` (Lesen, Melden mit applock, Rücknahme, Filter je Werker als `UserViewPreference`
+  `BdeTL:W{wp}:O{op}`); `BeschichtungResolver.BeschichtetPosition` für die Spalte „Beschichtet“.
+- Dienst: `WorkOperationStructureDetectionService` überspringt Blatt-Kürzel von Teileliste-Werkbänken, Count `teileliste_blatt_uebersprungen`.
+  Kein neuer ServiceSetting-Key.
+- v1.99.73 (AG-Status, [[2026-11-25-bde-masken-vereinheitlichung-spec]] Etappe 1): `IdealAkeWms/Services/FaAgStatusService.cs` lädt die
+  Arbeitsgang-Symbole an EINEM Ort (Namen immer, Status nur bei `BdeAktiv`) – genutzt von `FaHierarchyController` und `BdeTeilelisteService`
+  (dort je Haupt-FA flache Struktur, danach `TeilmeldungenAnwenden`: Teilmeldung = erledigt). Markup `Views/Shared/_FaAgSymbole.cshtml`.
+  `TeilelisteZeile.Kinder` sind Zeilen (Symbole, `Treffer`, `Aufgeklappt`).
+- v1.99.74 (Summiert, Etappe 2): `TeilelisteAggregat.Einzelzeilen` (FE-Termin aufsteigend) und `.Arbeitsgaenge` aus
+  `BdeTeilelisteService.AgAggregieren` (je Kürzel schlechtester Stand über `ArbeitsgangStatusRegel.Ableiten`, neutrale zählen nicht).
+  Statuszelle als Partial `Views/BdeTeileliste/_TeilStatus.cshtml` (Einzeln + Summiert-Unterzeilen); Summen-Haken-Kopplung in `bde-teileliste.js`.
+  Teilfertigmeldung (v1.99.75): `TeilelisteZeile.Meldungen`/`Abschluss`/`Gemeldet`/`Rest`, Mengenregel `MengenFuerArtOk` (Fertig Vorgabe Rest,
+  Teilfertig Gut > 0, Übermeldung = Hinweis), `MeldeAuftrag.Abschliessend`; Controller-Parameter `art` (`teil`/`fertig`); Baugruppe über
+  `BdeBookingService.ReportCompletionCoreAsync(..., istFinal)`. Bestätigungsfenster (`data-bestaetigen`) in `bde-teileliste.js` statt `confirm`.
+- v1.99.76 (FA-Sicht, Etappe 4a): Wirksamkeit an EINEM Ort `IdealAkeWms/Services/WerkbankKuerzelFamilie.cs` (`TeilelisteWirksam` ohne NurFA,
+  `SeiteVerfuegbar`, `TeileSichtVerfuegbar`, `TeileStandard` über `ProductionWorkplace.BdeStandardsichtTeile`). Zeilenquelle
+  `IdealAkeWms/Services/BdeFaAngebot.cs` (scoped, kein Interface): `LadenAsync` = Kern der Terminal-API `available-operations`,
+  `FaSichtAsync` = FA-Tabelle (eigene laufende als `LaeuftBeiMir`, AG-Status aller AG mit `Markiert`), `Spalten` = ColumnMap,
+  Typ-Register `ColumnFilterTypes.For("BdeTeileliste/Fa")`.
+- v1.99.78 (Etappe 5): `IdealAkeWms/Services/BdeTageshistorie.cs` (statisch) – Tageshistorie eines Werkers: Buchungen (nicht storniert, Start am Tag,
+  alle Werkbänke) + alle Teilmeldungen des Tages (Typ nach `IstAbschliessend`, FA und Lagerbestellung); an einer Meldung verknüpfte Buchung
+  (`BdeBookingId`) ausgeblendet. `Spalten` = Texte für View und Server-Spaltenfilter. Leser: `BdeTeilelisteController.Tageshistorie`.
+- v1.99.77 (FA-Sicht, Etappe 4b): `IdealAkeWms/Services/BdeKopfBuchungen.cs` (statisch) – laufende/pausierte Buchungen eines Werkers an EINEM
+  Ort für Terminal-JSON (`ActiveBookings`/`PausedBookings`) und Kopf der FA-Sicht (`BdeFaAngebot.KopfBuchungenAsync`). Dialoge
+  `Views/Shared/_BdeDialoge.cshtml`, Client `wwwroot/js/bde-fa-sicht.js` (bucht über `/BdeTerminal/*`). `BdeApiController.ResolveScan`
+  Parameter `faSicht` ignoriert `BdeNurFaMeldung` (G5).
+
+## OperationConfigSync: Sage-Arbeitsgangnummer (v1.99.27)
+
+- Schreibt `SageArbeitsgangnummer` nur aus der View-Quelle (Tabelle/SData: keine Nummer); Handwert nie. Neue Counts `nummer_gesetzt`,
+  `nummer_mehrdeutig`, `abweichung_hand`, `ohne_kuerzel`. Beschreibungen `Sync:ProductionWorkplaceSyncViewName` (liefert Arbeitsgänge) und
+  `Sync:OperationConfigSyncEnabled` korrigiert.
+
+## Blechfertigung (v1.99.35, [[2026-11-13-blechfertigung-bf-auftraege-wicam-csv-spec]])
+
+- **`BfCsvService`** (Dienst, Schritt im `SageBookingWorker`, eigener try, nicht an `SageWeAn` gebunden): schreibt je `Freigegeben` + CSV offen
+  bzw. fälliger Wiederholung `<Nummer>.tmp` → `<Nummer>.csv` (`overwrite:false`), höchstens 10 je Takt. Lauf `SyncLogServices.BfAuftragCsv`
+  „Blechfertigung: WiCAM-CSV“, Counts `geschrieben`, `fehler` (Kollision zählt als Fehler).
+- **`BfAuftragEmailService`** (Dienst, `SyncWorker`): Mail je abgeschicktem Auftrag an `BfEmpfaengergruppeId`; Lauf `BfAuftragEmail` „Blechfertigung: Mail“.
+- **Keys** (Kategorie „Blechfertigung WiCAM“, `ServiceSettingDefinitions.All`): `BfCsvAktiv`, `BfCsvPfad` (UNC), `Sync:BfCsvMaxWiederholungen` (3),
+  `Sync:BfCsvWiederholAbstandMinuten` (15), `BfCsvCreateNewOrder`, `BfCsvOrderPriority`, `BfCsvOrderRelease`, `BfCsvRemark1..3`,
+  `Sync:BfAuftragEmailEnabled`; dazu `Sync:BlechteileFelderNachlesen` (Artikel-Abgleich, V-B). AppSettings: `BlechfertigungAktiv`,
+  `BfEmpfaengergruppeId`, `BfStatuswerte`, `BfSchachtelterminArbeitstage`, `BfFeTerminArbeitstage`.
+
+## FA-Hierarchie-Abgleich (v1.99.37, [[2026-11-17-fa-struktur-abgleich-statt-full-replace-spec]], ADR [[0032-fa-struktur-abgleich-mit-lebenslauf-statt-full-replace]])
+
+- **`FaHierarchySyncService`** gleicht ab statt zu ersetzen; Planer `FaStrukturAbgleich` (rein). Sage-Zustand verschwundener FAs über
+  `ISageFaStrukturReader.FaStatusLesenAsync` (immer SQL `KHKPpsFaBelege`, auch bei Quelle SData; ohne Mandant-Filter bis P-AB4).
+  Positionen über `PositionenAbgleichenAsync` (statt `PositionenErsetzenAsync`), danach `AufraeumenAsync`. `IConfiguration` vor `ISyncLogger` im Ctor.
+- **Counts:** `neu`, `geaendert`, `wieder_da`, `verschwunden_beendet`/`_inaktiv`/`_unklar`, `entfernt_position`, `entfernt_in_sage`,
+  `schluessel_doppelt`, `verschwunden_gesperrt`, `sage_abfrage_fehler`, `positionen_neu`, `positionen_entfernt`, `aufgeraeumt`.
+- **Fehlermails** („FaHierarchy-Sync: …“): leerer View-Read, doppelte Schlüssel, Read ohne bisherige HauptFA, Sage-Abfrage fehlgeschlagen,
+  ungeklärt verschwundene Zeilen, FA-Positionen nicht abgeglichen.
+- **Key:** `Sync:FaStrukturAufbewahrungTage` (Kategorie FA-Hierarchie, Int, Default 90, 1–3650).
+- **Konsumenten:** `FaMaterializationSyncService` und `WorkOperationStructureDetectionService` lesen nur `VerschwundenSeit == null`;
+  `BdeTeilelisteService` setzt `TeilelisteZeile.Verschwunden` (nicht meldbar, `MeldeZeileAsync` weist ab). Schild `Views/Shared/_FaStrukturBadge.cshtml`.
+
+## Sage-FA-Arbeitsgänge anlegen (v1.99.38, IDEAL, [[2026-11-17-arbeitsgaenge-aus-wms-in-sage-fa-anlegen-spec]])
+
+- **`SageFaArbeitsgaenge`** (Web, `IdealAkeWms/Services/SageFaArbeitsgaenge.cs`): Vorschau je FA × Kürzel (`BuildVorschau`), Statusregeln,
+  Queue-Status (`QueueStatus`, `IstEinreihbar`), Keys und Texte (`UnklarText`, `AusText`, `BearbeiterFehlt`).
+- **`SageFaArbeitsgangService`** (Dienst, Schritt `ProcessSageFaArbeitsgaengeAsync` im `SageBookingWorker` nach BF-CSV, eigener try):
+  hängende „Gesendet“ → Fehler unklar; je FA (höchstens 50 je Takt) Sage lesen über `ISageFaStandLookup`/`SdataFaStandLookup`, dann je AG
+  POST über `SageFaArbeitsgangClient` (`$service/FertigungsauftragService`, ServiceOption 4). Lauf `SyncLogServices.SageFaArbeitsgaenge`
+  „Sage-FA-Arbeitsgänge“, Counts „Angelegt“/„Übersprungen“/„Fehler“, Fehlermail über `ISyncErrorNotifier`.
+- **Keys** (Kategorie „Sage-FA-Arbeitsgänge (IDEAL)“): `SageFaArbeitsgaengeAnlegenAktiv` (Bool, aus), `Sync:SageFaArbeitsgaengeBearbeiter`
+  (leer = nichts senden), `Sync:SageFaArbeitsgaengeMaxWiederholungen` (3, 0–10), `Sync:SageFaArbeitsgaengeWiederholAbstandMinuten` (15, 5–1440);
+  Hänge-Grenze `Sync:SageLagerbuchungStuckMinutes` (geteilt).
+
+## Sage-Benutzerfelder (v1.99.40, [[2026-11-18-sage-userfelder-als-einstellung-spec]], ADR [[0033-sage-benutzerfelder-als-einstellung]])
+
+- **Keys und Katalog:** `Sync:Userfeld:<Abgleich>:<Standardname>` (27 Keys), Katalog `IdealAkeWms/Services/SageSdata/SageUserfelder.cs`, Kategorien „Sage-Benutzerfelder: …“.
+- **Laden:**
+  - Dienst: `ServiceSettings.UserfelderSafeAsync` (eine Abfrage `LIKE 'Sync:Userfeld:%'`; bei Fehler gelten die Defaults).
+  - Web: `SageUserfelder.AusAsync`.
+- **Verwender:**
+  - `KontokorrentSyncService` (Kreditoren/Debitoren)
+  - `SdataArtikelReader` (Varianten + Blechteile-Nachlese)
+  - `EinkaufBestellungenSyncService` (Kopf, Präfix `KHKEKBelege_`)
+  - `SageArbeitsplatzReader` (Tabellen-SQL)
+  - `SdataFaStrukturReader` (Präfix `KHKPpsFaBelege_` + Artikel)
+- **404-Behandlung:** `SyncWorker.RunResilientAsync` erkennt HTTP 404 (`SdataLeseException.Status`) irgendwo in der Ausnahme-Kette, meldet es und überspringt den Schritt 24 h (`ResourceFehltPause`).
+
+## Entnahme-Platz und Bestandsregel (v1.99.53, [[2026-11-23-lagerbestellung-verbrauchsbuchung-bei-lieferung-spec]])
+
+- `Services/QuellLagerplatzVorschlag.Waehle` – unverändert aus `PickingController.QuellVorschlag` verschoben: Hauptlagerplatz mit Bestand > 0,
+  sonst Platz mit dem meisten Bestand, ohne Bestand `NAN`. Genutzt von Kommissionierung und Lagerbestellung. **Nicht** für den Wareneingang
+  (dort immer Hauptlagerplatz, v1.99.52).
+- `Services/AusbuchungBestandsregel.PruefeAsync` – eine Regel für Warenausgang und Lagerbestellung: `NegativeBuchungErlaubt` → Fehlbestand auf
+  `NegativeBuchungLagerplatz`, sonst Zeile abweisen.
+- Kein Dienst-Code geändert; die Sage-Entnahme läuft über den bestehenden Decorator → Queue → `SageBookingWorker`.
+
+## Sage-Buchungen Gesamtsicht und Sage-Referenz (v1.99.66–v1.99.69, Lauf [[2026-11-25-goal-lauf-beschichtung-sage-buchungen]])
+
+- `Services/SageBuchungenGesamtsicht.cs` (Web, **statisch**, DB-frei, v1.99.66, [[2026-11-23-sage-buchungen-gesamtsicht-spec]]): Enums
+  `SageBuchungAnzeige` (Wartet, Gesendet, Uebergeben, Fehler, Klaeren) und `SageBuchungHerkunft` (Einbuchung, Ausbuchung, Umbuchung,
+  Lagerbestellung, Wareneingang); `Anzeige(SageBookingQueueStatus)`/`Anzeige(SageWareneingangStatus)` (NichtNoetig/NurInSage = null, nicht anzeigen),
+  `Herkunft(StockMovement)` (Lagerbestellung vor Bewegungsart), `ErfasstVon` (Nacherfassung mit „(nacherfasst)“), `ImZeitraum` (bis = ganzer Tag),
+  `Build`, `MarkiereErsteJeVorgang` (WE-Knöpfe nur an der ersten Zeile eines Vorgangs), `Spalten` (Zelltexte für View **und** Server-Spaltenfilter).
+  `StandardTage = 30`.
+- Repository-Signaturen seit v1.99.66: `ISageBookingQueueRepository.GetForMonitoringAsync(DateTime von, DateTime? bis)` (Zeitraum + alle offenen,
+  statt Status-Parameter) und `IPurchaseOrderReceiptRepository.GetSageWareneingaengeAsync(string? bestellung, DateTime von, DateTime? bis)`
+  (ohne NichtNoetig/NurInSage, Übergebene nur im Zeitraum, Status filtert die Seite). `PurchaseOrdersController.SageWeListeAsync` entfällt.
+- `IDEALAKEWMSService/Services/SageReferenz.cs` (v1.99.68, statisch, [[2026-11-24-sage-buchung-referenz-benutzer-abteilung-spec]]):
+  `Kurz(kennung, abteilung, benutzer)` = `<Kennung> <Abteilung> <Benutzer>`, `ReferenzMaxLaenge = 31` (`KHKLagerplatzbuchungen.Referenz`
+  varchar(31)), am Ende gekürzt (erst Benutzer, dann Abteilung, Kennung nie); `Voll(kennung, benutzer, abteilung)` = `WMS: <Kennung> <Benutzer>[ Abteilung:<x>]`.
+- Lagerbuchungs-Payload (`SageLagerbuchungPayloadBuilder`): je Zeile `Referenz` = `Kurz`, `Memo` = `Voll`; das **Kopf-Memo bleibt unverändert**
+  `SageBookingCorrelation.Memo(kennung)` (Korrelation/Lookup). Benutzer und Abteilung kommen aus der Bewegung (`CreatedBy`, `Abteilung`), nie aus dem
+  Queue-Eintrag – Requeue/Recovery/Nacherfassung senden denselben Text.
+- Sage-WE-Kopf-Memo (`SageWareneingangPayload`): `WMS: WE#…# <Benutzer>` über `SageReferenz.Voll`, Benutzer aus `PurchaseOrderReceipt.CreatedBy`;
+  `WE#…#` bleibt enthalten, Memo-Suche und Wiedererkennung gültig.
+- Offen (P-2, nur Mensch am Sage-Testsystem): ob Sage die gesendete Zeilen-`Referenz` übernimmt (heute füllt Sage sie aus dem Kopf-Memo) und das Zeilen-Memo zeigt.
+
+## Beschichtungsauftrag-Workflow (v1.99.65/v1.99.67, [[2026-11-25-beschichtungsauftrag-vorschlag-ohne-auswahl-spec]])
+
+- `BeschichtungsauftragWorkflow.Entfernbar(status, verpackt)`: eine Regel für Server und Detailseite – Entfernen im Entwurf immer, in Übergeben nur
+  mit gespeichertem Haken „offen“. `AnlegenAsync` mit `auswahl` null/leer = alle freien Positionen, offen.
+- `PositionBezeichnung` (internal) seit v1.99.67 mit VaterFA: `Artnr (Pos. n, VaterFA v)`, ohne FA `(ohne FA)`. `BearbeitenAsync(…, ziel)` lehnt
+  Übergeben mit 0 verbleibenden Positionen vor dem Speichern ab.
+
+
+## Kommissionier-Nachtrag (v1.99.70, [[2026-11-25-kommissionierauftraege-nachtrag-nachts-spec]])
+
+- `IDEALAKEWMSService/Services/KommissionierNachtragService.cs`, SyncLog-Service `KommissionierNachtrag` („Kommissionier-Nachtrag“), Aufruf im
+  `SyncWorker` vor dem Lagerbestand-Schritt über `RunWennFaelligAsync(dryRun, jetzt)`: einmal je Tag ab `Sync:KommissionierNachtragUhrzeit`
+  (Int 0–23, Default 2), Gate `Sync:KommissionierNachtragEnabled` (Bool, Default an), Termin über den Startmerker „Run gestartet“
+  (`LetzteBestellungPlaner.Faellig`), verpasster Termin wird nachgeholt, DryRun läuft nie.
+- Je freigegebenem, offenem HauptFA ein eigener DI-Scope mit `PickingOrderWorkflow.ErzeugeOffeneAsync` (dieselbe Logik wie Freigabe und Leitstand-Knopf);
+  Fehler eines FA = Warnzeile + Zähler `fehler`, der Lauf geht weiter. Counts `fa_geprueft`, `fa_mit_nachtrag`, `auftraege_angelegt`, `zeilen_angelegt`,
+  `ohne_rest`, `altbestand_pruefen`, `ohne_stueckliste`, `fehler`, `stueckliste_kleiner`. Meldungen auf 1000 Zeichen gekürzt.
+- `ICurrentUserService` im Dienst = `IDEALAKEWMSService/Common/DienstBenutzer.cs` (Name `KommissionierNachtrag`, Rollenabfragen werfen
+  `NotSupportedException`); Registrierung über die statische `KommissionierNachtragService.Registrieren`.
+- `AddKommissionierauftraege` (`IdealAkeWms/Services/PickingOrderRegistrierung.cs`): EINE Registrierung des Kommissionierauftrags-Graphen
+  (Workflow, Repositories, BOM) für Web-`Program.cs`, Dienst und `BomDiResolutionTests` ([[fallstricke]] §65).
+
+## Lager-/Lagerplatz-Anlage in Sage (v1.99.71, [[2026-11-24-lagerplatz-anlage-wms-nach-sage-spec]], ADR [[0036-lagerplatz-anlage-in-sage-per-direkt-sql-hinter-austauschbarer-schnittstelle]])
+
+- Schritt im `SageBookingWorker` (`ProcessSageLagerplatzAnlageAsync`, eigenes try nach dem FA-AG-Schritt): nur bei `SageLagerplatzAnlageAktiv`
+  (Bool, Default false, **nicht** Safe gelesen); Stufe `SageLagerAnlageLagertechniken` (Choice `Aus`/`Mitschnitt`/`Alle`, Default `Aus`);
+  Hängend-Grenze `Sync:SageLagerbuchungStuckMinutes`. Mail nur beim Wechsel des technischen Fehlertexts (`MeldenBeimWechsel`, Merker
+  `_lpTechnischGemeldet`).
+- `IDEALAKEWMSService/Services/SageLagerplatzAnlageService.cs` (`RunOnceAsync` → technischer Fehlertext oder null), SyncLog-Service
+  `SageLagerplatzAnlage` („Lagerplätze → Sage“), ServiceActor `system:sage-lagerplatz-anlage`. Erst Lager (Outbox `StorageArea`), dann Plätze
+  (`StorageLocation`); Plätze eines nicht bestätigten Lagers warten und sind keine Arbeit; Lauf erst beim ersten Ergebnis geöffnet, je Lauf einmal
+  Info `Sage-Datenbank: <Server>/<DB>`. Counts `angelegt`, `vorhanden`, `fehler`, `uebersprungen`, `lager_angelegt`, `lager_vorhanden`, `lager_fehler`.
+- Schreibstelle `ISageLagerplatzAnlage` / `SqlSageLagerplatzAnlage` (SQL wörtlich aus der Spec, `SageConnection`, Mandant fest 1,
+  `IstTechnisch` = Fehlerklassen S3). Austauschstelle gegen einen künftigen SData-Service.
+- Web: `StorageLocationsController.CreateInSage` (GET/POST, `RequireMasterDataAccess`), `ErneutSenden`, `LagerErneutSenden`; Helfer
+  `IdealAkeWms/Services/SageLagerplatzAnlage.cs` (Keys, Stufen, Techniken, Code, Grenzen 200/9999); Repository `AddSageAnlageAsync`
+  (eine Transaktion bei relationaler DB), `ErneutSendenAsync`, `GetOffeneLagerUebergabenAsync`.
+- `LagerplatzSyncService.SyncStorageAreasAsync`: Lager mit Lager-Outbox ≠ Bestätigt werden nicht als fehlend markiert ([[fallstricke]] §66).

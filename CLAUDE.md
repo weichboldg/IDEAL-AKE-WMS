@@ -126,6 +126,24 @@ TESTBEREIT → **Schranke 2 (Mensch: manueller Test, dann Merge)** → GEMERGED.
 **Buendeln:** mehrere Specs bevorzugt in einem `/goal`-Lauf (`secondbrain/prompts/goal.md`,
 Befehl `/goal-run`) in einem Buendel-Worktree; Schranke 1 bleibt, ausser der Auftrag nennt eine
 Ausnahme ausdruecklich.
+**Geplanter Spec-Lauf:** Windows-Aufgabe „WMS Spec-Lauf Backlog“ (Mo–Do 08:10/13:10/18:10, Fr 08:10/13:10,
+nach der Jira-Sichtung) ruft `claude -p` mit `secondbrain/prompts/spec-lauf-backlog.md` im Buendel-Worktree auf:
+hoechstens 3 offene Backlog-Notizen ohne Spec (Bugfix zuerst) → Spec-Entwurf, Backlog `in-spec`; bei `jira:` ein
+Rueckfragen-Kommentar mit @Erwaehnung und Status RUECKFRAGE (ohne Fachbereichs-Fragen IN ARBEIT); Lauf-Notiz
+`aufgaben/<Datum>-spec-lauf-backlog-<HHMM>.md`. Nur Brain, keine Freigabe, kein Commit. Log `scripts/logs/`.
+
+**Definition of Done eines vollstaendigen Laufs** (`/goal-run`, `/dev` mit DEV-Deploy; Entscheid
+Gerald 2026-11-19):
+1. **Doku nachziehen:** `docs/anwender/` + `docs/betrieb/` — Stand-Version in `README.md` bzw.
+   `00-index.md`, betroffene Kapitel, Fotos per Playwright gegen DEV (nur ansehen, nichts buchen).
+   Ohne Doku-Nachzug ist der Lauf nicht fertig.
+2. **Confluence derzeit nicht** (Token-Verbrauch): in der Lauf-Notiz nur die geaenderten Kapitel
+   auflisten („fuer spaetere Confluence-Uebernahme“).
+3. **Paket auf die Shares** (nach bestandener QA und Publish): `publish\paket<N>-v<Version>.zip`
+   nach `\\AKENET01.ake.at\Installsourcen` und `\\IDEALWEB01.ideal.ideal-ake.at\InstallSourcen`
+   kopieren, danach Groesse + SHA-256 an beiden Zielen gegen das Original pruefen und in der
+   Lauf-Notiz festhalten. Auf den Shares nie loeschen oder ueberschreiben — existiert der Name
+   schon: abbrechen und melden. Kopieren scheitert (Rechte/Netz): melden, nicht umgehen.
 
 ## Harte Regeln
 
@@ -257,3 +275,5 @@ Danach `secondbrain/tests/testszenarien-index.md` nachziehen.
 - [ ] Neue Rolle/neuer Filter? Dann **drei** Stellen: Attribut,
       `secondbrain/codebase/controller.md`, `Views/Users/RoleOverview.cshtml`.
 - [ ] Unabhaengiges Code-Review (`qa-agent`) mit festgehaltenen Befunden in der Spec?
+- [ ] Vollstaendiger Lauf: Definition of Done erfuellt (`docs/anwender`+`docs/betrieb` mit Fotos,
+      Kapitelliste fuer Confluence in der Lauf-Notiz, Paket-ZIP auf beiden Shares mit SHA-256)?

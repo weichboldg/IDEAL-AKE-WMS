@@ -213,10 +213,15 @@ werden asynchron ueber eine Queue an die Sage-SData-REST-API gemeldet. Details:
 
 `SageSdataReadClient` (Web, typed HttpClient, Timeout 20 s) liest per `GET {SData:BaseUrl}/sdata/{SData:Application}/RealTimeData/{SData:Dataset}/…`
 die Quellen `dtsFaBelegsuche`, `dtsTeileverwendungsnachweis`, `dtsRueckKorrektur`, `dtsFertigmeldungen` — nur Anzeige, keine
-Persistenz. Contract `RealTimeData` ist Konstante (nicht `SData:ServiceContract`, der gehört der Lagerbuchung). Zugang aus
+Persistenz. **Seit v1.99.26** liest auch der Dienst `dtsFaBelegsuche` (FA-Köpfe, `USER_OS*`) – nur lesend und nur im Modus „Vergleich“
+von `Sync:Quelle:FaStruktur` ([[0029-fa-struktur-ideal-knoten-aus-sdata-fainfos-aus-view-hybrid]]); jede Abfrage mit `where` braucht `orderBy`. Contract `RealTimeData` ist Konstante (nicht `SData:ServiceContract`, der gehört der Lagerbuchung). Zugang aus
 `SageLagerbuchung:Username/Password` der **Web**-Konfiguration (`appsettings.Production.json` auf dem Server, nicht im Repo).
 TLS-Schalter `SageLagerbuchungSslZertifikatPruefen` gilt für beide SData-Clients; im Web reist er je Anfrage in
 `HttpRequestMessage.Options`. Spec [[2026-10-30-sage-sdata-fa-ansicht-spec]].
+
+**Seit v1.99.33** liest der Dienst außerdem `dtsEKBelegMst.Sage.Wawi` (Einkaufs-Belegkopf, Felder `KHKEKBelege_USER_AB`,
+`KHKEKBelege_USER_Kom`) im Abgleich „Offene Bestellungen (Sage)“ – nur GET, Auswahl nur über `BelID` (kein `where` auf USER-Aliasse),
+nur Anzeige im WMS, nicht in der enaio-CSV. Spec [[2026-11-17-wareneingang-sammellieferschein-und-bestellkopf-spec]].
 
 ### Die ganze SData-Schnittstelle (ausgelesen 2026-10-30)
 
@@ -227,3 +232,47 @@ Belege, Kunden, Lieferanten, DMS) · [[sage-sdata-masterdata]] (PPS-, EK-, Lager
 [[sage-sdata-realtimedata]] (1219 Lese-Datenquellen). Kernbefund: Lesen der FA-/EK-/Lagerdaten geht ohne
 Direkt-SQL; Produktions-Rueckmeldungen haben **keinen** dokumentierten Schreibweg (nur interne
 `strFaBeleg`-Struktur, 403).
+
+## Sage-Wareneingangsbeleg (v1.99.4, [[2026-11-08-wareneingang-teil-2-sage-we-beleg-rahmenabrufe-spec]])
+
+Schreibend: `POST {SData:BaseUrl}/sdata/{Application}/{ServiceContract}/{Dataset}/$service/StandardBelegService`, Basic-Auth wie die Lagerbuchung
+(`SageLagerbuchung:Username/Password`), TLS-Schalter wie dort. Erfassungsart 4100, BelegTransformArt 1, BelegKennzeichen ELL,
+`TransformSettings[].SourceBelegHandle` = BelId, `EKLieferschein`, `Memo WE#<id>#`, Positionen `PositionHandle` = BelPosId mit
+`BelegPositionLagermengen{PlatzId, Kurzbezeichnung = Lagerkennung, MengeBasis}`. Am AKE-Test 2026-11-12 belegt (Beleg 2027-398675).
+
+## Wareneingang-CSV — Datei-Ausgang auf UNC (v1.99.11, [[2026-11-12-wareneingang-barcode-lieferschein-csv-export-spec]])
+
+Ausgehend, schreibend auf eine Netzfreigabe (`ServiceSetting WareneingangCsvPfad`, nur UNC, Form vom Server geprueft, Erreichbarkeit nicht).
+Schritt im `SageBookingWorker` nach dem Sage-WE-Schritt, Gate `WareneingangCsvAktiv` **und** `SageWareneingangBelegAktiv` **und** Pfad gesetzt.
+Je Sage-WE-Vorgang mit Barcode, dessen Receipts alle `Uebergeben` sind: `<Barcode>.tmp` (UTF-8 mit BOM) → `File.Move(..., overwrite: false)` auf
+`<Barcode>.csv`, nie ueberschreiben; Status in `WareneingangCsvExporte`, Lauf „Wareneingang-CSV“. Zugriff mit dem Dienstkonto (LocalSystem =
+Computerkonto `DOMAENE\SERVER$`), braucht „Aendern“ auf Freigabe und NTFS (Hand-Schritt P-C1/P-C2). Leser: eigener enaio-Import (Freigabe-Antwort 2),
+raeumt die Dateien selbst auf. QA 2026-11-12 auf DEV gegen `\localhost\D$\Dev\csv-ausgang\ake` belegt (Schreiben, Kollision, Netzfehler, Wiederholung).
+
+## WiCAM-Auftragspool – BF-Aufträge (v1.99.35, IDEAL, [[2026-11-13-blechfertigung-bf-auftraege-wicam-csv-spec]])
+
+Je freigegebenem BF-Auftrag `<BF-Nummer>.tmp` (Windows-1252 ohne BOM, CRLF, `ExceptionFallback`) → `File.Move(..., overwrite: false)` auf
+`<BF-Nummer>.csv` in `BfCsvPfad` (geplant `\\idealcam.ideal.ideal-ake.at\fertigung\u\pn\apools\`). Datei vorhanden = Fehler, nie automatisch
+wiederholt. Dienstkonto braucht „Ändern“ (P-7). WiCAM legt daraus den Auftrag an; das WMS löscht in WiCAM nichts (Storno = Hinweis).
+**Layout Platzhalter bis P-1** (Musterdatei aus dem Pool); Testvorlage `IDEALAKEWMSService.Tests/TestData/BfCsv_PlatzhalterBisP1.csv`.
+Artikelfelder an IDEAL per SData-GET (`BlechteileFelderNachlese`, V-B). Kein Schreiben nach Sage.
+
+## Sage – Arbeitsgänge in FAs anlegen (v1.99.38, IDEAL, schreibt, Schalter aus, [[2026-11-17-arbeitsgaenge-aus-wms-in-sage-fa-anlegen-spec]])
+
+POST `{BaseUrl}/sdata/{App}/{Contract}/{Dataset}/$service/FertigungsauftragService`, ServiceOption 4 (AddOrChangePositionArbeitsgang), je AG
+ein Aufruf: FA-Handle = BelID, Position mit `PositionHandle 0`, `RessourceTyp 1`, `RessourceNummer` = Sage-AG, `Menge` = Fertigungsmenge,
+`Bearbeiter`. **Feldnamen aus `$schema` IDEAL Prod abgeleitet, am Ziel nicht belegt (P-1..P-4)** – Konstanten mit TODO in
+`IDEALAKEWMSService/Services/SageFaArbeitsgangClient.cs`. Erfolg nur ohne ErrorText **und** mit Handle in der Antwort; Timeout/ohne Handle =
+unklar (nie automatisch). Vorher Lesen des FA (Status, Menge, vorhandene AG-Positionen). Kein ServiceOption 5 (Einlasten). Das WMS löscht
+in Sage nichts. Schreibtest TS-159.x nur nach Freigabe Gerald.
+
+## Sage – Lager und Lagerplätze per Direkt-SQL anlegen (v1.99.71, schreibt, Schalter aus, ADR [[0036-lagerplatz-anlage-in-sage-per-direkt-sql-hinter-austauschbarer-schnittstelle]])
+
+> [!warning] Einziger direkter Schreibweg in eine Sage-DB
+> Die Korrektur oben („nur SData schreibt“) gilt weiter für alle anderen Wege. Hier schreibt der Dienst über die bestehende `SageConnection`
+> mit Objekt-GRANTs (`INSERT` `KHKLagerplaetze`, `INSERT, UPDATE` `KHKLagerorte`, `EXECUTE` `spSysTan`).
+
+`IDEALAKEWMSService/Services/SqlSageLagerplatzAnlage.cs`: je Platz bzw. Lager eine Transaktion (`XACT_ABORT`, `DEADLOCK_PRIORITY LOW`,
+`UPDLOCK, HOLDLOCK`), Nummern über `spSysTan`, Ergebnis nach `COMMIT`, idempotent (vorhanden = übernehmen). Lager nur mit WarenflussKZ `SWF`
+und nur für Techniken der Stufe `SageLagerAnlageLagertechniken`. Prüfabfragen P-1 bis P-10 in der Spec; vor jedem Einschalten und nach jedem
+Sage-Update P-1 bis P-3 (P-9). Betrieb: `docs/betrieb/05-schnittstellen.md` § 4b. [[2026-11-24-lagerplatz-anlage-wms-nach-sage-spec]]

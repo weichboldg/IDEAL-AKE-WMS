@@ -67,7 +67,8 @@ diese Asymmetrien sind meist bewusst.
 | Meine Fehlteile | Werkbank-Sicht (`/MissingParts`, Default nur eigene Werkbaenke). Gegenstueck: „Lager: Fehlteile" (`/MissingPartsLager`). |
 | Eingehende Listen | Lager-Worklist der eingegangenen Bestellungen (`/WarehousePicking`). |
 | BDE | Betriebsdatenerfassung — Zeit- und Mengenerfassung am Terminal. Gate `BdeAktiv`. |
-| BDE-Terminal | Scan-Oberflaeche fuer Operatoren (`/BdeTerminal`). |
+| BDE-Terminal | Scan-Oberflaeche fuer Operatoren (`/BdeTerminal`). Seit v1.99.78 nur noch Einstieg: leitet auf die BDE-Seite (`/BdeTeileliste`); Terminal = Zuordnung WMS-Benutzer → Default-Werkbank. |
+| Tageshistorie (BDE) | Seit v1.99.78 eigene Seite `/BdeTeileliste/Tageshistorie`: Buchungen des Werkers von heute plus alle Teilmeldungen des Tages (`BdeTageshistorie`). |
 | BDE-Cockpit | Schichtleiter-Uebersicht der laufenden Buchungen (`WHERE EndedAt IS NULL`). |
 | Operator | BDE-Mitarbeiter (`BdeOperator`) — nicht identisch mit dem App-Benutzer. |
 | Paused | BDE-Buchungszustand mit **gesetztem** `EndedAt`; die Fortsetzung ist eine neue Buchung mit `ParentBookingId`. |
@@ -106,6 +107,9 @@ Definiert in `../../IdealAkeWms/Models/RoleKeys.cs`, zugewiesen ausschliesslich 
 | `bde_user` | `BdeUser` | Terminal-Buchung: Arbeitsgaenge scannen, Status wechseln |
 | `bde_shiftlead` | `BdeShiftlead` | + BDE-Stammdaten, Buchungsliste, Cockpit |
 | `bde_admin` | `BdeAdmin` | + Buchungen korrigieren/stornieren, Terminals konfigurieren |
+| `beschichtungsauftrag` | `Beschichtungsauftrag` | IDEAL-Beschichtungsauftraege lesen (Gate `FaHierarchyBeschichtungAktiv`) — Nachtrag 2026-11-14 |
+| `beschichtungsauftrag_schreiben` | `BeschichtungsauftragSchreiben` | Beschichtungsauftraege anlegen/bearbeiten (seit v1.51.0) — Nachtrag 2026-11-14 |
+| `einkauf` | `Einkauf` | Einkauf → Bestellvorschlaege (seit v1.99.20, Gate `EinkaufAktiv`; ohne Seed, Manifest `Pruefung/RolleEinkauf` legt sie an) — Nachtrag 2026-11-14 |
 
 Fuer Endanwender gibt es zusaetzlich die hand-gepflegte Uebersicht `/Users/RoleOverview`.
 
@@ -126,3 +130,102 @@ Fuer Endanwender gibt es zusaetzlich die hand-gepflegte Uebersicht `/Users/RoleO
 | Quellen-Weiche (`Sync:Quelle:<Bereich>`) | Wahl der Sage-Lesequelle je Abgleich: `View` (SQL, Default/Notfall), `SData`, `Vergleich` (liest beide, schreibt View). Code `…QuelleSwitch`. [[0019-quellen-weiche-view-sdata-je-abgleich]] |
 | Kreditor / Debitor | Lieferant bzw. Kunde (Sage-Kontokorrent `KtoArt` `K`/`D`). Code `Creditor`/`Debitor`, UI „Kreditoren“/„Debitoren“. Herkunft Sage oder WMS (`Source`). |
 | Übergabe an Sage | Status eines im WMS angelegten Stammsatzes (`SageUebergabeStatus` NichtNoetig/Offen/Uebergeben/Fehler) + Outbox `SageStammdatenOutbox`; Senden noch nicht gebaut. |
+
+- **Sage-Wareneingangsbeleg (ELL)** (v1.99.4): Wareneingang in Sage (Belegkennzeichen ELL), den das WMS je Buchung der Maske „Wareneingang zu
+  Bestellung“ als Belegübernahme aus der Bestellung anlegt (Schalter `SageWareneingangBelegAktiv`). Ersetzt fuer diese Wareneingaenge den
+  Lagerbuchung-Zugang und das Schliessen von Hand durch den Einkauf.
+- **Lieferschein-Nr. (Lieferant)** (v1.99.4): Lieferschein des Lieferanten, je Buchung der Maske an jedem Wareneingang gespeichert, an Sage nur im
+  Sage-Wareneingangsbeleg (`EKLieferschein`, 20 Zeichen).
+- **Barcode (Lieferschein-Aufkleber)** (v1.99.11): Aufkleber, den das Lager auf den Lieferschein des Lieferanten klebt; in „Wareneingang zu
+  Bestellung“ gescannt und an jedem Wareneingang des Absendens gespeichert (`PurchaseOrderReceipt.Barcode`). Er ist zugleich der Dateiname der
+  **Wareneingang-CSV** `<Barcode>.csv`, die der Dienst nach der Uebergabe an Sage auf einen UNC-Pfad legt (Indexdaten fuer das DMS/enaio).
+  Nicht zu verwechseln mit der Lieferschein-Nr. (Lieferant) und mit Artikel-/Lagerplatz-Barcodes (Scan-Modus `'raw'`, keine Zerlegung).
+- **Rahmenabruf (EBZ)** (v1.99.15): Sage-Beleg mit `Belegkennzeichen = 'EBZ'` – ein Abruf aus einer Rahmenbestellung (je Abruf-Beleg eine
+  Position, `VorPosId` zeigt auf die Rahmenposition). Steht seit v1.99.15 neben den Einzelbestellungen (EBB) in „Offene Bestellungen“, im
+  Wareneingang und in den Lieferverzug-Mails. Offen = Abrufmenge (`MengeBasis`) minus alle im WMS erfassten Wareneingänge; die
+  Vorgangsmengen (`PositionGGBestellt/Geliefert`) gelten je Rahmen, nicht je Abruf. Spaltenfilter-Hinweis „Rahmenabruf“.
+
+## Ergaenzungen 2026-11-14 (Wochenend-Lauf, Bündel v1.88–v1.99.22)
+
+Nachtrag zu Kommissionierauftraegen, Wareneingang, Lieferverzug, Einkauf und Update-Skript. Fundstellen im Bündel-Worktree
+`feature/2026-08-07-ideal-teile-1-5`. Bereits oben erklaert und hier nicht wiederholt: Kommissionierauftrag (KO-Nummer), Kommissionierbereich,
+Kommissionierwagen, Sage-Wareneingangsbeleg (ELL), Rahmenabruf (EBZ), Kreditor/Debitor.
+
+| Begriff | Bedeutung | Code-Name | Fundstelle |
+|---|---|---|---|
+| KO-Auftrag | Kurzform fuer **Kommissionierauftrag** (Nummer `KO-JJJJ-NNNNN`, ein Kreis fuer alle Typen). Nicht der Konstruktions-Termin „KO“. | `PickingOrder.Nummer` | `IdealAkeWms/Models/PickingOrder.cs` |
+| Vorkommissionierung (Bereich) | Kommissionierbereich mit Haken „Vorkommissionierung“: seine Auftraege werden mit dem Vorkommissionier-Vorlauf (`VorkommissionierTage`, je Werkbank `OverridePrePickingDays`) faellig statt mit dem Kommissionier-Vorlauf. | `PickingArea.IstVorkommissionierung`, `PrePickingDaysResolver` | `IdealAkeWms/Models/PickingArea.cs:17` |
+| Abschluss „Vollständig“ | KO-Auftrag nach der Umbuchung abschliessen; nicht umgebuchte Zeilen werden `Entfallen` (z. B. Baugruppe statt Einzelteile). Status `Abgeschlossen`. | `PickingOrderWorkflow.AbschliessenAsync(id, vollstaendig: true)`, `PickingOrderStatus.Abgeschlossen` | `IdealAkeWms/Services/PickingOrderWorkflow.cs:154–159` |
+| Abschluss „Teilweise“ | KO-Auftrag mit Rest abschliessen: Status `TeilweiseAbgeschlossen`; Reste (nicht umgebuchte Zeilen ganz, umgebuchte mit Ist < Soll als Differenz) gehen als `Uebertragen` in einen **Folgeauftrag**. | `PickingOrderStatus.TeilweiseAbgeschlossen`, `PickingOrderLineStatus.Uebertragen` | `IdealAkeWms/Services/PickingOrderWorkflow.cs:154–200` |
+| Folgeauftrag | Neuer KO-Auftrag fuer die Reste eines „teilweise“ abgeschlossenen Auftrags: gleicher Bereich, gleiche Prio, gleicher Kommissionierer, Bezug auf den Ursprung. | `PickingOrder.UrsprungsauftragId` / `Folgeauftraege` | `IdealAkeWms/Models/PickingOrder.cs`, `PickingOrderWorkflow.cs:156` |
+| Wagen (Umbuchen auf Wagen) | Gepickte Zeilen eines KO-Auftrags werden auf einen Kommissionierwagen umgebucht (Zeilenstatus `Umgebucht`), erst danach Abschluss. Wagen = Lagerplatz mit `IsPickingTransport`. | `PickingController.AuftragUmbuchen`, `PickingOrderLineStatus.Umgebucht` | `IdealAkeWms/Controllers/PickingController.cs:445` |
+| Sammelfreigabe | Im Leitstand mehrere FAs auf einmal freigeben (oder zuruecknehmen), optional mit Kommissionierer; die Freigabe legt die KO-Auftraege an. | `PickingLeitstandController.BulkRelease` | `IdealAkeWms/Controllers/PickingLeitstandController.cs:429` |
+| Freigabe zuruecknehmen | Storniert die noch offenen KO-Auftraege eines FA, behaelt begonnene; zurueckgenommene FAs zaehlen seit v1.99.17 ins Prio-MAX (keine doppelte Prio). | `PickingOrderWorkflow.FreigabeZuruecknehmenAsync` | `IdealAkeWms/Services/PickingOrderWorkflow.cs:250` |
+| Altbestand pruefen | Kennzeichen an KO-Auftraegen offener FAs mit Auftragsmenge ≠ 1 (Einmal-Skript); solange gesetzt, legt der Workflow fuer den FA nichts an, der Leitstand bestaetigt „Altbestand geprueft“. | `PickingOrder.AltbestandPruefen`, `AltbestandGeprueftAsync` | `IdealAkeWms/Models/PickingOrder.cs`, `PickingOrderWorkflow.cs:281` |
+| Lieferart (Wareneingang) | Art eines Wareneingangs zu einer Bestellposition: Vollstaendig, Teillieferung, Ueberlieferung (seit v1.99.22 eigene Spalte „Überlieferung“). | `PurchaseOrderReceiptLieferart` | `IdealAkeWms/Models/PurchaseOrderReceipt.cs:4` |
+| Klären (Sage-Wareneingang) | Status eines Sage-Wareneingangs ohne automatisches Senden: moeglicher Beleg in Sage ohne passende Memo-Kennung (Sicherungsnetz Bestellung + Datum + Lieferschein) oder beim Ausschalten liegengeblieben. Weiter nur „Erneut senden“ oder „als übergeben markieren“ von Hand. | `SageWareneingangStatus.Klaeren` (= 6) | `IdealAkeWms/Models/PurchaseOrderReceipt.cs:25` |
+| System-Kürzel | Kuerzel in den Memo-Kennungen an Sage (`WE#<K>#<Id>#`, `SM#<K>#<Id>#`), damit Testsysteme in derselben Sage-Testdatenbank nur ihre eigenen Belege finden. Produktion leer. | ServiceSetting `Sync:SageSystemKuerzel`, `SageSystemKuerzel` | `IdealAkeWms/Services/SageSystemKuerzel.cs:11` |
+| Lieferverzug-Sammelliste | Taegliche Mail an den Einkauf mit allen verzoegerten Bestellpositionen, gruppiert nach Kreditor, mit Status der Kreditor-Mail. | `Lieferverzug:EinkaufAktiv`, `LieferverzugMailService`, `PurchaseOrderReminderArt.Einkauf` | `IDEALAKEWMSService/Services/LieferverzugMailService.cs` |
+| „Zu klären“ (Lieferverzug) | Abschnitt der Sammelliste fuer faellige Positionen ueber der Altersgrenze `Lieferverzug:MaxAlterTage`; gehen nie an Lieferanten (v1.99.19). Nicht dasselbe wie der Status „Klären“ beim Sage-Wareneingang. | `ZuKlaeren` im Lieferverzug-Plan, Count `zu_klaeren` | `IDEALAKEWMSService/Services/LieferverzugPlaner.cs:56` |
+| Kreditor-Mail | Erinnerung je Lieferant mit seinen verzoegerten Positionen (Schalter `Lieferverzug:KreditorAktiv`), fruehestens max(`TageNachTermin`, `KreditorTageNachTermin`) Tage nach Liefertermin; Rahmenabrufe nur mit `KreditorMitRahmenabrufen`. | `LieferverzugMailService`, Protokoll `PurchaseOrderReminders` (SQL/145) | `IDEALAKEWMSService/Services/LieferverzugMailService.cs` |
+| Testbetrieb (Lieferverzug) | Default **an**: jede Kreditor-Mail geht unveraendert an die Einkauf-Empfaenger („TESTBETRIEB – waere an … gegangen“). Aus = externe Mails an Lieferanten. | ServiceSetting `Lieferverzug:Testbetrieb`, `LieferverzugEinstellungen.Testbetrieb` | `IDEALAKEWMSService/Services/LieferverzugPlaner.cs:8` |
+| Lieferanten-Artikelnummer | Bestellnummer des Artikels beim Lieferanten (Spalte „Lief.-Art.-Nr.“ in Kreditor-Mail und Sammelliste), aus dem Artikel-Lieferanten-Abgleich; ohne ihn leer. | `ArticleSupplier.SageBestellnummer` | `IdealAkeWms/Models/ArticleSupplier.cs:18` |
+| Bestellvorschlag | Je Nachbestellartikel berechnete Bestellmenge unter Einkauf → Bestellvorschlaege (nur Lesen + CSV): Fehlmenge aus WMS-Bestand, Sage verfuegbar, offenen Bedarfen, offen bestellt und Meldebestand; Menge aus der letzten Bestellmenge L. | `PurchaseProposalCalculator`, Route `/PurchaseProposals` | `IdealAkeWms/Services/PurchaseProposalCalculator.cs:35` |
+| Letzte Bestellmenge | Menge (Basiseinheit) der juengsten Sage-Bestellung (EBB/EBZ) je Artikel und Lieferant innerhalb von 3 Jahren; Grundlage L der Bestellvorschlaege (V = (⌊F/L⌋+1)×L). | `ArticleSupplier.LetzteBestellmenge`/`LetzteBestellungAm`/`LetzteBestellungBeleg`, `LetzteBestellungRueckblickJahre` | `IdealAkeWms/Models/ArticleSupplier.cs:39`, SQL/148 |
+| Fallback Sage-Bestellmenge | Gibt es in 3 Jahren bei keinem Lieferanten eine Bestellung, ersetzt die Sage-Bestellmenge des Artikels L (Badge + Hinweis „Fallback: Sage-Bestellmenge …“). Einheit unbelegt (angenommen Lagereinheit, Pruefabfrage offen). | `ArticleSageDetail.Bestellmenge`, `PurchaseProposalCalculator.HinweisFallback` | `IdealAkeWms/Services/PurchaseProposalCalculator.cs:14,42` |
+| Mindestbestellmenge | Mindestmenge beim Lieferanten aus Sage; aufgerundet wird nur bei vergleichbarer Einheit **und** `UmrechnungsfaktorEK = 1`, sonst Hinweis. | `ArticleSupplier.Mindestbestellmenge` | `IdealAkeWms/Models/ArticleSupplier.cs:21` |
+| Offene Bedarfe (Einkauf) | Offene WMS-Bedarfe, die die verfuegbare Menge der Bestellvorschlaege mindern: abgesendete Lagerbestellungen (teilgeliefert nur der Rest) und offene Bedarfsmeldungen. Zeile fehlt = beide, leer = keine. | AppSetting `EinkaufOffeneBedarfe`, `AppSettingKeys.EinkaufBedarfWerte` | `IdealAkeWms/Models/AppSettingKeys.cs` |
+| Nachlauf-Manifest | Liste aller Deploy-Schritte je Version (Schema, Daten, Einmal, Pruefung, Einstellung, Info) mit Firma, Phase und Ausfuehrung; das Update-Skript arbeitet sie ab und gibt die Hand-Schritte als Nachlauf-Liste aus. Ausgefuehrte Daten-/Einmal-Skripte stehen in `dbo.DeployScriptRuns` (SQL/142). | `scripts/deploy/nachlauf.psd1`, `Update-IdealAkeWms.ps1` | [[0022-update-je-zielsystem-per-skript-mit-nachlauf-manifest]], [[0023-daten-und-einmal-skripte-fuehrt-das-update-skript-mit-bestaetigung-aus]] |
+| SData-Kennwort (Geheim) | Kennwort der Sage-Schnittstelle in den Service-Einstellungen, gespeichert als `dp1:` + DataProtection-Schutztext; die Maske zeigt nur den Status. | `SData:Password`, `SettingType.Geheim`, `SdataZugangsdaten` | [[0024-sdata-kennwort-verschluesselt-in-den-service-einstellungen]] |
+
+## Ergaenzungen 2026-11-16 (Beschichtungsquelle, v1.99.25)
+
+| Begriff | Bedeutung |
+|---|---|
+| Kennzeichen-Quelle | AppSetting `BeschichtungKennzeichenQuelle`: woher „beschichtet“ kommt – `Artikelkategorie` (AKE: Kategorie `LackierteilKategorieName` über BomCache) oder `FaStruktur` (IDEAL: `FaHierarchyNode.Beschichtet`). [[0028-beschichtungsquelle-je-achse-ueber-appsettings-mit-automatisch]] |
+| Termin-Quelle | AppSetting `BeschichtungTerminQuelle`: `Berechnet` (Vorkommissioniertermin minus Beschichtungstage, auf Abholtag) oder `View` (`Start_Beschichtung` aus FAInfos, unverändert). |
+| Automatisch (Beschichtungsquelle) | Default beider Quellen: folgt dem Master `ProduktionsauftragHierarchisch` (flach = Artikelkategorie/Berechnet, hierarchisch = FaStruktur/View). |
+
+## Ergaenzungen 2026-11-16 (FA-Struktur über SData, v1.99.26)
+
+| Begriff | Bedeutung |
+|---|---|
+| Ressourcenliste (Vorlage) | Stückliste eines **Artikels** in Sage (Ressourcen), Vorlage für neue FAs. Nicht gleich der FA-Stückliste: ein FA kann mehr oder andere Positionen haben. Anzeige in „Stückliste live“ im Artikel-Modus. [[0029-fa-struktur-ideal-knoten-aus-sdata-fainfos-aus-view-hybrid]] |
+| FA-Stückliste | Positionen eines konkreten Fertigungsauftrags (Belegpositionen). Im FA-Modus von „Stückliste live“, seit v1.99.26 auch für beendete Haupt-FAs. |
+| Hybrid (FA-Struktur) | Modus SData an der IDEAL: Knoten und Knotenfelder aus SData, FAInfos aus der View. Gebaut, bis P-FS3 gesperrt. |
+
+| Begriff | Bedeutung |
+|---|---|
+| Aktiv-Kennung (Beschichtung) | Ob die Liste „Lack“-Haken und Termin nur für beschichtete Zeilen zeigt: Kennzeichen-Quelle FaStruktur = immer aktiv; Artikelkategorie = aktiv, wenn `LackierteilKategorieName` gesetzt ist; nicht aktiv = Termin für alle Zeilen (heutiges PROD-IDEAL-/AKE-Verhalten ohne Kategorie). `BeschichtungResolver.Aktiv`. |
+
+| Begriff | Bedeutung |
+|---|---|
+| Teileliste (BDE) | Terminal-Ansicht der Blechfertigung (IDEAL): Teile und Baugruppen einer Werkbank aus der FA-Struktur, je Kürzel; Melden statt AG-Fertigmeldung. Option `ProductionWorkplaces.BdeTeileliste`. v1.99.32 |
+| Teilmeldung | Gemeldete Menge je fachlichem Schlüssel (HauptFA, VaterFA, SubFA, Position, Artnr, Kürzel) in `BdeTeilMeldungen`; geht nicht an Sage. Seit v1.99.72 auch je Lagerbestell-Position + Kürzel (`WarehouseRequisitionItemId`, FA-Felder 0/leer), ADR [[0038-teilmeldung-auch-fuer-lagerbestell-positionen]]. |
+| Fräsen-Pfad | UNC-Ordner des Fräsprogramms je Artikel (`Articles.CamPath`, reines WMS-Feld, nur UNC); als Link + „Pfad kopieren“ angezeigt, gepflegt von admin/masterdata/`fraesenpfad_pflegen`, Gate `FraesenPfadAktiv`. v1.99.72 |
+| Waise (Teilmeldung) | Teilmeldung, deren Schlüssel nach einem Struktur-Sync nicht mehr in der Struktur vorkommt – Hinweis mit Link, keine Löschung. |
+| Rücknahmefrist | Bis wann ein Werker die eigene Teilmeldung zurücknehmen darf: Schichtende, ohne Schichtkalender Ende des Meldetags. |
+
+| Begriff | Bedeutung |
+|---|---|
+| Sage-Arbeitsgangnummer (Sage-AG) | `KHKPpsArbeitsgaenge.Arbeitsgangnummer` (varchar 31) je Kürzel, in `OperationConfigs.SageArbeitsgangnummer`; **kein** Sage-Arbeitsplatz. v1.99.27 |
+| Handwert (Sage-AG) | `OperationConfigs.SageArbeitsgangnummerManuell` – in `/OperationConfigs` gepflegt, hat Vorrang vor dem Sage-Wert; der Sync fasst ihn nie an. |
+
+| Begriff | Bedeutung |
+|---|---|
+| BF-Auftrag | Bestellung von Blechteilen (Sage-Lagerartikel BG/FT) bei der eigenen Blechfertigung, Nummer `BF` + 8 Ziffern; Tabelle `BfAuftraege`. Nach Freigabe als CSV an WiCAM. v1.99.35 |
+| Schachtler | Rolle `schachtler` „Schachtler (Blechfertigung)“: prüft BF-Aufträge, gibt sie frei (Termine, CSV an WiCAM), meldet fertig, storniert. Schachteln = Teile auf Blechtafeln anordnen. v1.99.35 |
+| WiCAM-Pool | Netzordner, aus dem WiCAM PN Auftragsdateien importiert (`BfCsvPfad`). |
+
+| Begriff | Bedeutung |
+|---|---|
+| AG-Anlage (Sage-FA) | Ein Arbeitsgang (Sage-AG eines Kürzels), den der Dienst als AG-Position im Sage-Fertigungsauftrag anlegt; Tabelle `SageFaArbeitsgangAnlagen`, Schalter `SageFaArbeitsgaengeAnlegenAktiv`. v1.99.38 |
+| in Sage vorhanden (AG-Anlage) | Der Dienst fand die Sage-AG vor dem Senden schon am FA und hat nichts gesendet (`SageFaArbeitsgangStatus.InSageVorhanden` = 4). |
+
+| Begriff | Bedeutung |
+|---|---|
+| Sage-Buchungen | Seite `/SageBookingQueue` (Lager), seit v1.99.66 die eine Liste für alles, was an Sage geht: vormals „Sage-Lagerbuchungen“ (Queue) **und** „Sage-Wareneingänge“ (WE-Belege). [[2026-11-23-sage-buchungen-gesamtsicht-spec]] |
+| Herkunft (Sage-Buchungen) | Woher eine Zeile stammt: Einbuchung, Ausbuchung, Umbuchung, Lagerbestellung, Wareneingang (`SageBuchungHerkunft`); Lagerbestellung hat Vorrang vor der Bewegungsart. |
+| Anzeigestatus (Sage-Buchungen) | Gemeinsamer Status beider Wege: wartet, gesendet, übergeben, Fehler, klären (`SageBuchungAnzeige`); nur Anzeige, keine DB-Spalte. Offen = alles außer übergeben. |
+| Status im Weg | Spalte der Sage-Buchungen mit dem Originalstatus des jeweiligen Wegs (Queue-Status bzw. Sage-WE-Status), neben dem Anzeigestatus. |
+| Abteilung (Sage-Referenz) | Werkbank-Name, optional bei Ausbuchung und Lagerplatz ausbuchen gewählt, als Schnappschuss in `StockMovements.Abteilung`; geht in die Sage-`Referenz` (≤ 31 Zeichen) und das Zeilen-Memo. Nicht die Abteilung der Vormontage-Listen. v1.99.68, [[2026-11-24-sage-buchung-referenz-benutzer-abteilung-spec]] |

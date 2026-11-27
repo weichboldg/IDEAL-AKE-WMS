@@ -87,3 +87,8 @@ Schreiben: `FertigungsauftragService` nimmt `FaBelegUserFields[]` und `GenericUs
   Konvertierung varchar → timestamp“). Sortieren geht.
 - `GeaendertAm` gibt es am **FA** (filterbar), **nicht** am Artikel (`Artikel where GeaendertAm` → 500 „Ungültiger Spaltenname“).
 - → Delta heute nur für FAs; Artikel/Lager/Ressourcenlisten als Vollabzug bzw. paginiert. Frage an DPS: Timestamp-Filter (z. B. als Zahl) ermöglichen.
+
+## Benutzerfelder (Lesetest 2026-11-13)
+
+Alle Benutzerfelder je Ressource, Typen, Schreibrechte und die Fragen an DPS (U1–U9): [[sage-sdata-benutzerfelder-lesetest]]
+(v1.99.14, [[2026-11-13-sdata-teil-2-userfelder-stueckliste-spec]]).

@@ -1,0 +1,46 @@
+---
+type: aufgabe
+status: erledigt
+created: 2026-11-17
+quelle: Gerald, Chat 2026-11-17 (/goal)
+worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"
+branch: "feature/2026-08-07-ideal-teile-1-5"
+---
+# /goal-Lauf 2026-11-17: Beschichtung E5 (AKE-Vorschlagsliste und Beschichtungsauftrag)
+
+Auftrag Gerald 2026-11-17: Etappe E5 und die von Nachtrag 3 betroffenen Teile der Spec [[2026-11-16-beschichtungslogik-je-standort-spec]]
+im Bündel-Worktree (Stand v1.99.33, `ed919976`). Grenzen: nichts an Sage, keine Einstellungen auf Test/Prod, kein Umschalten des
+Einwegtors, kein Merge, kein Push. Publish nur unter `<Worktree>\publish\`, DEV AKE + IDEAL mit vorher geleertem Zielordner.
+
+Nummern (beim Start geprüft): Version **1.99.34**, **SQL/157** (`20261117141308_AddBeschichtungsauftragPositionText`), TS-145 erweitert,
+kein neuer ADR. Testfall tiefe Positionen: Artikel S1402262 (`10.140.40.10.10`).
+
+## Vorprüfung
+
+- H1, H2 erledigt; H3 erledigt laut [[2026-11-17-pruefabfragen-gerald]] / Spec Abschnitt Pruefabfragen (WA 2602036, „passt“, 12:49).
+- Etappen-Tabelle: H3 → erledigt, E5 → InUmsetzung.
+
+## Protokoll
+
+- 2026-11-17: Vorprüfung, Schema (Model, Migration, SQL/157, FreshInstall ×2).
+- 2026-11-17: Flache Quelle (`BeschichtungFlacheQuelle`, `GetFlacheLackierteileAsync`), Service/Vergabe-Anzeige/Workflow-Weiche, Schlüssel
+  fünfteilig, Sortierung, Sammelmeldung, Views ohne „(IDEAL)“, Gate-Metadaten, Manifest, Tests (`BeschichtungFlacheQuelleTests`), Doku,
+  TS-145, Version 1.99.34. Build 0 Fehler, Tests 3131 + 702 grün. Commit `eff0c1a4`.
+- Abweichung: Positionsanzeige inline in den Views (Spec Z. 427), Format `— / 0 / 51.5.2`.
+
+## Ergebnis
+
+- 2026-11-17 QA (qa-agent): Build 0 Fehler, Tests 702 + 3131 (1 übersprungen) grün; DEV AKE + IDEAL v1.99.34 deployt (Zielordner
+  vorher geleert), TS-145 auf DEV gelaufen, DEV-Gate AKE danach wieder aus; Publish `<Worktree>\publish\` v1.99.34 (`eff0c1a4`).
+  Spec **Testbereit**. Befunde niedrig: F1 Auswahl „Positionen hinzufügen“ nicht natürlich sortiert, F2 Testlücken AK 20/22/25/26,
+  F3 `docs/betrieb/04-konfiguration.md:206`. Details: Spec [[2026-11-16-beschichtungslogik-je-standort-spec]], „QA-Nachweis E5“.
+
+## Fragen
+
+(keine)
+
+## Abschluss
+
+- QA (qa-agent) 2026-11-17: Testbereit, Brain-Commit `27f2346c`; Befunde F1–F3 niedrig (Hinzufügen-Auswahl nicht natürlich sortiert, fehlende Tests AK 20/22/25/26, `docs/betrieb/04-konfiguration.md:206`), offen für Gerald.
+- Publish `<Worktree>\publish\` v1.99.34 (`eff0c1a4`), `publish.zip` neu erzeugt (alter Stand 12:50 ersetzt).
+- Kein Merge, kein Push, nichts an Sage.

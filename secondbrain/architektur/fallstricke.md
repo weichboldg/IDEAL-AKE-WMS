@@ -614,6 +614,20 @@ ist neuer als der Stichtag, deshalb loescht er sich nicht selbst.
 selbst. Moq-Setups auf `SendAsync` brauchen einen zusaetzlichen `It.IsAny<string?>()` vor dem
 `CancellationToken`.
 
+### Mails pruefen ohne Versand: `MailSettings:PickupDirectory`, nie echte Adressen in Tests (v1.99.10)
+Ist `MailSettings:PickupDirectory` gesetzt, schreibt `MailService` jede Mail als `.eml` in den Ordner statt sie zu senden – **vor** dem
+`SmtpHost`-Zweig. Tests nutzen einen Fake-`IMailService` bzw. einen Temp-Pickup-Ordner und Adressen unter `.invalid`.
+**Warum:** Die Lieferverzug-Mail geht an externe Lieferanten; eine Mail an einen Kreditor laesst sich nicht zurueckholen. DEV/QA muss Inhalt,
+Reply-To, Absender und CID-Logo pruefen koennen, ohne dass ein SMTP-Relay sie zustellt. In Produktion darf der Key nicht gesetzt sein – dann geht
+gar nichts raus (der Lauf protokolliert trotzdem „gesendet“, weil das Ablegen erfolgreich war).
+
+### Lieferverzug-Wiederholung zaehlt nur Zeilen des aktuellen Modus (v1.99.10)
+`PurchaseOrderReminders.Testbetrieb` trennt die Historie: im Testbetrieb wiederholt der Planer nach den Testbetrieb-Zeilen, im Echtbetrieb nur
+nach echten Kreditor-Zeilen. „Heute schon gesendet“ prueft dagegen **jede** Zeile von heute (auch Einkauf).
+**Warum:** Zaehlten Testbetrieb-Zeilen gar nicht, bekaeme der Einkauf im Testbetrieb jeden Tag alle Kreditor-Mails; zaehlten sie fuer den
+Echtbetrieb, waeren beim Umschalten alle Lieferanten „schon erinnert“ und die erste echte Erinnerung kaeme bis zu 7 Tage zu spaet. Die erste
+echte Welle faengt `Lieferverzug:KreditorMaxJeLauf` ab.
+
 ---
 
 ## 6. BDE-Buchungslogik
@@ -788,6 +802,8 @@ ein Ort fuer alle vier Ausgaben; die uebrigen Aufrufer (Auto-Vorschlag, `Picking
 dann gilt nur „Menge absteigend“, kein Fehler ([[2026-10-16-stueckliste-matchcode-lagerplatz-limit-spec]]).
 
 ## 8. Tests, EF, SQL Server
+
+> Seit v1.99.23: Deadlock/UNIQUE-Fehler über die ganze Ausnahme-Kette prüfen (`Nummernkreis.IstSqlFehler`), siehe §38.
 
 ### InMemory-DB unterstuetzt kein `rowversion`
 Tests nutzen `TestApplicationDbContext`.
@@ -1112,6 +1128,13 @@ View-Matchcode je vom Artikelstamm-Matchcode ab („Position bevorzugt, KHKArtik
 IDEAL-View), zeigen Baum und Listen fuer denselben Knoten unterschiedliche Werte — **so gewollt**
 (Artikel gewinnt in den Listen), gehoert aber als „kein Fehler" in den UAT-Vermerk. Backlog-Kandidat, den
 Baum spaeter ebenfalls auf den Artikelstamm umzustellen: [[2026-09-15-matchcode-nachlese]].
+
+**Nachtrag v1.99.82 ([[2026-11-26-fa-liste-nur-hauptfa-und-fa-struktur-neu-teil-1-spec]], Freigabe-Antwort 6):** Die
+**FA-Liste an der IDEAL** (hierarchischer Modus, nur HauptFA-Zeilen) liest jetzt wie die Stückliste zuerst den Matchcode der
+Strukturwurzel (`FaHierarchyNode.Matchcode`, getrimmt) und nur als Rückfall `Article.Matchcode`
+(`ProductionOrdersController.StrukturFelderSetzen`). Die Regel steht damit an zwei Orten (dort und `PickingController` über
+`FaHierarchyBomItem.Matchcode`) — wer sie ändert, ändert beide. **Warum:** Endgeräte fehlen oft im Artikelstamm (siehe unten), und
+FA-Liste und FA-Struktur sollen für dieselbe Zeile denselben Wert zeigen. Die übrigen Listen und AKE bleiben bei `Article.Matchcode`.
 
 ### `Articles` ist eine gefilterte Projektion von `KHKArtikel` — gefertigte Endgeraete fehlen evtl.
 `SageImportService.SyncArticlesAsync` befuellt `Articles` nur mit Artikeln, die in
@@ -1489,6 +1512,11 @@ Reklamations-Teileauswahl in [[2026-10-06-beschichtungsauftrag-ausbau-teil-4-spe
 ohne `filterable-table`-Klasse. Mehrere Tabellen erst nach Umbau der Skripte auf Instanzen (eigene Entscheidung).
 
 ### Die Anwendung hat keine feste Request-Kultur — Dezimal-Eingaben selbst lesen
+> [!warning] Überholt seit v1.99.23
+> `Program.cs` setzt jetzt eine feste App-Kultur `de-DE` (Thread-Default + `UseRequestLocalization` mit genau einer Kultur), siehe §38 und
+> [[2026-11-14-schutz-doppel-absenden-und-unsichtbare-positionen-spec]]. Der Text unten beschreibt den Stand bis v1.99.22; `TryMenge`
+> (Komma und Punkt) bleibt richtig, die Server-Kultur entscheidet nicht mehr.
+
 `Program.cs` konfiguriert weder `UseRequestLocalization` noch eine Thread-Kultur (Grep `Culture|Localization`: kein
 Treffer). Das Model-Binding parst `decimal` deshalb mit der Kultur des Servers (IIS-Konto) — „2.5" aus einem
 `type="number"`-Feld wird unter `de-AT` zu 25, „2,5" unter `en-US` zu 25.
@@ -1515,7 +1543,7 @@ Neue Listen: kein Zähler-/„zuletzt gesehen"-/Materialisierungs-Schreiben in `
 Beim Schreiben von JS/C# mit dem Write-Werkzeug wurde `'\uFEFF'` zu einem **unsichtbaren** BOM-Zeichen im Quelltext (ebenso
 `\u00a0`). Funktioniert, verschwindet aber beim nächsten Editor, der Steuerzeichen bereinigt. **Regel:** nach dem Schreiben
 byte-genau prüfen (`EF BB BF`, `C2 A0` zählen) und als sichtbares Escape einsetzen; Backslash im Skript über `chr(92)` bauen,
-nicht über Heredoc-Escapes.
+nicht über Heredoc-Escapes. *Wieder passiert v1.99.11:* ein doppelter Backslash in einem Bash-Heredoc kam als einfacher an (UNC-Pfade in Testdaten), `\uFEFF` im Write-Werkzeug als echtes BOM – Testdaten mit UNC-Pfaden über das Edit-Werkzeug schreiben und mit `od -c` prüfen.
 
 ### Razor: `@` im Hilfetext ist Code
 `<code>@</code>` bricht den Build (RZ1005) — `@@` schreiben. Eine Befehlskette `build | grep Fehler && commit` committet
@@ -1705,6 +1733,75 @@ hilft nicht; ganz ohne Tipp ist das aus Chrome nicht erreichbar. Geräte mit Tas
 Keystroke) brauchen keinen Tipp – darum bleibt der Skript-Fokus, zeigt aber grau.
 Code: `hardware-scanner.js` Block „Scannen ohne Feld“, CSS `.hw-scan-bereit`.
 
+## 30. Update-Skript (v1.98.0, [[2026-11-09-update-skript-je-zielsystem-mit-nachlauf-spec]], ADR [[0022-update-je-zielsystem-per-skript-mit-nachlauf-manifest]])
+
+- **Kopieren nie mit `/MIR`/`/PURGE`.** Fotos (`App_Data`, frueher `wwwroot\Fotos`), `Branding\`, `logs\` und die Konfiguration
+  (`appsettings*.json`, `web.config`) liegen im Programmordner. **Warum wichtig:** Ein Spiegeln loescht alles, was nicht im Paket ist –
+  Kommissionierfotos und die produktiven Verbindungen waeren weg.
+- **DB-Ermittlung braucht die Umgebung aus `web.config` bzw. der Dienst-Registry (`Environment` = `DOTNET_ENVIRONMENT=...`).**
+  **Warum wichtig:** Liest ein Lauf nur `appsettings.json`, nimmt er die Repo-Verbindung (AKESQL20) statt `appsettings.DEV.json` – auf DEV
+  wuerde er die Produktiv-DB anfassen.
+- **`ziele.psd1`: doppelte Pfade nur je Firma pruefen.** IDEAL-Prod und AKE-Prod haben denselben Web-Pfad, liegen aber auf verschiedenen
+  Servern. **Warum wichtig:** Ein globaler Doppel-Check wuerde die gueltige Datei ablehnen.
+- **PS 5.1: `Read-Host` wirft bei geschlossener Eingabe (Pipe zu Ende)** statt `$null` zu liefern; Variablennamen sind nicht
+  Gross/Klein-empfindlich (`$t` ueberschreibt `$T`). **Warum wichtig:** Testlaeufe per Pipe brachen mit „Methode fuer NULL“ ab; Eingaben
+  laufen ueber `Read-Eingabe` (Modul).
+- **Git Bash wandelt `/save`, `/Q` usw. in Pfade um** (`icacls ... /save` wurde zu `C:/Program Files/Git/save`). **Warum wichtig:**
+  Test-Vorbereitungen mit Windows-Schaltern scheitern still; `MSYS_NO_PATHCONV=1` setzen oder aus PowerShell aufrufen.
+- **v1.99.0: StrictMode 2 wirft bei `.Eigenschaft` auf `$null` oder leerem Array** (`(Get-Command x | Select -First 1).Source`,
+  `($leer.Name)`; unter PS 5.1 gemessen 2026-11-11). **Warum wichtig:** Fehlte `sqlcmd` im PATH, brach das Skript am IDEAL-Test roh ab,
+  statt den Fallback-Pfad zu nehmen; `Select-Object -ExpandProperty` bzw. `@($x | ForEach-Object { $_.Name })` verwenden.
+- **v1.99.0: `"$Name?"` liest in PS 5.1 die Variable `Name?`** (das `?` gehoert zum Namen); unter StrictMode Fehler. **Warum wichtig:** Die
+  Rueckfrage nach der Version brach genau dort ab, wo der Mensch eingreifen sollte; `${Name}?` schreiben (Drift-Test-Waechter).
+- **v1.99.0: Ein Seed, der nur im SQL-Skript steht, fehlt nach `Migrate()`.** Systeme, die die Migration per EF statt per Skript
+  bekamen, haben die Zeilen nie (Kommissionierbereiche am IDEAL-Test). **Warum wichtig:** Ohne Standardbereich legt die App keine
+  Kommissionierauftraege an; Seeds gehoeren in den Startup (Muster „wenn leer, anlegen“) oder als Pruefung ins Manifest.
+- **v1.99.0: Eine offene Transaktion waehrend einer Eingabe haelt Sperren**, bei grossen DELETEs bis zur Tabellensperre. **Warum wichtig:**
+  `uebernehmen`/`verwerfen` laeuft deshalb vor dem Start bei gestopptem Web und Dienst; ein Scharflauf nach `SCHARF` committet sofort.
+- **v1.99.0: PS 5.1 wertet den Cast vor dem Methodenaufruf aus.** `([Delegate] { … }).GetNewClosure()` wirft „keine Methode
+  GetNewClosure“; richtig ist `[Delegate]({ … }.GetNewClosure())`. Eine Funktion mit einem Element liefert einen Skalar, kein Array
+  (`.Count` wirft unter StrictMode) – `@(...)` um den Aufruf. **Warum wichtig:** Beides fiel erst im DEV-Lauf auf (TS-126), nicht im Parser.
+
+- **v1.99.16: Auch die Wiederholungssperre eines Fluss-A-Skripts muss im Trockenlauf `TREFFER: 0` ausgeben.** Fluss A startet nach dem
+  Commit einen zweiten Trockenlauf; ein `RAISERROR … RETURN` ohne Trockenlauf-Zweig liefert Exit 1 ohne `TREFFER`, und die Prüfung
+  `$null -ne 0` warnte mit leerem Wert ([[2026-11-13-updater-zweiter-trockenlauf-altbestand-spec]]). **Warum wichtig:** Nach jedem
+  erfolgreichen Scharflauf stand eine Fehlwarnung; der Drift-Test (`SperrBloecke`) prüft jetzt jede `IF EXISTS … RAISERROR`-Sperre –
+  mit BEGIN/CASE/END-Zählung, weil eine kurze Regex am inneren `END` des Trockenlauf-Zweigs endet und die Rotprobe nicht fängt.
+- **v1.99.16: Jede Auswahl-Schleife braucht einen Ausgang für leere Eingabe.** `Read-Eingabe` liefert bei geschlossener Eingabe `''`;
+  `while (-not $System)` fragte dann endlos („Ungueltig.“ 2670× in 8 s). **Warum wichtig:** `-NurPruefen` ohne Konsole (Pipe, Aufgabe)
+  hing statt abzubrechen; Leer = Abbruch ohne Änderung, Drift-Test `DeploySkripte_AuswahlSchleifen_BrechenBeiLeererEingabeAb`.
+
+## 31. Sage-Wareneingangsbeleg (v1.99.4, [[2026-11-08-wareneingang-teil-2-sage-we-beleg-rahmenabrufe-spec]])
+
+- **Eine Ausschlussregel muss im Decorator UND in `EnqueueMissingAsync` stehen.** Die Nacherfassung nutzt die Decision nicht, sondern einen eigenen
+  EF-Filter. **Warum wichtig:** Fehlt die Bedingung dort, holt der 15-Minuten-Sweep einen Sage-WE-Wareneingang als Zugang nach – der Bestand in Sage
+  stiege doppelt.
+- **Rest darf uebergebene Wareneingaenge nicht doppelt abziehen.** Abgezogen wird nur, was zum Abgleich-Stand noch nicht in Sage war
+  (`Uebergeben` mit `SageWeAm` ≤ `SyncedAt` nicht); `SyncedAt` wird vor dem Lesen genommen. **Warum wichtig:** Sonst zeigt die Maske nach dem
+  naechsten Abgleich einen zu kleinen Rest und meldet Ueberlieferungen, die keine sind.
+- **Wiederholen nach Sage-Schreibfehlern nur mit belegter Korrelation (Lookup vor jedem Senden), sonst von Hand.** **Warum wichtig:** Ein Fehler
+  kann nach dem Anlegen des Belegs entstehen (Timeout, nicht lesbare Antwort) – blindes Wiederholen legt einen zweiten Wareneingang an.
+- **SData-Services antworten ohne `format=json` als Atom-XML; `ResultNumber 200` heisst Ok.** **Warum wichtig:** Im Schreibtest 2026-11-12 wertete
+  ein reiner JSON-Leser den angelegten Beleg als Fehler. Erst der Status „Fehler statt Wiederholen“ verhinderte einen zweiten Beleg.
+- **`SyncLogs.Message` ist nvarchar(1000).** Lange Sage-Antworten vor dem Protokollieren kappen. **Warum wichtig:** Sonst scheitert der
+  Protokoll-Eintrag (SqlException „String or binary data would be truncated“), und genau die Fehlermeldung fehlt im Aktivitaets-Protokoll.
+- **SData-`where` mit Datum nur als `@yyyy-MM-dd@`** (v1.99.7). `Belegdatum ge '2026-11-12'` liefert ohne Fehler 0 Treffer, `ge @2026-11-11@`
+  die richtigen Belege (Live-Test `EinkaufBelegeInfo` 2026-11-12). **Warum wichtig:** Ein stilles „0 Treffer“ im Sicherungsnetz hieße „kein Beleg
+  in Sage“ → der Dienst sendet erneut → zweiter Wareneingang.
+- **Lookups gegen Info-Ressourcen immer eng filtern** (Memo-Kennung bzw. `ReferenzBelID` + Datum), nie nur `Belegkennzeichen` oder `Status`.
+  `QueryAllAsync` blättert bis `$totalResults`; nur `Belegkennzeichen eq 'ELL'` sind ~90 000 Belege und liefen über 10 Minuten (P-W9 (b)).
+  `EinkaufBelegeInfo` liefert auch erledigte und alte Belege (Status 2, ab 2015). **Warum wichtig:** Der Worker-Takt hinge sonst minutenlang und
+  blockierte die Lagerbuchungen derselben Instanz.
+- **Ausgeschalteter Sage-Wareneingang: Liegengebliebenes geht auf „Klären“** (Worker-Takt, v1.99.7), statt beim Wiedereinschalten automatisch
+  nachzusenden. **Warum wichtig:** `ServiceSettings` haben keinen Änderungszeitpunkt; nur so wird nichts nachgeschickt, egal ob der Schalter
+  über die Maske, ein Skript oder die DEV-Absicherung umgestellt wurde.
+- **Memo-Kennungen (`WE#…#`, `SM#…#`) sind nur je WMS-Datenbank eindeutig – auf Testsystemen ein System-Kürzel setzen** (`Sync:SageSystemKuerzel`,
+  v1.99.9). Gespeichert wird die Kennung, mit der gesendet wurde; das Kürzel beginnt mit einem Buchstaben. **Warum wichtig:** DEV, AKE-Test und
+  AKE Test-IDEAL schreiben in dieselbe Sage-Testdatenbank, und nach einem Restore beginnen die Ids neu. Die Suche vor dem erneuten Senden fände
+  den Beleg eines anderen WMS, hielte den eigenen Eintrag für „übergeben“/„bestätigt“ und sendete **nie**. Ohne gespeicherte Kennung fände die
+  Suche nach einer Kürzel-Änderung die eigene Buchung nicht mehr → zweiter Beleg. Ein Ziffern-Kürzel (`12`) ergäbe `WE#12#7#`, das die Suche
+  `%WE#12#%` eines Systems ohne Kürzel trifft.
+
 ## Sage-SData-Lesen (v1.73.0, [[2026-11-06-sage-sdata-stammdaten-sync-spec]])
 
 - **`startIndex` ist 0-basiert.** Am AKE-Test liefert `startIndex=1` die erste Zeile nicht (LagerorteInfo 35 von 36; Lookup mit einem Treffer leer).
@@ -1737,3 +1834,538 @@ Code: `hardware-scanner.js` Block „Scannen ohne Feld“, CSS `.hw-scan-bereit`
 - **Quellensperren (offene Prüfabfrage) an EINEM Ort: `SageQuelleSperre`** (Web-Projekt), gelesen von der Dienst-Weiche und von `/ServiceSettings`.
   **Warum wichtig:** Stand die Sperre nur im Dienst (`SdataGesperrtBis`), zeigte die Maske `SData` als gültig, der Lauf las aber still View –
   Protokoll und Maske liefen auseinander (B6). Artikel ist nur gesperrt, wenn `Sync:ArticlesViewName` gesetzt ist (IDEAL); nicht lesbar = gesperrt.
+
+## 32. Wareneingang-CSV auf UNC-Pfad (v1.99.11, [[2026-11-12-wareneingang-barcode-lieferschein-csv-export-spec]])
+
+- **`initTextInputScanner(…, 'raw')` war bis v1.99.11 ein `'article'`-Scan** (`barcode-scanner.js`, Abbildung jetzt in `textScanType`).
+  **Warum wichtig:** Ein roher Code wurde am QR-Trennzeichen `;` abgeschnitten, 8/12–14 Ziffern gingen in die EAN-Auflösung, im Matchcode-Modus in
+  die Matchcode-Suche – das Barcode-Feld hätte falsche Dateinamen bzw. „nicht gefunden“ bekommen. Neuer Scan-Modus = Abbildung in `textScanType`
+  ergänzen; die Artikel-Wrapper greifen nur bei `scanType === 'article'`.
+- **Atomar ist nur das Umbenennen auf derselben Freigabe** (`.tmp` und `.csv` im selben Ordner, `File.Move(…, overwrite: false)`).
+  **Warum wichtig:** Ein Leser, der `*.csv` abholt, darf nie eine halbe Datei sehen; ein Umbenennen über Freigaben hinweg ist ein Kopieren.
+  `overwrite: false` + `File.Exists` vorher: eine fremde oder schon verarbeitete Datei wird nie ersetzt.
+- **Dienstkonto `LocalSystem` greift als Computerkonto `DOMÄNE\SERVER$` auf die Freigabe zu.** **Warum wichtig:** Rechte für einen Benutzer
+  reichen dann nicht – jede Datei endet als „Zugriff verweigert“. Recht „Ändern“ auf Freigabe **und** NTFS (anlegen, schreiben, umbenennen, eigene
+  `.tmp` löschen); der Web-App-Pool ist ein anderes Konto, deshalb prüft `/ServiceSettings` nur die Form des Pfads.
+- **Die CSV entsteht nur aus `Uebergeben`; `NichtNoetig` (Sage-WE beim Buchen aus) und `NurInSage` warten nie.** **Warum wichtig:** Ein
+  „wartet“ für diese Wareneingänge wäre eine falsche Zusage – deshalb ist das Barcode-Feld bei ausgeschaltetem Sage-WE gesperrt und der Server
+  weist einen trotzdem geposteten Barcode ab.
+- **„Nie automatisch wiederholen“ hängt an festen Fehlertexten** (`WareneingangCsv.NieWiederholen`: Kollision, ungültiger Barcode).
+  **Warum wichtig:** Wer eine Kollision mit eigenem Text meldet statt über die Konstante, lässt den Dienst eine vorhandene Datei alle 15 Minuten erneut
+  prüfen und als Fehler zählen; Texte nur über die Konstanten setzen.
+- **Seit v1.99.29 ohne Kopfzeile: die Spaltenreihenfolge ist der Vertrag mit enaio** ([[2026-11-14-wareneingang-csv-erfasser-samaccountname-spec]]).
+  Eine neue Spalte nur am Ende anhängen und vorher mit enaio abstimmen; nie umsortieren. **Warum wichtig:** Der Import ordnet nach Position zu –
+  eine eingeschobene Spalte verschiebt still alle folgenden Werte, kein Fehler, nur falsche Daten in enaio.
+- **Erfasser kommt vom Benutzer der Bewegung, nicht aus `CreatedByWindows`/`StockMovement.WindowsUser`.** **Warum wichtig:** Diese Felder halten
+  die Windows-Identität der Sitzung (Terminal-Konto, bei Formular-Anmeldung `""`/`SYSTEM`), nicht den buchenden Benutzer. Ohne das
+  `Include(StockMovement).ThenInclude(User)` in `RunOnceAsync` fällt der Erfasser still auf `CreatedBy` zurück – der Test `RunOnce_IncludeWirkt_*`
+  schützt davor.
+- **Seit v1.99.33 (Sammellieferschein): die laufende Nummer kommt aus der DB, nicht aus dem Ordner** ([[2026-11-17-wareneingang-sammellieferschein-und-bestellkopf-spec]]).
+  Start = Zeilen mit gleichem Barcode **und** `Datei`; belegt = `Datei` jeder anderen Zeile **oder** Datei im Ordner. **Warum wichtig:** enaio
+  holt `B.csv` ab und räumt den Ordner leer – eine Nummer nur aus dem Ordner würde den Namen `B.csv` ein zweites Mal vergeben, enaio hielte die
+  zweite Lieferung für die erste. Fremde Barcodes zählen bei „belegt“ mit, weil Barcode `B_1` den Namen `B_1.csv` schon tragen kann.
+- **Der Inhalt bleibt beim Suffix gleich: Feld 1 = Barcode ohne `_n`.** **Warum wichtig:** enaio legt nach dem Barcode ab, nicht nach dem
+  Dateinamen; ein Barcode mit Suffix im Inhalt fände den Aufkleber nicht. Prod erst nach Bestätigung E-1 durch enaio (Manifest-Info).
+- **Grenze (ponytail im Code):** Gelingt das Umbenennen, scheitert aber `SaveChanges`, liegt die Datei im Ordner ohne `Datei` in der DB; der
+  nächste Takt sieht sie über `File.Exists` als belegt und nimmt die nächste Nummer – also eine doppelte Datei, nie eine überschriebene.
+
+## 33. SData-Kennwort verschlüsselt in den Service-Einstellungen (v1.99.14, [[2026-11-13-sdata-teil-2-userfelder-stueckliste-spec]], ADR [[0024-sdata-kennwort-verschluesselt-in-den-service-einstellungen]])
+
+- **Der Dienst entschlüsselt mit dem Schlüsselring der WEB-App** (`DataProtection:KeysPath` im Dienst = Pfad der Web-App, `ApplicationName`
+  gleich, Dienstkonto braucht Leserecht). **Warum wichtig:** Ein eigener oder fehlender Schlüsselring im Dienst macht `dp1:`-Werte
+  unentschlüsselbar – dann sendet der Dienst bewusst NICHTS an Sage (kein stiller Rückfall auf appsettings), Lagerbuchung und Abgleiche stehen.
+  Das Update-Skript stellt Ordner und Recht her (Platzhalter `{DataProtection}`).
+- **Nicht entschlüsselbar ≠ leer.** Leerer `SData:Username` → appsettings-Rückfall mit Warnung (Übergang); gesetzter Benutzer mit
+  unentschlüsselbarem Kennwort → Fehler, kein Rückfall. **Warum wichtig:** Ein Rückfall bei Entschlüsselungsfehler würde einen kaputten oder
+  absichtlich gewechselten Zugang mit dem alten Klartext-Kennwort überdecken.
+- **Typ `Geheim` statt Text für jedes Geheimnis in `ServiceSettings`.** **Warum wichtig:** Textfeld (`value=`), Orphan-Liste,
+  `Einstellungspruefung`-Befund und Freitext-Pflege zeigen bzw. protokollieren sonst den gespeicherten Wert; nur der Typ `Geheim` schaltet alle
+  vier Stellen auf „gesetzt/nicht gesetzt“.
+- **Ressourcen-`$schema` liefert am AKE-Test 401, das Vertrags-`$schema` 200** (Lesetest [[sage-sdata-benutzerfelder-lesetest]]).
+  **Warum wichtig:** Ein Werkzeug, das nur das Ressourcen-Schema liest, meldet „keine Felder“ – die Feldliste schneidet die Ressource deshalb aus
+  dem Vertrags-Schema heraus. `SpecificUserfields`/`CustomFields` gehen nur als `include`, als eigene Ressource antworten sie 500.
+
+## 34. Rahmenabrufe EBZ (v1.99.15, [[2026-11-11-wareneingang-teil-3-rahmenabrufe-spec]])
+
+- **EBZ-Vorgangsmengen gelten je Rahmen, nicht je Abruf.** `PositionGGBestellt/Geliefert` einer Abruf-Position sind die Summen der
+  Rahmenposition (P-W8: 2400 Stk Abruf, Vorgang 34800/33604). **Warum wichtig:** Rest aus den Vorgangsmengen wäre für jeden Abruf falsch –
+  der Abgleich setzt für EBZ `MengeBestellt = MengeOffen = MengeBasis`, `MengeGeliefert = 0`.
+- **Rest EBZ zieht ALLE WMS-Wareneingänge ab, auch `Uebergeben`** (`ErfasstJeBelPos.Abzuziehen(SagePurchaseOrderLine)`). **Warum wichtig:**
+  Sage reduziert die offene Menge je Abruf nie; ein Abzug nur bis zum letzten Abgleich (wie bei EBB) ließe gelieferte Abrufe nach dem nächsten
+  Abgleich wieder offen erscheinen. Grenze: in Sage direkt gebuchte Abruf-Lieferungen zieht das WMS nicht ab (Hilfeseite). Die alten
+  `DateTime`-Überladungen sind entfernt, damit kein Aufrufer die Belegart-Prüfung umgeht.
+- **Empty-Guard je Belegart.** **Warum wichtig:** Liefert eine der beiden Abfragen still 0 Zeilen (Filterfehler), würde ein gemeinsamer Guard
+  den halben Cache löschen.
+- **Sage-WE für Abrufe hängt an der Konstante `SageWareneingang.RahmenabrufMitSageWe`** (nicht an einer Einstellung). Erst nach dem einen
+  Schreibtest (E2, Erfolg nur mit `ReferenzBelID` = Abruf-BelId) auf `true`; sonst würde das E5-Sicherungsnetz einen Abruf-Wareneingang ohne
+  Kennung nicht finden und eine Wiederholung einen zweiten Beleg anlegen.
+
+## 35. Kommissionier-Prio: MAX zählt zurückgenommene FAs mit (v1.99.17, [[2026-11-13-doppelte-kommissionier-prio-nach-ruecknahme-spec]])
+
+- **`GetMaxPickingPriorityAsync` filtert bewusst NICHT auf `IsReleasedForPicking`.** Bei „Freigabe zurücknehmen“ bleibt die Prio stehen
+  (und weiterlaufende Kommissionieraufträge behalten sie). **Warum wichtig:** Zählte das MAX nur aktuell freigegebene FAs, bekam ein neu
+  freigegebener FA die Zahl eines zurückgenommenen – nach dessen erneuter Freigabe standen zwei FAs auf derselben Prio (DEV 2614167/2614168
+  beide 32, sogar im selben Sammellauf). Folge der Regel: Die vorgeschlagene Zahl kann über jeder im Leitstand sichtbaren liegen (gewollt,
+  Hilfeseite). Manuelle Doppelvergabe bleibt erlaubt; Altbestand zeigt `Pruefung/DoppeltePrio`.
+
+## 36. Zeitstempel in Lokalzeit, UTC nur mit Eintrag in der Ausnahmeliste (v1.99.18, ADR [[0025-zeitstempel-in-lokalzeit-des-schreibenden-rechners]])
+
+- **Neue Schreiber nehmen `DateTime.Now` (Web) bzw. einen Parameter `@Jetzt` mit `DateTime.Now` des Dienstrechners (raw SQL) – nie
+  `UtcNow`/`GETUTCDATE()`/`SYSUTCDATETIME()`.** **Warum wichtig:** Die Anzeigen rechnen nicht um; UTC-Zeilen stehen 1–2 h zu früh, und
+  dieselbe Spalte mischte bis v1.99.18 UTC und Ortszeit (Seeds per SQL mit `GETDATE`, `Program.cs` mit `UtcNow`) – Altdaten sind deshalb
+  nicht sicher umrechenbar und bleiben, wie sie sind. `ZeitstempelKonventionTests` schlägt bei jedem neuen UTC-Aufruf außerhalb der
+  Ausnahmeliste fehl (und bei einer veralteten Ausnahme).
+- **Eine Zeit je Lauf/Aufruf.** **Warum wichtig:** Mehrere `Now`-Aufrufe in einer Sammelfreigabe oder einem Sync-Lauf ergeben unterschiedliche
+  Stempel für zusammengehörige Zeilen; `ReleasedAt = ModifiedAt` bzw. `ReportedAt = ModifiedAt` setzt einen Wert voraus.
+
+## 37. Lieferverzug und Einkauf: Zahlen aus Sage erst messen (v1.99.19/v1.99.20, [[2026-11-13-lieferverzug-nachbesserung-keyuser-spec]], [[2026-11-08-einkauf-bestellvorschlaege-spec]])
+
+- **`AppSettingKeys` enthält nur Einstellungs-Keys als String-Konstanten.** Der Drift-Test verlangt jede `const string` dort als eigene Einstellung;
+  feste Auswahlwerte gehören in eine verschachtelte Klasse (`AppSettingKeys.EinkaufBedarfWerte`). **Warum:** sonst rot ohne erkennbaren Bezug.
+- **„Letzte Bestellung“ über SData ist nach `BelPosId` sortiert, nicht nach Datum** – der jüngste Beleg lässt sich nur über alle Seiten bestimmen,
+  und ein 1-Jahres-Fenster findet am AKE-Test nur 55 % der letzten Bestellungen (E0-A3). **Warum:** ein Fenster wirkt vollständig, ist es aber nicht.
+- **Gleiche Einheit heißt nicht Faktor 1:** `ArtikelLieferant` hat Stk/Stk mit `UmrechnungsfaktorEK` 2 oder 5 (und 0). Wer auf die Mindestbestellmenge
+  aufrundet, prüft Einheit **und** Faktor (E0-A2). **Warum:** sonst wird in der falschen Einheit gerundet.
+- **`EinkaufPositionenInfo` hat keine Lieferanten-Artikelnummer** (91 Felder, GET 2026-11-13) – Quelle ist `ArticleSupplier.SageBestellnummer`, die nur
+  mit `Sync:ArtikelLieferantEnabled` gefüllt wird. Die Partner-Ressource heißt `eptEinkaufsbelege.100036671.DPSBS_DMS_Connector` (ohne Suffix 404).
+- **Erste Welle Kreditor-Mails:** Auch mit `MaxAlterTage` 180 lagen auf AKE-DEV 96–99 Kreditoren über `KreditorMaxJeLauf` 30 („alle oder keine“) –
+  vor dem Einschalten Zahl prüfen.
+- **Bedarfe nie doppelt und nie an zwei Stellen rechnen (v1.99.30, [[2026-11-16-bestellvorschlaege-nachbesserung-spec]]).** Bedarfsmeldung und
+  Lagerbestellung beschreiben oft denselben Bedarf wie der FA – Summieren zieht ihn doppelt ab (Till: Vorschläge zu hoch). Deshalb je FA
+  max(FA-Rest, Meldung), dann max(FA-Teil, Lagerbestellungen), und zwar nur in `PlannedConsumptionService`; Artikelinfo und Liste lesen dort
+  (Gleichheitstest `PurchaseProposalsNachbesserungE4Tests`). **Warum:** Die Artikelinfo hatte eine eigene Rechnung (Soll ohne Ausbuchungen) und
+  zeigte damit andere Zahlen als der Einkauf – zwei Wahrheiten zum selben Artikel.
+- **Nur `Ausbuchung` mindert den FA-Rest.** Eine Einbuchung mit FA-Nummer (Rücklage) darf den Rest nicht erhöhen bzw. senken – sonst sinkt der
+  Bedarf beim Zurücklegen. **Warum:** `StockMovement.ProductionOrderId` hängt an beiden Richtungen.
+- **Gleiche Einheit heißt auch bei `UmrechnungsFaktorLME` nicht Faktor 1, und `EinheitAbweichend` heißt nicht „nicht rechenbar“.** Die
+  Cache-Mengen offener Bestellungen sind in der Basiseinheit; weicht nur die Bestelleinheit ab, ist die Menge brauchbar (EK005564). Über
+  Einheitengrenzen wird bis P-N1/2/3/4/7 nichts umgerechnet, nur gemeldet. **Warum:** Richtung und Bedeutung der Faktoren sind in Sage nicht
+  belegt; ein geratener Faktor 1 sieht plausibel aus und ist unbemerkt falsch.
+- **`sqlcmd` setzt `QUOTED_IDENTIFIER` OFF** – `00_FreshInstall.sql` bricht dann mit Meldung 1934 an gefilterten Indizes ab (Rückgabewert trotzdem
+  „gelaufen“ ohne `-b`). Migrationstest immer mit `sqlcmd -I`.
+
+## 38. Doppel-Absenden, verpackter Deadlock, feste Kultur (v1.99.23, [[2026-11-14-schutz-doppel-absenden-und-unsichtbare-positionen-spec]], ADR [[0026-schreibaktionen-senden-die-absicht-der-server-prueft-am-schreibort]])
+
+- **Ein Deadlock kommt verpackt an.** EF wirft ihn als `InvalidOperationException` → `DbUpdateException` → `SqlException 1205`; eine Prüfung
+  nur von `ex` und `ex.InnerException` übersieht ihn (bis v1.99.22 `Nummernkreis.IstDeadlock`) – Folge HTTP 500 statt Wiederholung (N-2).
+  **Regel:** `Nummernkreis.IstSqlFehler(ex, …)` läuft die ganze Kette ab; dasselbe für UNIQUE (2601/2627).
+- **Wiederholversuch = neue Welt.** Wer in `MitVersuchenAsync` neu liest, muss auch den Status neu prüfen – die Vorprüfung vor der Schleife
+  gilt nach einem verlorenen Gleichstand nicht mehr (K-1: zweiter Folgeauftrag). **Warum:** der Gewinner hat inzwischen geschrieben.
+- **Umschalter sind gefährlich.** Ein Knopf, der „dreh um“ sendet, macht auf einer veralteten Seite das Gegenteil (K-6: Freigabe-Klick
+  stornierte Aufträge). **Regel:** Zielzustand mitsenden, Server meldet „bereits …“ (ADR 0026).
+- **Knopf-Sperre nie sofort `disabled`.** Ein im `submit`-Ereignis gesperrter Knopf fehlt mit Name/Wert in den Formulardaten; `site.js` sperrt
+  per `setTimeout(…, 0)` und prüft dort `e.defaultPrevented` (später registrierte Listener, `confirm`-Abbruch). `form.submit()` aus Skripten
+  löst kein `submit` aus und ist nicht gesperrt. Formulare, die bewusst mehrfach senden: `data-mehrfach-erlaubt`.
+- **Restfenster:** zwei verschiedene Wareneingangs-Seiten mit demselben Barcode gleichzeitig (WE-4, Barcode-Prüfung ohne Sperre); zwei
+  gleichzeitige Rücknahmen → RowVersion-Konflikt als 500 (K-7).
+- **Feste Kultur `de-DE`, nicht `de-AT`.** Unter ICU ist der Tausendertrenner von `de-AT` U+00A0 – der Server-Spaltenfilter
+  (`ColumnFilterSyntax`) liest nur den Punkt als Tausender, und der CSV-Export schrieb `-10 026,000` als Text. **Regel:** Kultur bleibt eine
+  Code-Konstante; der Windows-Dienst hat sie (noch) nicht (Freigabe-Antwort 2).
+- **CSV schreibt Zahlen ohne Tausendertrenner** (`csv-export.js cleanValue`): mit Dezimalteil immer, ganze Zahlen nur in Spalten mit
+  `data-filter-type="number"` – sonst würden Positionen wie `1.234` zu `1234` (Freigabe-Antwort 6).
+- **Unterpositionen ohne Vater-Zeile:** Im Kommissionierauftrag fehlen Baugruppen anderer Aufträge; eine Zeile mit `TreeLevel > 0` startete
+  versteckt und wurde nie sichtbar (N-1). **Regel:** versteckt nur, wenn `BomViewModel.VaterPosition` einen vorhandenen Vorfahren findet.
+
+## 39. Beschichtungsquelle: wer schreibt HasCoatingParts (v1.99.25, [[2026-11-16-beschichtungslogik-je-standort-spec]], ADR [[0028-beschichtungsquelle-je-achse-ueber-appsettings-mit-automatisch]])
+
+- **Nur ein Schreiber je Quelle.** `BeschichtungKennzeichenQuelle` entscheidet, ob die Lackierteil-Erkennung (Artikelkategorie) oder die
+  FA-Materialisierung (FaStruktur) `HasCoatingParts` setzt. **Warum:** Schrieben beide, kippten die Flags hin und her, und jeder Wegfall setzt
+  `IsCoatingDone` zurück (§11). Deshalb prüft jeder Lauf die effektive Quelle selbst (`ResolveQuellen`).
+- **Import-Hook braucht seit v1.99.25 `Sync:CoatingDetectionEnabled`.** Vorher lief die Erkennung im Sage-Import-Hook immer, sobald
+  `Sync:BomCacheEnabled` an war. Steht `CoatingDetectionEnabled` auf `false` (Default, `ServiceSettingDefinitions.cs:288`), bekommen neue
+  Aufträge kein Lack-Flag mehr. Das Update-Skript meldet es (`Pruefung/LackierteilErkennungImportHook`).
+- **Unpassender Bestandswert sperrt `/Settings`.** Nach einem Umschalten des Masters kann ein gespeicherter Quellwert unpassend werden; dann
+  speichert `/Settings` nichts, bis er korrigiert ist (Meldung nennt das Feld) – gleiches Muster wie die BDE-Pflichtregel.
+- **Offen (Spec, Rückfrage 19):** Das BomCache-Fenster lässt komm-erledigte WAs aus, die Erkennung prüft sie aber und setzt ohne Cache-Treffer
+  `HasCoatingParts`/`IsCoatingDone` zurück – heutiges Verhalten, nicht gemessen.
+
+## 40. FA-Struktur IDEAL über SData (v1.99.26, [[2026-11-16-fa-struktur-ideal-ueber-sdata-spec]], ADR [[0029-fa-struktur-ideal-knoten-aus-sdata-fainfos-aus-view-hybrid]])
+
+- **SData mit `where` ohne `orderBy` → HTTP 500**, auch bei RealTimeData. **Warum:** Sage paginiert serverseitig nur sortiert. Seit v1.99.26
+  wirft `SageSdataReadClient.BuildUrl` vor dem Request eine `ArgumentException` – neue Abfragen immer mit `orderBy`.
+- **`PpsFaBelegeInfo` liefert beendete Haupt-FAs nicht** (FA 1059463), `dtsFaBelegsuche` schon. **Warum wichtig:** ohne Wurzel fehlt die
+  ganze Struktur bzw. die Stückliste live bleibt leer – deshalb Kopf über die Belegsuche.
+- **Ressourcenliste (Artikel) ≠ FA-Stückliste.** Artikel 80141025 hat 6 Ressourcen, FA 1059463 aber 13 Positionen (L12). Die Artikel-Ansicht
+  in „Stückliste live“ heißt deshalb „Ressourcenliste (Vorlage)“ – nie als FA-Stückliste lesen.
+- **RealTimeData im Dienst nur im Modus „Vergleich“** – Regel nur in `FaStrukturQuelleSwitch.RealTimeDataErlaubt`, Sperre des Umschaltens nur
+  in `SageQuelleSperre` lockern (P-FS3/DPS, Rückfragen 4/5). **Warum:** Blattfelder (Beschichtet, Maße, EKBedarf) haben in SData keine
+  Quelle; ein frühes Umschalten setzt `Beschichtet` an Blättern auf false und ändert die Beschichtungslogik.
+
+## 41. Anmeldung nur mit Kennwort, Erstinstallation (v1.99.28, [[2026-11-14-sicherheit-anmeldung-und-installer-spec]], ADR [[0027-formular-anmeldung-nur-mit-kennwort-erstkennwort-mit-pflichtwechsel]])
+
+- **Meldung 207 („Ungültiger Spaltenname“) verwirft den ganzen Batch – nicht nur die Zeile.** **Warum:** SQL Server übersetzt den Batch bis
+  `GO` vor der Ausführung; eine unbekannte Spalte in einer bestehenden Tabelle bricht beim Übersetzen ab (bei einer *fehlenden Tabelle* greift
+  dagegen die verzögerte Namensauflösung). Am 04.11.2026 fehlten deshalb auf IDEAL-Prod sehr wahrscheinlich **alle** Indizes aus
+  „15. Indexes“ samt FK (lokal nachgestellt: 0 von ~30). Wächter: `FreshInstallIndexSpaltenTests` prüft jede Index-Spalte in
+  `00_FreshInstall.sql` gegen das EF-Modell.
+- **Regel R/P sitzen nur im Formular-Login** (`AccountController.Login`). Windows-SSO (`WindowsAutoLoginMiddleware`) prüft weder Kennwort noch
+  Haken – ein AD-Benutzer mit offenem Erstkennwort ist per SSO trotzdem drin. **Warum:** SSO ist die Anmeldung, das Kennwort ist nur der
+  Formular-Weg (ADR [[0002-dual-auth-session-login-plus-windows-sso]]).
+- **Lokale QA ohne Kennwort geht nur unter `dotnet run` (Development).** Auf DEV-IIS (Production) gilt Regel R – QA-Testbenutzer brauchen dort
+  Kennwörter. **Warum:** die Ausnahme hängt bewusst an `IsDevelopment()`, nicht an einem Schalter.
+- **`Pruefung/BenutzerOhneKennwort` sperrt Prod in der Vorprüfung** – admin zählt nicht (der Web-Start stellt ihn auf `wms-admin` + Haken).
+  Seit v1.99.28 sind SQL-Prüfungen auch in Phase Vorher erlaubt (nur `anzeigen`, `NachlaufManifestDriftTests`).
+- **Dienst-`appsettings.json` hat keine `Sync`-Schalter mehr** (außer `Feiertag*`, gebunden an `HolidaySyncOptions`). **Warum:** der Dienst liest
+  `Sync:*`, `WorkerSettings:*`, `ErrorNotification:*` nur aus `dbo.ServiceSettings`; Datei-Werte waren wirkungslos und täuschten (BH-4). Der
+  Installer schaltet den FA-Abgleich deshalb nach dem Aufwärmen **in der DB** ab.
+- **RealTimeData-Feldnamen tragen das Tabellen-Präfix.** In `dtsFaBelegsuche` heißen die Kopf-Benutzerfelder `KHKPpsFaBelege_USER_OS*`.
+  **Warum gefährlich:** mit den Namen ohne Präfix im `select` antwortet Sage 200 und lässt die Felder still weg – kein Fehler, nur leere Werte
+  (QA IDEAL 2026-11-16, R1). Testantworten immer mit den echten Feldnamen aus der Feldliste bauen.
+
+## 42. Offene Bestellungen: KW-Filter, Cache-Vollersatz, View aus zweitem Controller (v1.99.31, [[2026-11-16-offene-bestellungen-sofort-neu-lesen-einkauf-kw-filter-spec]])
+
+- **Der KW-Klick im Kalender filtert per Text-Enthält – die Zelle muss „KWnn“ enthalten.** **Warum:** `table-filter.js` schreibt `KWnn` ins
+  Feld; in einer Datumsspalte ist das kein Datum, sondern ein `Contains`-Teil auf dem gerenderten Text (`ColumnMap`). Ohne KW im Zelltext findet
+  er nichts. Grenze: jahreslos und Teilstring – `KW4` trifft auch KW40–49 (im Test mit KW4/KW47 nachgestellt). Die Vorbelegung nutzt deshalb
+  einen echten Datumsbereich `Mo...So`, der jahresgenau ist.
+- **Cache-Vollersatz nie parallel.** **Warum:** `EinkaufBestellungenSyncService` ersetzt `SagePurchaseOrderLines` je Lauf komplett; regulärer
+  Lauf und Anstoß nach Sage-WE kommen aus zwei Workern. Eine prozessweite `static SemaphoreSlim` serialisiert (regulär wartet, Anstoß
+  überspringt und bleibt offen). Gilt nur innerhalb eines Dienst-Prozesses – zwei Dienst-Instanzen auf derselben DB wären nicht geschützt.
+- **Eine View aus einem zweiten Controller rendern:** Tag-Helper ohne `asp-controller` nehmen den **aufrufenden** Controller. Formulare und
+  Links auf Aktionen des Original-Controllers (Receive, SageWe-Aktionen) brauchen `asp-controller="PurchaseOrders"`, sonst zeigen sie auf
+  `/EinkaufPurchaseOrders/Receive` (404). Filter-Formular und Pagination bleiben dagegen beim Aufrufer. Wächter:
+  `PurchaseOrdersControllerTests.Einkauf_Attribute_UndReceiveBleibtGeschuetzt_F2_2_F2_4`.
+- **Einen Controller als Dienst eines anderen nutzen** (`AddScoped<PurchaseOrdersController>`): dessen Class-Filter laufen nicht; Zugriff prüfen
+  allein die Attribute des aufrufenden Controllers. `ControllerContext` vor dem Aufruf setzen (sonst `HttpContext`/`Url` null).
+- **AB-Nummer/Kommission aus dem Belegkopf (v1.99.33): `where` nur auf `BelID`, nie auf USER-Aliasse** ([[2026-11-17-wareneingang-sammellieferschein-und-bestellkopf-spec]]).
+  `dtsEKBelegMst.Sage.Wawi` liefert die Felder als `KHKEKBelege_USER_AB`/`KHKEKBelege_USER_Kom` (Präfix = Tabelle). **Warum:** Filtern auf
+  einen USER-Alias ist in RealTimeData nicht belegt; die BelIDs kennt der Abgleich ohnehin. Fehlt der Schlüssel in **jeder** Zeile, ist der
+  Feldname falsch (Warnung „Sage liefert … nicht“) – nicht still leer lassen. Testantworten mit den echten Feldnamen bauen (§41 sinngemäß).
+- **Lesefehler am Kopf ≠ Lauf-Fehler.** Scheitert nur das Kopf-Lesen, ersetzt der Vollersatz trotzdem alle Positionen; AB-Nummer/Kommission
+  kommen dann aus dem alten Cache je `BelID`. **Warum:** Sonst löschte ein Netzaussetzer am Zusatzfeld die Werte aller Bestellungen, und der
+  Lauf ohne Kopf bräche den Wareneingang ab, der nur die Positionen braucht.
+
+## 43. Beschichtungstermin nur über den Resolver (v1.99.25 E2/E4, Auslieferung mit v1.99.32, [[2026-11-16-beschichtungslogik-je-standort-spec]], ADR [[0028-beschichtungsquelle-je-achse-ueber-appsettings-mit-automatisch]])
+
+- **Termin, Tooltip und Aktiv-Kennung nur über `BeschichtungResolver`** (`LadenAsync` + `Bestimmen`). **Warum:** FA-Liste, Leitstand und
+  Abarbeitungsliste hatten je eine eigene Kopie der Formel und der Kategorie-Prüfung – der Termin konnte je Liste abweichen. Der Wächtertest
+  `BeschichtungTerminQuelleWaechterTests` verbietet direkte Zugriffe auf `LackierteilKategorieName`/`BeschichtungTage`/`BeschichtungAbholtage`/
+  `Start_Beschichtung` in Controllern und Views (Ausnahmen: Beschichtungsauftrag-Kopf, Hilfe).
+- **Hierarchisch nur mit eindeutigem Kopf** (`EindeutigeKoepfeAsync`): Ein Kombigerät hat mehrere Köpfe; einen davon still zu nehmen zeigte einen
+  falschen Termin – dann bleibt der Termin leer.
+- **P-I1:** PROD IDEAL hat den Master aus (wirkt wie AKE, unverändert); nur TEST/DEV IDEAL zeigen die Änderung.
+
+## 44. BDE-Teileliste: Schlüssel, Doppelschutz, Erkennung (v1.99.32, [[2026-11-13-bde-vereinfacht-teileliste-blechfertigung-spec]], ADR [[0030-teilmeldung-mit-fachlichem-schluessel-neben-workoperation]])
+
+- **Node-Id ist kein Schlüssel.** Warum: Der Struktur-Sync erneuert `FaHierarchyNode`-Ids – Meldungen hängen am fachlichen Schlüssel
+  (HauptFA, VaterFA, SubFA, Position, Artnr, Kürzel).
+- **EXISTS nicht im Aggregat** (SQL Server Meldung 130, so in der P-TL3-Abfrage der Spec passiert). Warum: SQL Server lehnt Unterabfragen
+  in Aggregaten ab – Gebucht-Kennzeichen erst je Kandidat in eine Temp-Tabelle rechnen, dann `SUM(CASE …)` (so im Einmal-Skript
+  `SQL/Einmalig/2026-11-17_v1.99.32_RemoveParentWorkOperationsFromLeafTokensTeileliste.sql`).
+- **Doppelschutz nicht InMemory-testbar.** Warum: Gefilterter UNIQUE und `sp_getapplock` greifen nur auf SQL Server – N1 bleibt Manual-UAT.
+- **Erkennung liest nur die Werkbank-Option.** Warum: `BdeNurFaMeldung` ist eine Web-AppSetting, der Dienst kennt sie nicht; nur
+  `ProductionWorkplaces.BdeTeileliste` steuert das Überspringen.
+- **Kürzel nur an Leerzeichen trennen** – im Dienst wie im Einmal-Skript (`STRING_SPLIT(...,' ')`). Warum: Eine abweichende Trennung liefert
+  andere Treffer als die Erkennung.
+
+## 45. Arbeitsgangnummer ist kein Arbeitsplatz (v1.99.27/1.99.32, [[2026-11-16-arbeitsgang-mapping-sage-arbeitsgangnummer-spec]], ADR [[0031-sage-arbeitsgangnummer-an-operationconfig-sagewert-plus-handwert]])
+
+- **`vw_IDEAL_AKE_WMS_Arbeitsgaenge` liefert Arbeitsgangnummern** (P-AG1/P-AG3). Warum: Der alte Einstellungstext sagte „Arbeitsplätze“, und
+  auf IDEAL TEST legte die Werkbank-Anlage 26 Werkbänke mit Arbeitsgangnummern als `SageArbeitsplatznummer` an – eine spätere Rückmeldung
+  an Sage hätte den falschen Arbeitsplatz gebucht.
+- **Spalte 0 von `SageArbeitsplatzDto` je Quelle verschieden:** View = Arbeitsgang, Tabelle/SData = Arbeitsplatz. Warum: Das DTO ist geteilt –
+  Nummern nur aus der View übernehmen (Guard im `OperationConfigSyncService`).
+- **Sage-Wert nicht in `EditableProperties`.** Warum: Ein Web-Speichern darf den Sync-Stand nicht überschreiben (Muster wie `Source`/
+  `SageMissingSince`); der Handwert gehört nur dem Web, der Sage-Wert nur dem Sync.
+
+## 46. AKE-Stücklisten-Positionen sind Text (v1.99.34, [[2026-11-16-beschichtungslogik-je-standort-spec]] Nachtrag 3)
+
+- **Position nie als `int` parsen.** Die AKE-Stückliste führt mehrstufige Positionen (`51.5.2`, `10.140.40.10.10` an S1402262, bis 5 Ebenen /
+  15 Zeichen laut P-A9). Warum: P-A6 (2026-11-17) widerlegte „Lackierteil-Positionen ganzzahlig“; ein `int.TryParse` hätte Zeilen still
+  verloren oder zusammengelegt. Deshalb `BeschichtungsauftragPosition.PositionText` (SQL/157), `Position` bleibt an der AKE NULL.
+- **Reihenfolge nur über `NaturalPositionComparer`.** Warum: alphabetisch steht `5.10` vor `5.2`; die Kommissionierung sortiert schon so.
+- **Schlüssel = Artnr + PositionText, normiert wie `PickingOrderRestmengen.Schluessel`** (Artnr trim+upper, Position trim, nie
+  Zahl-Normierung). Warum: `5.2` und `5.20` sind verschiedene Zeilen. Altzeilen ohne Text gelten an der AKE nicht als vergeben – die
+  Manifest-Prüfung `Pruefung/BeschichtungPositionOhneTextFlach` meldet sie.
+- **Flache Quelle filtert nicht nach `IsDonePicking`.** Warum: Beschichtung läuft oft nach der Kommissionierung; offen heißt nur
+  `!IsDone && !IsCancelled` (A13).
+- **InMemory vergleicht Artikelnummern mit Groß/Klein**, SQL Server nicht. Die Zuordnung im Speicher ist deshalb `OrdinalIgnoreCase`; der
+  Unit-Test kann die SQL-Kollation nicht belegen (TS-145).
+
+## 47. Byte-genaue Dateiausgabe: Kodierung und Git-Zeilenenden (v1.99.35, [[2026-11-13-blechfertigung-bf-auftraege-wicam-csv-spec]])
+
+- **Windows-1252 immer mit `EncoderFallback.ExceptionFallback`** (`BfCsv.Kodierung()`), nie `Encoding.GetEncoding(1252)` pur. Warum: der
+  Standard-Fallback ersetzt nicht darstellbare Zeichen still durch `?` – WiCAM bekäme einen falschen Matchcode ohne jede Meldung. Die Freigabe
+  prüft vorher, der Dienst meldet den Rest als CSV-Fehler (Haus-Regel „melden statt still behandeln“).
+- **Byte-Vorlagen für Tests als `binary` in `.gitattributes`** (`IDEALAKEWMSService.Tests/TestData/.gitattributes`: `*.csv binary`). Warum: mit
+  `core.autocrlf` legte Git die CRLF-Vorlage mit LF ab; der Byte-Vergleich hätte auf einem frischen Checkout anders ausgesehen als lokal.
+
+## 48. FA-Struktur-Schlüssel: C#-Vergleich folgt der Spalten-Kollation; verschwundene Zeilen bleiben stehen (v1.99.37, [[2026-11-17-fa-struktur-abgleich-statt-full-replace-spec]])
+
+- **Schlüssel immer über `FaStrukturAbgleich.Norm` vergleichen** (nachlaufende Leerzeichen weg, Groß/Klein egal, leer = `null`). Warum: SQL
+  Server vergleicht `nvarchar` mit der CI-Kollation und ignoriert nachlaufende Leerzeichen. Ein Ordinal-Vergleich in C# hält `"BG "` und `"bg"`
+  für zwei Zeilen; der UNIQUE-Index lehnt die zweite dann beim Speichern ab und der ganze Lauf scheitert.
+- **Seit v1.99.37 löscht der Lauf nicht mehr alles:** `FaHierarchyNodes`/`FaHierarchyOrderInfos`/`ProductionOrderPositions` enthalten in Sage
+  beendete oder ungeklärte Zeilen. Wer neu liest (Einmal-Skripte, Berichte, neue Konsumenten), filtert `VerschwundenSeit IS NULL`, wenn er nur
+  aktive Struktur will. Warum: sonst entstehen aus beendeten FAs neue Arbeitsgänge oder WMS-Aufträge (ADR 0032).
+- **„Owner gelesen“ heißt: seine Stückliste kam im Read, nicht: die Nummer kam irgendwo vor** (QA 2026-11-17, Commit `1f0361dd`). Nur
+  `VaterFA ?? HauptFA` gelesener Knoten bzw. `BelID` gelesener Positionen zählen. Warum: Ein beendeter Sub-FA steht weiter als Knoten in der
+  Stückliste seines offenen Vaters (`SubFA`), und eine beendete Haupt-FA kann in FAInfos stehen, obwohl FAListe sie nicht mehr liefert. Zählt
+  das als „gelesen“, gilt die fehlende eigene Stückliste als „Position in Sage entfernt“ und wird ohne Sage-Abfrage gelöscht.
+
+## 49. Sage-Schreibpayload ohne belegtes `$template`: Erfolg nur mit Handle, unklar nie automatisch (v1.99.38, [[2026-11-17-arbeitsgaenge-aus-wms-in-sage-fa-anlegen-spec]])
+
+- **Die Feldnamen für `FertigungsauftragService` ServiceOption 4 sind nur aus dem `$schema` von IDEAL Prod abgeleitet** und stehen als
+  Konstanten mit `TODO(P-1..P-4)` in `SageFaArbeitsgangClient`. Vor dem ersten Einschalten per GET `$template`/`$schema` am Ziel prüfen und den
+  Schreibtest an EINEM FA machen. Warum: Ein HTTP 200 allein beweist nicht, dass die Position angelegt wurde, wenn ein Feldname nicht passt.
+- **Darum gilt 2xx nur mit Handle in der Antwort als Erfolg; ohne Handle, bei Timeout oder hängendem „Gesendet“ = „Antwort unklar“** (Text-Präfix
+  `SageFaArbeitsgaenge.UnklarText`), nie automatisch wiederholt. Warum: Sage kann angelegt haben; eine Wiederholung ohne Prüfung legt die AG
+  doppelt an, und das WMS löscht in Sage nichts. Erneut einreihen nur nach Blick in Sage; der Dienst liest den FA vor jedem Senden ohnehin.
+- **Nachtrag v1.99.39 (QA F3, [[2026-11-17-v1-99-39-nachbesserung-abend]]):** Die Handle-Regel ist ersetzt. Der Request schickt `Handle` = BelID
+  selbst mit, ein Handle in der Antwort beweist also nichts. Jetzt gilt: 2xx ohne `ErrorText` = vorläufig, **angelegt erst nach Nachlesen**
+  der AG am FA (GET, AG-Nummer = `RessourceNummer` der AG-Position); kein Fund = Fehler mit Text, Lesefehler = unklar. Warum: Nur der Sage-Stand
+  nach dem Schreiben belegt das Ergebnis; ein falscher Erfolg würde nie korrigiert, weil der Queue-Status in der Vorschau vor dem Live-Stand gewinnt.
+
+## 50. Seite hinter der letzten: Controller rechnen Skip/Take vor der Trefferzahl (v1.99.39, [[2026-11-17-v1-99-39-nachbesserung-abend]])
+
+- **Alle Listen-Controller rechnen `Skip((page-1)*size)` aus dem URL-Wert, bevor die Trefferzahl bekannt ist** (Repository liefert Items und
+  Count in einem Aufruf); `PaginationState.FirstItemNumber` rechnet ungeklemmt. Folge: `page=2` bei 8 Treffern = leere Tabelle mit
+  „Eintraege 26–8 von 8“. Behoben **zentral** mit dem globalen Result-Filter `Filters/PaginationSeiteKlemmenFilter` (nur GET): findet den
+  `PaginationState` im Model (Property) oder im ViewBag und leitet auf die letzte Seite um (0 Treffer: 1), übrige Query-Parameter bleiben.
+  Warum Redirect statt Klemmen im `PaginationState`: Klemmen nur der Anzeige ergäbe „1–8 von 8“ über einer leeren Tabelle; Klemmen vor der
+  Abfrage hieße 40 Controller anfassen. **Neue Liste:** Seitenparameter muss `page` heißen und der State im Model (Property) oder im ViewBag
+  stehen, sonst greift der Filter nicht.
+
+## 51. Sage-Benutzerfelder nie als String-Literal in eine Abfrage (v1.99.40, [[2026-11-18-v1-99-40-sage-userfelder-als-einstellung]])
+
+- **Problem:** USER_-Felder legt jeder Sage-Mandant selbst an; AKE und IDEAL unterscheiden sich. Fehlt einem Mandanten ein fest eingebautes Feld,
+  bricht der **ganze** Abgleich ab (HTTP 500 „Ungültiger Spaltenname“), nicht nur das eine Feld. So geschah es am IDEAL-Test mit
+  `USER_EKMindestbestellwert` (Kreditoren).
+- **Regel:** Ein neues Feld wird ein Eintrag in `SageUserfelder.Katalog` (Default = Name bei AKE).
+  - Im Code nur über `Feld()`/`Konfiguriert()` abfragen.
+  - Intern den logischen Namen behalten.
+  - Werte bei abweichendem Namen über `[JsonExtensionData] Weitere` + `SageUserfelder.Text` lesen.
+
+  Siehe ADR [[0033-sage-benutzerfelder-als-einstellung]].
+- **Test:** `SageUserfelderTests.Default_selects_unveraendert_wie_v1_99_39` hält die AKE-Abfragen zeichengleich. Wer sie absichtlich ändert, zieht den Test mit.
+
+## 52. Positionen ohne FA nie in die Vergaben; der Vorschlags-Haken ist kein Zustand (v1.99.41, [[2026-11-18-v1-99-41-beschichtungsauftrag-ausbau]])
+
+- **Problem 1:** Eine Position ohne FA (`OhneFa = 1`) hat keinen Herkunftsschlüssel aus der Struktur (HauptFA/VaterFA/SubFA/Position bleiben
+  leer bzw. 0). Liefe sie durch `GetVergabenAsync`/`VergabenJeSchluessel`, kollidierten alle freien Positionen eines HauptFA miteinander:
+  derselbe Artikel ließe sich kein zweites Mal vergeben, und die Vorschlagsliste zählte falsch.
+- **Regel:** Jede Abfrage über Vergaben filtert `!OhneFa` (Repository `GetVergabenAsync`, Workflow `EigeneSchluessel`,
+  `GetHinzufuegbarePositionenAsync`). Wer eine neue Vergabe-Abfrage schreibt, nimmt den Filter mit.
+  Folge (gemeldet, nicht gebaut): Ein Auftrag **nur** aus Positionen ohne FA steht nicht im Gruppenkopf der Vorschlagsliste.
+- **Problem 2:** Der Haken in der Vorschlagsliste ist eine Auswahl, kein gespeicherter Zustand (Rückfrage 8). Der Server wertet nur, was gepostet
+  wird: `schluessel` (Liste), `artnr` (Summiert, Server löst zu den **jetzt** freien Positionen auf), `freiArtikelId`/`freiMenge`.
+  Ist ein Teil ungültig, wird **nichts** angelegt (keine Nummer verbraucht); nie still den gültigen Rest anlegen.
+- **Test:** `BeschichtungsauftragWorkflowTests.FreiePosition_GleicherArtikelInZweiAuftraegen…`, `BeschichtungsauftraegeControllerTests.Create_TeilweiseUngueltig_GanzAbgelehnt_NenntVergabe`.
+
+## 53. Erklärende Hinweise vor die Fremdmeldung, nie dahinter (v1.99.42, [[2026-11-18-v1-99-42-nachbesserungen]])
+
+- **Problem:** `SageUserfelder.Erklaeren` hängte „Einstellung … prüfen“ an die SData-Meldung an. `SdataLeseException.Message` ist auf 600 Zeichen
+  gekappt, die SQL-Fehlermeldung von Sage („Ungültiger Spaltenname …“ samt Abfragetext) ist länger – der Hinweis fiel im Aktivitäts-Protokoll
+  weg, nur bei kurzen Meldungen (Kreditoren) sah man ihn. Befund 13:25 am Testsystem IDEAL :88.
+- **Regel:** Der eigene Hinweis steht **vorn**; erklärt wird aus der ungekappten `Diagnose` (`Erklaeren(Exception)`), und eine schon erklärte
+  Meldung wird nicht doppelt erklärt. Wer eine Meldung kappt oder kürzt, setzt das Wichtige an den Anfang.
+- **Test:** `SageUserfelderTests.Erklaeren_LangeSqlDiagnose_HinweisVorn_AusDiagnose_NieDoppelt`.
+
+## 54. In einem Bootstrap-`fieldset` steht direkt nach der `<legend>` der sichtbare Inhalt, kein verstecktes Feld (v1.99.44, [[2026-11-19-v1-99-44-sammel-bugfix]])
+
+- **Problem:** Bootstrap-Reboot setzt `legend { float:left; width:100% }` und hebt das Fließen nur mit `legend + * { clear:left }` auf. Ein
+  `<input type="hidden">` direkt nach der legend schluckt diese Regel; der Container fließt neben die 100-%-Legende und wird auf eine schmale
+  Spalte gequetscht (Kommissionier-Ziele v1.99.43, Text „K-“/„01“ umgebrochen).
+- **Regel:** Versteckte Felder hinter den Inhalt oder ans Ende des fieldset; vor die legend geht nicht (sie muss erstes Kind sein).
+- **Test:** `KommissionierSpaltenKonsistenzTests.KommissionierZiele_NachLegendFolgtDerContainer`.
+
+## 55. Rollen seit v1.51.0 kommen nur über das Update-Skript in die Datenbank (v1.99.44, [[2026-11-19-v1-99-44-sammel-bugfix]])
+
+- **Problem:** `beschichtungsauftrag`, `beschichtungsauftrag_schreiben`, `einkauf`, `schachtler` haben weder Seed (`Program.cs:237-251`) noch
+  SQL-Skript, sondern nur eine Haltepunkt-Prüfung mit Reparatur in `scripts/deploy/nachlauf.psd1`. `dev-deploy.ps1` führt das Manifest nicht
+  aus – auf DEV fehlen die Rollen, die Seiten sind dort nur für Admins erreichbar.
+- **Regel:** Eine neue Rolle bekommt eine Manifest-Prüfung mit Reparatur (Muster `Pruefung/RolleSchachtler`) **und** den Rollen-Dreiklang
+  (Attribut, [[controller]], `RoleOverview.cshtml`). Auf DEV nach dem Deploy die Reparatur einmal laufen lassen.
+
+## 56. `GetCurrentStockAsync(articleNumber)` sucht per Teiltext (v1.99.45, [[2026-11-19-v1-99-45-sammellauf]])
+
+- **Problem:** Der Parameter ist ein Suchbegriff (Contains über Nummer), kein Schlüssel. Die Artikelinfo zeigte so Bestände von Artikeln mit
+  ähnlicher Nummer mit; der Lagerplatz-Text der Lagerbestellung ebenso.
+- **Regel:** Für **einen** Artikel das Ergebnis nach `ArticleId` filtern oder `GetStockByArticleNumbersAsync` (exakt) nehmen. Die Teiltextsuche
+  bleibt für Bestandslisten mit Suchfeld (Grund: dort ist sie gewollt).
+
+## 57. Update-Skript: Ergebnis und Exit-Code sind zwei Angaben (v1.99.45, [[2026-11-19-v1-99-45-sammellauf]])
+
+- **Problem:** Ein mit Fehler beendeter Trockenlauf hieß „ohne Zeile TREFFER (Exit 1)“ – man las daraus „nichts gefunden“.
+- **Regel:** Neue Meldungen nach `<Fall>: [<Vorgang> ]<Ergebnis>[ -> <Folge>][. <Handlung>]`; Exit-Code nur ≠ 0, immer als eigenes
+  „mit Fehler beendet (Exit n)“. Muster in `docs/betrieb/03-installation-update-rollback.md` Abschnitt 5; Wächter `NachlaufManifestDriftTests`.
+
+## 58. Neuer Menüpunkt = Katalogeintrag + Regel + Layout-Link (v1.99.45, [[0034-navigation-menue-und-kacheln-aus-einer-quelle]])
+
+- **Problem:** Menü und Startseite hatten getrennte Bedingungen und liefen auseinander (Kachel auf 403, fehlende Kacheln).
+- **Regel:** `NavZiel` in `NavZiele` (mit Kategorie, wenn es eine Kachel sein soll), Fall im `switch` von `NavigationSicht` (gleiche Rolle wie
+  der Filter der Action), Link im Layout in eigenem `@if (nav.Zeigt(NavZiele.X))`. Keine Rechte/Schalter mehr direkt im Layout oder in Home.
+- **Nachtrag v1.99.46:** Kachel-`NavZiel` braucht zusätzlich `SymbolPfad` (d-String eines 16×16-SVG, nur `nonzero`-Pfade ohne `fill-rule`,
+  Konstante `Sym…` im selben File; Wächter `JedeKachel_HatEinSymbol`). **Warum:** v1.99.45 hat die Symbole weggelassen, obwohl die Spec sie
+  vorsah, und kein Test fing es – QA las es als „bewusste Vereinfachung“ ([[2026-11-20-dashboard-kacheln-symbole-fehlen-bug]]).
+- **Nachtrag QA v1.99.46:** Ein Pfad, der „im Projekt steht“, ist nicht automatisch heil. `file-earmark-pdf`
+  (`FaHierarchyKommissionierListen/Summiert.cshtml:112`) und `gear` (`Settings/Index.cshtml:14-15`) sind unvollständige Bootstrap-Pfade und
+  rendern schon an der Quelle als volle Fläche (bei 14–16 px fällt es kaum auf, bei 32 px schon). **Warum:** Der Wächter prüft nur die Zeichen
+  des Pfads, nicht das Bild. Neue Kachel-Symbole deshalb einmal groß rendern (Headless-Edge-Screenshot einer statischen Seite genügt), bevor sie
+  in den Katalog kommen.
+
+## 59. `@Json.Serialize` in einem doppelt gequoteten HTML-Attribut (v1.99.47, [[2026-08-05-wms-bugs-improvements-teil-6-spec]])
+
+- **Problem:** `data-x="@Json.Serialize(obj)"` liefert `IHtmlContent`; Razor schreibt es **roh** ins Attribut. Das erste `"` des JSON beendet
+  das Attribut, `JSON.parse(el.dataset.x)` wirft. In v1.99.47 war dadurch „Lagerplatz ausbuchen“ mit FA komplett tot (Knopf, Modal, Wagen).
+- **Regel:** Im Attribut `@Json.Serialize(obj).ToString()` (ein `string` – Razor kodiert `"` zu `&quot;`, der Browser dekodiert zurück).
+  Im `<script>`-Block dagegen `@Json.Serialize(wert)` ohne Anführungszeichen drumherum, nie Razor-Text in einem JS-String.
+  Wächter `JsonImAttributWaechterTests`.
+- **Warum:** Kein Controller-/InMemory-Test rendert die View; der Fehler ist nur im Browser sichtbar. Gefunden erst im QA-Lauf auf DEV
+  (Konsole: `SyntaxError … in JSON at position 1`).
+
+## 60. Stern/Knopf in einer Link-Karte: nie ein interaktives Element im `<a>` (v1.99.51, [[2026-11-23-dashboard-favoriten-reiter-spec]])
+
+- **Problem:** Die Startseiten-Kachel war ein `<a>` um die ganze Karte. Ein Favoriten-Stern (Formular + Knopf) darin wäre ungültiges HTML;
+  Tastatur und Screenreader springen falsch, ein Klick auf den Stern öffnet die Seite.
+- **Regel:** Link als `stretched-link` im Titel, Formular/Knopf als **Geschwister** mit `position:absolute` und `z-index` > 1. Der Fokusring
+  der Karte sitzt dann auf `.dashboard-link:focus-visible::after`, weil der Link die Karte nicht mehr umschließt. Favoriten nur über
+  `nav.Favoriten(keys)` rendern (nie an `NavigationSicht` vorbei), sonst zeigt ein Favorit nach Rechte- oder Modulentzug mehr als die Startseite.
+  Wächter `Startseite_KeinFormularOderKnopfInnerhalbEinesLinks`.
+- **Nebenbei:** Razor-Funktionen in `@{ }`, die einen TagHelper (z. B. `<form asp-…>`) enthalten, müssen `async Task` sein und mit `await`
+  aufgerufen werden (Compiler-Fehler MVC1006).
+- **Warum:** Kein Controller-Test rendert die View; die Verschachtelung fällt nur im Browser oder per Quelltext-Wächter auf.
+
+## 61. Markierung an Bootstrap-Tabellenzeilen: über `--bs-table-bg-state`, nicht über `background-color` (v1.99.52, [[2026-11-23-wareneingang-zu-bestellung-bedienung-spec]])
+
+- **Problem:** Bootstrap 5 malt den Zellhintergrund als `box-shadow` (`--bs-table-bg-state`/`-type`). Eine eigene `background-color` oder ein
+  eigener `box-shadow` an der Zelle überdeckt `table-danger`, Streifen und Hover – Fehlerzeilen wären nicht mehr rot.
+- **Regel:** Aktiv-/Fokus-Zeile über `--bs-table-bg-state` setzen; ein zusätzlicher Balken als zweiter Schatten **zusammen mit** dem
+  Bootstrap-Hintergrund-Schatten. Balkenfarbe `--bs-primary-text-emphasis` (#052c65): `--bs-primary` erreicht auf der aktiven
+  `table-danger`-Zeile nur ca. 2,7:1 (< 3:1 für Bedienelemente).
+- **Warum:** Der Wareneingang zeigt Fehlerzeilen rot; die neue Fokus-Zeile (v1.99.52) darf diese Bedeutung nicht wegnehmen.
+- **Ergänzung v1.99.62** ([[0035-tabellen-zeilenfarben-global-ueber-bootstrap-zustandsvariablen]]):
+  - `background-color` am **`<tr>`** ist in Bootstrap 5.3 **unsichtbar** – die Zellen malen deckend darüber (`--bs-table-bg` = Weiß). Die alte Regel
+    `.table tbody tr:hover` war deshalb jahrelang wirkungslos, Tests grün. Ebenso vermutlich die OSEON-Ebenenfarben am `tr` (jetzt `table-plain`).
+  - `--bs-table-active-bg` **nie global** setzen: färbt die Gruppen-Kopfzeilen `tr.table-active` (Kommissionierlisten, Beschichtung, Vormontage).
+    Fokus-Zeile hat deshalb eine eigene Variable `--wms-table-focus-bg`.
+  - Keine Kontextklasse an `<table>` selbst: die globale `.table`-Variable (gleiche Spezifität, später) überschreibt dann Bootstraps Wert.
+  - **Warum:** Die Fehler sind alle pixel-, nicht testsichtbar – Sichtprüfung je Zustand ist Pflicht (TS-187).
+
+## 62. WMS-Ausbuchung auf einem Sage-Platz ohne Sage-Übergabe wird vom Lagerbestand-Abgleich zurückgebucht (v1.99.53, [[2026-11-23-lagerbestellung-verbrauchsbuchung-bei-lieferung-spec]])
+
+- **Problem:** Plätze mit `Source = Sage` setzt der Lagerbestand-Abgleich auf den Sage-Bestand (`LagerbestandSyncService`). Eine WMS-`Ausbuchung`
+  dort, deren Entnahme nicht an Sage geht (ServiceSetting `SageLagerbuchungAktiv` aus, oder Platz ohne `SageBuchungErlaubt`/Sage-Referenz laut
+  `SageWareneingang.IstSageWePlatz`), ist nach dem nächsten Lauf still verschwunden.
+- **Regel:** WMS-seitige Verbrauchs-/Entnahmebuchungen (Lagerbestellung v1.99.53) bieten Sage-Plätze nur an, wenn die Entnahme an Sage geht
+  (`WarehousePickingController.EntnahmeErlaubt`), und weisen sie serverseitig mit klarer Meldung ab. Gilt für jeden neuen Buchungsweg.
+- **Warum:** Sage bleibt die Quelle für Sage-Plätze; sonst stimmen WMS-Bestand und Bewegungshistorie nicht mehr überein, ohne dass es jemand merkt.
+
+## 63. Sage-SData mit `select`: jedes `orderBy`-Feld muss auch im `select` stehen (AKE-Prod 2026-11-24, [[2026-11-24-hotfix-deploy-ake-test-startkennwort]])
+
+- **Problem:** AKE-Prod-SData baut bei gesetztem `select` ein `GROUP BY <select-Felder>` in die Paging-CTE
+  (`WITH PGCTE AS (SELECT "Ressourcenummer", ROW_NUMBER() OVER (ORDER BY "Ressourcenummer" asc, "BelPosID" asc) ... GROUP BY Ressourcenummer)`).
+  Ein `orderBy`-Feld ausserhalb des `select` ergibt dann HTTP 500 („... ist in der Auswahlliste ungültig, da sie nicht in einer Aggregatfunktion
+  und nicht in der GROUP BY-Klausel enthalten ist“). Getroffen: Artikel-Sync `PpsRessourcenPositionenInfo` (select `Ressourcenummer`, orderBy
+  `+BelPosID`) und Artikel-Lieferanten `ArtikelVariantenExtended` (select `Artikelnummer,Hauptlieferant`, orderBy `+AuspraegungID`, SyncLogs Id 4883802).
+- **Tückisch:** Der AKE-Test (`sagetest01`, `ake_TEST2026;1`) gruppiert NICHT – dieselbe Abfrage lief dort am 2026-11-13 mit 240.552 Zeilen in
+  49 Seiten (DEV-Dienstlog `service-20261113.log`). Der Fehler ist am Testsystem nicht nachstellbar.
+- **Folge des Gruppierens:** Bei `select` ohne eindeutigen Schlüssel liefert Prod nur die verschiedenen Wertkombinationen (DISTINCT), nicht jede Zeile.
+  Wer echte Zeilen braucht (Mengen summieren, Positionen zählen), muss den Schlüssel ins `select` nehmen.
+- **Regel:** `orderBy`-Felder ⊆ `select`-Felder, oder ohne `select` lesen. **Zentral umgesetzt (`f420e23e`):**
+  `SageSdataReadClient.BuildQueryUrl` hängt über `MitSortfeldern` jedes fehlende Sortfeld an das `select` an (Vergleich ohne Gross/Klein, Trim,
+  `asc`/`desc` abgeschnitten) – gilt für `QueryAllAsync`; `QueryPageAsync` liest ohne `select`. Der RealTimeData-Weg (`GetAsync`, eigener URL-Bau)
+  ist NICHT abgedeckt – dort heute überall `BelID` in Feldliste und Sortierung. Mit eindeutigem Sortschlüssel im `select` ist die Gruppierung
+  wirkungslos und `$totalResults` zählt dieselben Zeilen, die geliefert werden. Deshalb Sortierung immer mit eindeutigem Schlüssel lassen
+  (der Einzel-Fix `c505688f` wurde mit `c476a628` zurückgenommen).
+- **Warum:** Ein einzelnes Sage-Verhalten auf Prod liess zwei Abgleiche komplett fehlschlagen, obwohl sie am Test grün waren.
+
+## 64. `Dictionary<int,…>` als Action-Parameter braucht `[Bind(Prefix=…)]` (v1.99.69, [[2026-11-25-beschichtungsauftrag-vorschlag-ohne-auswahl-spec]])
+
+- **Problem:** Ein Action-Parameter `Dictionary<int, string>? mengen` ohne festes Präfix bindet nur, solange das Formular Felder `mengen[<id>]` sendet.
+  Fehlen sie (Beschichtungsauftrag-Entwurf mit 0 Positionen), fällt der Binder auf das **leere Präfix** zurück, liest die übrigen Formularschlüssel
+  (`id`, `rowVersion`, `ziel`, …) als int-Schlüssel und setzt einen ModelState-Fehler unter dem Schlüssel `""`. Die Action meldet dann
+  „Eingabe nicht gespeichert: ungültiger Wert in .“ – jedes Speichern des leeren Entwurfs scheiterte (QA-Befund N-1, Altbestand seit v1.99.41).
+- **Beleg:** `IdealAkeWms.Tests/ModelBinding/DictionaryIntKeyBindingTests.cs` (echter `ParameterBinder` + `FormValueProvider`, ohne TestServer):
+  zwei Formulare ohne Felder → Fehler unter `""`, eins mit Feldern → bindet. Gleicher Testweg wie `NullableIntArrayBindingTests` (§8, `int?[]`).
+- **Fix:** `[Bind(Prefix = "mengen")] Dictionary<int, string>? mengen` in `BeschichtungsauftraegeController.Bearbeiten`.
+- **Latent:** `StockMovementsController.OutboundAllConfirm(… Dictionary<int,string>? stueckGezeigt …)` hat dasselbe Muster; im Weg ohne FA-Filter
+  sendet das Formular keine `stueckGezeigt[..]`-Felder. Heute folgenlos, weil die Action `ModelState.IsValid` nicht prüft – wer dort eine
+  ModelState-Prüfung ergänzt, legt den Fehler frei. Folgearbeit [[2026-11-25-folgearbeit-goal-lauf-sage-beschichtung]].
+- **Regel:** Jeder `Dictionary<int,…>`- (und `int[]`-Index-)Parameter, dessen Felder im Formular fehlen dürfen, bekommt `[Bind(Prefix = "<name>")]`.
+- **Warum:** Der Fehler zeigt sich nur im Randfall „keine Zeilen“ und mit einer Meldung ohne Feldnamen; Tests mit direktem Action-Aufruf binden nicht
+  und sehen ihn nie. Nur die echte Bindung belegt ihn.
+
+## 65. Web-Workflow im Dienst: gemeinsame Registrierung, `DienstBenutzer`, 1000-Zeichen-Meldungen (v1.99.70, [[2026-11-25-kommissionierauftraege-nachtrag-nachts-spec]])
+
+- **`ICurrentUserService` im Dienst nur als `DienstBenutzer`.** Der Web-`CurrentUserService` liefert ohne `HttpContext` `"SYSTEM"` und widerspräche
+  ADR [[0003-auditableentity-als-entity-basis]] (Dienste schreiben ihren Namen). `DienstBenutzer` gibt den Lauf-Namen zurück; Rollenabfragen
+  (`IsAdminAsync` …) **werfen** `NotSupportedException`. **Warum:** Ein Web-Workflow, der im Dienst still eine Rolle prüft, bekäme sonst ein
+  erfundenes „ja/nein“ – lieber laut scheitern (Test `KommissionierNachtragServiceTests.DI_…`).
+- **Ein DI-Graph, eine Registrierung.** Der Kommissionierauftrags-Workflow hängt an BOM-, Repository- und Cache-Diensten. Web, Dienst und
+  `BomDiResolutionTests` registrieren ihn deshalb gemeinsam über `AddKommissionierauftraege`. **Warum:** Getrennte Listen driften auseinander,
+  und eine fehlende Abhängigkeit zeigt sich erst zur Laufzeit im Dienst nachts (`ValidateOnBuild` im Test belegt den Graphen).
+- **`SyncLogs.Message` hat 1000 Zeichen und wird beim Schreiben nicht gekürzt** (siehe oben, Diagnosen). Meldungen mit Fremdtext (Ausnahmen,
+  Artikellisten des Markers) kürzt der Lauf selbst auf 1000. **Warum:** Sonst fehlt genau die Warnzeile, die den Fehler eines FA erklärt.
+
+## 66. Direkt-SQL nach Sage: Fehlerklasse entscheidet über Blockade und Mail (v1.99.71, [[2026-11-24-lagerplatz-anlage-wms-nach-sage-spec]])
+
+- **Problem:** Ein Direkt-SQL-Schreibweg kennt zwei Arten Fehler: Sage ist weg (Timeout, Deadlock, Recht, Netz) – oder genau dieser Datensatz
+  passt nicht (THROW, NULL-Pflichtfeld, Konflikt). Behandelt man alles gleich, blockiert entweder ein kaputter Platz die ganze Warteschlange
+  oder jeder Takt eines Netzausfalls schreibt einen Protokoll-Lauf und eine Mail.
+- **Regel:** Abschließende Liste technischer Fehler an **einer** Stelle (`SqlSageLagerplatzAnlage.IstTechnisch`): technisch = Eintrag zurück auf
+  `Offen`, Rest des Takts überspringen, Lauf und Mail nur bei **neuem** Text; alles andere = fachlich am Eintrag (`Fehler`, keine Mail, weiter).
+  Neue Fehlernummer = erst einordnen, dann ergänzen (Test der Fehlerklassen in `SageLagerplatzAnlageServiceTests`).
+- **Regel:** Hängend `Gesendet` darf hier erneut gesendet werden, **weil** der Befehl in einer Transaktion unter `UPDLOCK, HOLDLOCK` prüft und
+  anlegt (idempotent) – anderswo gilt weiter „nie blind neu senden“. Wer den SQL-Text ändert, muss die Idempotenz erhalten.
+- **Regel:** Ein im WMS erfasstes Lager fehlt im Sage-Feed, bis der Dienst es angelegt hat. Der Lagerplatz-Abgleich darf es bis zur Bestätigung
+  nicht als fehlend markieren (sonst inaktiv, aus der Auswahl verschwunden).
+- **Warum:** Direkt-SQL hat keine Sage-Geschäftslogik als Puffer; jeder Fehler landet roh beim WMS. Nur eine harte Trennung hält die Warteschlange
+  lauffähig und die Admin-Mailbox lesbar.
+
+## 67. `BdeTeilMeldungen` trägt zwei Arten Meldung: jeder Leseweg muss `WarehouseRequisitionItemId` filtern (v1.99.72, [[2026-11-20-bde-liste-isolierungsfraese-pfad-material-spec]])
+
+- **Problem:** Lagerbestell-Meldungen stehen mit `HauptFA = 0`, `SubFA = 0`, `Position = NULL` in derselben Tabelle wie FA-Teilmeldungen. Ein
+  FA-Leseweg ohne Filter zählt sie als Waisen oder als „bereits gemeldet“ für einen FA 0.
+- **Regel:** FA-Wege filtern `WarehouseRequisitionItemId IS NULL`, Lagerbestell-Wege `IS NOT NULL`; der gefilterte UNIQUE-Index des FA-Schlüssels
+  trägt denselben Filter (SQL/165). Neuer Leseweg = Art ausdrücklich wählen.
+- **Regel:** Der Formular-Schlüssel `LB|<Id>` wird vor `TeilSchluessel.Parse` abgetrennt; ein ungültiger Schlüssel weist die ganze Anfrage ab.
+- **Warum:** Ein Platzhalter-Wert (0) ist kein Filter – „HauptFA 0 kommt nie vor“ war schon bei `SubFA = 0` falsch (ADR [[0038-teilmeldung-auch-fuer-lagerbestell-positionen]]).
+
+## 68. Kartenansicht per CSS: `display` an Zeilen schlägt Bootstraps `.collapse` (v1.99.73, [[2026-11-25-bde-masken-vereinheitlichung-spec]])
+
+- **Problem:** Die Baugruppen-Teile der BDE-Teileliste sind `<tr class="collapse">`. Eine Kartenregel wie `.bde-tl-seite tr { display: flex }`
+  hat höhere Spezifität (0,1,1 + Scope) als Bootstraps `.collapse:not(.show) { display: none }` (0,2,0 nur bei gleichem Scope) und macht damit
+  **alle zugeklappten Teile sichtbar** – die Liste sieht am Handy „voll“ aus, obwohl nichts aufgeklappt ist (Mobil-Spec Befund B7).
+- **Regel:** Karten-`display` nur an `tr:not(.collapse)` und `tr.collapse.show` setzen, nie an `tr` allgemein. Zellen-`display` **ohne**
+  `!important` (B6): die Spaltenauswahl blendet Zellen per Inline-Stil `display:none` aus, `!important` würde sie wieder zeigen.
+- **Warum:** Sichtbarkeit steuern hier zwei Mechanismen (Bootstrap-Collapse per Klasse, Zahnrad per Inline-Stil); eine Layout-Regel, die
+  `display` setzt, überschreibt beide still. Der Fehler zeigt sich nur unter der Kartenschwelle und nur mit zugeklappten Kinderzeilen –
+  kein Test sieht ihn (TS-194.4 Schritt 5 prüft ihn von Hand).
+
+## 69. Mehrere Teilmeldungen je Zeile: „gemeldet“ heißt nur noch „abschließend gemeldet“ (v1.99.75, [[2026-11-25-bde-masken-vereinheitlichung-spec]])
+
+- **Problem:** Seit Etappe 3 hat eine Teileliste-Zeile beliebig viele nicht stornierte Meldungen (Teilfertig, `IstAbschliessend = 0`) und höchstens
+  eine abschließende. Ein Leseweg, der wie bisher „gibt es eine Meldung?“ fragt (`FirstOrDefault`, `Any`, `ToDictionary` je Schlüssel), hält eine
+  Teilmeldung für den Abschluss, wirft bei doppeltem Schlüssel oder zählt Waisen je Meldung statt je Schlüssel.
+- **Regel:** Neuer Leseweg auf `BdeTeilMeldungen` wählt ausdrücklich: **alle** Meldungen (Summe, Liste) oder **nur `IstAbschliessend`**
+  (fertig, Doppelschutz, Ausblenden, AG-Status erledigt). Gruppieren statt `ToDictionary`. Zusätzlich gilt §67 (`WarehouseRequisitionItemId`).
+- **Regel:** `IstAbschliessend` immer ausdrücklich setzen – kein EF-`HasDefaultValue` (bool-Sentinel), der DB-Default 1 ist nur für den Bestand.
+- **Warum:** Der UNIQUE-Index schützt nur noch den Abschluss; Teilmeldungen fängt kein Index mehr ab. Fehler dieser Art fallen erst mit echten
+  Teilmeldungen auf, der Bestand (alle = 1) verdeckt sie (ADR [[0037-teilfertigmeldung-nur-abschliessende-meldung-eindeutig]]).
+
+## 70. `maxlength` kürzt still – Längengrenzen meldet der Server (v1.99.79, [[2026-11-24-lagerplatz-anlage-wms-nach-sage-spec]])
+
+- **Problem:** `maxlength="10"` am Feld Lagerkennung schnitt eine 11-stellige Eingabe beim Tippen/Einfügen auf 10 Zeichen ab; das WMS legte
+  dann ein anderes Lager an, als der Benutzer gemeint hatte, ohne Meldung (QA v1.99.71, F-7).
+- **Regel:** Fachliche Längengrenzen nicht per `maxlength` erzwingen, wenn ein Kürzen die Bedeutung ändert (Codes, Kennungen). Der Server prüft,
+  `asp-validation-for` zeigt die Meldung am Feld.
+- **Warum:** Melden statt still behandeln – ein gekürzter Code ist ein falscher Code.
+
+## 71. Moq liefert für `Task<List<T>>` null – ein entfernter `?? new List` bricht Tests, nicht Produktion (v1.99.79)
+
+- **Problem:** Nach dem Entfernen des stillen Fallbacks in `PickingController` (F-1, Repository liefert per `ToListAsync` nie null) fielen drei
+  `PickingControllerTests` mit `ArgumentNullException`: `Mock<IPickingOrderRepository>` ohne Setup gibt für `Task<List<T>>` `null` zurück
+  (Moq `DefaultValue.Empty` füllt nur Arrays/Schnittstellen wie `IEnumerable<T>`, nicht `List<T>`).
+- **Regel:** Den Mock aufsetzen (`ReturnsAsync(new List<T>())`), nicht den Produktionscode mit `??` „absichern“.
+- **Warum:** Der Fallback verdeckte im Code einen Zustand, den es nur im Test gibt; die Negativaussage „nie null“ ist über den Repository-Weg belegt.
+
+## 72. Keine Kommentare in `appsettings*.json` der Zielsysteme – das Update-Skript bricht ab (2026-11-26, akenet01:4444)
+
+- **Problem:** .NET liest `appsettings*.json` mit `//`-Kommentaren klaglos. Das Update-Skript `scripts/deploy/Update-IdealAkeWms.ps1` läuft aber
+  unter Windows PowerShell 5.1 und liest die Dateien mit `ConvertFrom-Json` (Zeile 149, auch `Set-Startkennwort.ps1:48`,
+  `Install-IdealAkeWms.ps1:348`); 5.1 kennt keine Kommentare → `Stop-Mit "… ist kein gueltiges JSON"`, Update abgebrochen.
+- **Regel:** Nicht benötigte Einträge **löschen** (vorher `.bak-<Zeitstempel>` sichern), nicht auskommentieren. Nicht geladene Dateien
+  (`appsettings.Development.json` bei Umgebung `Production`) mit Präfix `xxx_` umbenennen – das passt nicht auf `appsettings*.json`
+  (Schutzstand, robocopy `/XF`), robocopy ohne `/PURGE` legt sie nicht neu an und löscht nichts.
+- **Warum:** Die Dateien sind vom Kopieren ausgenommen und gehören dem Betrieb; ein Kommentar fällt erst beim nächsten Update auf.

@@ -25,7 +25,8 @@ Listen-Views folgen zusaetzlich verbindlich dem Pattern aus
 | Bereich | Controller | Views |
 |---|---|---|
 | Anmeldung | `AccountController` (Login, Logout, WindowsLogin, Profile) | `Views/Account/` |
-| Start / Hilfe | `HomeController` (Dashboard-Kacheln), `HelpController` (inkl. Changelog) | `Views/Home/`, `Views/Help/` |
+| Anmeldung (v1.99.28) | `AccountController.Login`: Regel R (nur mit gespeichertem Kennwort, Ausnahme `IsDevelopment()` mit Hinweis), Regel P (Schritt „Neues Kennwort festlegen“ bei `MussKennwortAendern`, zustandslos, `StartSession`); `UsersController` Create/Edit: Erstkennwort eingeben/erzeugen (`ApplyPassword`, Banner einmal), Index-Hinweis ohne Kennwort/offene Erstkennwörter – ADR [[0027-formular-anmeldung-nur-mit-kennwort-erstkennwort-mit-pflichtwechsel]] | `Views/Account/Login.cshtml`, `Views/Users/Create|Edit|Index.cshtml` |
+| Start / Hilfe | `HomeController` (Dashboard-Kacheln; seit v1.99.45 ohne eigene Rechte – Kacheln und Menü aus `Services/Navigation/NavigationKatalog.cs`, ADR [[0034-navigation-menue-und-kacheln-aus-einer-quelle]]), `HelpController` (inkl. Changelog) | `Views/Home/`, `Views/Help/` |
 | Lager | `StockOverviewController`, `StockMovementsController`, `StockApiController` | `Views/StockOverview/`, `Views/StockMovements/` |
 | Lager (Bestellungen) | `PurchaseOrdersController` (v1.84.0: Index = Vorschau, Receive GET/POST = Wareneingang; Gate `[RequireWareneingangBestellungAktiv]` → 404) | `Views/PurchaseOrders/` |
 | Fertigungsauftraege | `ProductionOrdersController` (slim FA-Liste), `ProductionOrdersApiController` | `Views/ProductionOrders/` |
@@ -75,9 +76,12 @@ Rollen-Bedeutungen: [[glossar]].
 | `[RequireBdeShiftleadAccess]` | admin, bde_shiftlead, bde_admin | BdeCockpitController, BdeBookingsController (Index), BdeMasterDataController |
 | `[RequireBdeAdminAccess]` | admin, bde_admin | BdeBookingsController (Edit/Cancel), BdeMasterDataController (Terminals) |
 | `[RequireBeschichtungsauftragAccess]` | admin, **`beschichtungsauftrag`** *(neue Rolle, v1.31.0)*, seit v1.51.0 auch `beschichtungsauftrag_schreiben` | FaHierarchyBeschichtungController, BeschichtungsauftraegeController (class-level, Lesen). Kumulativ dazu das AppSetting-Gate `[RequireFaHierarchyBeschichtungAktiv]`. |
-| `[RequireBeschichtungsauftragWriteAccess]` | admin, **`beschichtungsauftrag_schreiben`** *(neue Rolle, v1.51.0)* | BeschichtungsauftraegeController — action-level an jeder schreibenden Action (Create, Bearbeiten, PositionenHinzufuegen, Bemerkung, Status, Reklamation GET+POST). Read/Edit-Split (ADR 0006); Waechter `BeschichtungsauftraegeControllerTests.JedeSchreibendeAction_HatSchreibfilter_UndPostsAntiforgery`. |
+| `[RequireBeschichtungsauftragWriteAccess]` | admin, **`beschichtungsauftrag_schreiben`** *(neue Rolle, v1.51.0)* | BeschichtungsauftraegeController — action-level an jeder schreibenden Action (Create, Bearbeiten, PositionenHinzufuegen, Bemerkung, Status, Reklamation GET+POST; seit v1.99.41 ist `PositionenHinzufuegen` in `Bearbeiten` aufgegangen). Read/Edit-Split (ADR 0006); Waechter `BeschichtungsauftraegeControllerTests.JedeSchreibendeAction_HatSchreibfilter_UndPostsAntiforgery`. |
 | `[RequireFaHierarchyKommissionierlistenAktiv]` | *(kein Rollen-Filter — AppSetting-Gate)* | FaHierarchyKommissionierListenController (class-level), **kumulativ** zu `[RequireLagerProcessingAccess]`. Toggle `FaHierarchyKommissionierlistenAktiv` (Default false): MVC → Redirect Home + WarningMessage. Invert-default-Attribut-Muster (v1.31.0). |
 | `[RequireFaHierarchyBeschichtungAktiv]` | *(kein Rollen-Filter — AppSetting-Gate)* | FaHierarchyBeschichtungController, BeschichtungsauftraegeController (class-level), **kumulativ** zu `[RequireBeschichtungsauftragAccess]`. Toggle `FaHierarchyBeschichtungAktiv` (Default false). |
+| `[RequireEinkaufAccess]` | admin, **`einkauf`** *(neue Rolle, v1.99.20)* | PurchaseProposalsController, seit v1.99.31 auch EinkaufPurchaseOrdersController (class-level, nur Lesen – keine POST-Action, Wächter-Test). Kumulativ dazu `[RequireEinkaufAktiv]`. |
+| `[RequireStockReadOrEinkaufAccess]` | stock_read-Kreis (admin, stock, stock_keyuser, picking, stock_read) **oder** admin/einkauf bei `EinkaufAktiv` = "true" *(v1.99.66, [[2026-11-23-sage-buchungen-gesamtsicht-spec]] Rückfrage 12a)* | `SageBookingQueueController.Index` („Sage-Buchungen“, action-level). Der Controller blendet für Einkauf ohne Lager-Recht die Lagerbuchungen und alle Knöpfe aus; `Requeue` bleibt `[RequireStockReadAccess]` + `[RequireStockKeyUserAccess]`. Nachgetragen durch QA 2026-11-25 (Drei-Stellen-Regel). |
+| `[RequireEinkaufAktiv]` | *(kein Rollen-Filter — AppSetting-Gate)* | PurchaseProposalsController, EinkaufPurchaseOrdersController (class-level), kumulativ zu `[RequireEinkaufAccess]`. Toggle `EinkaufAktiv` (Default false, nur exakt "true" schaltet frei; sonst Startseite mit Warnung, seit v1.99.31 „Einkauf ist deaktiviert (Einstellung „Einkauf aktiv“).“). |
 | `[RequireFaHierarchyVormontageAktiv]` | *(kein Rollen-Filter — AppSetting-Gate)* | FaHierarchyVormontageController (class-level), **kumulativ** zu `[RequireVorbauAccess]`. Toggle `FaHierarchyVormontageAktiv` (Default false). |
 | *(kein Filter)* | jeder eingeloggte User | UserViewPreferencesApiController (Login-Check, kein Rollen-Filter) |
 
@@ -129,6 +133,11 @@ sie nur bei Schreibrecht, der POST geht an `BeschichtungsauftraegeController.Cre
 `/ProductionOrders/ToggleRelease|BulkRelease|SetPriority|ChangeAssignedPicker` sind seit v1.12.0
 301-Redirects auf die entsprechenden `/PickingLeitstand/...`-Endpoints.
 
+Seit v1.99.66 ([[2026-11-23-sage-buchungen-gesamtsicht-spec]] F10): `GET /PurchaseOrders/SageWareneingaenge` und
+`GET /EinkaufPurchaseOrders/SageWareneingaenge` sind 301 auf `/SageBookingQueue?herkunft=Wareneingang` (Status über die F2-Zuordnung
+übersetzt, `bestellung`/`von`/`bis` weitergereicht; Einkauf zusätzlich `nurOffene=true`). Die WE-POST-Actions bleiben am
+`PurchaseOrdersController` und springen über `returnUrl` (nur `Url.IsLocalUrl`) zurück.
+
 ## Toggle-APIs
 
 | Endpoint | Schreibt |
@@ -153,8 +162,125 @@ Warum die Flags in Satelliten liegen: [[0009-app-status-in-satelliten-tabellen-n
 
 - `PickingController`: `Index` = Auftragsliste, `Auftrag/{id}` (Stueckliste im Auftragsmodus), `AuftragUmbuchen`, `AuftragAbschliessen`,
   `AuftragDrucken` – `[RequirePickingAccess]`; `Bom/{faId}` nur lesend mit Auftragsliste.
-- `PickingLeitstandController.AuftraegeNachziehen` – `[RequireLeitstandAccess]`; Freigabe/Ruecknahme/Prio/Kommissionierer schreiben auf Auftraege durch.
+- `PickingLeitstandController.AuftraegeNachziehen` – seit v1.99.70 zusätzlich `[RequireAdminAccess]` (Knöpfe nur für Admins, Nachtrag nachts durch den Dienst, [[2026-11-25-kommissionierauftraege-nachtrag-nachts-spec]]); `AltbestandGeprueft` (Leitstand) erzeugt bei freigegebenem, offenem FA sofort die fehlenden Aufträge. Vorher: `[RequireLeitstandAccess]`; Freigabe/Ruecknahme/Prio/Kommissionierer schreiben auf Auftraege durch.
 - `PickingAreasController` (Kommissionierbereiche + Regeln) – Klasse `[RequireMasterDataReadAccess]`, Schreiben `[RequireMasterDataAccess]`. Keine neue Rolle.
 - `StockApiController` `fa-lookup`/`fa-search` (v1.87.0) unter dem Klassenfilter `RequireStockOrPickingOrTrackingAccess`. FA-Links in Lager-Tools
   folgen dem FA-Leserecht `FaBuchungsText.CanViewProductionOrdersAsync` (= Regel von `RequirePickingOrTrackingOrLeitstandAccess`, ein Ort).
 
+## Wareneingang Teil 2 (v1.99.4)
+
+- `PurchaseOrdersController.SageWareneingaenge` (GET): Liste „Wareneingänge an Sage“, Klassen-Filter `RequireStockReadAccess` + Feature-Gate
+  `RequireWareneingangBestellungAktiv`. `SageWeErneutSenden` (POST): `RequireStockKeyUserAccess` (admin, stock_keyuser, picking), nur Status Fehler.
+  `Receive` (POST): neuer Parameter `lieferschein`; Platzregel und Sage-WE-Status, wenn `SageWareneingangBelegAktiv` an. Keine neue Rolle.
+
+## Wareneingang-CSV (v1.99.11, [[2026-11-12-wareneingang-barcode-lieferschein-csv-export-spec]])
+
+- `PurchaseOrdersController.CsvErneutSchreiben(Guid vorgang)` (POST, AntiForgery): `RequireStockKeyUserAccess` (admin, stock_keyuser, picking) wie
+  `SageWeErneutSenden`; zusaetzlich Klassen-Filter `RequireStockReadAccess` + Feature-Gate `RequireWareneingangBestellungAktiv`. Setzt die
+  Ausgangszeile `WareneingangCsvExporte` nur im Status Fehler auf Offen (Fehlertext leer, `Modified*` aus `ICurrentUserService`); sonst
+  `WarningMessage`. Knopf in der Liste „Sage-Wareneingaenge“ nur mit `CanErneutSenden` und CSV-Fehler. Keine neue Rolle.
+- `Receive` (POST): neuer Parameter `barcode`, ausgewertet nur bei AppSetting `WareneingangBarcodeAktiv` (sonst ignoriert); Pruefung Zeichen/Laenge/
+  reservierte Namen, Sage-WE aus = Fehler, Duplikat ohne Gross/Klein (`IPurchaseOrderReceiptRepository.BarcodeVergebenAsync`). Recht unveraendert
+  `RequireStockAccess`.
+
+
+**Neue Rolle `einkauf`** (v1.99.20, [[2026-11-08-einkauf-bestellvorschlaege-spec]]) an den drei Pflichtstellen: `RoleKeys.Einkauf` +
+`RequireEinkaufAccessAttribute` + `ICurrentUserService.CanAccessEinkaufAsync` (admin oder einkauf), diese Datei, `Views/Users/RoleOverview.cshtml`.
+Kein Seed, kein `00_FreshInstall`-Eintrag – angelegt über die Update-Skript-Prüfung `Pruefung/RolleEinkauf` (Reparatur nach dem
+Beschichtungsauftrag-Muster); Zuweisung an den Einkauf ist Hand-Schritt unter `/Roles`. Seite `/PurchaseProposals` (Menü „Einkauf → Bestellvorschläge“).
+
+## Nachtrag 2026-11-14 (Wochenend-Lauf): Controller ohne Eintrag
+
+- `SageTestController` (Register „Sage-Test“, v1.99.14, [[2026-11-13-sdata-teil-2-userfelder-stueckliste-spec]]) – Klasse `[RequireAdminAccess]`,
+  nur `[HttpGet]`: `Index` (Stand/Verbindung), `Feldliste`, `Stueckliste` (live je Artikel/FA). Liest ueber `ISageSdataReadClient`, schreibt nie
+  nach Sage. Zugangsdaten ueber `SdataZugangsdaten` ([[0024-sdata-kennwort-verschluesselt-in-den-service-einstellungen]]). Kein Feature-Gate
+  (Gate `SageSdataFaAnsichtAktiv` seit v1.99.14 entfernt, SQL/147).
+- `SageSdataFaController` (FA-Struktur live aus SData, v1.71.0) – Klasse `[RequireAdminAccess]`, `Index(belId)`; seit v1.99.14 ohne eigenes Gate
+  und ohne eigenen Menuepunkt (Aufruf aus dem Register Sage-Test).
+- `PurchaseOrdersController` ist auf drei Dateien verteilt: `PurchaseOrdersController.cs` (Offene Bestellungen), `.Receive.cs` (Wareneingang zu
+  Bestellung, `Receive`), `.SageWe.cs` (Liste „Sage-Wareneingänge“ `SageWareneingaenge`, Erneut senden, Klären → als übergeben markieren,
+  CSV erneut schreiben). Filter siehe die Abschnitte Wareneingang oben.
+- `PurchaseProposalsController` (`/PurchaseProposals`, v1.99.20/21) – `[RequireEinkaufAccess]` + `[RequireEinkaufAktiv]` (siehe oben), nur Lesen +
+  CSV; Rechenstelle `PurchaseProposalCalculator`.
+- `EinkaufPurchaseOrdersController` (`/EinkaufPurchaseOrders`, `/EinkaufPurchaseOrders/SageWareneingaenge`, v1.99.31,
+  [[2026-11-16-offene-bestellungen-sofort-neu-lesen-einkauf-kw-filter-spec]] F2.6) – `[RequireEinkaufAccess]` + `[RequireEinkaufAktiv]`, **kein**
+  Lager-Recht, kein `WareneingangBestellungAktiv`. Bekommt den `PurchaseOrdersController` per DI (`AddScoped<PurchaseOrdersController>`), setzt
+  dessen `ControllerContext` und ruft `ListeAsync(einkauf: true, …)` bzw. `SageWeListeAsync(nurOffene: true, …)` – dessen Class-Filter greifen
+  dabei NICHT; Schreibwege (Receive, SageWe-Aktionen) bleiben am `PurchaseOrdersController` hinter `RequireStockAccess` /
+  `RequireStockKeyUserAccess` + `RequireWareneingangBestellungAktiv`. Knöpfe in der Einkauf-Ansicht nur mit dem passenden Recht **und** dem
+  Gate (`CanReceive`, `CanErneutSenden`). Rolle `einkauf`: Attribut unverändert, diese Datei und `RoleOverview.cshtml` nachgezogen.
+
+## BDE-Teileliste (v1.99.32, [[2026-11-13-bde-vereinfacht-teileliste-blechfertigung-spec]])
+
+| Controller / Aktion | Zugriff | Zweck |
+|---|---|---|
+| `BdeTeilelisteController` | BDE-Terminal (wie `BdeTerminalController`) | Teileliste lesen, Summiert, FA-Sicht (v1.99.76), Melden (POST/PRG), Anstempeln Rüsten/Produktion (POST/PRG, v1.99.76), Zurücknehmen, Filter speichern/zurücksetzen; v1.99.77 `Index` mit `markiert` (Scan-Markierung, blättert zur Zeile), Kopf-Buchungen; Buchen per JS über die `BdeTerminal`-JSON-Aktionen (keine neue Action); v1.99.78 `Tageshistorie` (Buchungen + Teilmeldungen des Werkers von heute, Server-Spaltenfilter, Pagination). Seit v1.99.78 leitet `BdeTerminalController.Index` immer hierher (`workplaceId ?? Terminal-Default`); `Views/BdeTerminal/` gibt es nicht mehr, `BdeTerminalController` hat nur noch JSON-Aktionen + `StartProductionForOrder` |
+| `BdeBookingsController.Teilmeldungen` / `TeilmeldungSpalten` | Lesen ab BDE-Schichtleiter | Admin-Liste der Teilmeldungen (Spaltenfilter, Pagination) |
+| `BdeBookingsController.StornoTeilmeldung` | `[RequireBdeAdminAccess]` | Storno mit Pflichtgrund |
+| `BdeBookingsController.HaengendePausen` (v1.99.81) | Lesen ab BDE-Schichtleiter | nie fortgesetzte Pausen aller Werker, Filter „Pausiert bis“, Server-Spaltenfilter, Pagination |
+| `BdeBookingsController.PauseAbschliessen` (v1.99.81) | `[RequireBdeAdminAccess]` | Pause ohne Mengen abschließen (`IBdeBookingService.ClosePausedAsync`) |
+| `BdeTerminalController.ClosePaused` (v1.99.81) | BDE-Terminal + Wächter (Terminal, aktiver Werker, eigene Buchung) | eigene pausierte Buchung abschließen; ab v1.99.81 laufen **alle** Buchungs-POSTs durch `WaechterAsync`/`FremdeBuchungAsync` (ADR [[0039-bde-werker-personalnummer-identifiziert-nicht-authentisiert]]) |
+
+## Arbeitsgang-Stammdaten: Sage-AG (v1.99.27)
+
+- `OperationConfigsController` braucht zusätzlich `IFaHierarchyNodeRepository` und `IProductionWorkplaceRepository`; Spalte/Filter `sageag`
+  (wirksamer Wert), Handwert per `Update`, `BuildPruefliste` (a/b/b2/c, nur mit `ProduktionsauftragHierarchisch`). Zugriff unverändert.
+
+## BF-Aufträge (v1.99.35, [[2026-11-13-blechfertigung-bf-auftraege-wicam-csv-spec]])
+
+- `BfAuftraegeController`: class-level `[RequireBlechfertigungAktiv]` (Gate, auch für admin) + Lesen/Bestellen über `CanBfBestellenAsync`
+  (Rollen von `CanOrderLagerAsync` oder `schachtler`); Besteller sehen nur eigene Aufträge. Action-level `[RequireSchachtlerAccess]` (admin,
+  **`schachtler`**) an `UpdatePosition`, `StreichePosition`, `Freigeben`, `CsvErneutSchreiben`, `FertigMelden`, `FertigMeldenListe`.
+  `Stornieren` ohne Filter – Regel im Workflow (Besteller eigener Auftrag bis Freigabe, Schachtler bis Fertig). Reflexions-Wächter
+  `BfAuftraegeFilterTests`.
+- **Neue Rolle `schachtler`** „Schachtler (Blechfertigung)“ an den drei Pflichtstellen: `RoleKeys.Schachtler` + `RequireSchachtlerAccessAttribute`
+  + `ICurrentUserService.CanSchachtelnAsync`, diese Datei, `Views/Users/RoleOverview.cshtml`. Kein Seed in `Program.cs`, Manifest-Reparatur
+  `Pruefung/RolleSchachtler`.
+
+## Arbeitsgänge → Sage (v1.99.38, IDEAL, [[2026-11-17-arbeitsgaenge-aus-wms-in-sage-fa-anlegen-spec]])
+
+- `SageFaArbeitsgaengeController`: class-level `[RequireAdminAccess]`, Gate `ProduktionsauftragHierarchisch` (aus → Redirect mit Hinweis).
+  `Index` (GET, Vorschau, `pruefen=true` liest Sage per SData-GET, höchstens 500 FAs), `Anlegen` (POST, Antiforgery): Schalter
+  `SageFaArbeitsgaengeAnlegenAktiv` + Ziel-Stand (ADR 0026: übergebene Sage-AGs müssen Teilmenge der serverseitigen Vorschau sein) am
+  Schreibort, dann `ISageFaArbeitsgangAnlageRepository.EinreihenAsync`. Kein Sage-Aufruf beim Einreihen. Keine neue Rolle.
+
+## Startseite-Favoriten, Wareneingang-Bedienung, Lagerbestellung-Entnahme (v1.99.51–1.99.53, /goal-Lauf 2026-11-23)
+
+- `HomeController` (v1.99.51, [[2026-11-23-dashboard-favoriten-reiter-spec]]): `Index(string? reiter)` + POST `FavoritUmschalten(key, reiter)`,
+  POST `FavoritenBereinigen()`, beide `[ValidateAntiForgeryToken]`, ohne Rollen-Filter, nur die eigene Zeile (Benutzer-Id aus der Session).
+  Hinzufügen nur, wenn die Kachel laut `NavigationSicht` sichtbar ist. Server-ViewKey `Startseite.Favoriten` bewusst **nicht** in
+  `ColumnDefinitions` – die API `PUT api/user-view-preferences/{key}` antwortet dafür 400.
+- `PurchaseOrdersController` (v1.99.52, [[2026-11-23-wareneingang-zu-bestellung-bedienung-spec]]): zusätzliche Ctor-Abhängigkeit
+  `IArticleRepository`; Ziel-Vorschlag in `ZielVorschlaegeAsync` (Sage-Platz-Vorrang, sonst `Article.PrimaryStorageLocationId` ohne
+  Bestandsbedingung, bei Sage-WE nur `IstSageWePlatz`). Bestellnummer nur aus Ziffern = Endungssuche `-<Eingabe>`.
+- `WarehousePickingController` (v1.99.53, [[2026-11-23-lagerbestellung-verbrauchsbuchung-bei-lieferung-spec]]): Ctor zusätzlich
+  `IArticleRepository`, `IStorageLocationRepository`, `IAppSettingRepository`, `IServiceSettingRepository`, `ApplicationDbContext`.
+  `Close`/`PrintAndClose` nehmen optional `int?[] storageLocationIds` und laufen über `AbschliessenAsync`: Status-Guard (nur
+  Submitted/PartiallyDelivered, auch bei Schalter aus), Abschluss + Ausbuchungen in einer Transaktion. Keine neue Rolle
+  (`RequireLagerProcessingAccess`: admin, stock, stock_keyuser).
+
+## Nachtrag goal-Lauf 2026-11-25 (v1.99.65–v1.99.69)
+
+Ergänzt die QA-Einträge vom 2026-11-25 (Filter `[RequireStockReadOrEinkaufAccess]`, 301 der alten WE-Routen) – nicht doppelt.
+
+- `StockMovementsController` (v1.99.68, [[2026-11-24-sage-buchung-referenz-benutzer-abteilung-spec]]): zusätzliche Ctor-Abhängigkeit
+  `IProductionWorkplaceRepository`. `AbteilungenAsync` = Werkbank-Namen ohne „nicht in Sage“ (eine Stelle), `AbteilungPruefenAsync` prüft serverseitig
+  (leer = keine, unbekannt = abgewiesen, gespeichert wird der Listen-Name). `Outbound` POST → ModelState-Fehler, `OutboundAllConfirm(…, string? abteilung)`
+  → `WarningMessage` „Unbekannte Abteilung … nichts ausgebucht“; alle Zeilen erhalten dieselbe Abteilung.
+- `BeschichtungsauftraegeController.Bearbeiten` (v1.99.67/69, [[2026-11-25-beschichtungsauftrag-vorschlag-ohne-auswahl-spec]]): Parameter
+  `[Bind(Prefix = "mengen")] Dictionary<int, string>? mengen` (Fix N-1, [[fallstricke]] §64) und reicht `ziel` an `BearbeitenAsync` durch
+  (Übergeben mit 0 Positionen wird vor dem Speichern abgelehnt).
+- `SageBookingQueueController.Index` (v1.99.69, [[2026-11-23-sage-buchungen-gesamtsicht-spec]] B3): `zeigtWe = weModul && (stockRead || Einkauf)` –
+  Modul „Wareneingang zu Bestellung“ aus = keine WE-Zeilen, auch für den Einkauf. Der Zugang selbst (`[RequireStockReadOrEinkaufAccess]`) ist unverändert.
+
+## Fräsen-Pfad und Lagerbestell-Zeilen (v1.99.72, IDEAL, [[2026-11-20-bde-liste-isolierungsfraese-pfad-material-spec]])
+
+- **Neue Rolle `fraesenpfad_pflegen`** „Fräsen-Pfad pflegen“ an den drei Pflichtstellen: `RoleKeys.FraesenpfadPflegen` +
+  `RequireFraesenPfadPflegenAccessAttribute` + `ICurrentUserService.CanPflegeFraesenPfadAsync` (admin, masterdata, `fraesenpfad_pflegen`), diese
+  Datei, `Views/Users/RoleOverview.cshtml`. Braucht zusätzlich `masterdata_read` (Klassenfilter `ArticlesController`); kein Seed, Manifest-Reparatur
+  `Pruefung/RolleFraesenpfadPflegen`, Prüfung `Pruefung/FraesenpfadOhneStammdatenLesen`.
+- `ArticlesController.FraesenPfad` (POST, Antiforgery): `[RequireFraesenPfadAktiv]` (Gate `FraesenPfadAktiv`) + `[RequireFraesenPfadPflegenAccess]`,
+  kumulativ zum Klassenfilter. Index/Info/Edit-GET setzen nur Anzeige-Flags; Edit-POST fasst `CamPath` nie an.
+- `BdeTeilelisteController`: Formular-Schlüssel `LB|<WarehouseRequisitionItemId>` → `BdeTeilelisteService.MeldeLagerZeileAsync`; `Index`-GET
+  speichert Filter nur bei `Sec-Fetch-Mode: navigate` (CSV-Fix). `BdeBookingsController.Teilmeldungen`: Spalte `lagerbestellung`.
+- `ProductionWorkplacesController`: Option „Lagerbestellungen in der Teileliste“ nur mit „BDE-Teileliste“ (ModelState-Fehler).

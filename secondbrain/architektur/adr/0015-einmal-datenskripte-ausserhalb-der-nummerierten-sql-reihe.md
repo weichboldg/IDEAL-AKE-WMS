@@ -50,3 +50,7 @@ Der Dev-Lauf legt das Skript an, fuehrt es **nie** aus; die Ausfuehrung ist ein 
   neu entscheiden.
 - Beim Vorwaerts-Merge in andere Zweige (z. B. das IDEAL-Buendel) kollidieren Einmal-Skripte nicht mit
   Nummern — der Ordner ist nummernfrei.
+
+## Nachtrag 2026-11-11 (v1.99.0)
+
+Teilweise abgeloest durch [[0023-daten-und-einmal-skripte-fuehrt-das-update-skript-mit-bestaetigung-aus]]: Am Zielserver fuehrt das Update-Skript Einmal-Skripte nach Eingabe des Menschen aus (Trockenlauf + `SCHARF` bzw. Transaktion + `uebernehmen`); der Marker `dbo.DeployScriptRuns` ersetzt „kein technischer Marker“. Agenten fuehren weiter nie scharf aus.

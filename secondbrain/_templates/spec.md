@@ -90,6 +90,11 @@ freigabe_am: ""             # yyyy-mm-dd
 - **Web-App:** ja/nein
 - **Service:** ja/nein
 - **Migration:** ja/nein
+- **Manifest-Einträge** (`scripts/deploy/nachlauf.psd1`, ADR 0022; je SQL-/Einmal-Skript, Einstellung, Leitstand-Schritt, Anwender-Info,
+  Ordner/Recht, SQL-pruefbaren Zustand: Id, Version, Typ (Schema|Daten|Einmalig|Pruefung|Einstellung|Leitstand|Info|Ordner), Firma,
+  Phase (Vorher|Schema|Haltepunkt|VorStart|Nachher), Ausfuehrung (automatisch nur Schema/Ordner; Daten/Einmalig: Trockenlauf|Transaktion|
+  anzeigen; Pruefung: Reparatur|anzeigen), Text – oder „keine“; ADR 0023):
+  <!-- Trockenlauf-Skript: auch die Wiederholungssperre (IF EXISTS … RAISERROR) gibt im Trockenlauf `TREFFER: 0` aus (zweiter Trockenlauf nach SCHARF, v1.99.16) -->
 - **Publish-Befehle:**
 
 ## Offene Rueckfragen

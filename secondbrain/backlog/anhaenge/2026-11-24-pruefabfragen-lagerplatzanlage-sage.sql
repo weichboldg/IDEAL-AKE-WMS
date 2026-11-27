@@ -1,0 +1,16 @@
+SET NOCOUNT ON;
+PRINT '--- DB'; SELECT DB_NAME() db, @@SERVERNAME srv, SUSER_SNAME() me;
+PRINT '--- P-1'; SELECT TABLE_NAME, COLUMN_NAME, DATA_TYPE, CHARACTER_MAXIMUM_LENGTH len, IS_NULLABLE nul, COLUMN_DEFAULT def FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME IN ('KHKLagerplaetze','KHKLagerorte') ORDER BY TABLE_NAME, ORDINAL_POSITION;
+PRINT '--- P-2'; SELECT OBJECT_NAME(t.parent_id) Tabelle, t.name, te.type_desc, t.is_disabled FROM sys.triggers t JOIN sys.trigger_events te ON te.object_id=t.object_id WHERE t.parent_id IN (OBJECT_ID('dbo.KHKLagerplaetze'),OBJECT_ID('dbo.KHKLagerorte'));
+PRINT '--- P-3'; SELECT p.name, TYPE_NAME(p.user_type_id) Typ, p.is_output FROM sys.parameters p WHERE p.object_id=OBJECT_ID('dbo.spSysTan');
+SELECT Mandant, Tan FROM KHKTan WHERE Tabelle='KHKLagerplaetze'; SELECT Mandant, MAX(PlatzID) maxid FROM KHKLagerplaetze GROUP BY Mandant;
+PRINT '--- P-4 owner'; SELECT name, type_desc, USER_NAME(OBJECTPROPERTY(object_id,'OwnerId')) Owner FROM sys.objects WHERE name IN ('spSysTan','KHKTan','KHKLagerplaetze','KHKLagerorte');
+PRINT '--- P-4 db principals with write'; SELECT dp.name, dp.type_desc, r.name rolle FROM sys.database_role_members m JOIN sys.database_principals r ON r.principal_id=m.role_principal_id JOIN sys.database_principals dp ON dp.principal_id=m.member_principal_id WHERE r.name IN ('db_owner','db_datawriter','db_datareader') ORDER BY r.name, dp.name;
+PRINT '--- P-5'; SELECT * FROM KHKLagertechnikenArten; SELECT Mandant, Lagerkennung, Bezeichnung, Lagertechnik, Aktiv, IstPlatzverwaltet, AnzahlLagerplaetze FROM KHKLagerorte ORDER BY Mandant, Lagerkennung;
+PRINT '--- P-6'; SELECT Mandant, COUNT(*) abweichend FROM KHKLagerplaetze WHERE Kurzbezeichnung <> CONCAT(Lagerkennung,';',Dimension1,';',Dimension2,';',Dimension3) GROUP BY Mandant;
+SELECT TOP 10 Mandant, Lagerkennung, Dimension1, Dimension2, Dimension3, Kurzbezeichnung FROM KHKLagerplaetze WHERE Kurzbezeichnung <> CONCAT(Lagerkennung,';',Dimension1,';',Dimension2,';',Dimension3);
+PRINT '--- P-7'; SELECT Mandant, Lagerkennung, Dimension1, Dimension2, Dimension3, COUNT(*) n FROM KHKLagerplaetze GROUP BY Mandant, Lagerkennung, Dimension1, Dimension2, Dimension3 HAVING COUNT(*)>1;
+PRINT '--- P-9a'; SELECT COLUMN_NAME, DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='KHKArtikelVariantenLagerplatz' ORDER BY ORDINAL_POSITION;
+PRINT '--- P-9b'; SELECT Tag, Bezeichnung FROM KHKGruppen WHERE Mandant=0 AND Typ=40025;
+PRINT '--- P-9c'; SELECT COLUMN_NAME, IS_NULLABLE, COLUMN_DEFAULT FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='KHKLagerorte' AND COLUMN_NAME LIKE 'USER[_]%';
+PRINT '--- P-9d'; SELECT DATABASEPROPERTYEX(DB_NAME(),'Collation') Kollation;

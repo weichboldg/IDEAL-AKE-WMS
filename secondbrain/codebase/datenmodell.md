@@ -24,7 +24,7 @@ App-Zustand liegt in einem Satelliten — Begruendung:
 | Entitaet | Kardinalitaet | Inhalt |
 |---|---|---|
 | `ProductionOrder` | Master | Sage-Daten; `IsDone` (Sage), `IsCancelled` + `CancelledAt`/`CancelledBy` (Reconciliation, Migration 80) |
-| `ProductionOrderPickingStatus` | 1:1 | HasGlass, HasExternalPurchase, HasCoatingParts, IsCoatingDone, IsReleasedForPicking, PickingPriority, AssignedPicker, **IsDonePicking** |
+| `ProductionOrderPickingStatus` | 1:1 | HasGlass, HasExternalPurchase, HasCoatingParts, IsCoatingDone, IsReleasedForPicking, PickingPriority, AssignedPicker, **IsDonePicking**, `StuecklisteKleiner` (v1.99.70, SQL/168, NVARCHAR(1000) null: Marker „Stückliste kleiner als offene Kommissionierzeilen“; einziger Schreiber `PickingOrderWorkflow.ErzeugeOffeneAsync` über `SetStuecklisteKleinerAsync`, nur bei Änderung) |
 | `ProductionOrderBdeStatus` | 1:1 | IsDoneBde |
 | `ProductionOrderExtraInfo` | 1:1 | read-only Sage-Zusatzinfos: Kaeltemittel, Ventil, AusfuehrungEZ, Maschine, SageStatus (Migration 81) |
 | `FaWorkStep` (+ `FaWorkStepSpec`) | 1:N | tatsaechlich benoetigte Vorbau-AGs; `IsRemoved`, `Source` (`Sync`/`Manual`), `IsSpecComplete`, `Status` |
@@ -104,7 +104,7 @@ Details: [[integrationen]].
 
 | Entitaet | Zweck |
 |---|---|
-| `User` | App-Benutzer. AD-User = `WindowsUserName` gesetzt + `PasswordHash` NULL; lokaler User = umgekehrt (Migration 73). Prefs: `DefaultPageSize`, `DefaultWorkStepId` (Migration 70), `DefaultWorkbenches` (komma-separiert, Migration 75 — ersetzte den FK aus Migration 71, **destruktiv**) |
+| `User` | App-Benutzer. AD-User = `WindowsUserName` gesetzt + `PasswordHash` NULL; lokaler User = umgekehrt (Migration 73). Prefs: `DefaultPageSize`, `DefaultWorkStepId` (Migration 70), `DefaultWorkbenches` (komma-separiert, Migration 75 — ersetzte den FK aus Migration 71, **destruktiv**) | **v1.99.28:** `MussKennwortAendern` (bit, Default 0, SQL/152) = Erstkennwort mit Pflichtwechsel vor der Sitzung; AD-User können ein Kennwort haben (Formular-Weg), ohne Kennwort nur Windows (ADR [[0027-formular-anmeldung-nur-mit-kennwort-erstkennwort-mit-pflichtwechsel]]); `admin` ohne Kennwort bekommt beim Start `wms-admin` + Haken (`AdminSeed`).
 | `Role`, `RoleKeys`, `UserRole` | Rollen als statische Keys + Junction. `Role.AdGroup` in v1.23.0 **gedroppt** → [[0006-rollenkonzept-statische-keys-mit-admin-wildcard]] |
 | `Workstation`, `WorkstationUser` | Arbeitsplaetze (Drucker) |
 | `ProductionWorkplace`, `ProductionWorkplaceUser` | Werkbaenke und ihre Zuordnung |
@@ -154,6 +154,11 @@ konsolidiertes `../../SQL/00_FreshInstall.sql`. Der Workflow ist verbindlich —
 
 ## Beschichtungsauftrag als gespeichertes Objekt (IDEAL, v1.50.0, Bündel)
 
+> **Ergänzung v1.99.41** (Migration 161 `20261118120203_AddBeschichtungsauftragVersandUndVerpackt`, [[2026-11-18-v1-99-41-beschichtungsauftrag-ausbau]]): Status **Versendet = 35**
+> (Entwurf → Übergeben → Versendet → Erledigt; Übergeben → Erledigt entfällt) mit `VersendetAt`/`VersendetByUserId`; `CreditorId`
+> (FK `Creditors`, nullable, Index) = Lackierer, `Dienstleister` bleibt als Text (Kreditor-Name bzw. Freitext). Je Position `Verpackt`
+> und `OhneFa` (bit, Default 0); `OhneFa`-Positionen zählen nie als Vergabe (Fallstrick 52).
+
 - **`Beschichtungsauftrag`** (neu, `AuditableEntity`, Migration 94 `20261012073551_AddBeschichtungsauftrag`, Tabelle
   `Beschichtungsauftraege`): `Nummer` `BA-JJJJ-NNNNN` (UNIQUE) + `Jahr`/`LaufendeNummer` (UNIQUE), genau **ein** `HauptFA`
   (Index, nicht unique), `Status` (`BeschichtungsauftragStatus` byte: Entwurf=10, Uebergeben=30, Erledigt=40,
@@ -167,6 +172,8 @@ konsolidiertes `../../SQL/00_FreshInstall.sql`. Der Workflow ist verbindlich —
 - Schreibweg nur über `Services/BeschichtungsauftragWorkflow.cs` (Regeln) und `IBeschichtungsauftragRepository`
   (`GetVergabenAsync` = Positionen in Aufträgen mit Status ≠ Storniert, eine Abfrage). Spec
   [[2026-10-06-beschichtungsauftrag-ausbau-teil-3-spec]].
+  - **`PositionText`** (v1.99.34, SQL/157, nvarchar(50) NULL): Stücklisten-Position als Text, nur aus der flachen Quelle (AKE, WA-Stückliste);
+    dann Schlüssel Artnr + PositionText statt VaterFA/SubFA/Position. IDEAL-Zeilen bleiben NULL. Siehe fallstricke §46.
 
 ## Sage-SData-Stammdaten (v1.73.0, SQL/98–107)
 
@@ -179,7 +186,9 @@ konsolidiertes `../../SQL/00_FreshInstall.sql`. Der Workflow ist verbindlich —
 - `Creditors`, `Debitors` (Audit, `Source` Sage|Manual, gefiltert UNIQUE `SageKto`/`ShortName`, Enum `SageUebergabeStatus`, Interface `ISageKonto`).
 - `ArticleSuppliers` (FK Article Cascade, FK Creditor Restrict, UNIQUE ArticleId+CreditorId).
 - `SageStammdatenOutbox` (Status = `SageBookingQueueStatus`, `EntityType`+`EntityKey` = WMS-Id); `StorageLocations`/`BdeOperators` + `SageUebergabeStatus`
-- `SagePurchaseOrderLines` (v1.84.0, SQL/112): Cache offener Sage-Bestellpositionen (nur EBB), je Lauf ersetzt, kein AuditableEntity, keine FKs; UNIQUE `BelPosId`. Mengen in der Basiseinheit.
+- `SagePurchaseOrderLines` (v1.84.0, SQL/112): Cache offener Sage-Bestellpositionen (bis v1.99.14 nur EBB; **seit v1.99.15 EBB + EBZ**, `Belegkennzeichen` = `EBB`/`EBZ`, `IstRahmenabruf`; EBZ-Mengen aus `MengeBasis`), je Lauf ersetzt, kein AuditableEntity, keine FKs; UNIQUE `BelPosId`. Mengen in der Basiseinheit.
+  **Seit v1.99.33 (SQL/156):** `AbNummer` nvarchar(250), `Kommission` nvarchar(200), beide NULL – Kopfwert (`KHKEKBelege_USER_AB`/`_USER_Kom`
+  aus `dtsEKBelegMst`) an jeder Position des Belegs; Längen aus dem SData-Schema `EKBelegUserField`, P-2a offen; zu lange Werte → `null`.
 - `PurchaseOrderReceipts` (v1.84.0, SQL/113): Wareneingang zu Bestellposition, AuditableEntity, FK `StockMovementId` Restrict + UNIQUE (Navigation `StockMovement.PurchaseOrderReceipt`), Snapshot ohne FK auf den Cache; Andockpunkt Qualitätsprüfung.
   (DEFAULT 0 nur im SQL), `SageUebergabeAm`, `SageUebergabeFehler`; `BdeOperators.Source` DEFAULT 'Manual'.
 
@@ -192,3 +201,136 @@ konsolidiertes `../../SQL/00_FreshInstall.sql`. Der Workflow ist verbindlich —
   (Einmal-Skript `SQL/Einmalig/2026-11-08_v1.88.0_Kommissionierauftraege_Altbestand.sql`). [[0021-kommissionierauftrag-als-beleg-neben-der-stueckliste]]
 - `StockMovements.ProductionOrderId` (v1.87.0, SQL/109) – verknuepfter FA neben dem Text, Regel `IProductionOrderRepository.FindForBookingAsync`.
 
+- `PurchaseOrderReceipts` – v1.99.4 (SQL/143, Migration `20261111200627_AddPurchaseOrderReceiptSageWe`, [[2026-11-08-wareneingang-teil-2-sage-we-beleg-rahmenabrufe-spec]]): `SageWeStatus` (int,
+  Enum `SageWareneingangStatus` NichtNoetig/Offen/Gesendet/Uebergeben/Fehler/NurInSage, DEFAULT 0 nur in SQL/Migration), `SageWeVorgang` (Guid, ein
+  ELL-Beleg je Absenden der Maske), `SageWeAm`, `SageWeBelegnummer`, `SageWeFehler`, `SageWeVersuche`, `Lieferschein` (nvarchar(20), Sage `EKLieferschein`).
+  Status ≠ NichtNoetig = nie in der Lagerbuchungs-Queue. Rest-Regel: `ErfasstJeBelPos.Abzuziehen(SyncedAt)`.
+
+## Lieferverzug-Mails (v1.99.10, SQL/145)
+
+Migration `20261112143552_AddPurchaseOrderReminders`, [[2026-11-12-offene-bestellungen-mahnmail-lieferverzug-spec]]. Additiv.
+- `PurchaseOrderReminders`: eine Zeile je versendeter Lieferverzug-Mail und Position – `Art` (int, Enum `PurchaseOrderReminderArt` 0 = Einkauf,
+  1 = Kreditor), `BelPosId`, `Belegnummer` (nvarchar(20) wie der Cache), `LieferantKto`, `CreditorId` (ohne FK), `Liefertermin` (date, Schluessel der
+  Wiederholung), `Rest` (decimal(18,4), Rest-Regel beim Versand), `Empfaenger` (tatsaechliche, kommagetrennt, max. 1000), `Testbetrieb` (bit),
+  `SentAt` (Lokalzeit). Kein AuditableEntity (nur der Dienst schreibt, nie geaendert). Indizes `(BelPosId, Art, SentAt)`, `(SentAt)`. Keine Bereinigung.
+  Geschrieben nur von `LieferverzugMailService`, gelesen nur dort (heute schon gesendet, Wiederholung); keine Maske.
+- `Creditors.ReminderDisabled` (bit NOT NULL, DEFAULT 0 nur in SQL/Migration) und `Creditors.ReminderEmail` (nvarchar(200)): WMS-Felder, auch bei
+  Herkunft Sage pflegbar (`CreditorsController.ApplyWmsFelder`); der Kontokorrent-Abgleich schreibt sie nicht. Zieladresse der Kreditor-Mail =
+  `ReminderEmail`, sonst `Email`.
+
+## Wareneingang-CSV (v1.99.11, SQL/146)
+
+Migration `20261112151318_AddWareneingangBarcodeCsv`, [[2026-11-12-wareneingang-barcode-lieferschein-csv-export-spec]]. Additiv.
+- `PurchaseOrderReceipts.Barcode` (nvarchar(50), Index `IX_PurchaseOrderReceipts_Barcode`): Barcode des Lieferschein-Aufklebers, an jedem Receipt
+  eines Absendens; geschrieben nur beim Buchen (`PurchaseOrdersController.Receive`, nur mit `WareneingangBarcodeAktiv` und Sage-WE an), nie
+  geändert; gelesen von der Duplikat-Prüfung (`BarcodeVergebenAsync`, ohne Groß/Klein), der Liste „Sage-Wareneingänge“ und dem Dienst
+  (`WareneingangCsvService`, Dateiname).
+- `PurchaseOrderReceipts.LieferantName` (nvarchar(50)): Kreditorname beim Buchen aus `SagePurchaseOrderLine.LieferantName` (Snapshot, der Cache
+  verschwindet nach der Übergabe); gelesen nur für die CSV-Spalte `Kreditorname`.
+- `WareneingangCsvExporte` (AuditableEntity): eine Zeile je `SageWeVorgang` (UNIQUE `UX_WareneingangCsvExporte_SageWeVorgang`), `Barcode`
+  (nvarchar(50)), `Status` (int, Enum `WareneingangCsvStatus` 1 Offen / 2 Geschrieben / 3 Fehler, Index), `Versuche` (DEFAULT 0 nur in SQL),
+  `Fehler` (nvarchar(1000)), `Datei` (nvarchar(400), voller Pfad), `GeschriebenAm`. Angelegt und fortgeschrieben nur vom Dienst
+  (`system:wareneingang-csv`); „CSV erneut schreiben“ (`CsvErneutSchreibenAsync`) setzt Fehler → Offen mit Audit aus `ICurrentUserService`.
+  **Seit v1.99.33** ist `Barcode` nicht mehr eindeutig je Vorgang (Sammellieferschein); `Datei` ist dann der tatsächliche Name
+  `<Barcode>_n.csv` und Quelle der Nummernvergabe (nur bei Erfolg gesetzt – Fehler-Zeilen zählen nicht).
+  „Wartet“ ist kein Status (Barcode ohne Zeile, angezeigt).
+
+## Nachtrag 2026-11-14 (Wochenend-Lauf): Schema seit v1.89 ohne eigenen Eintrag
+
+Belegt aus den Skripten im Bündel-Worktree (`SQL/14x_*.sql`) und den Changelogs. Der Eintrag `PurchaseOrderReminders.Belegnummer (nvarchar(20) …)`
+oben ist durch SQL/149 ueberholt (jetzt 45).
+- `ArticleSageDetails` + `Basismengeneinheit`, `DezimalstellenBasis`, `Lagermengeneinheit`, `UmrechnungsFaktorLME`, `Verkaufsmengeneinheit`,
+  `DezimalstellenVK`, `UmrechnungsfaktorVK`, `VerpackungseinheitVK`, `UmrechnungsfaktorVPVK`; `ArticleSuppliers` + `DezimalstellenEK`,
+  `UmrechnungsfaktorVPEK` (SQL/140, Migration `20261107182445_AddArtikelMengeneinheiten`, additiv).
+- `PickingOrders.AltbestandPruefen` (bit NOT NULL, DEFAULT 0, SQL/141): Altbestand-Auftrag eines offenen FA mit Auftragsmenge ≠ 1; solange
+  gesetzt, legt `PickingOrderWorkflow.ErzeugeOffeneAsync` fuer den FA nichts an; „Altbestand geprueft“ im Leitstand loescht es.
+- `DeployScriptRuns` (SQL/142, v1.99.0, [[0023-daten-und-einmal-skripte-fuehrt-das-update-skript-mit-bestaetigung-aus]]): `ManifestId`,
+  `FileName`, `FileSha256`, `Mode`, `Hits`, `Output`, `PackageVersion`, `PackageCommit`, `ExecutedAt`, `ExecutedBy`, `Note`. Geschrieben und
+  gelesen nur vom Update-Skript (`scripts/deploy/`), nie von der Anwendung; ein eingetragener Lauf wird nicht erneut angeboten.
+- `PurchaseOrderReceipts.SageWeKennung` / `SageBookingQueueItems.SageKennung` (nvarchar(20), SQL/144, v1.99.9): beim Senden verwendete
+  Memo-Kennung (`WE#[K#]<Id>#` bzw. `SM#[K#]<Id>#`, K = `Sync:SageSystemKuerzel`); die Suche vor dem erneuten Senden nutzt sie.
+- `PurchaseOrderReceipts.SageWeStatus` kennt seit v1.99.7 zusaetzlich `Klaeren = 6` (Enum `SageWareneingangStatus`, kein Schema-Wechsel, int).
+- `ArticleSuppliers.LetzteBestellmenge` (decimal(18,3)), `LetzteBestellungAm` (date), `LetzteBestellungBeleg` (nvarchar(45)) – SQL/148,
+  Migration `20261113171808_AddArticleSupplierLetzteBestellung`, v1.99.21, additiv. Geschrieben nur vom Dienst
+  (`ArtikelLieferantSyncService.LetzteBestellungAsync`, Rueckblick `ArticleSupplier.LetzteBestellungRueckblickJahre` = 3), gelesen von
+  `PurchaseProposalsController`/`PurchaseProposalCalculator`. Kein Treffer mehr = Werte geleert.
+- `ArticleLastOrdersUnassigned` (SQL/155, Migration `20261116190709_AddArticleLastOrderUnassigned`, v1.99.30, additiv): juengste Sage-Bestellung
+  (EBB/EBZ, 3 Jahre) je Artikel bei Lieferanten **ohne** `ArticleSuppliers`-Zeile – `ArticleId` (FK Articles CASCADE), `Kto` nvarchar(20),
+  `Menge` decimal(18,3) (Basiseinheit), `Am` date, `Beleg` nvarchar(45), Audit-Felder; UNIQUE (ArticleId, Kto). Geschrieben nur vom Dienst
+  (`LetzteBestellungSyncService`), gelesen von `PurchaseProposalRepository` (letzte Bestellung, Hinweis „kein Artikel-Lieferant in Sage“).
+- Belegnummer 45 (SQL/149, Migration `20261113172929_WidenBelegnummer45`, v1.99.22, nicht destruktiv): `SagePurchaseOrderLines.Belegnummer`,
+  `PurchaseOrderReminders.Belegnummer`, `PurchaseOrderReceipts.Belegnummer` 20 → 45, `PurchaseOrderReceipts.SageWeBelegnummer` 30 → 45; Index
+  `IX_SagePurchaseOrderLines_Belegnummer` drop/recreate. Konstante `SagePurchaseOrderLine.BelegnummerMaxLaenge = 45` (auch fuer „Klären → als
+  übergeben markieren“ und die Kuerzung im `SageWareneingangService`).
+
+## BDE-Teileliste (v1.99.32, SQL/154)
+
+- `ProductionWorkplaces.BdeTeileliste` bit NOT NULL Default 0 – Werkbank-Option.
+- `BdeTeilMeldungen` – Teilmeldung je fachlichem Schlüssel (HauptFA, VaterFA, SubFA, Position, Artnr, Kürzel), FKs ProductionWorkplaces,
+  BdeOperators, BdeTerminals, BdeBookings (nullable); gefilterter UNIQUE `UX_BdeTeilMeldungen_Schluessel WHERE IsCancelled=0`. ADR [[0030-teilmeldung-mit-fachlichem-schluessel-neben-workoperation]].
+
+## Sage-Arbeitsgangnummer (v1.99.27, SQL/153)
+
+- `OperationConfigs.SageArbeitsgangnummer` / `SageArbeitsgangnummerManuell` nvarchar(31) NULL; berechnet (`[NotMapped]`)
+  `WirksameSageArbeitsgangnummer` und `SageArbeitsgangnummerWeichtAb`. Migration `20261117085624_AddOperationConfigSageArbeitsgangnummer`. ADR [[0031-sage-arbeitsgangnummer-an-operationconfig-sagewert-plus-handwert]].
+
+## BF-Aufträge (v1.99.35, SQL/158, [[2026-11-13-blechfertigung-bf-auftraege-wicam-csv-spec]])
+
+- `BfAuftraege` (`AuditableEntity`, RowVersion): Nummer (`BF` + 8 Ziffern, gefilterter UNIQUE), Status (Entwurf/Bestellt/Freigegeben/Fertig/Storniert), Besteller, Empfängergruppe (FK NO ACTION),
+  `BestelltAm`, `EmailSentAt`, Freigegeben/Fertig/Storniert am+von, `StornoGrund` (≤ 500), `Schachteltermin`, `FeTermin`, `CsvStatus`
+  (Keine/Offen/Geschrieben/Fehler), `CsvFehler`, `CsvVersuche`, `CsvDatei`, `CsvGeschriebenAm`. Warenkorb = Status Entwurf ohne Nummer.
+- `BfAuftragPositionen` (FK CASCADE, UNIQUE Auftrag+Position): Position, ArticleNumber, Matchcode, Teileart, Material,
+  Materialnummer, `FertigungsInfoPN`, Hauptlagerplatz, Menge, `SageBestellmenge` (Schnappschuss), Status, Bemerkung (bei Freigabe
+  festgeschrieben), `Gestrichen`, `SageFa` (Stufe 2, leer); berechnet `Uebergeben` = nicht gestrichen und Materialnummer vorhanden.
+- Artikelmerkmale der Blechteile ohne Schema-Änderung (vorhandene Merkmal-Tabellen, `BfArtikelFelder`). Migration `20261117154645_AddBfAuftraege`.
+- **v1.99.42** ([[2026-11-18-v1-99-42-nachbesserungen]]): `Users.Kuerzel` (nvarchar 10, groß, gefilterter UNIQUE `UQ_Users_Kuerzel`) und `BfAuftraege.BestellerKuerzel`
+  (Snapshot bei Freigabe → CSV ORDER_REMARK_4), SQL/162; `BfAuftragPositionen.Arbeitsschritte` (≤ 200, Snapshot aus `USER_OSArbeitsschritte`
+  → ORDER_REMARK_1, Nachtrag aus dem Merkmal), SQL/163. `Hauptlagerplatz` hält den **vollen** Sage-Lagerplatz (`K-02;0;0;0`).
+
+## FA-Struktur-Lebenslauf (v1.99.37, SQL/159, [[2026-11-17-fa-struktur-abgleich-statt-full-replace-spec]])
+
+- `FaHierarchyNodes`, `FaHierarchyOrderInfos`, `ProductionOrderPositions` je vier Spalten (Interface `IFaStrukturZeile`,
+  `Models/FaStrukturLebenslauf.cs`): `ErstGesehen`, `ZuletztGesehen` (NOT NULL, Startwert `SyncedAt`), `VerschwundenSeit`, `VerschwundenGrund`
+  (`FaStrukturGrund.Beendet/Inaktiv/Unklar`, Text für das Schild über `FaStrukturGrund.Text`).
+- UNIQUE `UX_FaHierarchyNodes_Schluessel (HauptFA, VaterFA, SubFA, Position, Artnr)`, `UX_FaHierarchyOrderInfos_Schluessel (HauptFA, ABNr, Pos)`;
+  leere Artnr/ABNr/Pos vorher → NULL. Migration `20261117183315_FaStrukturAbgleich`. Der Kommentar „Sync ersetzt die Cache-Zeilen je Lauf (neue
+  Ids)“ oben bei `BeschichtungsauftragPosition` gilt seit v1.99.37 nicht mehr – die Ids bleiben stabil, der fehlende FK bleibt trotzdem richtig
+  (Zeilen werden aufgeräumt).
+
+## SageFaArbeitsgangAnlagen (v1.99.38, SQL/160, [[2026-11-17-arbeitsgaenge-aus-wms-in-sage-fa-anlegen-spec]])
+
+- Warteschlange „AG in Sage-FA anlegen“, `AuditableEntity`: `BelId` (Sage-FA), `HauptFa`, `Kuerzel` (100), `SageArbeitsgangnummer` (31),
+  `Reihenfolge`, `Status` (`SageFaArbeitsgangStatus` Offen 1, Gesendet 2, Angelegt 3, InSageVorhanden 4, Fehler 5), `Versuche`, `Fehler` (1000),
+  `SageAm`. UNIQUE `UX_SageFaArbeitsgangAnlagen_BelId_Ag`, Index `IX_SageFaArbeitsgangAnlagen_Status`. Einreihen legt neu an oder setzt nur
+  Fehler-Zeilen wieder auf Offen (App-Guard, weil InMemory UNIQUE nicht prüft). Migration `20261117192807_AddSageFaArbeitsgangAnlagen`.
+
+- `StockMovements.WarehouseRequisitionItemId` (v1.99.53, SQL/166, Migration `20261123124036_AddStockMovementWarehouseRequisitionItem`):
+  int NULL, FK → `WarehouseRequisitionItems` (NO ACTION), Index. Kennzeichnet die Entnahme einer Lagerbestellungs-Position; Summe je Position
+  über `IStockMovementRepository.GetAusgebuchtJeLagerbestellPositionAsync` (Basis für „Ist minus schon gebucht“).
+  [[2026-11-23-lagerbestellung-verbrauchsbuchung-bei-lieferung-spec]]
+
+- `StockMovements.Abteilung` (v1.99.68, SQL/167, Migration `20261125134408_AddStockMovementAbteilung`): nvarchar(200) NULL, additiv, kein Backfill.
+  Schnappschuss des Werkbank-Namens (`ProductionWorkplace.Name`, nur Werkbänke ohne „nicht in Sage“), gesetzt **nur** bei Ausbuchung und Lagerplatz
+  ausbuchen (`StockMovementsController.Outbound`/`OutboundAllConfirm`, serverseitig gegen die Liste geprüft); alle anderen Schreibwege lassen NULL.
+  Kein Update-Weg. Gelesen nur von `SageLagerbuchungPayloadBuilder` (Sage-Referenz) und der Spalte „Abteilung“ in Sage-Buchungen.
+  [[2026-11-24-sage-buchung-referenz-benutzer-abteilung-spec]]
+
+
+- `SageStammdatenOutbox` neuer `EntityType` `StorageArea` (v1.99.71, `SageStammdatenOutbox.TypLagerort`, keine Migration – Spalte ohne CHECK):
+  EntityKey = `StorageArea.Id`. Der Sende-Lauf der Lagerplatz-Anlage schreibt Status (Offen/Gesendet/Bestaetigt/Fehler), `AttemptCount`,
+  `LastError` und Audit (`system:sage-lagerplatz-anlage`). Ein über „Lagerplätze in Sage anlegen“ erfasster Platz hat `Source = Manual` +
+  `StorageAreaId` bis zur Übernahme (`Source = Sage`, `SageLagerplatzId`, Sperr-/Maßwerte aus der Sage-Zeile). [[2026-11-24-lagerplatz-anlage-wms-nach-sage-spec]]
+
+## Fräsen-Pfad und Lagerbestell-Teilmeldung (v1.99.72, SQL/164–165, [[2026-11-20-bde-liste-isolierungsfraese-pfad-material-spec]])
+
+- `Articles.CamPath` NVARCHAR(500) NULL – Fräsen-Pfad (nur UNC, `Helpers/FraesenPfad.cs`), reines WMS-Feld, kein Sage-Sync; Schreiber nur
+  `ArticlesController.FraesenPfad` (+ Einmal-Skript Erstimport, `ModifiedBy` „Einmal-Skript Fräsen-Pfad“).
+- `ProductionWorkplaces.BdeTeilelisteLagerbestellungen` bit NOT NULL Default 0 – Werkbank-Option, nur zusammen mit BDE-Teileliste.
+- `BdeTeilMeldungen.WarehouseRequisitionItemId` int NULL, FK `WarehouseRequisitionItems` Restrict. UNIQUE `UX_BdeTeilMeldungen_Schluessel` jetzt
+  `WHERE [IsCancelled] = 0 AND [WarehouseRequisitionItemId] IS NULL`; neu `UX_BdeTeilMeldungen_Lagerbestellung` (`WarehouseRequisitionItemId`,
+  `Kuerzel`) `WHERE [IsCancelled] = 0 AND [WarehouseRequisitionItemId] IS NOT NULL`. ADR [[0038-teilmeldung-auch-fuer-lagerbestell-positionen]].
+- `BdeTeilMeldungen.IstAbschliessend` bit NOT NULL (DB-Default 1, kein EF-`HasDefaultValue`; v1.99.75, SQL/169) – 1 = Fertig (schließt die Zeile),
+  0 = Teilfertig. Beide UNIQUE-Filter zusätzlich `[IstAbschliessend] = 1`: eindeutig ist nur die abschließende Meldung, Teilmeldungen beliebig oft.
+  Schreiber nur `BdeTeilelisteService.MeldeAsync` (setzt den Wert immer ausdrücklich). ADR [[0037-teilfertigmeldung-nur-abschliessende-meldung-eindeutig]].
+- `ProductionWorkplaces.BdeStandardsichtTeile` bit NOT NULL Default 0 (v1.99.75, SQL/169) – Startreiter der BDE-Seite; Vorbelegung 1 bei BDE aktiv +
+  BDE-Teileliste + Kürzel nur bei Erstanlage der Spalte. **Noch ohne Leser und ohne Pflegemaske** (ab Etappe 4a).
