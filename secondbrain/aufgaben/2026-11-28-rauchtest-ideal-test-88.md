@@ -52,3 +52,10 @@ Sage-Warteschlange an Sage — bewusst ausgelassen).
   - Bedarfsmeldungs-Mail: keine aktiven Empfänger; Artikel-Sync: Hauptlagerplätze GL-AKV, FTG nicht als WMS-Lagerplatz.
   - Sage-Buchungsqueue: 6 alte Fehler vom 03.08. (Sage `GetSchema failed`/MissingMethodException) stehen noch in der Liste.
 - Auffällig klein: Seite `/PickingLeitstand` trägt die Überschrift „Fertigungsaufträge“ (wie die FA-Liste) — prüfen, ob gewollt.
+
+## Als Jira-Bugs gemeldet (2026-11-28)
+- WMS-11 Lagerbestand-Abgleich: eine Warnung je übersprungenem Artikel (Befund 5) — Code.
+- WMS-12 Leitstand Kommissionierung mit Überschrift „Fertigungsaufträge“ — Code.
+- WMS-13 IDEAL-Test: ProductionOrders/ArtikelLieferant/Userfelder scheitern je Lauf (Befunde 1, 2, 7) — Konfiguration.
+- WMS-14 IDEAL: 9 BDE-Werkbänke fehlen in Sage, Kürzel MK/ISO/MO (Befunde 3, 4) — Fachbereich.
+Nicht gemeldet (Einstellungen/Stammdaten, kein Fehler): AKE-Hinweise (TLS, CSV-Pfad, Kommissionierer, Benutzer ohne Kennwort, fehlende Hauptlagerplätze).
