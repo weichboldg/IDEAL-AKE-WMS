@@ -1,6 +1,6 @@
 # 12 – Register Sage-Test (Administration)
 
-Stand: Version 1.99.29 · Standorte AKE und IDEAL · Bilder aus dem AKE-Testsystem (Stückliste live: IDEAL-Testsystem mit AKE-Testdaten)
+Stand: Version 1.99.92 (Verbindungstest nur an die gespeicherte Adresse, Text), 1.99.29 · Standorte AKE und IDEAL · Bilder aus dem AKE-Testsystem (Stückliste live: IDEAL-Testsystem mit AKE-Testdaten)
 
 ## Zweck
 

@@ -1,6 +1,6 @@
 # 03 – Installation, Update und Rückfall
 
-**Stand:** v1.99.80, 2026-11-25 (Nachzug 1.99.70–1.99.79: Prüfungen 5.3, Einmal-Skript Fräsen-Pfad 5.4, Hinweise je Version 5.4a, Checkliste 8), v1.99.44 · **Zielgruppe:** IT-Administratoren, die installieren oder aktualisieren · **Zweck:** Schritt für Schritt
+**Stand:** v1.99.93, 2026-11-28 (v1.99.90–1.99.93: Bündel Review/Kommissionierung, kein SQL; 1.99.92 Prüfung Web-appsettings, 1.99.93 Update-Skript Neustart nach Abbruch/Transaktionsschutz/Lokalzeit); davor v1.99.80, 2026-11-25 (Nachzug 1.99.70–1.99.79: Prüfungen 5.3, Einmal-Skript Fräsen-Pfad 5.4, Hinweise je Version 5.4a, Checkliste 8), v1.99.44 · **Zielgruppe:** IT-Administratoren, die installieren oder aktualisieren · **Zweck:** Schritt für Schritt
 durch Erstinstallation und Update mit dem Update-Skript, und ehrlich, was beim Zurückgehen möglich ist und was nicht.
 
 Übersicht: [00-index.md](00-index.md). Zielsysteme: [02-systeme-umgebungen.md](02-systeme-umgebungen.md). Sicherung:

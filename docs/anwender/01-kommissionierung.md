@@ -1,6 +1,6 @@
 # 01 – Kommissionierung
 
-Stand: Version 1.99.89 (IDEAL: Maske „Liste“ mit Umbuchen und summierter Auftragsdruck, mit Fotos), 1.99.88 (IDEAL-Leitstand eine Zeile je HauptFA, mit Fotos), 1.99.79 (Hinweis „Altbestand geprüft“), 1.99.70 (Abschnitt „Weitere Knöpfe“, Hinweise) bzw. 1.99.58 · Standorte AKE und IDEAL · Bilder aus dem AKE-Testsystem (IDEAL-Bild extra gekennzeichnet)
+Stand: Version 1.99.90 (Filter im Kommissionierauftrag bleibt im Auftrag, Text), 1.99.89 (IDEAL: Maske „Liste“ mit Umbuchen und summierter Auftragsdruck, mit Fotos), 1.99.88 (IDEAL-Leitstand eine Zeile je HauptFA, mit Fotos), 1.99.79 (Hinweis „Altbestand geprüft“), 1.99.70 (Abschnitt „Weitere Knöpfe“, Hinweise) bzw. 1.99.58 · Standorte AKE und IDEAL · Bilder aus dem AKE-Testsystem (IDEAL-Bild extra gekennzeichnet)
 
 ## Zweck
 
@@ -139,6 +139,9 @@ Oben stehen FA, Artikel und der Kasten **Kommissionierauftrag KO-… · Bereich 
   „Artikel nicht gefunden“ mit der Möglichkeit, gleich den nächsten zu scannen.
 - Steht oben ein blaues Kästchen **„Gefiltert: …“**, wirkt ein persönlicher Standardfilter (aus dem Profil). Mit dem **×** im Kästchen
   wird er für diese Seite aufgehoben.
+
+**Seit Version 1.99.90:** Filter und **Zurücksetzen** in der Maske „Stückliste“ eines Kommissionierauftrags bleiben im Auftrag. Vorher
+sprang die Seite dabei in die Stückliste des Fertigungsauftrags ohne Auftrag.
 
 #### IDEAL: Maske „Liste“ (summiert je Artikel)
 
