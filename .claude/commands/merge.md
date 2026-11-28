@@ -5,6 +5,10 @@ argument-hint: <pfad-zur-spec-in-merge-freigegeben>
 Merge-Freigabe (Schranke 2 wurde genommen): $1
 Vom Menschen manuell getestet und zum Merge freigegeben.
 
+0. VOR dem Merge Sicherungs-Tag auf den aktuellen main-Stand (Pflicht, Gerald 2026-11-28):
+   git tag -a backup/main-vor-<branch-slug> -m "main vor Merge <branch>" main
+   Existiert der Tag schon: STOPPEN und melden, nie ueberschreiben. Tag nicht pushen (macht der Mensch).
+   Tag-Name in Commit-Text und Lauf-Notiz nennen.
 1. git checkout main; git merge <branch-aus-spec-frontmatter>. Bei Konflikt STOPPEN und melden - nichts erzwingen.
 2. dotnet build IdealAkeWms.slnx und dotnet test - muessen gruen sein (Nachweis nach dem Merge,
    denn erst der Merge-Commit ist der Deploy-Stand).
