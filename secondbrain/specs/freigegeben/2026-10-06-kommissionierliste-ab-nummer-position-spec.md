@@ -2,13 +2,13 @@
 type: spec
 title: "IDEAL Kommissionierliste: AB-Nummer und Position anzeigen (Liste, Summiert, Druck, PDF)"
 slug: 2026-10-06-kommissionierliste-ab-nummer-position-spec
-status: Freigegeben
+status: Testbereit
 created: 2026-10-06
 updated: 2026-11-28
 source_backlog: "[[2026-10-06-kommissionierliste-ab-nummer-position]]"
 task: ""
-worktree: ""
-branch: ""
+worktree: ".claude/worktrees/2026-11-28-buendel-review-kommissionierung"
+branch: "feature/2026-11-28-buendel-review-kommissionierung"
 affected_code:
   - "IdealAkeWms/Views/FaHierarchyKommissionierListen/Index.cshtml Z. 115-138 (Gruppenkopf je HauptFA): zeigt heute bereits je OrderInfo `Montage-Abt. · Kunde · AB <ABNr> · KO <Datum>` (Z. 129), aber KEINE `Pos`. Nur im Restumfang (Pos in der Liste, nice to have, Ruecklegung offen): `Pos` hinter der AB-Nummer ergaenzen (Muster `Views/FaHierarchyBeschichtung/Index.cshtml` Z. 91-92: `· AB <ABNr>` + ` / <Pos>`). UEBERHOLT (Antworten 1/3, 2026-10-07): Ersatz durch ein Partial `_KommissionierAuftragsKopf` - Begruendung (vier Render-Stellen) entfaellt mit der Summiert-Ansicht."
   - "IdealAkeWms/Views/FaHierarchyKommissionierListen/Print.cshtml Z. 68-102 (Kombi-Hinweis + `head-table` mit Spalte `AB-Nr.`, Z. 84/95, KEINE `Pos`-Spalte): nur im Restumfang zusaetzliche Spalte `Pos` direkt nach `AB-Nr.` (Muster `Views/FaHierarchyBeschichtung/Print.cshtml` Z. 88-89/101-102). Wirkt automatisch auf das PDF, weil `Pdf` dieselbe View `Print` rendert (`FaHierarchyKommissionierListenController.cs` Z. 209). UEBERHOLT (Antworten 1/3, 2026-10-07): Ersatz durch ein Partial `_KommissionierAuftragsKopfDruck`."
@@ -26,11 +26,12 @@ affected_code:
   - "ENTFAELLT (Antworten 1/3, 2026-10-07: keine Spalte) - NUR bei Rueckfrage 1 = Spalte: zusaetzlich ColumnDefinitions.FaHierarchyKommissionierListen/-Summiert, `#column-config`, `<th data-col-key>`, `ShowCol(...)` in Print/PrintSummiert, `ColumnMap`/`SummiertColumnMap` und der Drift-Guard `IdealAkeWms.Tests/Views/KommissionierSpaltenKonsistenzTests.cs` (vergleicht genau diese vier Quellen, Z. 42-43/56-71) — siehe Rueckfrage 4."
   - "ENTFAELLT (Antwort 3, 2026-10-07: Suche nicht gefordert) - NUR bei Rueckfrage 3 = Suche nach AB-Nummer gewuenscht: zusaetzlich Filterkarte beider Views, `KommissionierListenService.BuildAsync` (Z. 95-110) und `AggregateSummiert`, `ToggleSharedQueryKeys` (Z. 217-221) — siehe Rueckfrage 3."
 open_questions: []
+standort: IDEAL
 epic: false
 etappen: []
 deploy:
   web: true
-  service: false
+  service: true
   migration: false
 freigabe_entscheidung: ""
 freigabe_von: "Gerald Weichbold"
@@ -361,13 +362,22 @@ Entfaellt (`epic: false`).
 
 ## Deploy
 
-*Vorlaeufig — der QA-Lauf bestaetigt gegen den echten Diff.*
+*Final (QA 2026-11-28, aus dem echten Diff `48a2ece3..a57973f7`).*
 
-- **Web-App:** ja (Views, Service-Klasse und ViewModels im Web-Projekt).
-- **Service:** nein (Sync liest `ABNr`/`Pos` bereits).
-- **Migration:** nein.
-- **Publish-Befehle** (im Worktree):
+- **Geänderte Dateien:** `Views/FaHierarchyKommissionierListen/Index.cshtml` (1 Zeile), `Print.cshtml` (+2 Zeilen), `Views/Help/Index.cshtml`,
+  `Views/Help/Changelog.cshtml`, beide `AppVersion.cs`, `docs/TESTSZENARIEN.md`. Kein Service-/ViewModel-/Controller-Code.
+- **Web-App:** ja (`deploy.web: true`) – zwei Razor-Views + Hilfe.
+- **Service:** nur Versionsnummer 1.99.91 (`deploy.service: true` nur für einen einheitlichen Versionsstand, keine Logik).
+- **Migration:** nein (`deploy.migration: false`), kein SQL, keine Einmal-Skripte.
+- **Manifest** `scripts/deploy/nachlauf.psd1`: keine Einträge nötig (kein SQL, keine Einstellung, kein Leitstand-Schritt) – geprüft.
+- **Publish (erledigt):** `C:\Git\IDEAL-AKE-WMS\.claude\worktrees\2026-11-28-buendel-review-kommissionierung\publish` mit
+  `IDEALAKEWMSWeb\`, `IDEALAKEWMSWebService\`, `SQL\`, `deploy\`, `publish-info.txt` (Version 1.99.91, Commit `a57973f7b87f7d1fc4d20dc18b8af8f208a4f303`).
+  Im Bündel wird das Paket am Laufende mit den Folge-Specs neu gebaut – maßgeblich ist dann das letzte Publish.
+- **Reihenfolge:** Web + Service ersetzen (Update-Skript `deploy\Update-IdealAkeWms.ps1`), kein DB-Schritt.
+- **Ablauf Mensch:** Publish aus dem Worktree → Testsystem → Test → Merge. Nach dem Merge nur dann neu aus `main` publishen, wenn der Merge
+  getestete Dateien mit parallelen `main`-Änderungen zusammengeführt hat:
   `dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWMSWeb`
+  `dotnet publish IDEALAKEWMSService/IDEALAKEWMSService.csproj -c Release -o .\publish\IDEALAKEWMSWebService`
 
 **Pruefschritte fuer den Menschen auf der Sage-DB IDEAL** (Fakten, die nur in Sage liegen — vor der
 Abnahme, nicht blockierend fuer die Umsetzung, weil Rohwerte angezeigt werden):
@@ -425,3 +435,73 @@ Stand 2026-10-07: 1, 3 beantwortet; 4 damit gegenstandslos; offen bleibt nur 2.
 3. Umfang (Liste, Summiert, Druck, PDF) und Suche/Filter nach AB-Nummer → **AB-Nummer in der Liste nice to have – ist dort über die PPS-View normal schon vorhanden (Keyuser 2026-10-07). Suche nicht gefordert.**
 4. Nur bei Spalte: Spaltenregistrierung + Drift-Guard → **Gegenstandslos (keine Spalte, Antworten 1/3).**
 5. (Nachtrag 2026-11-23) Restumfang umsetzen oder zuruecklegen? → **Umsetzen (Gerald 2026-11-23): `Pos` im Gruppenkopf der Liste – Bildschirm (`Index.cshtml`, heute Z. 131), Druck (`Print.cshtml`, heute Z. 95), PDF folgt. Format wie Beschichtung `AB <ABNr> / <Pos>`. Zeilen im Buendel 2026-11-23 nachgemessen: Pos fehlt weiterhin. Version/TS: naechste freie Nummer beim Dev-Lauf.**
+
+## QA-Nachweis (qa-agent, 2026-11-28)
+
+Worktree `.claude/worktrees/2026-11-28-buendel-review-kommissionierung`, Branch `feature/2026-11-28-buendel-review-kommissionierung`,
+geprüfter Commit-Bereich `48a2ece3..a57973f7` (Spec 2 des Bündels). Gültiger Umfang: Freigabe-Antwort 5 (nur `Pos` in Liste + Druck-Kopftabelle;
+AK 1, 2, 3, 6, 9, 11). `standort: IDEAL` im Frontmatter ergänzt (fehlte; Kommissionierlisten sind IDEAL-only, s. Out-of-Scope). Ergebnis: **Testbereit**.
+
+### 1. Build und Tests
+- `dotnet build IdealAkeWms.slnx`: **0 Fehler**, 37 Warnungen (bestehend, keine aus dem Diff).
+- `dotnet test`: `IdealAkeWms.Tests` **3853 bestanden / 1 übersprungen / 0 Fehler** (3854); `IDEALAKEWMSService.Tests` **848 / 0 / 0** (848).
+
+### 2. Code-Review (selbst, in diesem Lauf)
+Geprüft: kompletter Diff (7 Dateien), `Index.cshtml` Z. 105–140 (Gruppenkopf inkl. Kombi-Badge und Leer-Hinweis), `Print.cshtml` Z. 60–105
+(Kombi-Hinweis + `head-table`), `FaHierarchyKommissionierListenController.Pdf` Z. 270–303 (rendert View `Print` → PDF erbt die Spalte),
+`ColumnDefinitions.FaHierarchyKommissionierListen` (Kopftabelle hat keine `data-col-key`/`ShowCol`).
+- AB-Fragment: `· AB @info.ABNr@(IsNullOrWhiteSpace(Pos) ? "" : " / " + Pos)` – Schrägstrich nur mit `Pos`, Wert per Razor HTML-kodiert;
+  `Pos` ohne `ABNr` wird nicht gezeigt – entspricht der Spec („fehlt ABNr, entfällt das AB-Fragment“). Druck: leere `Pos` = leere Zelle.
+- Defektklassen: keine `<script>`-Einbettung, kein `hidden`+`d-*`, kein stiller Fallback (leer bleibt leer), keine Parallel-Arrays,
+  keine Validierung, keine Regel-Duplikate (Format nur an den zwei Render-Stellen, wie entschieden ohne Partial).
+- **Code-Befunde: keine.**
+- **H-1 (Hinweis, nicht blockierend):** `AppVersion.Date` steht in beiden `AppVersion.cs` weiter auf `2026-11-26`, Anwender-Changelog sagt 28.11.2026
+  (gleich wie schon bei v1.99.90). Kosmetisch; beim Lauf-Abschluss mitziehen, falls gewünscht.
+
+### 3. Nachweisart je Akzeptanzkriterium
+| AK | Nachweis |
+|---|---|
+| 1 Liste Bildschirm `AB x / y` | Manual-UAT (Razor) – IDEAL-DEV OK; Zweig „Pos leer“ nur per Code belegt |
+| 2 Liste Druck Spalte `Pos` nach `AB-Nr.` | Manual-UAT – IDEAL-DEV OK |
+| 3 Liste PDF | Code-Beleg (Pdf rendert `Print`, Controller Z. 296); PDF-Inhalt selbst NICHT MOEGLICH (Datei-Download), → Mensch |
+| 6 Kombigerät beide AB/Pos + Hinweis | Manual-UAT – Bildschirm + Druck IDEAL-DEV OK; PDF → Mensch |
+| 9 Spaltenauswahl unberührt | Manual-UAT Druck IDEAL-DEV OK; `KommissionierSpaltenKonsistenzTests` ohne Anpassung grün (automatisiert) |
+| 11 Hilfe/Changelog | Sichtprüfung im Diff: `Help/Index.cshtml` (Eintrag „seit v1.99.91“) + `Changelog.cshtml` v1.99.91 nennen Pos + Kombigeräte ✓ |
+
+### 4. Geänderte bestehende Tests
+Keine – der Diff ändert keine Testdatei.
+
+### 5. Checkliste CLAUDE.md
+Migration/SQL/FreshInstall/AgentJobs: entfällt. Audit-Felder: entfällt (nur Lesen). Version 1.99.91 in **beiden** `AppVersion.cs` ✓.
+Anwender-Changelog ✓, Hilfeseite ✓. `docs/TESTSZENARIEN.md` TS-211.1–211.6 + Negativfälle ✓, Stand-Zeile ✓. Testindex Zeile 211 ✓.
+Brain-Changelog/feature-map: macht der Lauf am Ende (Auftrag). 5a ADR 0020: keine neue/geänderte Einstellung.
+
+### 6. DEV-Deploy und Testlauf
+- **Deploy:** `dev-deploy.ps1 -Standort IDEAL -Quelle <worktree>` (elevated, Web + Service), Exit 0, „HTTP 200, Fusszeile v1.99.91“,
+  „Fertig: IDEAL v1.99.91 auf http://localhost:8082/“. AKE nicht deployt (IDEAL-only, Standort IDEAL).
+- **Testdaten** (`IDEAL_WMS_DEV`, SELECT): `FaHierarchyKommissionierlistenAktiv = true`, `…NurFreigegebene = true`; Einzel-OrderInfo mit Pos:
+  1060414 (431512/1), 1064052 (431504/3), 1065036 (431527/1); Kombigerät 1059463 (2 Zeilen, AB 431521 / Pos 20 und 99); 0 Zeilen mit leerer Pos.
+
+| Schritt | Durchgeführt | Ergebnis | Status |
+|---|---|---|---|
+| TS-211.1 Liste | `/FaHierarchyKommissionierListen?target=*` | 1064052: „TK · FHE - Dornbirn · AB 431504 / 3 · KO 07.07.2026“; 1065036: „… AB 431527 / 1 …“ | OK |
+| TS-211.2 Druck | `/Print?target=*` | Kopftabelle Montage-Abt. / Kunde / AB-Nr. / **Pos** / KO / FE je Gruppe, Werte 3 bzw. 1 | OK |
+| TS-211.3 PDF | – | PDF ist Datei-Download (attachment); ohne Freigabe nicht heruntergeladen. Code: gleiche View `Print` | NICHT MOEGLICH (→ Mensch) |
+| TS-211.4 Kombigerät | Liste + Druck, HauptFA 1059463 | Badge „mehrdeutig (Kombigerät)“, „WKS · … · AB 431521 / 20 · KO 03.07.2026“ und „FKV · QA-TS164 · AB 431521 / 99“; Druck: Hinweis + 2 Zeilen Pos 20/99 | OK (PDF → Mensch) |
+| TS-211.5 Spaltenauswahl | `/Print?…&visibleColumns=hauptfa,artnr,matchcode,sollmenge` | Positionstabelle nur Artnr./Matchcode/Sollmenge, Kopftabelle unverändert inkl. Pos | OK |
+| TS-211.6 Summiert | `/Summiert?target=*` | Gruppenkopf nur „HauptFA …“ + PDF-Link, keine AB/Pos | OK |
+| Negativ Pos leer | – | keine Daten mit leerer Pos auf DEV; temporäres Leeren in der DEV-DB wurde vom Berechtigungssystem abgelehnt. Code-Beleg s. Review | NICHT MOEGLICH (→ Mensch) |
+| Negativ ohne OrderInfo / Toggle aus | – | unveränderter Bestandscode (nicht im Diff), nicht erneut geprüft | NICHT MOEGLICH (keine Daten; Regression unwahrscheinlich) |
+
+### 7. Publish
+Beide Apps nach `<worktree>\publish\` (Ordner vorher geleert), `SQL\` und `scripts\deploy\` kopiert, `publish-info.txt`:
+Version 1.99.91, Commit `a57973f7b87f7d1fc4d20dc18b8af8f208a4f303`, Erstellt 2026-11-28 11:43. Beide `dotnet publish` Exit 0.
+
+### Manuelle Checkliste für den Menschen
+1. IDEAL-Testsystem: Liste → je eine HauptFA mit OrderInfo prüfen: `AB <Nr> / <Pos>` im Gruppenkopf (TS-211.1).
+2. PDF-Link einer Gruppe öffnen → Kopftabelle mit Spalte `Pos` rechts von `AB-Nr.` (TS-211.3).
+3. Kombigerät (z. B. 1059463 auf DEV) als PDF → beide Zeilen mit Pos + Hinweis (TS-211.4).
+4. HauptFA mit leerer `Pos` (falls auf dem Testsystem vorhanden): Bildschirm `AB <Nr>` ohne Schrägstrich, Druckzelle leer.
+5. HauptFA ohne OrderInfo → „Keine Auftrags-Kopfdaten zu diesem HauptFA.“; Toggle aus → Redirect wie bisher.
+6. Prüfabfragen P1/P2 auf der Sage-DB IDEAL (Abschnitt Deploy): Ist `Pos` fachlich die AB-Position?
+7. Danach Merge-Entscheidung (Schranke 2).

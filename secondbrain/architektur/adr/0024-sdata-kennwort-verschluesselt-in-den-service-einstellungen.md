@@ -50,6 +50,11 @@ Gerald will den IDEAL-Endpunkt samt Zugang nur ueber die Oberflaeche einrichten 
   kein Protokoll (Einstellungspruefung ueberspringt Geheim-Keys, Validator zitiert den Wert nie), keine Orphan-Liste (Katalog-Key);
   der Freitext-Weg Create/Edit/Delete lehnt Geheim-Keys ab. Aenderung/Entfernen schreibt eine Serilog-Zeile mit Windows-Benutzer, ohne Wert.
   `SdataZugang`, `SdataLeseZiel` und `SageBookingEndpoint` ueberschreiben `ToString` ohne Kennwort.
+- **Nachtrag v1.99.92** ([[2026-11-28-sdata-geheimnisse-review-befunde-spec]], ergaenzt, nicht ersetzt): Der Verbindungstest nimmt gespeicherte
+  Zugangsdaten nur fuer die gespeicherte `SData:BaseUrl` (gleiches Schema, Host, Port) und nie mit schwaecherer TLS-Pruefung
+  (`SdataZugangsdaten.SperreGespeicherterZugang`); http nur, wenn die gespeicherte Adresse selbst http ist (Freigabe-Antwort 2). Der
+  Freitext-Weg lehnt jede andere Gross-/Kleinschreibung eines Katalog-Keys ab (CI-Kollation traefe sonst die echte Zeile). Das Update-Skript
+  prueft `SageLagerbuchung:Password` auch in den Web-appsettings (`Pruefung/SDataKennwortAppsettingsWeb`, Manifest-Feld `Ort='Web'`).
 
 ## Konsequenzen
 

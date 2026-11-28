@@ -2369,3 +2369,14 @@ Code: `hardware-scanner.js` Block „Scannen ohne Feld“, CSS `.hw-scan-bereit`
   (`appsettings.Development.json` bei Umgebung `Production`) mit Präfix `xxx_` umbenennen – das passt nicht auf `appsettings*.json`
   (Schutzstand, robocopy `/XF`), robocopy ohne `/PURGE` legt sie nicht neu an und löscht nichts.
 - **Warum:** Die Dateien sind vom Kopieren ausgenommen und gehören dem Betrieb; ein Kommentar fällt erst beim nächsten Update auf.
+
+## 73. SqlClient: ein COMMIT im SQL-Text beendet die Transaktion still – Rollback wirft danach nicht (v1.99.93, [[2026-11-28-update-skript-review-befunde-spec]])
+
+- **Problem:** Steht in einem Skript ein unpaariges `COMMIT`, das in einer `SqlTransaction` des Aufrufers läuft, sinkt `@@TRANCOUNT` auf 0 und die
+  Daten sind festgeschrieben. Folgebefehle mit derselben `$tx` laufen weiter (`SELECT @@TRANCOUNT` liefert 0, **wirft nicht**), und auch
+  `$tx.Rollback()` **wirft nicht** – ein „Rollback gelungen = DB unverändert“ ist dann falsch (QA TS-213.4, gemessen in PS 5.1 gegen Wegwerf-DB).
+- **Regel:** Den Zustand prüfen, nicht das Rollback-Ergebnis: nach jedem Batch `SELECT @@TRANCOUNT, DB_NAME()` (erwartet 1 und die Ziel-DB);
+  bei `@@TRANCOUNT 0` „ggf. festgeschrieben, kein Marker“ melden (`Invoke-SqlTransaktion` in `scripts/deploy/Update-IdealAkeWms.ps1`).
+  Statisch vorher abweisen: `USE` und mehr `COMMIT` als `BEGIN TRAN` (`Test-SqlFuerTransaktion`, Kopie im Drift-Test).
+- **Warum:** Gepaartes `BEGIN TRAN … COMMIT` ist harmlos (2 → 1) und steht in allen Manifest-Skripten; der Entwurf nahm an, ein
+  gescheiterter Rollback zeige die beendete Transaktion an – die Messung widerlegte das.

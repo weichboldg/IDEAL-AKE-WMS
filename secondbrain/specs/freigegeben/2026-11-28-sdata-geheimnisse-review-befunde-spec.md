@@ -2,14 +2,14 @@
 type: spec
 title: SData-Geheimnisse und Sage-Test – Review-Befunde SD-1, SD-2, SD-3, SD-4, SD-6
 slug: 2026-11-28-sdata-geheimnisse-review-befunde-spec
-status: Freigegeben
+status: Testbereit
 created: 2026-11-28
 updated: 2026-11-28
 source_backlog: "[[2026-11-14-review-befunde-sdata]]"
 task: ""
 jira: ""
-worktree: ""
-branch: ""
+worktree: ".claude/worktrees/2026-11-28-buendel-review-kommissionierung"
+branch: "feature/2026-11-28-buendel-review-kommissionierung"
 standort: beide
 affected_code:
   - "[[2026-11-28-sdata-geheimnisse-review-befunde-bug]]"
@@ -261,16 +261,22 @@ Nicht zutreffend (epic: false).
 
 ## Deploy
 
-*Vorläufig – der QA-Lauf bestätigt gegen den echten Diff.*
+*Final (QA 2026-11-28, aus dem echten Diff `a57973f7..7abbc46b`).*
 
-- **Web-App:** ja (SD-1, SD-2, SD-3, View-Text, Hilfe).
-- **Service:** ja (SD-6, `SageBookingWorker`).
-- **Migration:** nein.
-- **Manifest-Einträge** (`scripts/deploy/nachlauf.psd1`, ADR 0022/0023):
-  - **neu** `Id='Pruefung/SDataKennwortAppsettingsWeb'; Version='1.99.93'` (vorläufig); `Typ='Pruefung'; Firma='beide'; Phase='Nachher';
+- **Web-App:** ja (`IdealAkeWms/`: ServiceSettingsController, SageTestController, SdataZugangsdaten, Views SageTest/Help, AppVersion).
+- **Service:** ja (`IDEALAKEWMSService/Workers/SageBookingWorker.cs`, AppVersion).
+- **Migration:** nein (keine Datei unter `*/Migrations/`, kein SQL).
+- **Update-Skript:** ja (`scripts/deploy/Update-IdealAkeWms.ps1` Funktion `Get-AppsettingsWert`, `nachlauf.psd1`) – geht im Paket unter `publish\deploy` mit.
+- **Publish erledigt (QA):** `C:\Git\IDEAL-AKE-WMS\.claude\worktrees\2026-11-28-buendel-review-kommissionierung\publish` – v1.99.92, Commit
+  7abbc46b, `IDEALAKEWMSWeb` + `IDEALAKEWMSWebService` + `SQL` + `deploy` + `publish-info.txt`. Beide Komponenten deployen (Reihenfolge ohne
+  Migration: Update-Skript wie üblich; kein Backup-Sonderschritt nötig).
+- **Nach dem Merge:** nur dann aus `main` neu publizieren, wenn der Merge getestete Dateien mit parallelen main-Änderungen zusammengeführt hat.
+- **Manifest-Einträge** (`scripts/deploy/nachlauf.psd1`, ADR 0022/0023) – im Diff vorhanden:
+  - **neu** `Id='Pruefung/SDataKennwortAppsettingsWeb'; Version='1.99.92'`; `Typ='Pruefung'; Firma='beide'; Phase='Nachher';
     Ausfuehrung='anzeigen'; Appsettings='SageLagerbuchung:Password'; Ort='Web'`; Text: „SData-Kennwort steht noch im Klartext in {Datei}
-    (Web). Erst in den Service-Einstellungen eintragen, Register Sage-Test pruefen, dann aus der Datei entfernen.“; Quelle = Changelog-Slug
-    v1.99.93.
+    (Web). Erst in den Service-Einstellungen eintragen, Register Sage-Test pruefen, dann aus der Datei entfernen.“; Quelle =
+    `2026-11-28-v1-99-92-sdata-geheimnisse-review-befunde` (Brain-Changelog entsteht beim Laufabschluss). Hinweis: IDEAL-DEV meldet hier
+    bereits echt „Abweichung 1“ (`D:\Dev\IDEAL\Web\appsettings.DEV.json` enthält das Kennwort) – auf Test/Prod ist mit derselben Zeile zu rechnen.
   - **geändert** `Pruefung/SDataKennwortAppsettings` (Id, Version, Prüfung unverändert): Klammerzusatz „(auch Web: appsettings.Production.json)“
     im Text entfällt.
   - Sonst keine (kein SQL, kein Einmal-Skript, keine Einstellung, kein Leitstand-Schritt, keine Anwender-Info, kein Ordner/Recht).
@@ -300,3 +306,98 @@ Keine Fachbereichs-Fragen, kein Jira-Vorgang.
 
 1. SD-3 Umfang: nur IstGeheim oder allgemeine Schreibweisen-Regel (inkl. Einwegtor)? → **allgemeine Regel wie empfohlen** (Gerald 2026-11-28)
 2. SD-1 http: gespeicherte Zugangsdaten nie über http://, auch bei http-SData:BaseUrl? → **Nein – „es muss funktionieren“ (Gerald 2026-11-28):** gespeicherte Zugangsdaten nur an die konfigurierte `SData:BaseUrl` (gleiches Schema/Host/Port); ist `SData:BaseUrl` selbst http, bleibt der Test mit gespeichertem Kennwort möglich. http an eine abweichende Adresse: nie. Kein Standort darf durch die Änderung den Verbindungstest verlieren.
+
+## QA-Nachweis (qa-agent, 2026-11-28)
+
+Worktree `.claude/worktrees/2026-11-28-buendel-review-kommissionierung`, Branch `feature/2026-11-28-buendel-review-kommissionierung`.
+Geprüfter Bereich: Umsetzungs-Commit `c9c9f888` (Diff gegen `a57973f7`) + QA-Fix `7abbc46b`. Version 1.99.92, TS-212 (Spec nannte vorläufig
+1.99.93/TS-214). Standort laut Frontmatter: beide.
+
+### 1. Build und Tests
+- `dotnet build IdealAkeWms.slnx`: 0 Fehler (37 Warnungen, vorbestehend).
+- `dotnet test` auf c9c9f888: IdealAkeWms.Tests 3880 bestanden / 1 übersprungen / 0 Fehler; IDEALAKEWMSService.Tests 848 / 0 / 0.
+- Nach QA-Fix 7abbc46b: IdealAkeWms.Tests **3882** / 1 / 0 (+2 neue Fälle); IDEALAKEWMSService.Tests **848** / 0 / 0.
+
+### 2. Code-Review (selbst, in diesem Lauf)
+Geprüft: `ServiceSettingsController` (TestSageConnection, Freitext Create/Edit GET+POST/Delete), `SdataZugangsdaten.SperreGespeicherterZugang`
+und `LeseHoechstensAsync`, `WebStandAsync`/`Aufloesen` (Quelle von BaseUrl/TLS), `SageTestController.Feldliste`, `SageBookingWorker`-Schleife
+(alle try-Blöcke, `sageWeAn`-Fluss zur CSV), `Update-IdealAkeWms.ps1` `Get-Einstellung`/`Get-AppsettingsWert`/Auswahl der Prüfungen (läuft
+versionsunabhängig, Z. 704/928), `nachlauf.psd1`, Drift-Test, View-JS (Ausgabe per `textContent`), Doku/Hilfe/Changelog.
+
+| # | Befund | Schwere | Behandlung |
+|---|---|---|---|
+| Q-1 | **SD-3 unvollständig:** Die Spalten-Kollation (`Latin1_General_CI_AS`, DEV gemessen) behandelt nicht nur Groß-/Kleinschreibung gleich, sondern auch **Leerzeichen am Ende** (SQL-Padding) und **Vollbreite-Zeichen** (breiten-unabhängig). DEV-Messung: `WHERE [Key] = N'SData:BaseUrl  '` → 1 Treffer; `NCHAR(65331)+N'Data:BaseUrl'` → 1 Treffer. `Create("SData:Password ", "x")` lief an `KatalogKeyAndereSchreibweise` (OrdinalIgnoreCase) und `IstGeheim` (ordinal) vorbei; `FindAsync` hätte die echte Zeile gefunden und das Kennwort im Klartext überschrieben. | hoch (Sicherheit, ADR 0024) | **Behoben in 7abbc46b:** Vergleich per `CompareInfo.Compare(k, key.TrimEnd(), IgnoreCase/IgnoreWidth/IgnoreKanaType)`; Test `Freitext_AndereSchreibweiseKatalogKey_Abgelehnt` um `"SData:Password "` und `"\uFF33Data:Password"` erweitert (grün). DEV IDEAL: Create `SData:Password ` → Warnung, Zeile unverändert. |
+| Q-2 | Meldung bei der Leerzeichen-Variante sagt „weicht nur in der Groß-/Kleinschreibung … ab“. | kosmetisch | Bewusst belassen (Text in TS-212.9 und Test verankert; die Ablehnung ist das Wesentliche). |
+| Z-1 | Zusatzfund außerhalb des Diffs: `/ServiceSettings` zeigt `WarningMessage` doppelt (`_Layout.cshtml:510` + `Views/ServiceSettings/Index.cshtml:31`). | kosmetisch, vorbestehend | Nicht mitgebaut, nur gemeldet. |
+
+Ohne Befund geprüft: SD-1 prüft die tatsächlich gesendete URL (gleicher `Uri`-Parse wie `HttpRequestMessage`), Standard-Port, Host über
+`IdnHost` ohne Groß-/Kleinschreibung, `@` in Ziel und Gespeichertem, http nur wenn gespeichert http (Antwort 2), TLS nicht schwächer; Sperre
+nur bei Quelle ≠ „keine“ (Benutzer ohne Kennwort zählt als gespeichert → gesperrt, korrekt). Redirects: .NET entfernt `Authorization` beim
+Folgen und folgt nicht https→http. SD-2a: `ResponseHeadersRead` + `StreamReader`/`ReadBlockAsync` bis max+1, Dispose bricht ab; kein
+`ReadAsStringAsync` mehr. SD-2b: Prüfung an der Vertrauensgrenze, `else if` vermeidet Doppelmeldung bei leerem orderBy. SD-6: zwei try-Blöcke
+mit eigenem Betreff und je OCE-`break`; `sageWeAn` bleibt bei Lesefehler `false` → kein `SageWareneingangAusAsync`, CSV aus (Q-2 unverändert).
+SD-4: `$m['Ort']` auf der Hashtable aus psd1 ist PS-5.1-fest; Skript und Manifest rein ASCII (Suche nach Nicht-ASCII ohne Treffer). Defektklassen:
+kein `@Html.Raw` in Script, kein `hidden`+`d-*`, kein stiller `?? 0`, keine parallelen Arrays, Server erzwingt alle Regeln, die
+Schreibweisen-Regel lebt an einer Stelle.
+
+### 3. Nachweisart je Akzeptanzkriterium
+| AK | Nachweis |
+|---|---|
+| 1–4 | Unit (`SperreGespeicherterZugang_NurGespeicherteAdresse`, `_HttpAnHttpsAdresse_NenntHttp`) + DEV IDEAL 212.1–212.4 (Listener ohne Verbindung) |
+| 5 | DEV IDEAL: Sperre passiert, „Zugangsdaten: gespeichert (Service-Einstellungen)“; HTTP 200 **Manual-UAT** (idealsage2 von diesem PC nicht erreichbar, Kennwort auf DEV nicht gesetzt) |
+| 6 | DEV IDEAL: Kennwort im Fenster → Listener erhält genau 1 Verbindung („Eingabe im Fenster“) |
+| 7 | Unit (14 Fälle) |
+| 8 | Unit (`LeseHoechstens_KapptNach50000`, `TestSageConnection_LiestNichtMehrGanzenBody`); echte große Antwort **Manual-UAT** |
+| 9 | Unit (`Feldliste_UngueltigeEingabe_Meldung_KeineAnfrage`, Strict-Mock) + DEV IDEAL 212.8 |
+| 10–11 | Unit (`Freitext_AndereSchreibweiseKatalogKey_Abgelehnt`, `Freitext_OrphanKey_BleibtPflegbar`) + DEV IDEAL 212.9; Prod-Kollation **Manual-UAT** (P-1) |
+| 12 | DEV AKE + IDEAL mit dem Paket-Skript unter Windows PowerShell 5.1 (212.10) |
+| 13 | Unit (`NachlaufManifestDriftTests`) |
+| 14–15 | Code-Review (Abschnitt 2); Laufzeit mit beiden Schaltern an **Manual-UAT** (DEV-Sperre `SageLagerbuchungAktiv`) |
+| 16 | Review Doku 12, Hilfe, Changelog v1.99.92; ADR-0024-Nachtrag im Hauptcheckout (laut Auftrag) |
+| 17 | Abschnitt 1 |
+
+### 4. Geänderte bestehende Tests
+- `SageTestSdataTests.Feldliste_UngueltigeEingabe_Meldung_KeineAnfrage`: optionaler Parameter `include` + 3 InlineData – Verhalten bewusst
+  erweitert (AK 9); bestehende Fälle unverändert.
+- `NachlaufManifestDriftTests`: zwei zusätzliche Assertions für `Ort` (AK 13).
+- Keine Fixture-Anpassung, kein „Sonstiges“.
+
+### 5. Checkliste CLAUDE.md
+Keine Migration/SQL/FreshInstall/AgentJobs. Keine Audit-Felder (Spec). Version 1.99.92 in beiden `AppVersion.cs`, Anwender-Changelog ergänzt;
+Brain-Changelog/feature-map macht der Lauf am Ende. `docs/TESTSZENARIEN.md` TS-212 + Index Zeile 212 vorhanden. 5a ADR 0020: keine
+neue/geänderte Einstellung – entfällt. Manifest-Eintrag für die neue Prüfung vorhanden; kein weiterer manueller Deploy-Schritt.
+
+### 6. DEV-Deploy und TS-212
+Shell erhöht (Administrator = True). `dev-deploy.ps1 -Standort AKE|IDEAL -Quelle <worktree>` zweimal (auf c9c9f888, nach dem Fix auf
+7abbc46b): jeweils Exit 0, „HTTP 200, Fusszeile v1.99.92“, „Fertig: AKE v1.99.92 auf http://localhost:8081/“ bzw. „IDEAL … :8082/“.
+Dienst-Logs: SageBookingWorker „gestartet. Version 1.99.92“, 0 `[ERR]` seit Deploy (beide).
+
+| Schritt | Durchgeführt | Ergebnis | Status |
+|---|---|---|---|
+| 212.1 | IDEAL, `http://127.0.0.1:9123/`, Kennwort leer, TCP-Listener aktiv | „Gespeicherte Zugangsdaten nur für die gespeicherte Adresse https://idealsage2.ideal.ideal-ake.at:5493 (nie über http://)“, Zugang „gespeichert – nicht verwendet“; Listener ohne Verbindung | OK |
+| 212.2 | IDEAL, Port 5494 | Meldung „nur für die gespeicherte Adresse …“, keine Anfrage | OK |
+| 212.3 | IDEAL: `SageLagerbuchungSslZertifikatPruefen` kurz `true` (SQL), Haken aus | „Gespeicherte Zugangsdaten nicht mit ausgeschalteter Zertifikatsprüfung …“; Wert danach zurück auf `false` (geprüft) | OK |
+| 212.4 | IDEAL, `https://x@…:5493/` | „Adresse enthält Zugangsdaten (@)“ | OK |
+| 212.5 | IDEAL, Host in Großbuchstaben, Kennwort leer | Sperre passiert, „Zugangsdaten: gespeichert (Service-Einstellungen)“; Sage-Server verweigert Verbindung von diesem PC | teilweise OK; HTTP 200 NICHT MOEGLICH |
+| 212.6 | IDEAL, Dummy-Kennwort im Fenster, Listener | Listener: genau 1 Verbindung; „Eingabe im Fenster“ | OK |
+| 212.7 | – | braucht gültige Sage-Anmeldung (AKE-DEV 401 ohne gespeicherte Zugangsdaten, IDEAL nicht erreichbar) | NICHT MOEGLICH |
+| 212.8 | IDEAL Feldliste, orderBy `BelID&where=1 eq 1`, include `X#y` | „orderBy ohne &, ? und #.“ + „include ohne &, ? und #.“ | OK |
+| 212.9 | IDEAL Create: `sdata:password`, `SData:Password ` (Leerzeichen), `produktionsauftraghierarchisch`=false; Orphan `Adhoc:QaTest` | drei Warnungen; SQL: `SData:Password` unverändert (CS-abweichend 0), `ProduktionsauftragHierarchisch` = true; Orphan gespeichert, danach per SQL entfernt | OK |
+| 212.10 | Paket-Skript `publish\deploy\Update-IdealAkeWms.ps1 -System DEV -NurPruefen` (powershell.exe 5.1); AKE: Dummy-Kennwort in `D:\Dev\AKE\Web\appsettings.DEV.json`, danach Datei aus Sicherung (Hash gleich) | AKE ohne: `AppsettingsWeb` OK; mit Dummy: „Abweichung 1 … D:\Dev\AKE\Web\appsettings.DEV.json (Web)“; zurück: OK. IDEAL: echte Abweichung (Web-DEV-Datei enthält das Kennwort). Dienst-Prüfung unverändert. | OK |
+| 212.11 | Code-Review + Dienst-Log | zwei Blöcke bestätigt; beide Schalter auf DEV aus (Sperre), Dienst ohne Fehler | Review OK; Laufzeit NICHT MOEGLICH |
+| Negativ | AKE-DEV, Quelle „keine“, gespeicherte Adresse | Aufruf ohne Anmeldung wie bisher: HTTP 401, „keine gespeicherten Zugangsdaten“, Kopfzeilen per Stream gelesen | OK |
+
+### 7. Publish
+`C:\Git\IDEAL-AKE-WMS\.claude\worktrees\2026-11-28-buendel-review-kommissionierung\publish` (Zielordner vorher geleert): `IDEALAKEWMSWeb`,
+`IDEALAKEWMSWebService` (beide Exit 0), `SQL`, `deploy`, `publish-info.txt` (Version 1.99.92, Commit 7abbc46b02a6a71fc764fe69779749bf7bad4690).
+Das Paket-Skript lief daraus fehlerfrei (212.10).
+
+### Manuelle Test-Checkliste (Mensch, offen)
+1. TS-212.5: System mit erreichbarem Sage und gespeicherten Zugangsdaten, unveränderte Adresse → HTTP 200, „Zugangsdaten: gespeichert
+   (Service-Einstellungen)“; ist dort `SData:BaseUrl` http, muss der Test weiter gehen (Antwort 2).
+2. TS-212.7: große Ressource (z. B. `Artikel?orderBy=Artikelnummer&format=json`) → endet mit „… (gekuerzt)“, Web-Prozess ohne Speicherspitze.
+3. TS-212.11: Testsystem mit `SageLagerbuchungAktiv` und `SageWareneingangBelegAktiv` an → beide Schritte laufen, Aktivitäts-Protokoll normal.
+4. Prüfabfragen P-1 (Kollation), P-2 (Altlast-Schreibweise), P-3 (BaseUrl http?) auf AKE- und IDEAL-Prod vor Go-live.
+5. Update-Skript auf Test/Prod: Zeile `Pruefung/SDataKennwortAppsettingsWeb` beachten (IDEAL-DEV hat das Kennwort in der Web-Datei; erst
+   Service-Einstellungen pflegen, dann aus der Datei entfernen).
+6. Gesamtlauf TS-212 auf dem Testsystem (beide Standorte), danach Schranke 2 (Merge).
