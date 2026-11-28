@@ -59,3 +59,4 @@ Sage-Warteschlange an Sage — bewusst ausgelassen).
 - WMS-13 IDEAL-Test: ProductionOrders/ArtikelLieferant/Userfelder scheitern je Lauf (Befunde 1, 2, 7) — Konfiguration.
 - WMS-14 IDEAL: 9 BDE-Werkbänke fehlen in Sage, Kürzel MK/ISO/MO (Befunde 3, 4) — Fachbereich.
 Nicht gemeldet (Einstellungen/Stammdaten, kein Fehler): AKE-Hinweise (TLS, CSV-Pfad, Kommissionierer, Benutzer ohne Kennwort, fehlende Hauptlagerplätze).
+Standort-Stichwort gesetzt: WMS-11/12 `standort-beide`, WMS-13/14 `standort-ideal` (WMS-10 `standort-ideal`).
