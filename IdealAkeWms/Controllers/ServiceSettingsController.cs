@@ -45,6 +45,18 @@ public class ServiceSettingsController : Controller
     /// <summary>v1.99.14: Geheim-Keys (SData-Kennwort) laufen nie ueber den Freitext-Fallback (Klartext in die DB bzw. Schutztext ins Formular).</summary>
     private static bool IstGeheim(string? key) => key != null && ServiceSettingDefinitions.TryGet(key, out var d) && d.Type == SettingType.Geheim;
 
+    /// <summary>v1.99.92 SD-3: Key weicht nur in der Gross-/Kleinschreibung von einem Katalog-Key ab. Bei CI-Kollation traefe er die echte Zeile
+    /// an den Waechtern vorbei (sdata:password, produktionsauftraghierarchisch). Der exakte Key laeuft weiter ueber die bestehenden Waechter.</summary>
+    private static string? KatalogKeyAndereSchreibweise(string? key) => key == null ? null
+        : ServiceSettingDefinitions.All.Select(d => d.Key)
+            .FirstOrDefault(k => string.Equals(k, key, StringComparison.OrdinalIgnoreCase) && !string.Equals(k, key, StringComparison.Ordinal));
+
+    private IActionResult SchreibweiseAbgelehnt(string key, string katalogKey)
+    {
+        TempData["WarningMessage"] = $"Key „{key}“ weicht nur in der Groß-/Kleinschreibung von „{katalogKey}“ ab – Katalog-Einstellungen nur über die Maske pflegen.";
+        return RedirectToAction(nameof(Index));
+    }
+
     private IActionResult GeheimAbgelehnt()
     {
         TempData["WarningMessage"] = "Das Kennwort wird nur über das Kennwortfeld der Service-Einstellungen gepflegt (verschlüsselt).";
@@ -182,10 +194,16 @@ public class ServiceSettingsController : Controller
         if (string.IsNullOrEmpty(req.Password))
         {
             // v1.99.14 F2: leeres Kennwort = gespeicherte Zugangsdaten (F6, nur serverseitig); nicht entschluesselbar = kein Aufruf, kein Rueckfall
-            var z = (await SdataZugangsdaten.WebStandAsync(_repository, _configuration, _schutz)).Zugang;
+            var stand = await SdataZugangsdaten.WebStandAsync(_repository, _configuration, _schutz);
+            var z = stand.Zugang;
             if (z.Fehler is not null)
                 return Json(new { ok = false, requestUrl = url, sslVerify = req.VerifyCertificate, status = 0, reason = (string?)null,
                     headers = Array.Empty<object>(), body = (string?)null, error = z.Fehler, zugang = z.Quelle });
+            // v1.99.92 SD-1: gespeicherte Zugangsdaten nur an die gespeicherte Adresse, nie mit schwaecherer TLS-Pruefung - sonst kein Aufruf
+            if (z.Quelle != "keine"
+                && SdataZugangsdaten.SperreGespeicherterZugang(url, req.VerifyCertificate, stand.BaseUrl, stand.ZertifikatPruefen) is { } sperre)
+                return Json(new { ok = false, requestUrl = url, sslVerify = req.VerifyCertificate, status = 0, reason = (string?)null,
+                    headers = Array.Empty<object>(), body = (string?)null, error = sperre, zugang = "gespeichert – nicht verwendet" });
             req.Username = z.Benutzer;
             req.Password = z.Kennwort;
             zugangsQuelle = z.Quelle == "keine" ? "keine gespeicherten Zugangsdaten" : $"gespeichert ({z.Quelle})";
@@ -205,8 +223,9 @@ public class ServiceSettingsController : Controller
 
         try
         {
-            using var response = await client.SendAsync(message, HttpCompletionOption.ResponseContentRead, ct);
-            var body = await response.Content.ReadAsStringAsync(ct);
+            // v1.99.92 SD-2a: nur die Kopfzeilen abwarten, Body hoechstens 50.000 Zeichen lesen (Dispose bricht den Rest ab)
+            using var response = await client.SendAsync(message, HttpCompletionOption.ResponseHeadersRead, ct);
+            var body = await SdataZugangsdaten.LeseHoechstensAsync(await response.Content.ReadAsStreamAsync(ct), 50000, ct);
             var headers = response.Headers.Concat(response.Content.Headers)
                 .Select(h => new { name = h.Key, value = string.Join(", ", h.Value) })
                 .ToList();
@@ -219,7 +238,7 @@ public class ServiceSettingsController : Controller
                 status = (int)response.StatusCode,
                 reason = response.ReasonPhrase,
                 headers,
-                body = body.Length > 50000 ? body.Substring(0, 50000) + "\n… (gekuerzt)" : body,
+                body,
                 error = (string?)null,
                 zugang = zugangsQuelle
             });
@@ -276,6 +295,7 @@ public class ServiceSettingsController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Create(ServiceSetting setting)
     {
+        if (KatalogKeyAndereSchreibweise(setting.Key) is { } kk) return SchreibweiseAbgelehnt(setting.Key!, kk);
         if (IstGeheim(setting.Key)) return GeheimAbgelehnt();
         if (!ModelState.IsValid)
             return View(setting);
@@ -302,6 +322,7 @@ public class ServiceSettingsController : Controller
     {
         if (id != setting.Key)
             return NotFound();
+        if (KatalogKeyAndereSchreibweise(id) is { } kk) return SchreibweiseAbgelehnt(id, kk);
         if (IstGeheim(id)) return GeheimAbgelehnt();
 
         if (!ModelState.IsValid)
@@ -316,6 +337,7 @@ public class ServiceSettingsController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Delete(string id)
     {
+        if (KatalogKeyAndereSchreibweise(id) is { } kk) return SchreibweiseAbgelehnt(id, kk);
         if (IstGeheim(id)) return GeheimAbgelehnt();
         await _repository.DeleteAsync(id);
         TempData["SuccessMessage"] = "Einstellung gelöscht.";

@@ -64,6 +64,11 @@ public class SageTestController : Controller
             vm.Fehler.Add("Ressource angeben, ohne /, ?, & und #.");
         if (string.IsNullOrEmpty(vm.OrderBy))
             vm.Fehler.Add("orderBy ist Pflicht (Sage antwortet sonst mit HTTP 500).");
+        // v1.99.92 SD-2b: orderBy/include gehen unkodiert in die URL (SageSdataReadClient) - keine weiteren Parameter einschleusen
+        else if (vm.OrderBy.IndexOfAny(new[] { '?', '&', '#' }) >= 0)
+            vm.Fehler.Add("orderBy ohne &, ? und #.");
+        if (vm.Include?.IndexOfAny(new[] { '?', '&', '#' }) >= 0)
+            vm.Fehler.Add("include ohne &, ? und #.");
         if (vm.Vertrag == SageSdataReadClient.ServiceContract && vm.Where is null)
             vm.Fehler.Add("Bei RealTimeData ist where Pflicht (sonst liest Sage die ganze Quelle).");
         if (vm.Anzahl is < 1 or > 5)

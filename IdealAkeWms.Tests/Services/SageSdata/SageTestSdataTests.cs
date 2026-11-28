@@ -212,6 +212,77 @@ public class SageTestSdataTests
         c.TempData["WarningMessage"].Should().NotBeNull();
     }
 
+    // v1.99.92 SD-3 (AK 10/11): andere Schreibweise eines Katalog-Keys (Geheim + Einwegtor) wird abgelehnt, Orphan-Key bleibt pflegbar
+    [Theory]
+    [InlineData("sdata:password")]
+    [InlineData("SDATA:PASSWORD")]
+    [InlineData("produktionsauftraghierarchisch")]
+    [InlineData("sync:fazusatzinfoautoerledigtenabled")]
+    public async Task Freitext_AndereSchreibweiseKatalogKey_Abgelehnt(string key)
+    {
+        var (c, repo) = Svc(new List<ServiceSetting>());
+        (await c.Create(new ServiceSetting { Key = key, Value = "x" })).Should().BeOfType<RedirectToActionResult>();
+        (await c.Edit(key, new ServiceSetting { Key = key, Value = "x" })).Should().BeOfType<RedirectToActionResult>();
+        (await c.Delete(key)).Should().BeOfType<RedirectToActionResult>();
+        repo.Verify(r => r.UpsertAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()), Times.Never);
+        repo.Verify(r => r.DeleteAsync(It.IsAny<string>()), Times.Never);
+        ((string)c.TempData["WarningMessage"]!).Should().Contain("Groß-/Kleinschreibung");
+    }
+
+    [Fact]
+    public async Task Freitext_OrphanKey_BleibtPflegbar()
+    {
+        var (c, repo) = Svc(new List<ServiceSetting>());
+        await c.Create(new ServiceSetting { Key = "Adhoc:NurTest", Value = "x" });
+        repo.Verify(r => r.UpsertAsync("Adhoc:NurTest", "x", It.IsAny<string>(), It.IsAny<string>()), Times.Once);
+    }
+
+    // v1.99.92 SD-1 (AK 7): gespeicherte Zugangsdaten nur an die gespeicherte Adresse
+    [Theory]
+    [InlineData("https://sagetest01:5493/sdata/ol/x/y/$schema", true, "https://sagetest01:5493", true, true)]
+    [InlineData("https://SAGETEST01:5493/sdata/ol/andere/z/Artikel", true, "https://sagetest01:5493/", true, true)]
+    [InlineData("https://sagetest01/sdata/x", true, "https://sagetest01:443", true, true)]
+    [InlineData("http://sagetest01:5493/sdata/x", true, "http://sagetest01:5493", true, true)]   // Antwort 2: gespeichert http bleibt testbar
+    [InlineData("https://sagetest01:5493/x", false, "https://sagetest01:5493", false, true)]
+    [InlineData("https://andererhost:5493/x", true, "https://sagetest01:5493", true, false)]
+    [InlineData("https://sagetest01:9999/x", true, "https://sagetest01:5493", true, false)]
+    [InlineData("http://sagetest01:5493/x", true, "https://sagetest01:5493", true, false)]
+    [InlineData("https://sagetest01:5493/x", true, "http://sagetest01:5493", true, false)]
+    [InlineData("https://u@sagetest01:5493/x", true, "https://sagetest01:5493", true, false)]
+    [InlineData("keine url", true, "https://sagetest01:5493", true, false)]
+    [InlineData("ftp://sagetest01:5493/x", true, "https://sagetest01:5493", true, false)]
+    [InlineData("https://sagetest01:5493/x", true, "", true, false)]
+    [InlineData("https://sagetest01:5493/x", false, "https://sagetest01:5493", true, false)]
+    public void SperreGespeicherterZugang_NurGespeicherteAdresse(string ziel, bool fensterTls, string gespeichert, bool gespeichertTls, bool erlaubt)
+    {
+        var sperre = SdataZugangsdaten.SperreGespeicherterZugang(ziel, fensterTls, gespeichert, gespeichertTls);
+        (sperre is null).Should().Be(erlaubt, sperre);
+        if (sperre is not null) sperre.Should().NotContain("appuser").And.NotContain("apppw");
+    }
+
+    [Fact]
+    public void SperreGespeicherterZugang_HttpAnHttpsAdresse_NenntHttp() =>
+        SdataZugangsdaten.SperreGespeicherterZugang("http://sagetest01:5493/x", true, "https://sagetest01:5493", true)
+            .Should().Contain("nie über http://").And.Contain("https://sagetest01:5493");
+
+    // v1.99.92 SD-2a (AK 8)
+    [Theory]
+    [InlineData(60000, true)]
+    [InlineData(50000, false)]
+    [InlineData(10, false)]
+    public async Task LeseHoechstens_KapptNach50000(int laenge, bool gekuerzt)
+    {
+        var text = new string('a', laenge);
+        var r = await SdataZugangsdaten.LeseHoechstensAsync(new MemoryStream(Encoding.UTF8.GetBytes(text)), 50000, CancellationToken.None);
+        if (gekuerzt) r.Should().Be(new string('a', 50000) + "\n… (gekuerzt)");
+        else r.Should().Be(text);
+    }
+
+    [Fact]
+    public void TestSageConnection_LiestNichtMehrGanzenBody() =>
+        File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "IdealAkeWms", "Controllers", "ServiceSettingsController.cs"))
+            .Should().NotContain("ReadAsStringAsync").And.Contain("HttpCompletionOption.ResponseHeadersRead");
+
     // ===== Lese-Client: nur GET, URL (AK 12) =====
 
     private sealed class Stub : HttpMessageHandler
@@ -355,10 +426,14 @@ public class SageTestSdataTests
     [InlineData("Fremd", "PpsFaBelegeInfo", "BelID", 1, null, "Vertrag")]
     [InlineData("RealTimeData", "dtsFaBelegsuche.Sage.PPS", "BelID", 1, null, "where")]
     [InlineData("CommonWawiServicesResources", "a/b", "BelID", 1, null, "Ressource")]
-    public async Task Feldliste_UngueltigeEingabe_Meldung_KeineAnfrage(string vertrag, string ressource, string orderBy, int anzahl, string? where, string meldung)
+    [InlineData("CommonWawiServicesResources", "PpsFaBelegeInfo", "BelID&where=1 eq 1", 1, null, "orderBy ohne")]   // v1.99.92 SD-2b
+    [InlineData("CommonWawiServicesResources", "PpsFaBelegeInfo", "BelID?x", 1, null, "orderBy ohne")]
+    [InlineData("CommonWawiServicesResources", "PpsFaBelegeInfo", "BelID", 1, null, "include ohne", "X#y")]
+    public async Task Feldliste_UngueltigeEingabe_Meldung_KeineAnfrage(string vertrag, string ressource, string orderBy, int anzahl, string? where, string meldung,
+        string? include = null)
     {
         var (c, _) = Register("https://sagetest01:5493", new() { ["Ressource"] = ressource });
-        var r = await c.Feldliste(new SageTestFeldlisteViewModel { Vertrag = vertrag, Ressource = ressource, OrderBy = orderBy, Anzahl = anzahl, Where = where },
+        var r = await c.Feldliste(new SageTestFeldlisteViewModel { Vertrag = vertrag, Ressource = ressource, OrderBy = orderBy, Anzahl = anzahl, Where = where, Include = include },
             CancellationToken.None);
         var vm = (SageTestFeldlisteViewModel)((ViewResult)r).Model!;
         vm.Fehler.Should().Contain(f => f.Contains(meldung));

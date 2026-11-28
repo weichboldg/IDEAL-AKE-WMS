@@ -412,7 +412,12 @@ function Invoke-SqlTransaktion($e, [string]$name, [string]$text, $marker, [strin
 
 # ================================================================================================ v1.99.0: Pruefungen
 # v1.99.12: Pruefung auf eine Einstellung der Dienst-appsettings*.json (Appsettings='Abschnitt:Schluessel', ohne DB); 1 = gesetzt
-function Get-AppsettingsWert($e, $m) { $t = $m.Appsettings.Split(':', 2); return Get-Einstellung $e.Dienst $e.UmgebungDienst $t[0] $t[1] -MitDatei }
+# v1.99.92 SD-4: optional Ort='Web' liest die Web-appsettings*.json (sonst Dienst)
+function Get-AppsettingsWert($e, $m) {
+    $t = $m.Appsettings.Split(':', 2)
+    if ($m['Ort'] -eq 'Web') { return Get-Einstellung $e.Web $e.UmgebungWeb $t[0] $t[1] -MitDatei }
+    return Get-Einstellung $e.Dienst $e.UmgebungDienst $t[0] $t[1] -MitDatei
+}
 function Format-PruefText($e, $m) {
     $t = Format-Text $m.Text $e
     if ($m['Appsettings']) { $w = Get-AppsettingsWert $e $m; $t = $t.Replace('{Wert}', [string]$w.Wert).Replace('{Datei}', [string]$w.Datei) }

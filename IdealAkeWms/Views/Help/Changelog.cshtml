@@ -8,6 +8,20 @@
     <div class="col-lg-8">
         <div class="card mb-3">
             <div class="card-header text-white" style="background-color: var(--ake-primary);">
+                <strong>v1.99.92</strong> <span class="text-white-50 ms-2">28.11.2026</span>
+            </div>
+            <div class="card-body">
+                <h6>Sage-Zugangsdaten besser geschützt</h6>
+                <ul>
+                    <li>Verbindungstest (Register Sage-Test): Bei leerem Kennwort werden die gespeicherten Zugangsdaten nur noch an die gespeicherte Sage-Adresse geschickt und nicht mit ausgeschalteter Zertifikatsprüfung. Für ein anderes System Benutzer und Kennwort eingeben.</li>
+                    <li>Große Antworten im Verbindungstest werden nach 50.000 Zeichen abgebrochen; Feldliste lehnt &amp;, ? und # in orderBy/include ab.</li>
+                    <li>Service-Einstellungen: Freitext-Einträge, die sich nur in der Groß-/Kleinschreibung von einer Katalog-Einstellung unterscheiden, werden abgelehnt.</li>
+                    <li>Dienst: Ein Fehler in der Sage-Lagerbuchung hält den Sage-Wareneingang nicht mehr an (und umgekehrt). Das Update-Skript meldet ein Klartext-Kennwort auch in der Web-Konfiguration.</li>
+                </ul>
+            </div>
+        </div>
+        <div class="card mb-3">
+            <div class="card-header text-white" style="background-color: var(--ake-primary);">
                 <strong>v1.99.91</strong> <span class="text-white-50 ms-2">28.11.2026</span>
             </div>
             <div class="card-body">

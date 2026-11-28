@@ -339,7 +339,9 @@
                             <li><strong>Verbindungstest (Admin):</strong> Im Reiter <em>Einstellungen &rarr; Sage-Test</em> (seit v1.99.14,
                                 vorher auf den Service-Einstellungen) prueft <strong>&bdquo;Sage-Verbindung testen&ldquo;</strong> URL,
                                 TLS-Zertifikat und Anmeldung und zeigt Status, Antwort-Header und Antwort an &mdash; ohne eine echte Buchung
-                                anzulegen. Kennwort leer = gespeicherte Zugangsdaten.</li>
+                                anzulegen. Kennwort leer = gespeicherte Zugangsdaten &ndash; seit v1.99.92 nur für die gespeicherte Adresse
+                                (gleiches Schema, Server und Port) und nicht mit ausgeschalteter Zertifikatsprüfung; sonst wird nichts gesendet.
+                                Antworten werden nach 50.000 Zeichen abgebrochen.</li>
                             <li><strong>Zugangsdaten (seit v1.99.14):</strong> <em>Service-Einstellungen &rarr; Sage-Lagerbuchung</em>,
                                 Felder &bdquo;SData: Benutzer&ldquo; und &bdquo;SData: Kennwort&ldquo;. Das Kennwort wird verschlüsselt
                                 gespeichert und nie angezeigt (Status &bdquo;gesetzt&ldquo; / &bdquo;nicht gesetzt&ldquo; /

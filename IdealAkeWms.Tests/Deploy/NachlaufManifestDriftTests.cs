@@ -188,8 +188,11 @@ public class NachlaufManifestDriftTests
                 // v1.99.14: Phase Nachher = nur Hinweis, nie Abbruch (SData-Kennwort steht bis zur Umstellung bewusst noch in der Datei)
                 x["Phase"].Should().BeOneOf(new[] { "Vorher", "Nachher" }, x["Id"]);
                 x["Ausfuehrung"].Should().Be("anzeigen", x["Id"]);
+                // v1.99.92 SD-4: Ort optional, nur Web|Dienst
+                if (x.ContainsKey("Ort")) x["Ort"].Should().BeOneOf(new[] { "Web", "Dienst" }, x["Id"]);
                 continue;
             }
+            x.ContainsKey("Ort").Should().BeFalse($"{x["Id"]}: Ort nur zusammen mit Appsettings");
             Regex.IsMatch(x["Pruefung"], LeseWaechter).Should().BeFalse($"{x["Id"]}: Pruefung muss lesend sein");
             // v1.99.28: Phase Vorher = nur anzeigen (Prod: Abbruch vor dem Stoppen, Update-IdealAkeWms.ps1 Invoke-System), nie Reparatur
             x["Phase"].Should().BeOneOf(new[] { "Vorher", "Haltepunkt", "Nachher" }, x["Id"]);

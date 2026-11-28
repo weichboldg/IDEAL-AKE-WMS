@@ -268,8 +268,12 @@ WHERE NOT EXISTS (SELECT 1 FROM dbo.Roles r WHERE r.[Key] = v.k);'
    Quelle='2026-11-12-v1-99-12-update-skript-pickup-pruefung' }
 @{ Id='Pruefung/SDataKennwortAppsettings'; Version='1.99.14'; Typ='Pruefung'; Firma='beide'; Phase='Nachher'; Ausfuehrung='anzeigen'
    Appsettings='SageLagerbuchung:Password'
-   Text='SData-Kennwort steht noch im Klartext in {Datei}. Erst in den Service-Einstellungen eintragen und den Lauf Sage-Lagerbuchung pruefen, dann aus der Datei entfernen (auch Web: appsettings.Production.json).'
+   Text='SData-Kennwort steht noch im Klartext in {Datei}. Erst in den Service-Einstellungen eintragen und den Lauf Sage-Lagerbuchung pruefen, dann aus der Datei entfernen.'
    Quelle='2026-11-13-v1-99-14-sdata-teil-2-userfelder-stueckliste' }
+@{ Id='Pruefung/SDataKennwortAppsettingsWeb'; Version='1.99.92'; Typ='Pruefung'; Firma='beide'; Phase='Nachher'; Ausfuehrung='anzeigen'
+   Appsettings='SageLagerbuchung:Password'; Ort='Web'
+   Text='SData-Kennwort steht noch im Klartext in {Datei} (Web). Erst in den Service-Einstellungen eintragen, Register Sage-Test pruefen, dann aus der Datei entfernen.'
+   Quelle='2026-11-28-v1-99-92-sdata-geheimnisse-review-befunde' }
 @{ Id='Pruefung/DoppeltePrio'; Version='1.99.17'; Typ='Pruefung'; Firma='beide'; Phase='Nachher'; Ausfuehrung='anzeigen'
    Pruefung='SELECT COUNT(*) FROM (SELECT ps.PickingPriority FROM dbo.ProductionOrderPickingStatus ps JOIN dbo.ProductionOrders po ON po.Id = ps.ProductionOrderId WHERE ps.PickingPriority IS NOT NULL AND po.IsDone = 0 AND po.IsCancelled = 0 AND (po.SubOrderNumber = N'''' OR po.SubOrderNumber = po.OrderNumber) GROUP BY ps.PickingPriority HAVING COUNT(*) > 1) d'
    Text='Offene FAs mit gleicher Kommissionier-Prio (Altbestand vor v1.99.17, freigegeben oder zurueckgenommen): im Leitstand per Prio-Eingabe korrigieren; Liste mit Pruefabfrage 1 der Spec 2026-11-13-doppelte-kommissionier-prio-nach-ruecknahme. Eine bewusst gleiche Prio (zwei FAs gleich dringend) ist erlaubt.'

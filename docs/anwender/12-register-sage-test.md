@@ -131,9 +131,11 @@ Abfragen ohne Sortierung mit einem Fehler (HTTP 500). Das WMS sendet die Sortier
 
 **Bekannte Fehler und offene Punkte (Stand 16.11.2026):**
 
-- **Verbindungstest nur mit der hinterlegten Sage-Adresse benutzen.** Wer im Fenster eine andere Adresse einträgt und das Kennwort leer lässt,
-  schickt die gespeicherten Sage-Zugangsdaten an diese Adresse – auch unverschlüsselt über `http://`. Deshalb die Adresse im Testfenster nie
-  ändern. Für einen Test gegen ein anderes System Benutzer und Kennwort dort ausdrücklich eingeben. Behebung ist geplant.
+- **Verbindungstest und gespeicherte Zugangsdaten (seit 1.99.92).** Bleibt das Kennwort leer, nimmt der Test die gespeicherten
+  Zugangsdaten nur für die gespeicherte Sage-Adresse (gleiches `https://`/`http://`, gleicher Server, gleicher Port; Ressource, Dataset und
+  Application dürfen abweichen) und nur mit eingeschalteter Zertifikatsprüfung, wenn sie gespeichert an ist. Sonst schickt das WMS **nichts**
+  und meldet z. B. „Gespeicherte Zugangsdaten nur für die gespeicherte Adresse https://…“. Für einen Test gegen ein anderes System Benutzer und
+  Kennwort im Fenster eingeben. Große Antworten werden nach 50.000 Zeichen abgebrochen („… (gekuerzt)“).
 - **Welches Sage fragt das Testsystem?** Das IDEAL-Testsystem zeigte bis 16.11.2026 abends auf den AKE-Testmandanten; IDEAL-FA-Nummern fand es
   dort nicht („FA … in Sage nicht gefunden.“). Die Bilder 12-06 und 12-07 zeigen deshalb AKE-Testdaten, Bild 12-08 (beendeter Haupt-FA) schon
   IDEAL-Daten. Welches System gefragt wird, steht unter **Aufrufe an Sage**. Bitte die Adresse nicht selbst ändern.
