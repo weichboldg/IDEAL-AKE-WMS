@@ -1,7 +1,7 @@
 ---
 type: backlog
 typ: feature
-status: offen
+status: in-spec
 jira: WMS-10
 created: 2026-11-28
 standort: beide
