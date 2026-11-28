@@ -40,3 +40,20 @@ Auftrag Gerald: „prüfen ob im AKE-Artikelstamm alle Artikel vorhanden sind wi
 - Einschränkung: „wie im Sage“ = die AKE-Abgleichsmenge (alle Ressourcenummern aus PPS-Ressourcenpositionen ∪ aktive Bestellartikel,
   `SdataArtikelReader.cs:78-82`), **nicht** alle Sage-Artikel. Gesamtzahl KHKArtikel nicht geprüft (kein DB-Zugriff) – Prüfabfrage für Gerald:
   `SELECT COUNT(*) FROM KHKArtikel WHERE Mandant = <AKE>` im Sage-Mandanten, an den :4444 angebunden ist (Test oder Prod klären).
+
+### Nachtrag DB-Abgleich (lesend, Gerald: „Db Abfrage lesend erlaubt“)
+:4444 hängt an Sage `ake_TEST2026` (`SData:Dataset = ake_TEST2026;1`), WMS-DB `IDEAL_AKE_WMS_Test` auf AKESQL20, Mandant 1.
+Skript: Scratchpad `artikelvergleich.sql` (Abgleichsmenge = LegacySql-Logik `SageArticleSql.cs:11-52`).
+
+| Zahl | Wert |
+|---|---|
+| KHKArtikel gesamt / aktiv | 279 541 / 164 454 |
+| Abgleichsmenge (Ressourcen ∪ aktive Bestellartikel) | 100 599 (= „gelesen“ im Lauf) |
+| WMS Articles | 105 632 |
+| **Abgleichsmenge nicht im WMS** | **0** |
+| aktive Sage-Artikel nicht im WMS | 64 711 (alle **keine** Bestellartikel, nicht in Ressourcenlisten; v. a. Gruppen K003, 960, K006, K005, EuZ, K004, W001) |
+| WMS nicht in Abgleichsmenge | 5 033 = 4 630 nicht in KHKArtikel + 400 aktiv ohne Bestellartikel/Ressource + 3 inaktiv |
+| WMS nicht in KHKArtikel (alle) | 5 349, angelegt vom Dienst 2026-03-17 … 2026-07-28 (z. B. 87082500, 87085801, EK023801) |
+
+Deutung (nicht belegt): die 5 349 stammen vermutlich aus der Zeit, als :4444 noch gegen einen anderen Sage-Stand lief, und fehlen im
+Testmandanten-Stand `ake_TEST2026`. Gegenprobe für Gerald: dieselben Nummern im AKE-Prod-Mandanten nachsehen (nicht selbst – Sage-Prod nie).
