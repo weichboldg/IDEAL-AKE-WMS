@@ -2,7 +2,7 @@
 type: backlog
 created: 2026-11-14
 quelle: "[[2026-11-14-wochenend-review-test-anwenderdoku]]"
-status: offen
+status: in-spec
 modul: Update-Skript scripts/deploy (Update-IdealAkeWms.ps1, IdealAkeWms.Deploy.psm1, nachlauf.psd1, ziele.psd1)
 stand: "Bündel v1.99.22, 90bbbbd7, feature/2026-08-07-ideal-teile-1-5"
 ---

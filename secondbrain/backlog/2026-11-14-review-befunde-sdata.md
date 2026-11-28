@@ -2,7 +2,7 @@
 type: backlog
 created: 2026-11-14
 quelle: "[[2026-11-14-wochenend-review-test-anwenderdoku]]"
-status: offen
+status: in-spec
 modul: SData-Epic + SData Teil 2 (Lese-Clients, Register Sage-Test, Geheimnisse in ServiceSettings), Gate der Sage-Schreibclients
 stand: "Bündel v1.99.22, 90bbbbd7, feature/2026-08-07-ideal-teile-1-5"
 ---
