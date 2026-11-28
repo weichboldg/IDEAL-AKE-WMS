@@ -2,9 +2,9 @@
 type: spec
 title: "Lagerplatz ausbuchen: FA-Spalte in der Bestandstabelle + FA-Feld als echter Filter"
 slug: 2026-08-05-wms-bugs-improvements-teil-6-spec
-status: Testbereit
+status: Gemerged
 created: 2026-08-05
-updated: 2026-11-22
+updated: 2026-11-28
 source_backlog: "[[2026-08-05-WmsBugs&Improvements]]"
 depends_on: "[[2026-08-05-wms-bugs-improvements-teil-1-spec]]"
 task: "[[2026-11-20-dev-lagerplatz-ausbuchen-fa-filter]]"

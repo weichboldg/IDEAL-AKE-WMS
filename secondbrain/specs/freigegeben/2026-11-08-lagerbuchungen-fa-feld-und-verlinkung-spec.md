@@ -2,9 +2,9 @@
 type: spec
 title: Lager-Tools – FA als verknüpftes Feld, Prüfung, Auswahl und Link; Bestandsübersicht Artikel-Scan ohne FA
 slug: 2026-11-08-lagerbuchungen-fa-feld-und-verlinkung-spec
-status: Testbereit
+status: Gemerged
 created: 2026-11-08
-updated: 2026-11-08
+updated: 2026-11-28
 source_backlog: "[[2026-11-07-lagerbuchungen-fa-feld-und-verlinkung]]"
 buendel: "[[2026-11-08-buendel-uebersicht]]"
 version: v1.87.0

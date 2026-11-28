@@ -2,9 +2,9 @@
 type: spec
 title: "Wareneingang Teil 2: Sage-Wareneingangsbeleg (ELL)"
 slug: 2026-11-08-wareneingang-teil-2-sage-we-beleg-rahmenabrufe-spec
-status: Testbereit
+status: Gemerged
 created: 2026-11-08
-updated: 2026-11-12
+updated: 2026-11-28
 freigabe_von: "Gerald Weichbold (Chat Koordination, 2026-11-11 20:40 „beide freigeben“)"
 freigabe_am: 2026-11-11
 source_backlog: "[[2026-11-08-wareneingang-teil-2-sage-we-beleg-rahmenabrufe]]"

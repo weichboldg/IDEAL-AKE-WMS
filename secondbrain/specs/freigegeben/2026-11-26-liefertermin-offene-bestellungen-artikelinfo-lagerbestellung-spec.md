@@ -2,9 +2,9 @@
 type: spec
 title: Liefertermin offener Bestellungen in Artikelinfo und Lagerbestellung-Details
 slug: 2026-11-26-liefertermin-offene-bestellungen-artikelinfo-lagerbestellung-spec
-status: Testbereit
+status: Gemerged
 created: 2026-11-26
-updated: 2026-11-26
+updated: 2026-11-28
 source_backlog: "[[2026-11-26-liefertermin-offene-bestellungen-artikelinfo-lagerbestellung]]"
 task: ""
 jira: ""

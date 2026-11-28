@@ -2,9 +2,9 @@
 type: spec
 title: "IDEAL: Arbeitsgang-Stammdaten mit der Sage-View vw_IDEAL_AKE_WMS_Arbeitsgaenge abgleichen (eigener Sync)"
 slug: 2026-10-16-arbeitsgang-stammdaten-abgleich-aus-sage-view-spec
-status: Testbereit
+status: Gemerged
 created: 2026-10-16
-updated: 2026-10-16
+updated: 2026-11-28
 source_backlog: "[[2026-10-16-arbeitsgang-stammdaten-abgleich-aus-sage-view]]"
 task: "[[2026-10-16-arbeitsgang-stammdaten-abgleich-aus-sage-view-umsetzung]]"
 worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"

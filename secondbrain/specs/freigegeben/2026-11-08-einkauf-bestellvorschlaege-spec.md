@@ -2,9 +2,9 @@
 type: spec
 title: Einkauf – Bestellvorschläge für Nachbestellartikel (Epic)
 slug: 2026-11-08-einkauf-bestellvorschlaege-spec
-status: Testbereit
+status: Gemerged
 created: 2026-11-07
-updated: 2026-11-13
+updated: 2026-11-28
 source_backlog: "[[2026-11-07-einkauf-bestellvorschlaege]]"
 buendel: "[[2026-11-08-buendel-uebersicht]]"
 depends_on: "[[2026-11-08-wareneingang-aus-sage-bestellungen-spec]]"

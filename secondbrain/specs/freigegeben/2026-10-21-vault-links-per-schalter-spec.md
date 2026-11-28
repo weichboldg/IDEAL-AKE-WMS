@@ -2,9 +2,9 @@
 type: spec
 title: Vault- und enaio-Links konfigurierbar
 slug: 2026-10-21-vault-links-per-schalter-spec
-status: Testbereit
+status: Gemerged
 created: 2026-10-21
-updated: 2026-10-22
+updated: 2026-11-28
 source_backlog: "[[2026-10-21-vault-links-per-schalter]]"
 task: "[[2026-10-21-vault-links-per-schalter-umsetzung]]"
 worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"

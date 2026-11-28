@@ -2,9 +2,9 @@
 type: spec
 title: "Beschichtungsauftrag-Ausbau Teil 3 — Beschichtungsauftrag als eigenes Objekt"
 slug: 2026-10-06-beschichtungsauftrag-ausbau-teil-3-spec
-status: Testbereit
+status: Gemerged
 created: 2026-10-06
-updated: 2026-10-12
+updated: 2026-11-28
 source_backlog: "[[2026-10-06-beschichtungsauftrag-ausbau]]"
 depends_on: ""
 task: "[[2026-10-12-beschichtungsauftrag-ausbau-teil-3-umsetzung]]"

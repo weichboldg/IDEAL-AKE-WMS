@@ -2,9 +2,9 @@
 type: spec
 title: "Bugfix Sicherheit: Anmeldung nur mit Kennwort oder Windows, Erstinstallation, Installer ohne Klartext-Zugangsdaten (BH-1 bis BH-5)"
 slug: 2026-11-14-sicherheit-anmeldung-und-installer-spec
-status: Testbereit
+status: Gemerged
 created: 2026-11-14
-updated: 2026-11-16
+updated: 2026-11-28
 source_backlog: "[[2026-11-14-sicherheit-anmeldung-und-installer]]"
 weitere_quellen:
   - "[[2026-11-14-betriebshandbuch-goal-lauf]]"

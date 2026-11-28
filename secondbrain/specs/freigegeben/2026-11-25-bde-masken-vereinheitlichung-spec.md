@@ -2,9 +2,9 @@
 type: spec
 title: BDE-Masken vereinheitlichen - Teile- und FA-Sicht, AG-Status-Ampel, Teilfertigmeldung, BDE mobil kompakt
 slug: 2026-11-25-bde-masken-vereinheitlichung-spec
-status: Testbereit
+status: Gemerged
 created: 2026-11-25
-updated: 2026-11-25
+updated: 2026-11-28
 source_backlog: "[[2026-11-25-bde-masken-vereinheitlichung]]"
 task: ""
 jira: ""

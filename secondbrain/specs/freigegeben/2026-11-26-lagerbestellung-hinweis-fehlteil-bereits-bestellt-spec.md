@@ -2,9 +2,9 @@
 type: spec
 title: "Lagerbestellung: Hinweis „bereits als Fehlteil bestellt“ mit nächstem Liefertermin"
 slug: 2026-11-26-lagerbestellung-hinweis-fehlteil-bereits-bestellt-spec
-status: Testbereit
+status: Gemerged
 created: 2026-11-26
-updated: 2026-11-26
+updated: 2026-11-28
 source_backlog: "[[2026-11-26-lagerbestellung-hinweis-fehlteil-bereits-bestellt]]"
 task: ""
 jira: ""

@@ -2,9 +2,9 @@
 type: spec
 title: Kommissionieraufträge – Nachtrag nachts im Dienst, Knopf „Fehlende … erzeugen“ nur für Admins
 slug: 2026-11-25-kommissionierauftraege-nachtrag-nachts-spec
-status: Testbereit
+status: Gemerged
 created: 2026-11-25
-updated: 2026-11-25
+updated: 2026-11-28
 source_backlog: "[[2026-11-25-kommissionierauftraege-nachtrag-automatisch-knopf-nur-admin]]"
 task: ""
 jira: ""

@@ -2,9 +2,9 @@
 type: spec
 title: BF-Warenkorb – Artikelsuche mit Vorschlägen beim Tippen (Type-ahead)
 slug: 2026-11-19-bf-warenkorb-artikelsuche-type-ahead-bug-spec
-status: Testbereit
+status: Gemerged
 created: 2026-11-19
-updated: 2026-11-19
+updated: 2026-11-28
 source_backlog: "[[2026-11-19-bugfix-bf-warenkorb-artikelsuche-type-ahead]]"
 bug: "[[2026-11-19-bf-warenkorb-artikelsuche-type-ahead-bug]]"
 task: ""

@@ -2,9 +2,9 @@
 type: spec
 title: Fehlteile – Karte „Meine Fehlteile“ je Bestelltyp, Werkbank-Auswahl im Modus „Nur meine Werkbaenke“
 slug: 2026-11-08-fehlteile-karte-meine-fehlteile-lager-glas-spec
-status: Testbereit
+status: Gemerged
 created: 2026-11-07
-updated: 2026-11-07
+updated: 2026-11-28
 source_backlog: "[[2026-11-07-fehlteile-karte-meine-fehlteile-lager-glas]]"
 bug: "[[2026-11-08-fehlteile-karte-meine-fehlteile-lager-glas-bug]]"
 buendel: "[[2026-11-08-buendel-uebersicht]]"

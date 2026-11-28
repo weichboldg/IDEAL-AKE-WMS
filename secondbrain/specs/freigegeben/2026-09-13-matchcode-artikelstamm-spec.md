@@ -2,9 +2,9 @@
 type: spec
 title: "Matchcode im Artikelstamm (Article.Matchcode) — hausweit suchbar"
 slug: 2026-09-13-matchcode-artikelstamm-spec
-status: Testbereit
+status: Gemerged
 created: 2026-09-15
-updated: 2026-09-15
+updated: 2026-11-28
 source_backlog: "[[2026-09-13-matchcode-artikelstamm-kommissionierung-hauptfa]]"
 task: "[[2026-09-13-matchcode-artikelstamm-umsetzung]]"
 worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"

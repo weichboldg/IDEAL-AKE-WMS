@@ -2,11 +2,11 @@
 type: spec
 title: "Sage-Übergabe: Referenz mit Kennung, WMS-Benutzer und Abteilung (Ausbuchung)"
 slug: 2026-11-24-sage-buchung-referenz-benutzer-abteilung-spec
-status: Testbereit
+status: Gemerged
 freigabe_von: Gerald
 freigabe_am: 2026-11-25
 created: 2026-11-24
-updated: 2026-11-25
+updated: 2026-11-28
 source_backlog: "[[2026-11-24-sage-buchung-abteilung-und-benutzer]]"
 task: ""
 jira: ""

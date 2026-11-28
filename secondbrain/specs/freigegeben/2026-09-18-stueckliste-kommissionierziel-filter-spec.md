@@ -2,9 +2,9 @@
 type: spec
 title: "Stueckliste: Komm.-Ziel-Dropdown-Filter + gespeicherter Standardfilter (Badge fuer alle vier Standardfilter)"
 slug: 2026-09-18-stueckliste-kommissionierziel-filter-spec
-status: Testbereit
+status: Gemerged
 created: 2026-09-18
-updated: 2026-09-21
+updated: 2026-11-28
 source_backlog: "[[2026-09-18-stueckliste-kommissionierziel-filter]]"
 task: "[[2026-09-21-stueckliste-kommissionierziel-filter-umsetzung]]"
 worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"

@@ -2,9 +2,9 @@
 type: spec
 title: "IDEAL Kommissionierliste: Summierung je Artikel + Kommissionierziel, PDF nur gefiltert + nur sichtbare Spalten"
 slug: 2026-09-25-kommissionierliste-summierung-pdf-spec
-status: Testbereit
+status: Gemerged
 created: 2026-09-25
-updated: 2026-09-28
+updated: 2026-11-28
 source_backlog: "[[2026-09-23-kommissionierliste-summierung-pdf]]"
 task: "[[2026-09-28-kommissionierliste-summierung-pdf-umsetzung]]"
 worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"

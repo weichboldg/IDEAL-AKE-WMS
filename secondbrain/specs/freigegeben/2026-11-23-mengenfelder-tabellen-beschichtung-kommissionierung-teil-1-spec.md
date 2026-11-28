@@ -2,9 +2,9 @@
 type: spec
 title: "Mengenfelder: Pfeil/Spinner zählt ±1, Mausrad ändert keinen Wert (global)"
 slug: 2026-11-23-mengenfelder-tabellen-beschichtung-kommissionierung-teil-1-spec
-status: Testbereit
+status: Gemerged
 created: 2026-11-23
-updated: 2026-11-23
+updated: 2026-11-28
 source_backlog: "[[2026-11-23-mengenfelder-tabellen-beschichtung-kommissionierung]]"
 uebersicht: "[[2026-11-23-mengenfelder-tabellen-beschichtung-kommissionierung-uebersicht]]"
 depends_on: ""

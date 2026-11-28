@@ -2,9 +2,9 @@
 type: spec
 title: "BDE-Terminal: Arbeitsgang-Liste übersichtlich, Scan ohne AG, Prio"
 slug: 2026-10-19-bde-terminal-liste-scan-ohne-ag-prio-spec
-status: Testbereit
+status: Gemerged
 created: 2026-10-19
-updated: 2026-10-19
+updated: 2026-11-28
 source_backlog: "[[2026-10-19-bde-terminal-liste-und-scan-ohne-ag]]"
 depends_on: "[[2026-10-19-bde-stufe-1-werkbaenke-ag-fertigmeldung-spec]]"
 task: "[[2026-10-19-bde-terminal-liste-scan-ohne-ag-prio-umsetzung]]"

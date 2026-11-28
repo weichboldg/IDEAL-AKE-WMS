@@ -2,9 +2,9 @@
 type: spec
 title: "FA-Struktur Arbeitsgänge als Symbole — Teil 1: Symbole statt Zeilen (reine Anzeige)"
 slug: 2026-10-06-fa-struktur-arbeitsgaenge-symbole-teil-1-spec
-status: Testbereit
+status: Gemerged
 created: 2026-10-06
-updated: 2026-10-12
+updated: 2026-11-28
 source_backlog: "[[2026-10-06-fa-struktur-arbeitsgaenge-symbole]]"
 anhaenge:
   - "[[sage-fa-struktur-arbeitsschritte.png]]"

@@ -4,13 +4,13 @@ title: OSEON-Teileverfolgung – doppelter Klickhandler am Artikel-QR-Knopf (ers
 slug: 2026-11-08-oseon-teileverfolgung-doppelter-klickhandler-spec
 status: InUmsetzung
 created: 2026-11-07
-updated: 2026-11-08
+updated: 2026-11-28
 source_backlog: "[[2026-11-07-oseon-teileverfolgung-doppelter-klickhandler]]"
 bug: "[[2026-11-08-oseon-teileverfolgung-doppelter-klickhandler-bug]]"
 buendel: "[[2026-11-08-buendel-uebersicht]]"
 task: "[[2026-11-08-buendel-2026-11-08-goal-lauf]]"
-worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"
-branch: "feature/2026-08-07-ideal-teile-1-5"
+worktree: ""
+branch: ""
 version: "1.82.0"   # nur bei Codeaenderung (Schritt 1 reproduziert); sonst keine Version
 standort: beide
 affected_code:

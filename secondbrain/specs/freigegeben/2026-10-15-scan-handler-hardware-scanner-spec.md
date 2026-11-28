@@ -2,9 +2,9 @@
 type: spec
 title: Scan-Handler fuer Hardware-Barcodescanner (Tastatur-Eingabe mit Praefix)
 slug: 2026-10-15-scan-handler-hardware-scanner-spec
-status: Testbereit
+status: Gemerged
 created: 2026-10-15
-updated: 2026-11-03
+updated: 2026-11-28
 standort: beide
 source_backlog: "[[2026-10-15-scan-handler-hardware-scanner]]"
 task: "[[2026-10-15-scan-handler-hardware-scanner-umsetzung]]"

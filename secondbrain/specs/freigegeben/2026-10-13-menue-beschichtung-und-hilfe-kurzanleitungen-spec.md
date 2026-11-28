@@ -2,9 +2,9 @@
 type: spec
 title: "Menüpunkt „Beschichtung“ bündeln + Kurzanleitungen in der App-Hilfe"
 slug: 2026-10-13-menue-beschichtung-und-hilfe-kurzanleitungen-spec
-status: Testbereit
+status: Gemerged
 created: 2026-10-13
-updated: 2026-10-13
+updated: 2026-11-28
 source_backlog: "[[2026-10-13-menue-beschichtung-und-hilfe-kurzanleitungen]]"
 depends_on: ""
 task: "[[2026-10-13-menue-beschichtung-und-hilfe-kurzanleitungen-umsetzung]]"

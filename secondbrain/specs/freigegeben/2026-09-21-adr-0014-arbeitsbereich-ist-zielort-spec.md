@@ -2,9 +2,9 @@
 type: spec
 title: "Rückbau: Werkbank-Ableitung aus dem Arbeitsbereich (ADR 0014 auf falsches Feld angewandt)"
 slug: 2026-09-21-adr-0014-arbeitsbereich-ist-zielort-spec
-status: Testbereit
+status: Gemerged
 created: 2026-09-21
-updated: 2026-09-22
+updated: 2026-11-28
 source_backlog: "[[2026-09-21-adr-0014-arbeitsbereich-ist-zielort]]"
 depends_on: ""
 task: "[[2026-09-22-adr-0014-arbeitsbereich-ist-zielort-umsetzung]]"

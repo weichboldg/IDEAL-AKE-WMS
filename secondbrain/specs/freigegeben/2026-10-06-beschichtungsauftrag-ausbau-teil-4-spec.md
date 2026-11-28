@@ -2,9 +2,9 @@
 type: spec
 title: "Beschichtungsauftrag-Ausbau Teil 4 — Oberflaeche (Vorschlagsliste, Reklamation, Druck)"
 slug: 2026-10-06-beschichtungsauftrag-ausbau-teil-4-spec
-status: Testbereit
+status: Gemerged
 created: 2026-10-06
-updated: 2026-10-12
+updated: 2026-11-28
 source_backlog: "[[2026-10-06-beschichtungsauftrag-ausbau]]"
 depends_on:
   - "[[2026-10-06-beschichtungsauftrag-ausbau-teil-2-spec]]"

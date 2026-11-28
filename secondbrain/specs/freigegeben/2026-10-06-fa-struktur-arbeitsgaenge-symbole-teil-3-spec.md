@@ -2,9 +2,9 @@
 type: spec
 title: "FA-Struktur Arbeitsgänge als Symbole — Teil 3: Offene Aufträge mit Arbeitsgang-Status am BDE-Terminal"
 slug: 2026-10-06-fa-struktur-arbeitsgaenge-symbole-teil-3-spec
-status: Testbereit
+status: Gemerged
 created: 2026-10-06
-updated: 2026-10-13
+updated: 2026-11-28
 source_backlog: "[[2026-10-06-fa-struktur-arbeitsgaenge-symbole]]"
 # ueberholt (2026-10-13): Der zweite Eintrag zeigte bis 2026-10-12 auf die Backlog-Notiz
 # 2026-10-09-arbeitsgang-stammdaten-vereinheitlichen, weil die Spec noch nicht existierte. Seit 2026-10-13 auf die

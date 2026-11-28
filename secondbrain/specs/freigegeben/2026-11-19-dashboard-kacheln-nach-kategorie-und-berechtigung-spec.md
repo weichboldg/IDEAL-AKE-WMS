@@ -2,9 +2,9 @@
 type: spec
 title: "Dashboard: Kacheln für alle Funktionen nach Kategorie, Sichtbarkeit aus EINER Quelle mit dem Menü"
 slug: 2026-11-19-dashboard-kacheln-nach-kategorie-und-berechtigung-spec
-status: Testbereit
+status: Gemerged
 created: 2026-11-19
-updated: 2026-11-19
+updated: 2026-11-28
 source_backlog: "[[2026-11-19-dashboard-kacheln-neue-features-nach-berechtigung]]"
 task: ""
 jira: ""

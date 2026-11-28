@@ -2,9 +2,9 @@
 type: spec
 title: "IDEAL: Sage-Zugriffe auf die neuen WMS-Views umstellen (FAInfos, FAListe, Arbeitsgaenge, Artikel)"
 slug: 2026-10-14-ideal-sage-views-umstellung-spec
-status: Testbereit
+status: Gemerged
 created: 2026-10-14
-updated: 2026-10-15
+updated: 2026-11-28
 source_backlog: "[[2026-10-14-ideal-sage-views-umstellung]]"
 task: "[[2026-10-15-ideal-sage-views-umstellung-umsetzung]]"
 worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"

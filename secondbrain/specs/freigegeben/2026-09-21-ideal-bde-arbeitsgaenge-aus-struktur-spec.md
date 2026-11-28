@@ -2,9 +2,9 @@
 type: spec
 title: "IDEAL: BDE-Arbeitsgaenge (WorkOperation) aus der Struktur + Werkbank-Anlage aus Sage-Arbeitsplaetzen"
 slug: 2026-09-21-ideal-bde-arbeitsgaenge-aus-struktur-spec
-status: Testbereit
+status: Gemerged
 created: 2026-09-21
-updated: 2026-10-07
+updated: 2026-11-28
 source_backlog: "[[2026-09-21-ideal-bde-arbeitsgaenge-aus-struktur]]"
 supersedes: "[[2026-09-08-arbeitsgaenge-aus-arbeitsschritte-spec]]"
 depends_on: "[[2026-09-21-adr-0014-arbeitsbereich-ist-zielort-spec]]"

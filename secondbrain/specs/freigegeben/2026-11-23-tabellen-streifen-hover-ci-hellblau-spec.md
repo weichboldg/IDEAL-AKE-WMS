@@ -2,9 +2,9 @@
 type: spec
 title: Alle Tabellen – Streifen, Hover und Fokus-Zeile in CI-Blau
 slug: 2026-11-23-tabellen-streifen-hover-ci-hellblau-spec
-status: Testbereit
+status: Gemerged
 created: 2026-11-23
-updated: 2026-11-24
+updated: 2026-11-28
 source_backlog: "[[2026-11-23-tabellen-streifen-hover-ci-hellblau]]"
 task: "[[2026-11-24-tabellen-zeilenfarben-goal-lauf]]"
 jira: ""

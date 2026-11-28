@@ -2,9 +2,9 @@
 type: spec
 title: Artikelinfo – Sage-Zusatzfelder auffindbar, Haupt-/letzter Lieferant mit Kreditor, Artikel-Lieferanten
 slug: 2026-11-08-artikeldetails-lieferanten-anzeigen-spec
-status: Testbereit
+status: Gemerged
 created: 2026-11-07
-updated: 2026-11-08
+updated: 2026-11-28
 source_backlog: "[[2026-11-07-artikeldetails-lieferanten-anzeigen]]"
 buendel: "[[2026-11-08-buendel-uebersicht]]"
 task: "[[2026-11-08-buendel-2026-11-08-goal-lauf-2]]"

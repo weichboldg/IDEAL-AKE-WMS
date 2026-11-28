@@ -2,9 +2,9 @@
 type: spec
 title: "Bugfix-Bündel aus der AKE-Regression auf DEV v1.99.12: Filter in Anführungszeichen, FA-Hinweis Einbuchung, Bedarfsmeldung Lokalzeit, Auftragsdruck Lagerplatz, Wagen-Modal"
 slug: 2026-11-12-befunde-ake-regression-dev-spec
-status: Testbereit
+status: Gemerged
 created: 2026-11-13
-updated: 2026-11-13
+updated: 2026-11-28
 source_backlog: "[[2026-11-12-befunde-ake-regression-dev]]"
 bug: "[[2026-11-12-befunde-ake-regression-dev-bug]]"
 task: "[[2026-11-13-buendel-v1-99-13-goal-lauf]]"

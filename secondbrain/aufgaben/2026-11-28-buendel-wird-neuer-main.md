@@ -23,4 +23,12 @@ Entscheidung Gerald 2026-11-25/27: Das Bündel `feature/2026-08-07-ideal-teile-1
 ## Hinweise
 - Warum Brain aus main: Das Bündel hat seit der Abzweigung `1753c79e` keinen Commit in `secondbrain/`, `.claude/` oder `CLAUDE.md` — alle Brain-Arbeit lag nur in main (Regel „Brain wird nicht verzweigt“).
 - `secondbrain_alt/` (Junctions auf `docs/` und `SQL/`) zeigt nach der Umstellung viele geänderte/untrackte Dateien: Die Junctions spiegeln jetzt den neuen Code-Stand, der eingecheckte Baum ist ein alter Schnappschuss. Nicht angefasst.
-- Worktrees/Branches nicht aufgeräumt (Freigabe nötig). Das Bündel-Worktree bleibt Arbeitsort, bis entschieden ist, künftig direkt von main zu verzweigen.
+- Worktrees/Branches nicht aufgeräumt (Freigabe nötig).
+
+## Nachzug Specs und Spec-Lauf (Gerald 2026-11-28: „alles ändern“)
+- Alle Specs mit Status `Testbereit`, deren Code jetzt in main liegt (123: 112 mit Bündel-worktree/-branch, dazu Teile 1–5 v1.31, FA-Struktur-Symbole 1–3, Arbeitsgang-Stammdaten, Menü Beschichtung, OSEON-Hotfix v1.30.3), auf `Gemerged`; worktree/branch bleiben als Historie stehen. Feature-Map: alle `**Testbereit**` → `**Gemerged**` + Hinweis oben.
+- Specs `InUmsetzung` (2) und Entwürfe (5) mit Bündel als Ziel: `worktree`/`branch` geleert — beim nächsten Lauf neuer Worktree von main (Teilstand liegt schon in main).
+- Künftig: je Lauf ein neuer Worktree von main statt des Bündel-Worktrees.
+- Spec-Lauf liest Code im Hauptcheckout (main): `secondbrain/prompts/spec-lauf-backlog.md`, `scripts/local/spec-lauf-backlog.ps1` (lokal), `CLAUDE.md` (Aufgabenname, Mo–Fr 08:10/13:10, Log `secondbrain/aufgaben/logs/`).
+- Doppelte, deaktivierte Windows-Aufgabe „WMS Spec-Lauf Backlog“ (lief im Bündel-Worktree) gelöscht; XML-Sicherung `D:\Backup\2026-11-28_Aufgabe_WMS-Spec-Lauf-Backlog_alt.xml`. Aktiv bleibt „IDEAL-AKE WMS Spec-Lauf Backlog“.
+- Bündel-Übersichten `2026-11-07-buendel-uebersicht` / `2026-11-08-buendel-uebersicht` unverändert (Historie).

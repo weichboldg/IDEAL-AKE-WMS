@@ -2,9 +2,9 @@
 type: spec
 title: "Aktivitäts-Protokoll: Spaltenfilter über alle Einträge, deutsche Aktivitätsnamen"
 slug: 2026-10-16-aktivitaetsprotokoll-filter-und-namen-spec
-status: Testbereit
+status: Gemerged
 created: 2026-10-27
-updated: 2026-10-28
+updated: 2026-11-28
 source_backlog: "[[2026-10-16-aktivitaetsprotokoll-filter-und-namen]]"
 task: "[[2026-10-16-aktivitaetsprotokoll-filter-und-namen-umsetzung]]"
 worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"

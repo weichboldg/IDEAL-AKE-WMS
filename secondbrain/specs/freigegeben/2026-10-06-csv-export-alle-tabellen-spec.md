@@ -2,9 +2,9 @@
 type: spec
 title: "CSV-Export fuer alle Tabellen (querschnittlich)"
 slug: 2026-10-06-csv-export-alle-tabellen-spec
-status: Testbereit
+status: Gemerged
 created: 2026-10-06
-updated: 2026-10-12
+updated: 2026-11-28
 source_backlog: "[[2026-10-06-csv-export-alle-tabellen]]"
 task: "[[2026-10-12-csv-export-alle-tabellen-umsetzung]]"
 worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"

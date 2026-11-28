@@ -2,9 +2,9 @@
 type: spec
 title: "Wareneingang Teil 3: Rahmenabrufe (EBZ) lesen, anzeigen, buchen"
 slug: 2026-11-11-wareneingang-teil-3-rahmenabrufe-spec
-status: Testbereit
+status: Gemerged
 created: 2026-11-13
-updated: 2026-11-13
+updated: 2026-11-28
 source_backlog: "[[2026-11-11-wareneingang-teil-3-rahmenabrufe]]"
 depends_on: "[[2026-11-08-wareneingang-teil-2-sage-we-beleg-rahmenabrufe-spec]]"
 verwandt: "[[2026-11-12-offene-bestellungen-mahnmail-lieferverzug-spec]], [[2026-11-12-wareneingang-barcode-lieferschein-csv-export-spec]]"

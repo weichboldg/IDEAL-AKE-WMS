@@ -2,9 +2,9 @@
 type: spec
 title: Lagerplatz-Etikett 93 × 55 mm (Rollendrucker) und neue Felder in den Vormontage-Listen
 slug: 2026-11-06-lagerplatz-etikett-rolle-und-vormontage-felder-spec
-status: Testbereit
+status: Gemerged
 created: 2026-11-06
-updated: 2026-11-06
+updated: 2026-11-28
 source_backlog: "[[2026-11-06-lagerplatz-etikett-rolle-und-vormontage-felder]]"
 task: "[[2026-11-06-lagerplatz-etikett-rolle-und-vormontage-felder-umsetzung]]"
 worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"

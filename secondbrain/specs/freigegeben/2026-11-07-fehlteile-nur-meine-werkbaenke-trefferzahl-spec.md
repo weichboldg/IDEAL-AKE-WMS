@@ -2,9 +2,9 @@
 type: spec
 title: Fehlteile „Nur meine Werkbaenke“ in SQL filtern (Trefferzahl, Seiten, Tab-Badges)
 slug: 2026-11-07-fehlteile-nur-meine-werkbaenke-trefferzahl-spec
-status: Testbereit
+status: Gemerged
 created: 2026-11-07
-updated: 2026-11-07
+updated: 2026-11-28
 source_backlog: "[[2026-10-28-fehlteile-nur-meine-werkbaenke-trefferzahl]]"
 bug: "[[2026-11-07-fehlteile-nur-meine-werkbaenke-trefferzahl-bug]]"
 buendel: "[[2026-11-07-buendel-uebersicht]]"

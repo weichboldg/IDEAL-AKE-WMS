@@ -2,9 +2,9 @@
 type: spec
 title: "Bugfix: Dashboard-Kacheln wieder mit Symbolen (SymbolPfad im NavigationKatalog)"
 slug: 2026-11-20-bugfix-dashboard-kacheln-symbole-fehlen-spec
-status: Testbereit
+status: Gemerged
 created: 2026-11-20
-updated: 2026-11-20
+updated: 2026-11-28
 version: "1.99.46 (Gerald 2026-11-20: Dashboard vor Teil 6 gebaut, Teil 6 folgt als 1.99.47)"
 testszenario: "TS-174"
 source_backlog: "[[2026-11-20-bugfix-dashboard-kacheln-symbole-fehlen]]"

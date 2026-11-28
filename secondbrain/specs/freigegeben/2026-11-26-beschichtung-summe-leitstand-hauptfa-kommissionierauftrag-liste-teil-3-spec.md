@@ -2,9 +2,9 @@
 type: spec
 title: "Kommissionierauftrag: Maske umschaltbar Stückliste / Liste (summiert je Artikel, Buchung verteilt auf Positionen), Standard „Liste“ bei aktiven Kommissionierlisten"
 slug: 2026-11-26-beschichtung-summe-leitstand-hauptfa-kommissionierauftrag-liste-teil-3-spec
-status: Testbereit
+status: Gemerged
 created: 2026-11-26
-updated: 2026-11-26
+updated: 2026-11-28
 source_backlog: "[[2026-11-26-beschichtung-summe-leitstand-hauptfa-kommissionierauftrag-liste]]"
 uebersicht: "[[2026-11-26-beschichtung-summe-leitstand-hauptfa-kommissionierauftrag-liste-uebersicht]]"
 depends_on: "[[2026-11-26-beschichtung-summe-leitstand-hauptfa-kommissionierauftrag-liste-teil-2-spec]]"

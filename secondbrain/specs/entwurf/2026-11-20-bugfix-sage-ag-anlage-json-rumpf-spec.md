@@ -4,14 +4,14 @@ title: "Bugfix Sage-AG-Anlage: JSON-Rumpf für FertigungsauftragService nach $te
 slug: 2026-11-20-bugfix-sage-ag-anlage-json-rumpf-spec
 status: Entwurf
 created: 2026-11-20
-updated: 2026-11-20
+updated: 2026-11-28
 source_backlog: "[[2026-11-20-bugfix-sage-ag-anlage-json-rumpf]]"
 bug: "[[2026-11-20-sage-ag-anlage-json-rumpf-bug]]"
 bezug: "[[2026-11-17-arbeitsgaenge-aus-wms-in-sage-fa-anlegen-spec]]"
 task: ""
 jira: ""
-worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"
-branch: "feature/2026-08-07-ideal-teile-1-5"
+worktree: ""
+branch: ""
 standort: IDEAL
 version_vorschlag: "1.99.48 (Gerald 2026-11-22; 1.99.46 Dashboard-Symbole, 1.99.47 Teil 6 Lagerplatz ausbuchen, 1.99.49 BDE-Liste Isolierungsfräse; Dev-Lauf prüft erneut)"
 testszenario_vorschlag: "TS-172 (docs/TESTSZENARIEN.md im Worktree endet bei TS-170; TS-165 BDE mobil, TS-169 Teil 6/BF-Warenkorb, TS-171 BDE-Liste reserviert. Dev-Lauf prüft erneut)"

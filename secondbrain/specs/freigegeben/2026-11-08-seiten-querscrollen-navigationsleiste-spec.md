@@ -2,9 +2,9 @@
 type: spec
 title: Kein Seiten-Querscrollen durch die Navigationsleiste; Kontrast Kartenlink „Fehlteile (wird nachgeliefert)“
 slug: 2026-11-08-seiten-querscrollen-navigationsleiste-spec
-status: Testbereit
+status: Gemerged
 created: 2026-11-08
-updated: 2026-11-08
+updated: 2026-11-28
 source_backlog: "[[2026-11-08-seiten-querscrollen-navigationsleiste]]"
 bug: "[[2026-11-08-seiten-querscrollen-navigationsleiste-bug]]"
 task: "[[2026-11-08-buendel-2026-11-08-goal-lauf]]"

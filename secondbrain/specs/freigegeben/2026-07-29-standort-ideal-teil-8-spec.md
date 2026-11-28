@@ -2,9 +2,9 @@
 type: spec
 title: "IDEAL-Standort Teil 8 — Sub-FA-Rueckmeldung / BDE (Epic)"
 slug: 2026-07-29-standort-ideal-teil-8-spec
-status: Testbereit
+status: Gemerged
 created: 2026-08-06
-updated: 2026-08-18
+updated: 2026-11-28
 source_backlog: "[[2026-07-29-Standort-IDEAL]]"
 depends_on: "[[2026-07-29-standort-ideal-teil-7-spec]]"
 task: ""

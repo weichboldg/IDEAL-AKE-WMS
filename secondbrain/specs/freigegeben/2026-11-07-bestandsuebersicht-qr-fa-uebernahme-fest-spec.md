@@ -2,9 +2,9 @@
 type: spec
 title: Bestandsübersicht – FA-Übernahme aus dem Artikel-QR an QrMitFaNummer binden
 slug: 2026-11-07-bestandsuebersicht-qr-fa-uebernahme-fest-spec
-status: Testbereit
+status: Gemerged
 created: 2026-11-07
-updated: 2026-11-07
+updated: 2026-11-28
 source_backlog: "[[2026-10-27-bestandsuebersicht-qr-fa-uebernahme-fest]]"
 bug: "[[2026-11-07-bestandsuebersicht-qr-fa-uebernahme-fest-bug]]"
 buendel: "[[2026-11-07-buendel-uebersicht]]"

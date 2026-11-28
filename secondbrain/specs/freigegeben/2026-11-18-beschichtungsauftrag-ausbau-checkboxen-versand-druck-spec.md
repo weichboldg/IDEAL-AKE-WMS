@@ -2,9 +2,9 @@
 type: spec
 title: "Beschichtungsauftrag: Verpackt-Haken im Vorschlag und am Auftrag, freie Positionen, Status Versendet, Kreditor-Anschrift, Druck überarbeitet"
 slug: 2026-11-18-beschichtungsauftrag-ausbau-checkboxen-versand-druck-spec
-status: Testbereit
+status: Gemerged
 created: 2026-11-18
-updated: 2026-11-18
+updated: 2026-11-28
 source_backlog: "[[2026-11-18-beschichtungsauftrag-ausbau-checkboxen-versand-druck]]"
 task: "[[2026-11-18-goal-lauf-beschichtungsauftrag-ausbau]]"
 jira: ""

@@ -2,9 +2,9 @@
 type: spec
 title: "Tabellen: Spalten umsortieren an sieben Listen einschalten, Raster ohne Zahnrad festhalten"
 slug: 2026-11-23-mengenfelder-tabellen-beschichtung-kommissionierung-teil-2-spec
-status: Testbereit
+status: Gemerged
 created: 2026-11-23
-updated: 2026-11-23
+updated: 2026-11-28
 source_backlog: "[[2026-11-23-mengenfelder-tabellen-beschichtung-kommissionierung]]"
 uebersicht: "[[2026-11-23-mengenfelder-tabellen-beschichtung-kommissionierung-uebersicht]]"
 depends_on: "[[2026-11-23-mengenfelder-tabellen-beschichtung-kommissionierung-teil-1-spec]]"

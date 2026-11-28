@@ -2,9 +2,9 @@
 type: spec
 title: "Bugfix Update-Skript: zweiter Trockenlauf des Altbestand-Skripts liefert TREFFER 0"
 slug: 2026-11-13-updater-zweiter-trockenlauf-altbestand-spec
-status: Testbereit
+status: Gemerged
 created: 2026-11-13
-updated: 2026-11-13
+updated: 2026-11-28
 source_backlog: "[[2026-11-13-updater-zweiter-trockenlauf-altbestand]]"
 bug: "[[2026-11-13-updater-zweiter-trockenlauf-altbestand-bug]]"
 task: "[[2026-11-13-buendel-v1-99-16-goal-lauf]]"

@@ -2,9 +2,9 @@
 type: spec
 title: "Wareneingang zu Bestellung: Bestellnummer ohne Jahr, aktive Zeile, Hauptlagerplatz als Vorschlag"
 slug: 2026-11-23-wareneingang-zu-bestellung-bedienung-spec
-status: Testbereit
+status: Gemerged
 created: 2026-11-23
-updated: 2026-11-23
+updated: 2026-11-28
 source_backlog: "[[2026-11-23-wareneingang-zu-bestellung-bedienung]]"
 task: ""
 jira: ""

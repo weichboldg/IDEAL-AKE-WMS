@@ -2,9 +2,9 @@
 type: spec
 title: Einstellungen als typisierter Katalog - Auswahlfelder, Wirkung/Verwendung, Serverprüfung (AppSettings + ServiceSettings)
 slug: 2026-11-07-einstellungen-auswahlfelder-und-beschreibung-spec
-status: Testbereit
+status: Gemerged
 created: 2026-11-07
-updated: 2026-11-07
+updated: 2026-11-28
 source_backlog: "[[2026-11-07-einstellungen-auswahlfelder-und-beschreibung]]"
 buendel: "[[2026-11-07-buendel-uebersicht]]"
 task: "[[2026-11-07-buendel-2026-11-07-goal-lauf]]"

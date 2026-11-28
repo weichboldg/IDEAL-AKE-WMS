@@ -2,9 +2,9 @@
 type: spec
 title: "IDEAL: Stueckliste hierarchiefaehig ueber die Repository-Schnittstelle (Bridge statt Cache-Kopie)"
 slug: 2026-09-08-bom-schnittstellen-bridge-hierarchisch-spec
-status: Testbereit
+status: Gemerged
 created: 2026-09-08
-updated: 2026-09-08
+updated: 2026-11-28
 source_backlog: "[[2026-09-08-bom-schnittstellen-bridge-hierarchisch]]"
 supersedes: "[[2026-08-18-ake-view-abhaengigkeiten-hierarchisch-spec]]"
 depends_on: "[[2026-08-18-fa-liste-hierarchie-anzeige-spec]]"

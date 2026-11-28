@@ -2,9 +2,9 @@
 type: spec
 title: "QR-Code: Matchcode statt Artikelnummer"
 slug: 2026-10-23-qr-code-matchcode-statt-artikelnummer-spec
-status: Testbereit
+status: Gemerged
 created: 2026-10-23
-updated: 2026-10-27
+updated: 2026-11-28
 source_backlog: "[[2026-10-23-qr-code-matchcode-statt-artikelnummer]]"
 task: "[[2026-10-23-qr-code-matchcode-statt-artikelnummer-umsetzung]]"
 worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"

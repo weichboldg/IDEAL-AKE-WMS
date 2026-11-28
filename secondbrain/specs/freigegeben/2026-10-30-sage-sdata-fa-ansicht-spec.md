@@ -2,9 +2,9 @@
 type: spec
 title: FA-Struktur und Stückliste live aus Sage per SData anzeigen (Machbarkeitsnachweis, nur lesen)
 slug: 2026-10-30-sage-sdata-fa-ansicht-spec
-status: Testbereit
+status: Gemerged
 created: 2026-10-30
-updated: 2026-10-30
+updated: 2026-11-28
 source_backlog: "[[2026-10-30-sage-sdata-fa-ansicht]]"
 task: "[[2026-10-30-sage-sdata-fa-ansicht-umsetzung]]"
 worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"

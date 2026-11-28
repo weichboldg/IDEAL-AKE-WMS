@@ -2,9 +2,9 @@
 type: spec
 title: "IDEAL: Kommissionierung nur auf dem HauptFA — gemeinsame Relevanzregel, „Alle Ziele“ im Komm.-Ziel-Filter, Freigabe-Kaskade-Rückbau, Picking-Pfad auf HauptFA beschränkt"
 slug: 2026-09-25-kommissionierung-nur-hauptfa-spec
-status: Testbereit
+status: Gemerged
 created: 2026-09-25
-updated: 2026-09-25
+updated: 2026-11-28
 source_backlog: "[[2026-09-13-kommissionierung-nur-hauptfa]]"
 task: "[[2026-09-25-kommissionierung-nur-hauptfa-umsetzung]]"
 worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"

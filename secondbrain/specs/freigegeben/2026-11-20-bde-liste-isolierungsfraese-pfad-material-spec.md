@@ -2,9 +2,9 @@
 type: spec
 title: BDE-Teileliste – Material/Blechdicke/Bemerkung/Fertigungsinfo, Fräsen-Pfad je Artikel, Lagerbestell-Positionen an der Isolierungsfräse
 slug: 2026-11-20-bde-liste-isolierungsfraese-pfad-material-spec
-status: Testbereit
+status: Gemerged
 created: 2026-11-20
-updated: 2026-11-25
+updated: 2026-11-28
 source_backlog: "[[2026-11-19-bde-liste-isolierungsfraese-pfad-material]]"
 task: ""
 jira: ""

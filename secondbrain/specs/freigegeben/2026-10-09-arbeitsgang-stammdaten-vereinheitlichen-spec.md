@@ -2,9 +2,9 @@
 type: spec
 title: "Arbeitsgang-Stammdaten vereinheitlichen (OSEON + IDEAL) — Reiter „Arbeitsgänge“ in den BDE-Stammdaten"
 slug: 2026-10-09-arbeitsgang-stammdaten-vereinheitlichen-spec
-status: Testbereit
+status: Gemerged
 created: 2026-10-12
-updated: 2026-10-12
+updated: 2026-11-28
 source_backlog: "[[2026-10-09-arbeitsgang-stammdaten-vereinheitlichen]]"
 task: "[[2026-10-12-arbeitsgang-stammdaten-vereinheitlichen-umsetzung]]"
 worktree: ""

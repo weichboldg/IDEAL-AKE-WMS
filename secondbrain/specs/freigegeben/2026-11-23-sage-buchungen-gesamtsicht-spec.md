@@ -2,9 +2,9 @@
 type: spec
 title: Sage-Buchungen – eine Seite für Lagerbuchungen und Sage-Wareneingänge
 slug: 2026-11-23-sage-buchungen-gesamtsicht-spec
-status: Testbereit
+status: Gemerged
 created: 2026-11-23
-updated: 2026-11-25
+updated: 2026-11-28
 source_backlog: "[[2026-11-23-sage-buchungen-gesamtsicht]]"
 task: ""
 jira: ""

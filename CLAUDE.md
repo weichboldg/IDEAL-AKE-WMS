@@ -126,11 +126,11 @@ TESTBEREIT → **Schranke 2 (Mensch: manueller Test, dann Merge)** → GEMERGED.
 **Buendeln:** mehrere Specs bevorzugt in einem `/goal`-Lauf (`secondbrain/prompts/goal.md`,
 Befehl `/goal-run`) in einem Buendel-Worktree; Schranke 1 bleibt, ausser der Auftrag nennt eine
 Ausnahme ausdruecklich.
-**Geplanter Spec-Lauf:** Windows-Aufgabe „WMS Spec-Lauf Backlog“ (Mo–Do 08:10/13:10/18:10, Fr 08:10/13:10,
-nach der Jira-Sichtung) ruft `claude -p` mit `secondbrain/prompts/spec-lauf-backlog.md` im Buendel-Worktree auf:
+**Geplanter Spec-Lauf:** Windows-Aufgabe „IDEAL-AKE WMS Spec-Lauf Backlog“ (Mo–Fr 08:10/13:10, nach der
+Jira-Sichtung) ruft `scripts/local/spec-lauf-backlog.ps1` (`claude -p`) im Hauptcheckout (`main`) auf:
 hoechstens 3 offene Backlog-Notizen ohne Spec (Bugfix zuerst) → Spec-Entwurf, Backlog `in-spec`; bei `jira:` ein
 Rueckfragen-Kommentar mit @Erwaehnung und Status RUECKFRAGE (ohne Fachbereichs-Fragen IN ARBEIT); Lauf-Notiz
-`aufgaben/<Datum>-spec-lauf-backlog-<HHMM>.md`. Nur Brain, keine Freigabe, kein Commit. Log `scripts/logs/`.
+`aufgaben/<Datum>-spec-lauf-backlog-<HHMM>.md`. Nur Brain, keine Freigabe, kein Commit. Log `secondbrain/aufgaben/logs/`.
 
 **Definition of Done eines vollstaendigen Laufs** (`/goal-run`, `/dev` mit DEV-Deploy; Entscheid
 Gerald 2026-11-19):

@@ -2,9 +2,9 @@
 type: spec
 title: Wareneingang – Sammellieferschein (Barcode mehrfach, CSV mit laufender Nummer) und Bestellkopf mit AB-Nummer und Kommission
 slug: 2026-11-17-wareneingang-sammellieferschein-und-bestellkopf-spec
-status: Testbereit
+status: Gemerged
 created: 2026-11-17
-updated: 2026-11-17
+updated: 2026-11-28
 source_backlog: "[[2026-11-17-wareneingang-sammellieferschein-csv-nummerierung]]"
 source_backlog_2: "[[2026-11-17-wareneingang-bestellkopf-ab-nummer-kommission]]"
 task: "[[2026-11-17-goal-lauf-wareneingang-sammellieferschein]]"

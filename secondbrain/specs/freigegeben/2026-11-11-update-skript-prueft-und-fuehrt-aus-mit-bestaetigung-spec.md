@@ -2,9 +2,9 @@
 type: spec
 title: Update-Skript prüft und führt aus, mit Bestätigung (v1.99.0)
 slug: 2026-11-11-update-skript-prueft-und-fuehrt-aus-mit-bestaetigung-spec
-status: Testbereit
+status: Gemerged
 created: 2026-11-11
-updated: 2026-11-12
+updated: 2026-11-28
 freigabe_von: "Gerald Weichbold (Chat Koordination, „Ok“ 2026-11-11 18:38)"
 freigabe_am: 2026-11-11
 source_backlog: "[[2026-11-11-buendel-deploy-update-skript]]"

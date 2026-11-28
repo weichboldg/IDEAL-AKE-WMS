@@ -1,8 +1,8 @@
 ---
 type: spec
-status: Testbereit
+status: Gemerged
 created: 2026-11-18
-updated: 2026-11-18
+updated: 2026-11-28
 standort: beide
 source_backlog: "[[2026-11-18-sage-userfelder-als-einstellung]]"
 freigabe_quelle: "/goal 2026-11-18 (Gerald 09:15: „bei den Userfeldern nicht hardcodiert, immer als Einstellung“)"

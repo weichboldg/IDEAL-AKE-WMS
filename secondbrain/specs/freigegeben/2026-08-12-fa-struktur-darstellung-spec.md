@@ -2,9 +2,9 @@
 type: spec
 title: "FA-Struktur: Darstellung, Spaltenfilter und Knoten-Icons (Nachtrag zu Teil 2)"
 slug: 2026-08-12-fa-struktur-darstellung-spec
-status: Testbereit
+status: Gemerged
 created: 2026-08-12
-updated: 2026-08-19
+updated: 2026-11-28
 source_backlog: "[[2026-08-12-fa-struktur-darstellung]]"
 depends_on: "[[2026-07-29-standort-ideal-teil-2-spec]]"
 task: ""

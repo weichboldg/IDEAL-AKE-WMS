@@ -2,9 +2,9 @@
 type: spec
 title: "FA-Liste und verwandte Ansichten hierarchiefaehig darstellen (dritte Fehlerklasse nach Teil 7)"
 slug: 2026-08-18-fa-liste-hierarchie-anzeige-spec
-status: Testbereit
+status: Gemerged
 created: 2026-08-18
-updated: 2026-09-08
+updated: 2026-11-28
 source_backlog: "[[2026-08-18-fa-liste-hierarchie-anzeige]]"
 depends_on: "[[2026-07-29-standort-ideal-teil-7-spec]]"
 task: ""

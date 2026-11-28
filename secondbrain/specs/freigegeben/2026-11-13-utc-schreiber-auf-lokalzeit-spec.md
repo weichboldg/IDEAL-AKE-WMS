@@ -2,9 +2,9 @@
 type: spec
 title: "Zeitstempel-Schreiber mit UTC auf Lokalzeit umstellen (Web, Dienst, raw SQL) – mit Wächter-Test"
 slug: 2026-11-13-utc-schreiber-auf-lokalzeit-spec
-status: Testbereit
+status: Gemerged
 created: 2026-11-13
-updated: 2026-11-13
+updated: 2026-11-28
 source_backlog: "[[2026-11-13-utc-schreiber-auf-lokalzeit]]"
 herkunft: "[[2026-11-12-befunde-ake-regression-dev-spec]] (Rückfrage 6, Freigabe-Antwort 6)"
 task: "[[2026-11-13-buendel-v1-99-16-goal-lauf]]"

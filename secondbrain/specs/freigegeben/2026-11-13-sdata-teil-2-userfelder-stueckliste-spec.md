@@ -2,9 +2,9 @@
 type: spec
 title: "SData Teil 2: Register Sage-Test (Feldliste, Stückliste live, FA-Struktur live), Lesetest Benutzerfelder, SData-Zugangsdaten verschlüsselt in den Service-Einstellungen"
 slug: 2026-11-13-sdata-teil-2-userfelder-stueckliste-spec
-status: Testbereit
+status: Gemerged
 created: 2026-11-13
-updated: 2026-11-13
+updated: 2026-11-28
 source_backlog: "[[2026-11-11-sdata-teil-2-userfelder-stueckliste]]"
 task: "[[2026-11-13-buendel-v1-99-13-goal-lauf]]"
 worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"

@@ -2,9 +2,9 @@
 type: spec
 title: Bereinigungen nach dem Bündel 2026-11-07 (Einstellungen-Reste, Sperrhinweis-Platz, Übergabe-Status lesbar, Flaky-Tests, Rückmelde-Schalter)
 slug: 2026-11-08-bereinigungen-nach-buendel-2026-11-07-spec
-status: Testbereit
+status: Gemerged
 created: 2026-11-07
-updated: 2026-11-07
+updated: 2026-11-28
 source_backlog: "[[2026-11-07-bereinigungen-nach-buendel-2026-11-07]]"
 buendel: "[[2026-11-08-buendel-uebersicht]]"
 task: "[[2026-11-08-buendel-2026-11-08-goal-lauf]]"

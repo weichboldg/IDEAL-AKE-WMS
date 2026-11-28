@@ -2,9 +2,9 @@
 type: spec
 title: EAN von Einkaufsartikeln scannen (Lookup über den SData-Satelliten)
 slug: 2026-11-07-ean-einkaufsartikel-scan-spec
-status: Testbereit
+status: Gemerged
 created: 2026-11-07
-updated: 2026-11-07
+updated: 2026-11-28
 source_backlog: "[[2026-10-16-ean-einkaufsartikel-scan]]"
 buendel: "[[2026-11-07-buendel-uebersicht]]"
 depends_on: "[[2026-11-06-sage-sdata-stammdaten-sync-spec]]"

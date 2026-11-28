@@ -2,9 +2,9 @@
 type: spec
 title: "Dashboard: Reiter „Favoriten“ – Benutzer markieren Kacheln per Stern"
 slug: 2026-11-23-dashboard-favoriten-reiter-spec
-status: Testbereit
+status: Gemerged
 created: 2026-11-23
-updated: 2026-11-23
+updated: 2026-11-28
 source_backlog: "[[2026-11-23-dashboard-favoriten-reiter]]"
 task: ""
 jira: ""

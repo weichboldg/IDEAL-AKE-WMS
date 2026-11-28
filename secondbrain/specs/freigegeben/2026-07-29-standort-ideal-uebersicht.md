@@ -2,9 +2,9 @@
 type: uebersicht
 title: "Uebersicht: IDEAL-Standort live schalten — hierarchische Produktionsauftraege (8 Teile)"
 slug: 2026-07-29-standort-ideal-uebersicht
-status: Testbereit
+status: Gemerged
 created: 2026-08-06
-updated: 2026-08-14
+updated: 2026-11-28
 source_backlog: "[[2026-07-29-Standort-IDEAL]]"
 epic: true
 task: "[[2026-08-07-ideal-teile-1-5]]"

@@ -2,9 +2,9 @@
 type: spec
 title: "Klärung am Zielsystem: Lagerplatzbezeichnung in Artikelbestände, Menge IST in der Kommissionierung am AKE-Test"
 slug: 2026-11-23-mengenfelder-tabellen-beschichtung-kommissionierung-teil-5-spec
-status: Testbereit
+status: Gemerged
 created: 2026-11-23
-updated: 2026-11-23
+updated: 2026-11-28
 source_backlog: "[[2026-11-23-mengenfelder-tabellen-beschichtung-kommissionierung]]"
 uebersicht: "[[2026-11-23-mengenfelder-tabellen-beschichtung-kommissionierung-uebersicht]]"
 depends_on: "[[2026-11-23-mengenfelder-tabellen-beschichtung-kommissionierung-teil-4-spec]]"

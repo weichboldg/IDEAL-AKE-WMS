@@ -2,9 +2,9 @@
 type: spec
 title: "IDEAL-Standort Teil 7 — Materialisierung nach ProductionOrders (Schema-Inversion, Einweg-Migrationstor)"
 slug: 2026-07-29-standort-ideal-teil-7-spec
-status: Testbereit
+status: Gemerged
 created: 2026-08-06
-updated: 2026-08-17
+updated: 2026-11-28
 source_backlog: "[[2026-07-29-Standort-IDEAL]]"
 depends_on: "[[2026-07-29-standort-ideal-teil-1-spec]]"
 task: ""

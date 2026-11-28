@@ -2,9 +2,9 @@
 type: spec
 title: "Update-Skript: Pruef-, Warn- und Fehlertexte in einem Stil (Fall, Ergebnis TREFFER / keine Zeile TREFFER, Exit ungleich 0 getrennt, Handlung)"
 slug: 2026-11-19-updater-warntext-treffer-exitcode-spec
-status: Testbereit
+status: Gemerged
 created: 2026-11-19
-updated: 2026-11-19
+updated: 2026-11-28
 source_backlog: "[[2026-11-13-updater-warntext-treffer-exitcode]]"
 task: ""
 jira: ""

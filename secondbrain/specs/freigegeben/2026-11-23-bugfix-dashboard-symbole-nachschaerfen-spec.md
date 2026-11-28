@@ -2,9 +2,9 @@
 type: spec
 title: "Bugfix: Dashboard-Symbole nachschärfen – jede Kachel eindeutig und sinnfällig (Folge zu v1.99.46)"
 slug: 2026-11-23-bugfix-dashboard-symbole-nachschaerfen-spec
-status: Testbereit
+status: Gemerged
 created: 2026-11-23
-updated: 2026-11-23
+updated: 2026-11-28
 version_vorschlag: "1.99.50 (Worktree steht auf 1.99.47 laut IdealAkeWms/AppVersion.cs:5; 1.99.48 Sage-AG-Bugfix und 1.99.49 BDE-Liste Isolierungsfräse sind in Entwürfen reserviert; 1.99.50 kommt im Brain nirgends vor. Dev-Lauf prüft erneut)"
 testszenario_vorschlag: "TS-175 (docs/TESTSZENARIEN.md im Worktree: höchstes Kapitel TS-174 Z. 13507, TS-173 Z. 13411; TS-171/TS-172 in Entwürfen reserviert, TS-165 reserviert; TS-175 kommt im Brain nirgends vor. Dev-Lauf prüft erneut)"
 source_backlog: "[[2026-11-20-dashboard-symbole-nachschaerfen]]"

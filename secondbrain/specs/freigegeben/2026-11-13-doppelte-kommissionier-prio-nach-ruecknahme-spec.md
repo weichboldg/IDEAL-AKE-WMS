@@ -2,9 +2,9 @@
 type: spec
 title: "Doppelte Kommissionier-Prio nach „Freigabe zurücknehmen“ (Varianten-Spec)"
 slug: 2026-11-13-doppelte-kommissionier-prio-nach-ruecknahme-spec
-status: Testbereit
+status: Gemerged
 created: 2026-11-13
-updated: 2026-11-13
+updated: 2026-11-28
 source_backlog: "[[2026-11-13-doppelte-kommissionier-prio-nach-ruecknahme]]"
 herkunft: "[[2026-11-12-befunde-ake-regression-dev-spec]]"
 task: "[[2026-11-13-buendel-v1-99-16-goal-lauf]]"

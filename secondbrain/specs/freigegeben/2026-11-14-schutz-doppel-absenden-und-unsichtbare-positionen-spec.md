@@ -2,9 +2,9 @@
 type: spec
 title: "Schutz gegen Doppel-Absenden und unsichtbare Positionen"
 slug: 2026-11-14-schutz-doppel-absenden-und-unsichtbare-positionen-spec
-status: Testbereit
+status: Gemerged
 created: 2026-11-14
-updated: 2026-11-14
+updated: 2026-11-28
 source_backlog: "[[2026-11-14-review-befunde-kommissionierung]]"
 weitere_quellen:
   - "[[2026-11-14-review-befunde-wareneingang]]"

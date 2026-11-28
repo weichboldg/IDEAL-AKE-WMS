@@ -2,9 +2,9 @@
 type: spec
 title: "Stückliste: Spalte Matchcode + Lagerplatz-Zelle mit Limit und „+n weitere“ (Zahnrad-Teil erledigt)"
 slug: 2026-10-16-stueckliste-matchcode-lagerplatz-limit-spec
-status: Testbereit
+status: Gemerged
 created: 2026-10-16
-updated: 2026-10-16
+updated: 2026-11-28
 source_backlog: "[[2026-10-06-stueckliste-zahnrad-bug-matchcode]]"
 bug: "[[2026-10-16-stueckliste-lagerplatz-zelle-tabellenbreite-bug]]"
 task: "[[2026-10-16-stueckliste-matchcode-lagerplatz-limit-umsetzung]]"

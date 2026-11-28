@@ -2,9 +2,9 @@
 type: spec
 title: Wareneingang auf Basis der Sage-Bestellungen (offene Bestellungen lesen, Vorschau X Wochen, Wareneingang zu Bestellung)
 slug: 2026-11-08-wareneingang-aus-sage-bestellungen-spec
-status: Testbereit
+status: Gemerged
 created: 2026-11-07
-updated: 2026-11-08
+updated: 2026-11-28
 source_backlog: "[[2026-11-07-wareneingang-aus-sage-bestellungen]]"
 buendel: "[[2026-11-08-buendel-uebersicht]]"
 version: "1.84.0"

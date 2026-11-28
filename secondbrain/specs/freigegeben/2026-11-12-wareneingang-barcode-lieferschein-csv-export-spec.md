@@ -2,9 +2,9 @@
 type: spec
 title: "Wareneingang zu Bestellung: Barcode-Feld und CSV-Übergabe auf einen UNC-Pfad"
 slug: 2026-11-12-wareneingang-barcode-lieferschein-csv-export-spec
-status: Testbereit
+status: Gemerged
 created: 2026-11-12
-updated: 2026-11-12
+updated: 2026-11-28
 freigabe_von: "Gerald Weichbold (Chat Koordination, 2026-11-12 14:58)"
 freigabe_am: 2026-11-12
 source_backlog: "[[2026-11-12-wareneingang-barcode-lieferschein-csv-export]]"

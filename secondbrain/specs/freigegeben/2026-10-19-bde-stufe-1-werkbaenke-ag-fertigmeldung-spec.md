@@ -2,9 +2,9 @@
 type: spec
 title: "BDE Stufe 1 – Arbeitsgang an mehreren Werkbänken, veraltete Sage-Werkbänke kennzeichnen, Werkbank-Option „nur AG-Fertigmeldung“"
 slug: 2026-10-19-bde-stufe-1-werkbaenke-ag-fertigmeldung-spec
-status: Testbereit
+status: Gemerged
 created: 2026-10-19
-updated: 2026-10-19
+updated: 2026-11-28
 source_backlog: "[[2026-10-19-bde-lastenheft-abgleich]]"
 related_backlog: "[[2026-10-19-werkbank-katalog-veraltete-sage-arbeitsplaetze]]"
 task: "[[2026-10-19-bde-stufe-1-werkbaenke-ag-fertigmeldung-umsetzung]]"

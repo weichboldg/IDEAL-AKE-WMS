@@ -2,9 +2,9 @@
 type: spec
 title: Spaltenauswahl/Zahnrad — Sammel-Spec (zentraler Toolbar-Host, Gruppenkopf, Speicherfehler, Anzeigename)
 slug: 2026-10-14-spaltenauswahl-zahnrad-sammel-spec
-status: Testbereit
+status: Gemerged
 created: 2026-10-14
-updated: 2026-10-21
+updated: 2026-11-28
 source_backlog: "[[2026-10-06-zahnrad-host-zentral-marker]]"
 sources:
   - "[[2026-10-06-zahnrad-host-zentral-marker]]"

@@ -2,9 +2,9 @@
 type: spec
 title: "Briefkopf: Fußzeile nach Firmen-Word-Vorlage (+ Muster-Vorlage nachziehen)"
 slug: 2026-10-13-briefkopf-fusszeile-word-vorlage-spec
-status: Testbereit
+status: Gemerged
 created: 2026-10-13
-updated: 2026-10-14
+updated: 2026-11-28
 source_backlog: "[[2026-10-09-briefkopf-seitenzaehlung]]"
 anhaenge:
   - "[[2026-10-13-word-vorlage-fusszeile.png]]"

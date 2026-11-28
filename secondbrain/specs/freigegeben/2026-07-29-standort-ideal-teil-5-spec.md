@@ -2,10 +2,10 @@
 type: spec
 title: "IDEAL-Standort Teil 5 — Vormontage-Listen"
 slug: 2026-07-29-standort-ideal-teil-5-spec
-status: Testbereit
+status: Gemerged
 # Status nachgezogen (Koordination 2026-10-14): umgesetzt im Buendel v1.31.0, Beleg changelog/2026-08-10-v1-31-0-ideal-teile-1-5.md
 created: 2026-08-06
-updated: 2026-08-13
+updated: 2026-11-28
 source_backlog: "[[2026-07-29-Standort-IDEAL]]"
 depends_on: "[[2026-07-29-standort-ideal-teil-1-spec]], [[2026-07-29-standort-ideal-teil-3-spec]]"
 task: ""

@@ -2,9 +2,9 @@
 type: spec
 title: "FA-Liste ausbauen: Zeilenwerte, HauptFA-Zeile, Freigabe-Kaskade, Matchcode"
 slug: 2026-09-10-fa-liste-ausbau-matchcode-spec
-status: Testbereit
+status: Gemerged
 created: 2026-09-10
-updated: 2026-09-10
+updated: 2026-11-28
 source_backlog: "[[2026-09-10-fa-liste-ausbau-matchcode-umsetzung]]"
 task: "[[2026-09-10-fa-liste-ausbau-matchcode-umsetzung]]"
 worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"

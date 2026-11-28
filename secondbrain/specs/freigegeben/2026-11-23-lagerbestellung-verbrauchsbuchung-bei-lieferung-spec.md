@@ -2,9 +2,9 @@
 type: spec
 title: "Lagerbestellungen: Entnahme-Lagerplatz wählen (Vorschlag wie Kommissionierung) und Verbrauchsbuchung bei Lieferung, mit Sage-Übergabe"
 slug: 2026-11-23-lagerbestellung-verbrauchsbuchung-bei-lieferung-spec
-status: Testbereit
+status: Gemerged
 created: 2026-11-23
-updated: 2026-11-23
+updated: 2026-11-28
 source_backlog: "[[2026-11-23-lagerbestellung-verbrauchsbuchung-bei-lieferung]]"
 depends_on: ""
 task: ""

@@ -2,9 +2,9 @@
 type: spec
 title: "Lagerbestellung: Entnahme-Vorschlag „überall NAN“ (Nachbesserung zu v1.99.53)"
 slug: 2026-11-23-mengenfelder-tabellen-beschichtung-kommissionierung-teil-4-spec
-status: Testbereit
+status: Gemerged
 created: 2026-11-23
-updated: 2026-11-23
+updated: 2026-11-28
 source_backlog: "[[2026-11-23-mengenfelder-tabellen-beschichtung-kommissionierung]]"
 uebersicht: "[[2026-11-23-mengenfelder-tabellen-beschichtung-kommissionierung-uebersicht]]"
 nachbesserung_zu: "[[2026-11-23-lagerbestellung-verbrauchsbuchung-bei-lieferung-spec]]"

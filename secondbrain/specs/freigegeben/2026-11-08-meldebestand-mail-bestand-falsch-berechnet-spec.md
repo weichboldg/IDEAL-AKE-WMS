@@ -2,9 +2,9 @@
 type: spec
 title: Meldebestand-Mail – Bestand nach der Regel der Web-App rechnen, Artikel ohne Bewegung einbeziehen
 slug: 2026-11-08-meldebestand-mail-bestand-falsch-berechnet-spec
-status: Testbereit
+status: Gemerged
 created: 2026-11-08
-updated: 2026-11-08
+updated: 2026-11-28
 source_backlog: "[[2026-11-08-meldebestand-mail-bestand-falsch-berechnet]]"
 bug: "[[2026-11-08-meldebestand-mail-bestand-falsch-berechnet-bug]]"
 task: ""

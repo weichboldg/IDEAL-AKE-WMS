@@ -2,7 +2,7 @@ Geplanter Spec-Lauf Backlog (IDEAL-AKE WMS). Laeuft headless ueber die Windows-A
 (Mo–Do 08:10/13:10/18:10, Fr 08:10/13:10), jeweils nach der Jira-Sichtung, die neue Backlog-Notizen anlegt.
 Antworten auf Deutsch, kurz.
 
-Arbeitsordner = Buendel-Worktree C:\Git\IDEAL-AKE-WMS\.claude\worktrees\2026-08-07-ideal-teile-1-5 (Code dort lesen).
+Arbeitsordner = Hauptcheckout C:\Git\IDEAL-AKE-WMS (main, seit 2026-11-28 = Buendel-Stand; Code dort lesen).
 Das Brain liegt NUR im Hauptcheckout: C:\Git\IDEAL-AKE-WMS\secondbrain\ – immer diesen absoluten Pfad verwenden
 (der Worktree hat kein secondbrain/; dort nie etwas anlegen).
 

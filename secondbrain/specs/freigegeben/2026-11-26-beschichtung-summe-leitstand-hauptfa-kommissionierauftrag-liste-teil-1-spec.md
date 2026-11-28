@@ -2,9 +2,9 @@
 type: spec
 title: "Beschichtungsauftrag: Druck/PDF immer summiert je Artikel, Summenzeile „Summe Teile im Auftrag“"
 slug: 2026-11-26-beschichtung-summe-leitstand-hauptfa-kommissionierauftrag-liste-teil-1-spec
-status: Testbereit
+status: Gemerged
 created: 2026-11-26
-updated: 2026-11-26
+updated: 2026-11-28
 source_backlog: "[[2026-11-26-beschichtung-summe-leitstand-hauptfa-kommissionierauftrag-liste]]"
 uebersicht: "[[2026-11-26-beschichtung-summe-leitstand-hauptfa-kommissionierauftrag-liste-uebersicht]]"
 depends_on: ""

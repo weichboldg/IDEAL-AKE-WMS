@@ -2,9 +2,9 @@
 type: spec
 title: Kommissionieraufträge (Kopf/Zeilen, KO-Nummernkreis, Typ, Kommissionierbereiche), 1–n je FA
 slug: 2026-11-08-kommissionierung-auftraege-kopf-zeilen-spec
-status: Testbereit
+status: Gemerged
 created: 2026-11-07
-updated: 2026-11-12
+updated: 2026-11-28
 source_backlog: "[[2026-11-07-kommissionierung-auftraege-kopf-zeilen]]"
 buendel: "[[2026-11-08-buendel-uebersicht]]"
 depends_on: "[[2026-11-08-lagerbuchungen-fa-feld-und-verlinkung-spec]]"

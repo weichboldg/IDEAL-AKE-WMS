@@ -2,9 +2,9 @@
 type: spec
 title: "Vormontage-Listen (IDEAL): Spalte „Abteilung“ je HauptFA, neben „Arbeitsbereich“"
 slug: 2026-11-11-vormontage-spalte-abteilung-hauptfa-spec
-status: Testbereit
+status: Gemerged
 created: 2026-11-11
-updated: 2026-11-11
+updated: 2026-11-28
 freigabe_von: "Gerald Weichbold (Chat Koordination, 2026-11-11 20:40 „beide freigeben“)"
 freigabe_am: 2026-11-11
 source_backlog: "[[2026-11-11-vormontage-spalte-abteilung-hauptfa]]"

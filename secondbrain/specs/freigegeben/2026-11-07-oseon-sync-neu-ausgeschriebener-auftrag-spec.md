@@ -2,9 +2,9 @@
 type: spec
 title: OSEON-Tracking-Sync übersteht neu ausgeschriebene Aufträge (MERGE über Auftragsnummer)
 slug: 2026-11-07-oseon-sync-neu-ausgeschriebener-auftrag-spec
-status: Testbereit
+status: Gemerged
 created: 2026-11-07
-updated: 2026-11-08
+updated: 2026-11-28
 source_backlog: "[[2026-11-03-oseon-sync-neu-ausgeschriebener-auftrag]]"
 bug: "[[2026-11-07-oseon-sync-neu-ausgeschriebener-auftrag-bug]]"
 buendel: "[[2026-11-07-buendel-uebersicht]]"

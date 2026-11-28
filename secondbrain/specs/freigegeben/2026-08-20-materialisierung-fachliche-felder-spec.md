@@ -2,9 +2,9 @@
 type: spec
 title: "IDEAL: Materialisierung um die fachlichen Felder erweitern (K1/K2/K3, Werkbank-Datenhoheit)"
 slug: 2026-08-20-materialisierung-fachliche-felder-spec
-status: Testbereit
+status: Gemerged
 created: 2026-09-07
-updated: 2026-09-09
+updated: 2026-11-28
 source_backlog: "[[2026-08-20-materialisierung-fachliche-felder]]"
 depends_on: "[[2026-08-18-fa-liste-hierarchie-anzeige-spec]]"
 task: ""

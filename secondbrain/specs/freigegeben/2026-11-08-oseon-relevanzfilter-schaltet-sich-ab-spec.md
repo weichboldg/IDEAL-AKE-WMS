@@ -2,9 +2,9 @@
 type: spec
 title: OSEON-Relevanzfilter schaltet sich bei jedem Absenden ab (verstecktes false-Feld vor der Checkbox), inkl. Geschwisterfall BDE-Buchung bearbeiten
 slug: 2026-11-08-oseon-relevanzfilter-schaltet-sich-ab-spec
-status: Testbereit
+status: Gemerged
 created: 2026-11-08
-updated: 2026-11-08
+updated: 2026-11-28
 source_backlog: "[[2026-11-08-oseon-relevanzfilter-schaltet-sich-ab]]"
 bug: "[[2026-11-08-oseon-relevanzfilter-schaltet-sich-ab-bug]]"
 task: ""

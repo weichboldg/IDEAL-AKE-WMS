@@ -2,9 +2,9 @@
 type: spec
 title: "Spaltenfilter: Suchsyntax erweitern (beginnt/endet/genau/von-bis/Vergleich/leer) - EIN Parser fuer alle Listen"
 slug: 2026-09-23-suchsyntax-spaltenfilter-erweitern-spec
-status: Testbereit
+status: Gemerged
 created: 2026-10-13
-updated: 2026-10-13
+updated: 2026-11-28
 source_backlog: "[[2026-09-23-suchsyntax-spaltenfilter-erweitern]]"
 task: "[[2026-10-13-suchsyntax-spaltenfilter-erweitern-umsetzung]]"
 worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"

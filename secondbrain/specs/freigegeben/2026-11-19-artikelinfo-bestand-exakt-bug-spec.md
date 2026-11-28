@@ -2,9 +2,9 @@
 type: spec
 title: "Artikelinfo und Lager-/Glasbestellung: Bestand nur des gesuchten Artikels (statt Teiltext-Treffer)"
 slug: 2026-11-19-artikelinfo-bestand-exakt-bug-spec
-status: Testbereit
+status: Gemerged
 created: 2026-11-19
-updated: 2026-11-19
+updated: 2026-11-28
 source_backlog: "[[2026-11-17-artikelinfo-bestand-teiltextsuche-bug]]"
 task: ""
 jira: ""

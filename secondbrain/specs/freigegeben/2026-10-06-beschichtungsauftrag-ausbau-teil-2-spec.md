@@ -2,9 +2,9 @@
 type: spec
 title: "Beschichtungsauftrag-Ausbau Teil 2 — Briefkopf / Corporate-Design-Druck"
 slug: 2026-10-06-beschichtungsauftrag-ausbau-teil-2-spec
-status: Testbereit
+status: Gemerged
 created: 2026-10-06
-updated: 2026-10-09
+updated: 2026-11-28
 source_backlog: "[[2026-10-06-beschichtungsauftrag-ausbau]]"
 anhaenge:
   - "[[cd-auszug-druckdokumente]]"
