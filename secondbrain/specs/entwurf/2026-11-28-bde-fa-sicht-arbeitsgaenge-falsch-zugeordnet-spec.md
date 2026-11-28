@@ -293,5 +293,5 @@ entfällt (kein Epic)
 
 1. (Fachbereich) Variante A / B / C für den AG-Status der FA-Sicht →
 2. (Fachbereich) Gebuchte KA-Arbeitsgänge an Baugruppen: stehen lassen oder stornieren →
-3. DB des Screenshots (Test/Produktion) →
-4. Bereinigung per Manifest-Eintrag #2 oder manueller Sofortlauf →
+3. DB des Screenshots (Test/Produktion) → IDEAL: WMS-Testsystem, gespeist aus Sage-Prod (Gerald, Chat 2026-11-28). Prüfabfragen P-1 bis P-5 auf der IDEAL-WMS-Test-DB; nur lesend gegen Sage, Sage-Prod nie abfragen.
+4. Bereinigung per Manifest-Eintrag #2 oder manueller Sofortlauf → Manifest-Eintrag #2 im nächsten Paket (Empfehlung bestätigt, Gerald, Chat 2026-11-28).
