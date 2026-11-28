@@ -20,6 +20,8 @@ anhaenge:
   Filter-Input wäre tot“. Die übrigen Spalten filtern serverseitig (ADR 0005).
 - Merkmale sind typisiert (`AttributeType`: Text, Boolean, Auswahl …, `Edit.cshtml:102-130`) – Filter je Typ (ja/nein, Auswahlwert, Text).
 
+## Geklärt
+- „Leiste“ = die **Spaltenfilter-Zeile der Artikelliste** (bestätigt Gerald im Chat 2026-11-28).
+
 ## Rückfragen (Vorschlag)
 - Alle Merkmale filterbar oder nur Sage-Merkmale?
-- „Leiste“ = die Spaltenfilter-Zeile der Artikelliste (Annahme) – oder eine andere Leiste (z. B. Filterkarte oben)?
