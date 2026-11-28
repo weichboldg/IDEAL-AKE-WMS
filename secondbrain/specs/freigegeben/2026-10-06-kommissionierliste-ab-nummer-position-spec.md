@@ -2,9 +2,9 @@
 type: spec
 title: "IDEAL Kommissionierliste: AB-Nummer und Position anzeigen (Liste, Summiert, Druck, PDF)"
 slug: 2026-10-06-kommissionierliste-ab-nummer-position-spec
-status: Entwurf
+status: Freigegeben
 created: 2026-10-06
-updated: 2026-10-07
+updated: 2026-11-28
 source_backlog: "[[2026-10-06-kommissionierliste-ab-nummer-position]]"
 task: ""
 worktree: ""
@@ -25,8 +25,7 @@ affected_code:
   - "IdealAkeWms/AppVersion.cs + IDEALAKEWMSService/AppVersion.cs (naechste freie Version zum Umsetzungszeitpunkt; Buendel-Stand 2026-10-06: 1.47.2) + Views/Help/Changelog.cshtml."
   - "ENTFAELLT (Antworten 1/3, 2026-10-07: keine Spalte) - NUR bei Rueckfrage 1 = Spalte: zusaetzlich ColumnDefinitions.FaHierarchyKommissionierListen/-Summiert, `#column-config`, `<th data-col-key>`, `ShowCol(...)` in Print/PrintSummiert, `ColumnMap`/`SummiertColumnMap` und der Drift-Guard `IdealAkeWms.Tests/Views/KommissionierSpaltenKonsistenzTests.cs` (vergleicht genau diese vier Quellen, Z. 42-43/56-71) — siehe Rueckfrage 4."
   - "ENTFAELLT (Antwort 3, 2026-10-07: Suche nicht gefordert) - NUR bei Rueckfrage 3 = Suche nach AB-Nummer gewuenscht: zusaetzlich Filterkarte beider Views, `KommissionierListenService.BuildAsync` (Z. 95-110) und `AggregateSummiert`, `ToggleSharedQueryKeys` (Z. 217-221) — siehe Rueckfrage 3."
-open_questions:
-  - "2 Kombinationsgeraete: alle AB/Pos des HauptFA anzeigen, nicht eine willkuerlich waehlen (Empfehlung der Notiz) - bestaetigt? (Nach Antworten 1/3 nur noch fuer `Pos` in der Liste relevant; die Liste zeigt die AB-Nr. heute schon fuer alle OrderInfos.)"
+open_questions: []
 epic: false
 etappen: []
 deploy:
@@ -34,8 +33,8 @@ deploy:
   service: false
   migration: false
 freigabe_entscheidung: ""
-freigabe_von: ""
-freigabe_am: ""
+freigabe_von: "Gerald Weichbold"
+freigabe_am: 2026-11-28
 ---
 
 > [!info] Umsetzungsort (Entscheidung Gerald 2026-10-09)
@@ -422,6 +421,7 @@ Stand 2026-10-07: 1, 3 beantwortet; 4 damit gegenstandslos; offen bleibt nur 2.
 -->
 
 1. Wo (Gruppenkopf oder Spalte) → **AB-Nummer in der summierten Ansicht nicht (Keyuser 2026-10-07).**
-2. Kombinationsgeraete: alle AB/Pos anzeigen →
+2. Kombinationsgeraete: alle AB/Pos anzeigen → **Ja, alle zeigen, je mit Montage-Abteilung, wie heute bei der AB-Nummer (Gerald 2026-11-23).**
 3. Umfang (Liste, Summiert, Druck, PDF) und Suche/Filter nach AB-Nummer → **AB-Nummer in der Liste nice to have – ist dort über die PPS-View normal schon vorhanden (Keyuser 2026-10-07). Suche nicht gefordert.**
-4. Nur bei Spalte: Spaltenregistrierung + Drift-Guard →
+4. Nur bei Spalte: Spaltenregistrierung + Drift-Guard → **Gegenstandslos (keine Spalte, Antworten 1/3).**
+5. (Nachtrag 2026-11-23) Restumfang umsetzen oder zuruecklegen? → **Umsetzen (Gerald 2026-11-23): `Pos` im Gruppenkopf der Liste – Bildschirm (`Index.cshtml`, heute Z. 131), Druck (`Print.cshtml`, heute Z. 95), PDF folgt. Format wie Beschichtung `AB <ABNr> / <Pos>`. Zeilen im Buendel 2026-11-23 nachgemessen: Pos fehlt weiterhin. Version/TS: naechste freie Nummer beim Dev-Lauf.**

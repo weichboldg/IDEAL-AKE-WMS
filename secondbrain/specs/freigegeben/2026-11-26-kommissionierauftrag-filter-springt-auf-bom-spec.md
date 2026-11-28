@@ -2,9 +2,9 @@
 type: spec
 title: "Bugfix: Filtern und „Zurücksetzen“ bleiben auf dem Kommissionierauftrag (auch ohne Umschalter Stückliste/Liste)"
 slug: 2026-11-26-kommissionierauftrag-filter-springt-auf-bom-spec
-status: Entwurf
+status: Freigegeben
 created: 2026-11-26
-updated: 2026-11-26
+updated: 2026-11-28
 source_backlog: "[[2026-11-26-kommissionierauftrag-filter-springt-auf-bom]]"
 bug: "[[2026-11-26-kommissionierauftrag-filter-springt-auf-bom-bug]]"
 uebersicht: "[[2026-11-26-kommissionierauftrag-nachbesserungen-uebersicht]]"
@@ -27,8 +27,8 @@ deploy:
   service: true
   migration: false
 freigabe_entscheidung: ""
-freigabe_von: ""
-freigabe_am: ""
+freigabe_von: "Gerald Weichbold"
+freigabe_am: 2026-11-28
 ---
 
 ## Ziel / Nutzen (das Warum)
