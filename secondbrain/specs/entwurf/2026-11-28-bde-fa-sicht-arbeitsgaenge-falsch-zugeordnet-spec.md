@@ -157,6 +157,11 @@ Zählung je Kürzel, die Meldeliste der gebuchten Kandidaten und `TREFFER: n`.
 - **FA-1 Datenbereinigung (alle Varianten):** Das Einmal-Skript v1.99.32 läuft auf IDEAL erneut als Trockenlauf → SCHARF → zweiter Trockenlauf,
   über einen neuen Manifest-Eintrag mit neuer Id (Weg nach `nachlauf.psd1:20`; Rückfrage 4 kann stattdessen einen manuellen Lauf festlegen).
   Gebuchte Kandidaten bleiben stehen und kommen auf die Meldeliste (Skript `:81-84`). Ihr Umgang richtet sich nach Rückfrage 2.
+  > [!note] Ausgelagert (2026-11-28)
+  > FA-1 ist ausgelagert nach [[2026-11-28-bde-ag-altbestand-teileliste-bereinigung-teil-1-spec]] und wird dort umgesetzt: Manifest-Eintrag
+  > `#2` plus ein Einmal-Skript nur für IDEAL-Test, das die 8 Testbuchungen entfernt. Stornieren reicht nicht, die Begründung steht dort.
+  > Der FA-1-Text hier, der Manifest-Teil im Lösungsentwurf, AK 2–4 und der Manifest-Eintrag `…#2` im Deploy-Abschnitt sind damit
+  > **überholt** und gelten in dieser Spec nicht mehr.
 - **FA-2 Anzeige (nach Rückfrage 1):**
   - *Variante A (Empfehlung):* Alle Arbeitsgänge der Sub-FA bleiben im AG-Status. Ein Symbol, dessen Kürzel **nicht** in den Arbeitsschritten
     der Strukturzeile steht, wird als „an Teilen“ gekennzeichnet: sichtbarer Text bzw. Zeichen, nicht nur Farbe (G2 der Masken-Spec), und im
@@ -310,6 +315,6 @@ Fachbereich betrifft konkret die 8 gebuchten Kandidaten der Meldeliste. Gilt fü
 ## Freigabe-Antworten (Mensch fuellt aus — Schranke 1)
 
 1. (Fachbereich) Variante A / B / C für den AG-Status der FA-Sicht →
-2. (Fachbereich) Gebuchte KA-Arbeitsgänge an Baugruppen: stehen lassen oder stornieren →
+2. (Fachbereich) Gebuchte KA-Arbeitsgänge an Baugruppen: stehen lassen oder stornieren → Gerald 2026-11-28: die 8 gebuchten sind nur Testbuchungen, dürfen entfernt werden; Fachbereichsfrage damit erledigt.
 3. DB des Screenshots (Test/Produktion) → IDEAL: WMS-Testsystem, gespeist aus Sage-Prod (Gerald, Chat 2026-11-28). Prüfabfragen P-1 bis P-5 auf der IDEAL-WMS-Test-DB; nur lesend gegen Sage, Sage-Prod nie abfragen.
 4. Bereinigung per Manifest-Eintrag #2 oder manueller Sofortlauf → Manifest-Eintrag #2 im nächsten Paket (Empfehlung bestätigt, Gerald, Chat 2026-11-28).
