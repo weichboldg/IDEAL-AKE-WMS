@@ -148,8 +148,41 @@ public class NachlaufManifestDriftTests
                 fehler.Add($"{x["Id"]}: Sperre (IF EXISTS ... RAISERROR) ohne TREFFER: 0 im Trockenlauf");
             if (Regex.IsMatch(t, @"(?i)\bROLLBACK\b")) fehler.Add($"{x["Id"]}: ROLLBACK");
             if (Regex.IsMatch(t, @"(?m)^\s*:") || t.Contains("$(")) fehler.Add($"{x["Id"]}: sqlcmd-Direktive");
+            // v1.99.93 (UP-2): Kopie der Regeln aus Test-SqlFuerTransaktion - beide gleich halten
+            if (Regex.IsMatch(t, UseWaechter)) fehler.Add($"{x["Id"]}: USE");
+            if (Regex.Matches(t, CommitWaechter).Count > Regex.Matches(t, BeginTranWaechter).Count) fehler.Add($"{x["Id"]}: COMMIT ohne BEGIN TRANSACTION");
         }
         return fehler;
+    }
+
+    private const string UseWaechter = @"(?im)^\s*USE\b";
+    private const string CommitWaechter = @"(?i)\bCOMMIT\b";
+    private const string BeginTranWaechter = @"(?i)\bBEGIN\s+TRAN(SACTION)?\b";
+
+    /// <summary>v1.99.93 (UP-2): Rotprobe - unpaariges COMMIT bzw. USE in einem Transaktion-/Trockenlauf-Skript macht den Waechter rot;
+    /// das Skript enthaelt dieselben Regeln woertlich.</summary>
+    [Fact]
+    public void Manifest_CommitOhneBeginOderUse_MachtWaechterRot()
+    {
+        DatenFehler(ManifestText, d => SqlText(d) + "\nCOMMIT;").Should().Contain(f => f.Contains("COMMIT ohne BEGIN TRANSACTION"));
+        DatenFehler(ManifestText, d => "USE [master]\n" + SqlText(d)).Should().Contain(f => f.EndsWith(": USE"));
+        var skript = File.ReadAllText(Path.Combine(Root, "scripts", "deploy", "Update-IdealAkeWms.ps1"));
+        foreach (var w in new[] { UseWaechter, CommitWaechter, BeginTranWaechter }) skript.Should().Contain($"'{w}'", "Regel im Skript = Kopie hier");
+    }
+
+    /// <summary>v1.99.93 (UP-1, UP-3): deploy-info.txt erst nach dem Nachlauf (Neustart nach Abbruch bietet dieselben Eintraege an),
+    /// Marker-Zeit als Parameter @Jetzt (Lokalzeit, ADR 0025), keine Lieferverzug-Tage-Pruefung mehr.</summary>
+    [Fact]
+    public void Skript_DeployInfoAmLaufende_MarkerInLokalzeit()
+    {
+        var skript = File.ReadAllText(Path.Combine(Root, "scripts", "deploy", "Update-IdealAkeWms.ps1"));
+        var nachlauf = skript.IndexOf("Show-Nachlauf $e $installiert $true", StringComparison.Ordinal);
+        var copies = Regex.Matches(skript, @"Copy-Item \$infoDatei[^\r\n]*deploy-info\.txt").Select(m => m.Index).ToList();
+        copies.Should().HaveCount(2);
+        copies.Should().OnlyContain(i => i > nachlauf && i < skript.IndexOf("return 0", nachlauf, StringComparison.Ordinal));
+        skript.Should().NotContain("SYSDATETIME()").And.Contain("@Jetzt");
+        File.ReadAllText(Path.Combine(Root, "scripts", "deploy", "Set-Startkennwort.ps1")).Should().NotContain("GETDATE()");
+        Eintraege(ManifestText).Should().NotContain(x => x["Id"] == "Pruefung/LieferverzugSammellisteTage");
     }
 
     /// <summary>Rumpf jedes Blocks "IF EXISTS (...) BEGIN ... END" bis zum PASSENDEN END (BEGIN/CASE oeffnen, END schliesst) - der Fix

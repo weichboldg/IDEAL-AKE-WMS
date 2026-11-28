@@ -84,12 +84,13 @@ try {
     foreach ($r in $ziel) {
         $u = $con.CreateCommand(); $u.Transaction = $tx
         $u.CommandText = if ($Schritt -eq 'Vorher') {
-            "UPDATE dbo.Users SET PasswordHash = @h, ModifiedAt = GETDATE(), ModifiedBy = N'Set-Startkennwort', ModifiedByWindows = @w WHERE Id = @id AND (PasswordHash IS NULL OR PasswordHash = N'')"
+            "UPDATE dbo.Users SET PasswordHash = @h, ModifiedAt = @Jetzt, ModifiedBy = N'Set-Startkennwort', ModifiedByWindows = @w WHERE Id = @id AND (PasswordHash IS NULL OR PasswordHash = N'')"
         } else {
-            "UPDATE dbo.Users SET MussKennwortAendern = 1, ModifiedAt = GETDATE(), ModifiedBy = N'Set-Startkennwort', ModifiedByWindows = @w WHERE Id = @id"
+            "UPDATE dbo.Users SET MussKennwortAendern = 1, ModifiedAt = @Jetzt, ModifiedBy = N'Set-Startkennwort', ModifiedByWindows = @w WHERE Id = @id"
         }
         if ($Schritt -eq 'Vorher') { [void]$u.Parameters.AddWithValue('@h', (New-KennwortHash $kennwort)) }
         [void]$u.Parameters.AddWithValue('@w', $windows)
+        $u.Parameters.Add('@Jetzt', [System.Data.SqlDbType]::DateTime2).Value = Get-Date   # v1.99.93 (UP-3, ADR 0025): Lokalzeit dieses Rechners
         [void]$u.Parameters.AddWithValue('@id', $r.Id)
         if ($u.ExecuteNonQuery() -ne 1) { throw "Benutzer $($r.Id) $($r.Name): nicht genau eine Zeile geaendert - alles zurueckgerollt." }
     }

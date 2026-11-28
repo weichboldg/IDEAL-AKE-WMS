@@ -165,7 +165,7 @@ Das Skript **liest Sage nie** (Prüfabfragen auf Sage bleiben Hand-Schritte). (Q
 | Phase | Was passiert | Ihre Eingabe | Was ist dann gestoppt | Beleg (`Update-IdealAkeWms.ps1`) |
 |---|---|---|---|---|
 | **Ermittlung** | zeigt Paket, Web-/Dienst-Ordner, Site/Pool, Dienst + Konto, Umgebung, DB, URL, Mail-Ziel, sqlcmd | geteilter App-Pool? → `j`; „Verbindung herstellen (nur lesend)?“ → `j` | nichts | `:648-669` |
-| **1 Vorprüfung** (lesend) | installierte Version (Fußzeile, sonst `deploy-info.txt`, sonst Frage); Migrations-History muss SQL/88 enthalten; fehlende Schema-Skripte; alle **Prüfungen**; Stand der Daten-/Einmal-Einträge (Marker); Backup-Ordner; Vorher-Hinweise; Trockenlauf der Haltepunkt-Skripte; **Plan** | ggf. Version eintippen | nichts | `:672-737` |
+| **1 Vorprüfung** (lesend) | installierte Version (Fußzeile und `deploy-info.txt`; liegen beide vor, gilt die **kleinere** – `deploy-info.txt` schreibt erst das Ende eines vollständigen Laufs, ein Neustart nach Abbruch bietet so dieselben Nachlauf-Einträge wieder an, seit v1.99.93; sonst Frage); Migrations-History muss SQL/88 enthalten; fehlende Schema-Skripte; alle **Prüfungen**; Stand der Daten-/Einmal-Einträge (Marker); Backup-Ordner; Vorher-Hinweise; Trockenlauf der Haltepunkt-Skripte; **Plan** | ggf. Version eintippen | nichts | `:672-737` |
 | | Prod-Sperre: Prüfung der Phase „Vorher“ mit Abweichung auf Prod → Abbruch, nichts gestoppt | Wert von Hand beheben, neu starten | nichts | `:700-701`, `:738` |
 | **2 Backup** | `BACKUP DATABASE … WITH COPY_ONLY, CHECKSUM` auf dem SQL-Server; Pflicht, wenn ein Haltepunkt-Trockenlauf Treffer hatte | `j`; sonst „Liegt ein aktuelles Backup vor?“ → ohne Ja Abbruch | nichts | `:750-761`, `:499-511` |
 | **3 Stoppen** | Dienst (max. 60 s, Prozess wird **nicht** beendet), dann App-Pool (max. 60 s, +2 s) | – | Dienst, App-Pool | `:764-780` |
@@ -299,7 +299,7 @@ laut Manifest (Tabelle 5.2a); Web und Dienst erst nach dem Schema starten (getei
 | Gesamtprotokoll (Transcript) `<yyyy-MM-dd_HHmm>_<FIRMA>-<System>_v<Version>.log` | `C:\<FIRMA>\deploy-logs` | `scripts/deploy/Update-IdealAkeWms.ps1:94`, `:943-944` |
 | Trockenlauf-Ausgaben `…_trockenlauf.txt` | gleicher Ordner | `scripts/deploy/Update-IdealAkeWms.ps1:557` |
 | ACL-Sicherung vor Rechteänderung `acl_<Zeit>_<Eintrag>.txt` | gleicher Ordner | `scripts/deploy/IdealAkeWms.Deploy.psm1:180-183` |
-| `deploy-info.txt` (Kopie von `publish-info.txt`) | Web- und Dienst-Ordner | `scripts/deploy/Update-IdealAkeWms.ps1:843-844` |
+| `deploy-info.txt` (Kopie von `publish-info.txt`, erst am Laufende nach Schritt 7, seit v1.99.93) | Web- und Dienst-Ordner | `scripts/deploy/Update-IdealAkeWms.ps1:928-929` |
 
 ### 5.6 Schritt für Schritt: ein System aktualisieren
 
