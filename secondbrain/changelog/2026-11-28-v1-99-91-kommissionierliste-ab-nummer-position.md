@@ -6,7 +6,7 @@ date: 2026-11-28
 # v1.99.91 — IDEAL-Kommissionierliste: Position zur AB-Nummer
 
 [[2026-10-06-kommissionierliste-ab-nummer-position-spec]], Lauf-Notiz [[2026-11-28-buendel-review-kommissionierung-goal-lauf]]. Worktree `feature/2026-11-28-buendel-review-kommissionierung`, Commit `a57973f7`.
-**Keine Migration, keine Einstellung.** TS-211. Nicht gemergt.
+**Keine Migration, keine Einstellung.** TS-211. Gemergt in main (Merge-Commit `50952006`, 2026-11-28).
 
 ## Kernpunkte
 

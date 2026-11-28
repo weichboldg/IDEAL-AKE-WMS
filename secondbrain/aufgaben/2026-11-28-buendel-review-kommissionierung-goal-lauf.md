@@ -1,6 +1,6 @@
 ---
 typ: lauf-notiz
-status: Testbereit
+status: Gemerged
 created: 2026-11-28
 worktree: ".claude/worktrees/2026-11-28-buendel-review-kommissionierung"
 branch: "feature/2026-11-28-buendel-review-kommissionierung"
@@ -27,6 +27,8 @@ Hinweis: [[2026-11-26-kommissionierauftrag-liste-nachbesserungen-spec]] (depends
 - 2026-11-28: Spec 4 (ff681409) umgesetzt; QA-Fix a83d8756 (Q-1: nach Server-COMMIT liefert @@TRANCOUNT 0 und Rollback wirft NICHT -> „ggf. festgeschrieben“ jetzt bei @@TRANCOUNT 0; meine Abweichung im Entwurf war falsch), Testbereit.
 - 2026-11-28: Doku-Commit 932c36aa (Stand + Versionszeilen, Foto 16-03 per Headless-Chrome gegen DEV IDEAL v1.99.93). Brain: Changelogs v1.99.90–93, feature-map, Testindex 210–213, ADR 0024 Nachtrag.
 - Folge von UP-1 (gewollt, QA-Hinweis): Daten-Einträge sind immer fällig. Auf AKE-DEV hat SQL/108 Spur 0 → erscheint „vor dem Start“ (Web+Dienst gestoppt); SQL/110 je System einmal Trockenlauf bis „entfällt“.
+
+- 2026-11-28: Schranke 2 (Gerald) → Merge `50952006` in main (--no-ff, konfliktfrei), Build 0 Fehler, Tests 3884/1 skip + 848. Push, Deploy und Aufräumen von Worktree/Branch offen.
 
 ## Doku / Confluence (für spätere Übernahme)
 - docs/anwender/01-kommissionierung.md (Stand, Hinweis seit 1.99.90)

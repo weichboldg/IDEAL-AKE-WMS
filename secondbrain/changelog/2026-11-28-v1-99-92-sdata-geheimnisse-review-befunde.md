@@ -6,7 +6,7 @@ date: 2026-11-28
 # v1.99.92 — SData-Geheimnisse und Sage-Test: Review-Befunde SD-1/2/3/4/6
 
 [[2026-11-28-sdata-geheimnisse-review-befunde-spec]], Lauf-Notiz [[2026-11-28-buendel-review-kommissionierung-goal-lauf]]. Worktree `feature/2026-11-28-buendel-review-kommissionierung`, Commits `c9c9f888`, QA-Fix `7abbc46b`.
-**Keine Migration.** Neuer Manifest-Eintrag `Pruefung/SDataKennwortAppsettingsWeb` (Feld `Ort='Web'`). TS-212. ADR [[0024-sdata-kennwort-verschluesselt-in-den-service-einstellungen]] Nachtrag. Nicht gemergt.
+**Keine Migration.** Neuer Manifest-Eintrag `Pruefung/SDataKennwortAppsettingsWeb` (Feld `Ort='Web'`). TS-212. ADR [[0024-sdata-kennwort-verschluesselt-in-den-service-einstellungen]] Nachtrag. Gemergt in main (Merge-Commit `50952006`, 2026-11-28).
 
 ## Kernpunkte
 

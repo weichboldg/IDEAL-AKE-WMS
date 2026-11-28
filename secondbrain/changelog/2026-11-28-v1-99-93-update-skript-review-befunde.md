@@ -6,7 +6,7 @@ date: 2026-11-28
 # v1.99.93 — Update-Skript: Neustart nach Abbruch, Transaktionsschutz, Marker-Lokalzeit, Lieferverzug-Hinweis
 
 [[2026-11-28-update-skript-review-befunde-spec]] (UP-1..UP-4), Lauf-Notiz [[2026-11-28-buendel-review-kommissionierung-goal-lauf]]. Worktree `feature/2026-11-28-buendel-review-kommissionierung`, Commit `ff681409`, QA-Fix `a83d8756` (nach Server-COMMIT: `@@TRANCOUNT 0`, Rollback wirft nicht → „ggf. festgeschrieben“ bei `@@TRANCOUNT 0`). Paket 28.
-**Keine Migration, kein SQL** (176 bleibt frei). TS-213, überholt TS-126.22. Nicht gemergt.
+**Keine Migration, kein SQL** (176 bleibt frei). TS-213, überholt TS-126.22. Gemergt in main (Merge-Commit `50952006`, 2026-11-28).
 
 ## Kernpunkte
 

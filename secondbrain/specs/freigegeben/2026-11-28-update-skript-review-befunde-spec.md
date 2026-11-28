@@ -2,7 +2,7 @@
 type: spec
 title: Update-Skript Review-Befunde UP-1 bis UP-4 (Neustart nach Abbruch, COMMIT im Daten-Skript, Marker-Lokalzeit, Lieferverzug-Hinweis)
 slug: 2026-11-28-update-skript-review-befunde-spec
-status: Testbereit
+status: Gemerged
 created: 2026-11-28
 updated: 2026-11-28
 source_backlog: "[[2026-11-14-review-befunde-update-skript]]"

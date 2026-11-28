@@ -2,7 +2,7 @@
 type: spec
 title: "IDEAL Kommissionierliste: AB-Nummer und Position anzeigen (Liste, Summiert, Druck, PDF)"
 slug: 2026-10-06-kommissionierliste-ab-nummer-position-spec
-status: Testbereit
+status: Gemerged
 created: 2026-10-06
 updated: 2026-11-28
 source_backlog: "[[2026-10-06-kommissionierliste-ab-nummer-position]]"

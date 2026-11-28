@@ -2,7 +2,7 @@
 type: spec
 title: SData-Geheimnisse und Sage-Test – Review-Befunde SD-1, SD-2, SD-3, SD-4, SD-6
 slug: 2026-11-28-sdata-geheimnisse-review-befunde-spec
-status: Testbereit
+status: Gemerged
 created: 2026-11-28
 updated: 2026-11-28
 source_backlog: "[[2026-11-14-review-befunde-sdata]]"
