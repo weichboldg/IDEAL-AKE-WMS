@@ -36,3 +36,19 @@ auf die :88-Site binden, dann Agent-Anmeldung mit Testbenutzer möglich.
 - [ ] Gerald/Fachbereich: Befund 3 + 4.
 - [ ] Befund 5 als Backlog (Sammelmeldung Lagerbestand) — auf Zuruf.
 - [ ] Oberflächen-Rauchtest nachholen, sobald angemeldet werden kann.
+
+## AKE-Test :4444 (v1.99.89), Oberfläche — 2026-11-28 ~12:05
+Anmeldung über „Mit Windows anmelden“ (Gerald, ohne Kennwort-Eingabe). Nur angesehen, nichts gebucht (Buchungen gingen über die
+Sage-Warteschlange an Sage — bewusst ausgelassen).
+- **Alle 59 Menü-Masken** laden mit HTTP 200, kein Fehlertext, kein rotes Banner. Stichprobe FA-Liste, Artikel, Leitstand: keine JS-Fehler in der Konsole.
+- Aktivitäts-Protokoll: letzte Fehler 26.11. 11:51 („SData-Kennwort nicht entschlüsselbar“, je 79× Offene Bestellungen, Artikel-Lieferanten,
+  Debitoren) — seitdem keine Fehler mehr, Dienste laufen (letzter Eintrag 28.11. 12:05).
+- Warnungen (Hinweise, kein Fehler):
+  - SageBookingQueue: TLS-Zertifikatsprüfung aus (nur Test zulässig; vor Prod einschalten); CSV-Übergabe an, aber kein Pfad gesetzt.
+  - Kommissionier-Leitstand: kein Benutzer als Kommissionierer gekennzeichnet → keine Freigabe möglich.
+  - Benutzer: 7 aktive lokale Benutzer ohne Kennwort.
+  - BDE/OSEON-Übersicht: 11 713 AG ohne Arbeitsgang-Config.
+  - Bestellvorschläge: 30 Artikel ohne Hauptlieferant, 16 Bestellpositionen mit nicht umrechenbarer Einheit, 19 ohne Menge.
+  - Bedarfsmeldungs-Mail: keine aktiven Empfänger; Artikel-Sync: Hauptlagerplätze GL-AKV, FTG nicht als WMS-Lagerplatz.
+  - Sage-Buchungsqueue: 6 alte Fehler vom 03.08. (Sage `GetSchema failed`/MissingMethodException) stehen noch in der Liste.
+- Auffällig klein: Seite `/PickingLeitstand` trägt die Überschrift „Fertigungsaufträge“ (wie die FA-Liste) — prüfen, ob gewollt.
