@@ -2,7 +2,7 @@
 type: backlog
 created: 2026-11-14
 quelle: "[[2026-11-14-wochenend-review-test-anwenderdoku]]"
-status: neu
+status: offen
 modul: Lieferverzug-Mail (LieferverzugPlaner, LieferverzugMailService, LieferverzugMailHtml, MailService; v1.99.10/v1.99.19)
 stand: "Bündel v1.99.22, 90bbbbd7, feature/2026-08-07-ideal-teile-1-5"
 ---

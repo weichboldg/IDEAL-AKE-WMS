@@ -2,7 +2,7 @@
 type: backlog
 created: 2026-11-14
 quelle: "[[2026-11-14-wochenend-review-test-anwenderdoku]]"
-status: neu
+status: offen
 modul: UTC → Lokalzeit (v1.99.18, ADR 0025, ZeitstempelKonventionTests)
 stand: "Bündel v1.99.22, 90bbbbd7, feature/2026-08-07-ideal-teile-1-5"
 ---

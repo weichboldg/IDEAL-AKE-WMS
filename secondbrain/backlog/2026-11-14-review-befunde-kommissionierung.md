@@ -2,7 +2,7 @@
 type: backlog
 created: 2026-11-14
 quelle: "[[2026-11-14-wochenend-review-test-anwenderdoku]]"
-status: neu
+status: offen
 modul: Kommissionierung (Kommissionieraufträge KO, Leitstand, Wagen, Druck, Altbestand)
 stand: "Bündel v1.99.22, 90bbbbd7, Diff main...HEAD (Merge-Base 1753c79e)"
 ---

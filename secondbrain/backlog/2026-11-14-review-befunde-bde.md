@@ -2,7 +2,7 @@
 type: backlog
 created: 2026-11-14
 quelle: "[[2026-11-14-wochenend-review-test-anwenderdoku]]"
-status: neu
+status: offen
 modul: BDE im Bündel (v1.63.0 Stufe 1 Kürzel-Familie/nur AG-Fertigmeldung, v1.64 Terminal-Liste, Hardware-Scan am BDE)
 stand: "Bündel v1.99.22, 90bbbbd7, feature/2026-08-07-ideal-teile-1-5"
 ---

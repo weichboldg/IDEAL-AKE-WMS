@@ -2,7 +2,7 @@
 type: backlog
 created: 2026-11-14
 quelle: "[[2026-11-14-wochenend-review-test-anwenderdoku]]"
-status: neu
+status: offen
 modul: Wareneingang Teil 1–3 (Wareneingang zu Bestellung, Sage-WE-Beleg, E5, Rahmenabrufe, Barcode/CSV, Überlieferung/Hinweise)
 stand: "Bündel v1.99.22, 90bbbbd7, feature/2026-08-07-ideal-teile-1-5"
 ---

@@ -1,7 +1,7 @@
 ---
 type: backlog
 created: 2026-11-14
-status: neu
+status: offen
 quelle: "[[2026-11-14-wochenend-review-test-anwenderdoku]]"
 ---
 # Review-Befunde Lager (Ein-/Aus-/Umbuchen) – aus der Anwender-Doku C3 (2026-11-14)

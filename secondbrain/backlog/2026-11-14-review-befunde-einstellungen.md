@@ -2,7 +2,7 @@
 type: backlog
 created: 2026-11-14
 quelle: "[[2026-11-14-wochenend-review-test-anwenderdoku]]"
-status: neu
+status: offen
 modul: Einstellungen-Katalog (ServiceSettingDefinitions/AppSettingDefinitions, ADR 0020) + Sammelzeile Module ohne Befund (Teil A3)
 stand: "Bündel v1.99.22, 90bbbbd7, feature/2026-08-07-ideal-teile-1-5"
 ---
