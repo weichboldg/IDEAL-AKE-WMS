@@ -261,3 +261,7 @@ Neue Befunde aus [[01-kommissionierung]] (Abschnitt „Neue Befunde“, dort mit
   Anwender-Anleitung 01 bewusst nicht beschrieben, bis umgesetzt.
 - **Entscheidungsbedarf (Montag, Gerald + Lager/Keyuser):** produktive Glas-/Vorkommissionierungs-Regeln je Standort (B-5); auf AKE-DEV gibt es nur
   die Artikelregel 87068574 → Glas.
+
+## Sichtung 2026-11-28 (gegen main v1.99.89)
+
+Erledigt: K-1, K-6, Tippfehler, N-1, N-2. Teilweise: K-2 (Hinweis nur in Maske Liste), K-7 (nur Umbuchen), K-12. Offen: K-4, K-5, K-9, K-10, K-11, K-14, K-15, K-16. Frage/Prüfabfrage offen: K-3 (Warnung oder Sperre), K-8 (P4), K-13. N-3 bis N-6 nicht geprüft.

@@ -43,3 +43,7 @@ Bezug: [[2026-10-06-csv-export-alle-tabellen-spec]] (TS-86). Pfade relativ zum W
   `95ea581b`: `ColumnDefinitions.cs:440/466`, `FaHierarchyVormontage/Index.cshtml:82/176`, `Summiert.cshtml:70/85/133`; Tests 32/0).
   **Prüfabfrage für Gerald:** Spaltenliste der Sage-View der FA-Struktur (`SELECT name FROM sys.columns WHERE object_id = OBJECT_ID('<View>')`
   auf der Sage-DB) – heißt die Spalte dort `Fertigungmenge`? (WMS: `SQL/89_AddFaHierarchy.sql:43`, `FaHierarchySql.cs:144`.)
+
+## Sichtung 2026-11-28 (gegen main v1.99.89)
+
+Erledigt: N-B4-2. Offen: N-B4-3. Frage offen: Sage-Spalte Fertigungmenge.

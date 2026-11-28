@@ -65,3 +65,7 @@ Install-Skript-Befund zum SData-Kennwort steht in [[2026-11-14-review-befunde-sd
   `Lieferverzug:TageNachTermin` nicht genau `1` ist. Entscheidung Gerald: Katalog-Default **bleibt 3** (neutral), AKE setzt 1 per Einstellung
   (Keyuser Till); eine Prüfung darf **keinen Wert erzwingen**. Vorschlag: Prüfung in einen reinen Hinweis umwandeln (Text „AKE: Vorgabe Einkauf 1 Tag –
   aktuellen Wert prüfen“, Firma AKE, ohne Trefferbedingung auf `= 1`) bzw. den aktuellen Wert anzeigen.
+
+## Sichtung 2026-11-28 (gegen main v1.99.89)
+
+Offen: UP-1, UP-2, UP-3, UP-4.

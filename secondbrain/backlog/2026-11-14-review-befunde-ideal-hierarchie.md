@@ -53,3 +53,7 @@ Neue Befunde aus [[03-ideal-hierarchie-beschichtung-bde]]. Nichts behoben (Schra
   `ModifiedBy = admin`, 20.10.2026). Sie erscheinen wie erwartet **nicht** in `/Picking` (strukturell gefiltert). Der Bereinigungs-SQL aus
   TS-79.16 wurde nicht ausgeführt (nur Testsystem vorgesehen).
 - **Vorschlag:** Bei Gelegenheit den TS-79.16-Lauf auf DEV ausführen, damit DEV dem Zielzustand entspricht.
+
+## Sichtung 2026-11-28 (gegen main v1.99.89)
+
+Erledigt: N-B3-4. Offen: N-B3-1, N-B3-2, N-B3-6 (Daten DEV). Frage offen: N-B3-3 (Briefkopf-Anschrift).

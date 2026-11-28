@@ -42,3 +42,7 @@ Neuer Befund aus [[02-wareneingang-einkauf]] (Abschnitt „Neue Befunde“):
   Cache vom 07.11.2026 19:25 – Buchen gegen veraltete Bestellungen möglich. Vorschlag: Schalter auf IDEAL-DEV aus bzw. Cache leeren; Deploy-Checkliste:
   auf IDEAL-PROD aus, solange kein Abgleich läuft.
 - OB-1 auf AKE-DEV unauffällig: Abgleiche 20:22 und 20:42 ohne Fehler (`uebernommen=1167`), Belegnummer max. 11 Zeichen im Cache.
+
+## Sichtung 2026-11-28 (gegen main v1.99.89)
+
+Offen: OB-1. Frage offen: N-10 (IDEAL-DEV Wareneingang an).

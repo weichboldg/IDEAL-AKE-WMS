@@ -103,3 +103,7 @@ Pfade relativ zum Worktree `.claude/worktrees/2026-08-07-ideal-teile-1-5/`.
   TS-131-Vorbedingung lautet „IDEAL-DEV ohne SData:BaseUrl“. Ohne Zugangsdaten passiert nichts; sobald dort Zugangsdaten eingetragen werden, liest
   IDEAL-DEV im Register Sage-Test (und in `Vergleich`/`SData`-Läufen) AKE-Daten.
 - **Vorschlag:** Auf IDEAL-DEV leeren (Gerald); in der DEV-Einrichtung festhalten.
+
+## Sichtung 2026-11-28 (gegen main v1.99.89)
+
+Erledigt: SD-5. Geklärt: N-B4-4 (BaseUrl bleibt). Offen: SD-1, SD-2, SD-3, SD-4, SD-6.

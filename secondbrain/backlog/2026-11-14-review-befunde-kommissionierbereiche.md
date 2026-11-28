@@ -79,3 +79,7 @@ Ergänzt [[2026-11-14-review-befunde-kommissionierung]]. Grundlage: [[2026-11-08
 
 ## Tippfehler
 - keine in diesem Bereich (siehe [[2026-11-14-review-befunde-kommissionierung]] für die Funde in Leitstand/Stückliste).
+
+## Sichtung 2026-11-28 (gegen main v1.99.89)
+
+Teilweise: B-5 (Doku ja, Regelpflege vor Go-live). Offen: B-1, B-2, B-3, B-4.

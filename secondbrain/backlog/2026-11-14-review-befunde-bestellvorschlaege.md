@@ -2,7 +2,7 @@
 type: backlog
 created: 2026-11-14
 quelle: "[[2026-11-14-wochenend-review-test-anwenderdoku]]"
-status: neu
+status: erledigt
 modul: Einkauf Bestellvorschläge (PurchaseProposalsController, PurchaseProposalCalculator, PurchaseProposalRepository, ArtikelLieferantSyncService.LetzteBestellungAsync; v1.99.20–v1.99.22)
 stand: "Bündel v1.99.22, 90bbbbd7, feature/2026-08-07-ideal-teile-1-5"
 ---
@@ -51,3 +51,7 @@ Spec: [[2026-11-08-einkauf-bestellvorschlaege-spec]].
   `GetOffeneLagerbestellungenAsync`/`GetOffeneBedarfsmeldungenAsync` (nur Anzeige, auch im Wareneingang-Hinweis). Ohne Befund, außer dem Link-Recht in
   [[2026-11-14-review-befunde-wareneingang]] WE-5.
 - Tippfehler: keine gefunden.
+
+## Sichtung 2026-11-28 (gegen main v1.99.89)
+
+Erledigt: BV-1 (PurchaseProposalsController.cs:243-251, 4a580fc5), Q-3 (LetzteBestellungSyncService), Q-5. Offen nur Sage-Prüfabfrage P-N1 (Einheiten) aus der Bestellvorschläge-Spec.

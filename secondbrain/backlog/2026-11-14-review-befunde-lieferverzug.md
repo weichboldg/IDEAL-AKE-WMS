@@ -66,3 +66,7 @@ Worktree, Datei `IDEALAKEWMSService/Services/LieferverzugMailService.cs`, sofern
   Parameter, deutsche Counts-Keys. Migration 145 und das Protokoll ohne Audit sind bewusst so (Spec F7). Tests: `LieferverzugMailTests`.
 - Bekannt, nicht neu: Q5 der Nachbesserungs-Spec (Einleitungssatz bei `KreditorAktiv = false`, `LieferverzugMailHtml.cs:98`).
 - Tippfehler: keine gefunden.
+
+## Sichtung 2026-11-28 (gegen main v1.99.89)
+
+Offen: LV-1, LV-2, LV-3 (LieferverzugMailService.cs unverändert).

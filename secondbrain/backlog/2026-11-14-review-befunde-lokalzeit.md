@@ -35,3 +35,7 @@ Gegenstand: `git diff main...HEAD` im Bündel-Worktree. Nichts behoben (Schranke
   begründet). Einzige verbliebene `ToLocalTime()`-Anzeige `Views/HierarchieUmstellung/Index.cshtml:81` gehört zur Ausnahme U2.
 - SData-Writer und neue Sync-Dienste nehmen eine Zeit je Lauf (`var jetzt/now = DateTime.Now`).
 - Update-Skript-Marker (`SYSDATETIME()`) siehe [[2026-11-14-review-befunde-update-skript]] UP-3.
+
+## Sichtung 2026-11-28 (gegen main v1.99.89)
+
+Offen: LZ-1, LZ-2.

@@ -52,3 +52,7 @@ Bündel-Migrationen (jede MigrationId in `SQL/NN_*.sql` und `00_FreshInstall.sql
   obwohl `hardware-scanner.js` nicht geladen ist. TS-99.1a/101.16 („`<body>` ohne Attribut“) nicht erfüllt. ![[N-B4-1-hardware-scanner-karte-im-profil-bei-schalter-aus.jpg]]
 - **Vorschlag:** Leser auf nicht leeren Wert prüfen oder Attribute im Layout nur bei aktivem Schalter ausgeben; Wächter-Test „Layout bei
   Schalter aus ohne `data-hw-scan-praefix=`“.
+
+## Sichtung 2026-11-28 (gegen main v1.99.89)
+
+Erledigt: EI-1, Texte Fertigungsmenge. Offen: N-B4-1 (data-hw-scan-praefix bei Schalter aus). Frage offen: Sage-View-Spalte Fertigungmenge.

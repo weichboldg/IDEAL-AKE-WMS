@@ -16,3 +16,7 @@ quelle: "[[2026-11-14-wochenend-review-test-anwenderdoku]]"
 - **L-4 (Frage):** Ausbuchung startet mit Menge 0, Einbuchung mit 1 – gewollt?
 
 Kein Befund: Mehrfach-Einbuchung erhöht beim zweiten Scan die Menge (gewollt, Haken „Bei Scan immer neue Zeile erzwingen“).
+
+## Sichtung 2026-11-28 (gegen main v1.99.89)
+
+Teilweise: L-2 (Views/Help/Index.cshtml:58,68 veraltet). Offen: L-3. Frage offen: L-1, L-4.

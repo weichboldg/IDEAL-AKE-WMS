@@ -132,3 +132,7 @@ Neue Befunde aus [[02-wareneingang-einkauf]] (Abschnitt „Neue Befunde“, dort
   Zugleich fachlich klären, ob Glasbestellungen in den Bestellvorschlägen als offener Bedarf zählen sollen.
 - **N-8 (Hinweis):** Bedarfsmeldung ohne Einheit (`PartRequisitions.Unit` NULL) erscheint im Hinweis nur als Zahl („…: 4“).
 - **N-9 (Hinweis):** Maske bei 1523 px quer scrollbar, Spalte „Überlieferung“ erst nach Querscrollen sichtbar (Terminals schmaler).
+
+## Sichtung 2026-11-28 (gegen main v1.99.89)
+
+Erledigt: WE-1, WE-3 (Seite entfallen), WE-4, WE-6. Teilweise: N-9 (Zahnrad ja, Querscrollen offen). Offen: WE-2 (nicht atomar, Receive.cs:171), WE-5 (Link ohne Rechteprüfung, Receive.cshtml:162), N-8 (Einheit). Frage offen: N-7 (Glasbestellung als Lagerbestellung).

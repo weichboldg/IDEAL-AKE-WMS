@@ -53,3 +53,7 @@ Gegenstand: `git diff main...HEAD` im Bündel-Worktree, nur BDE-Anteile. Nichts 
 - **N-B3-5 (Hinweis):** Liste BDE-Buchungen, Spalte „Ziel“ zeigt bei IDEAL nur `HauptFA/AG` (z. B. `1059463/EG`), nicht die Sub-FA.
   Buchungen verschiedener Sub-FAs sehen gleich aus; eine doppelte Fertigmeldung (BDE-1) ist in der Oberfläche nicht erkennbar.
   Vorschlag: bei Master an `HauptFA / Sub-FA / AG` anzeigen. Beleg und Bild: [[03-ideal-hierarchie-beschichtung-bde]].
+
+## Sichtung 2026-11-28 (gegen main v1.99.89)
+
+Erledigt: BDE-1, BDE-2 (Datei entfernt). Offen: N-B3-5. Neu gesehen: bde-cockpit.js:21-38 setzt Namen unmaskiert in innerHTML.
