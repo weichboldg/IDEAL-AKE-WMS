@@ -275,7 +275,25 @@ entfällt (kein Epic)
 - **Publish-Befehle:** `dotnet publish IdealAkeWms/IdealAkeWms.csproj -c Release -o .\publish\IDEALAKEWMSWeb`
 
 ## Befund Prüfabfragen
-*(vom Menschen bzw. Dev-Lauf nach P-1 bis P-5 einzutragen)*
+**2026-11-28, Claude im Chat mit Gerald, `IDEALSQL2\SAGE100TEST` / DB `IDEAL_AKE_WMS_TEST` (WMS-Test IDEAL, gespeist aus Sage-Prod), nur SELECT +
+Trockenlauf (`@Trockenlauf = 1`, nichts geändert).** Teil 2 ist **bestätigt**, der Grund für das Ausbleiben der Bereinigung ist aber ein anderer als vermutet.
+
+- **P-1:** Je Sub-FA genau ein Kopfknoten (1069721 `VM`, 1069724 `M31`); die direkten Blechteile (SubFA 0) tragen `ST EG KA`. Erwartung erfüllt.
+- **P-2:** An beiden Sub-FAs VM/M31 + ST + EG + KA, alle `CreatedBy = WorkOperationStructureDetection`, `CreatedAt = 2026-11-18 08:33:05`, keine Buchung,
+  nicht rückgemeldet. Die ProductionOrders selbst sind ebenfalls von `2026-11-18 08:33:04` (Materialisierung).
+- **P-3:** ST (63), EG (65), KA (67), SL (68), SM (69), PU (71) haben `BdeAktiv = 1`, `BdeTeileliste = 1`; VM (76) und IS (78) ohne BDE, M31 (80) BDE ohne
+  Teileliste. Letzte Änderung: ST/SL/SM/PU `2026-11-18 09:39` (admin), EG/KA `2026-11-26 09:40` (Walter Kronberger).
+- **P-4:** Ein Lauf: `Entfaellt`, `Hits 0`, Paket 1.99.34, `2026-11-18 08:29:49` (`IDEAL\t1_adminweg`).
+- **P-5:** keine mehrfachen Kopfknoten.
+- **Trockenlauf Einmal-Skript:** `TREFFER: 637` – EG 206 (201 löschbar / 5 gebucht), IF 7, KA 211 (208 / 3), SM 10, ST 211. Meldeliste (bleiben stehen):
+  EG 522, 534 (1059463), EG 810, 816, 820 (1060414), KA 1093, 1099, 1103 (1069617, Sub-FA 1069718–1069720).
+
+**Ablauf (belegt):** 08:29 lief das Einmal-Skript im Update und fand nichts, weil die IDEAL-FAs erst **danach** materialisiert wurden (08:33). Beim
+Materialisieren war die Teileliste-Option an den Start-Werkbänken noch nicht wirksam (gesetzt bzw. geändert ab 09:39) – die Erkennung legte deshalb
+ST/EG/KA aus Blatt-Token an. Weil die Erkennung nur hinzufügt und nie entfernt („Nur-hinzufuegen-Semantik“,
+`IDEALAKEWMSService/Services/WorkOperationStructureDetectionService.cs:18`), blieben die 637 Arbeitsgänge stehen; der Marker „Entfaellt“ verhindert
+die erneute Anzeige im Update. Entscheidungsweg Zweig 1 (Teil 2 bestätigt) → Bereinigung über Manifest-Eintrag #2 (Antwort 4). Rückfrage 2 an den
+Fachbereich betrifft konkret die 8 gebuchten Kandidaten der Meldeliste. Gilt für alle IDEAL-FAs, nicht nur 1069617.
 
 ## Offene Rueckfragen
 1. (Fachbereich: Benjamin Andl-Braun) AG-Status der FA-Sicht: Variante A (alle Arbeitsgänge der Sub-FA bleiben, die von Blechteilen der
