@@ -372,7 +372,7 @@ function Invoke-SqlTransaktion($e, [string]$name, [string]$text, $marker, [strin
     $ausgabe = New-Object System.Collections.Generic.List[string]
     $cn = New-Object System.Data.SqlClient.SqlConnection $e.Db.Cs
     $cn.add_InfoMessage([System.Data.SqlClient.SqlInfoMessageEventHandler]({ param($s, $a) foreach ($er in $a.Errors) { $ausgabe.Add($er.Message); Write-Host "      $($er.Message)" } }.GetNewClosure()))
-    $tx = $null; $nr = 0; $uebernommen = $false; $verletzt = $false
+    $tx = $null; $nr = 0; $uebernommen = $false; $verletzt = $false; $beendet = $false
     try {
         $cn.Open(); $tx = $cn.BeginTransaction(); $start = Get-Date
         Write-Host "  >   $name in EINER Transaktion ($($batches.Count) Batch(es)), $($e.Db.Server)/$($e.Db.Datenbank)"
@@ -394,7 +394,7 @@ function Invoke-SqlTransaktion($e, [string]$name, [string]$text, $marker, [strin
             $c = $cn.CreateCommand(); $c.Transaction = $tx; $c.CommandText = 'SELECT @@TRANCOUNT, DB_NAME()'
             try { $p = $c.ExecuteReader(); try { [void]$p.Read(); $tc = $p.GetInt32(0); $db = $p.GetString(1) } finally { $p.Dispose() } }
             catch { $tc = 0; $db = '?'; $pruef += " ($($_.Exception.GetBaseException().Message))" }
-            if ($tc -ne 1 -or $db -ne $e.Db.Datenbank) { $verletzt = $true; throw "$pruef (@@TRANCOUNT $tc, DB $db)" }
+            if ($tc -ne 1 -or $db -ne $e.Db.Datenbank) { $verletzt = $true; $beendet = $tc -eq 0; throw "$pruef (@@TRANCOUNT $tc, DB $db)" }
         }
         if ($marker) {
             $cmd = $cn.CreateCommand(); $cmd.Transaction = $tx
@@ -416,8 +416,9 @@ function Invoke-SqlTransaktion($e, [string]$name, [string]$text, $marker, [strin
         $msg = $_.Exception.GetBaseException().Message
         $rbOk = $true
         if ($tx -and -not $uebernommen) { try { $tx.Rollback() } catch { $rbOk = $false } }   # XACT_ABORT/Fehler: Server hat ggf. schon zurueckgerollt
-        # v1.99.93 (UP-2): nur wenn die Laufzeit-Pruefung anschlug, sagt ein gescheiterter Rollback "Transaktion schon beendet" (sonst XACT_ABORT)
-        if ($verletzt -and -not $rbOk) { Write-Warnung "${name}: $msg -> Aenderungen bis Batch $nr ggf. festgeschrieben, kein Marker. Stand von Hand pruefen; Backup $(if ($script:BackupDatei) { $script:BackupDatei } else { 'keines aus diesem Lauf' })." }
+        # v1.99.93 (UP-2): @@TRANCOUNT 0 nach einem Batch = Server hat festgeschrieben; Rollback wirft dann NICHT (QA TS-213.4 gemessen,
+        # System.Data.SqlClient) - daher entscheidet $beendet, ein gescheiterter Rollback nur zusaetzlich (sonst XACT_ABORT = zurueckgerollt)
+        if ($verletzt -and ($beendet -or -not $rbOk)) { Write-Warnung "${name}: $msg -> Aenderungen bis Batch $nr ggf. festgeschrieben, kein Marker. Stand von Hand pruefen; Backup $(if ($script:BackupDatei) { $script:BackupDatei } else { 'keines aus diesem Lauf' })." }
         elseif ($verletzt) { Write-Warnung "${name}: $msg -> zurueckgerollt, kein Marker, DB unveraendert." }
         else { Write-Warnung "${name}: Fehler in Batch $nr ($msg) -> zurueckgerollt, kein Marker, DB unveraendert." }
         return [pscustomobject]@{ Uebernommen = $false; Text = ($ausgabe -join "`n"); Fehler = $msg }
@@ -479,7 +480,7 @@ function Invoke-Pruefung($e, $m, $history) {
         finally { $cn.Dispose(); [System.Data.SqlClient.SqlConnection]::ClearAllPools() }
     } else {
         $r = Invoke-SqlTransaktion $e "Reparatur $($m.Id)" $m.Reparatur $null 'Commit'
-        if (-not $r.Uebernommen) { Stop-Mit "$($m.Id): Reparatur zurueckgerollt (Meldung siehe Warnung davor) -> Abbruch, Web und Dienst bleiben gestoppt." }
+        if (-not $r.Uebernommen) { Stop-Mit "$($m.Id): Reparatur nicht uebernommen (Meldung siehe Warnung davor) -> Abbruch, Web und Dienst bleiben gestoppt." }
     }
     $nach = Get-PruefStand $e $m $history
     if (-not ($nach -is [int] -and $nach -eq 0)) { Stop-Mit "$($m.Id): nach der Reparatur $(Format-Pruefstand $nach) -> Abbruch, Web und Dienst bleiben gestoppt." }

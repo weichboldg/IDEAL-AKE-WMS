@@ -168,6 +168,8 @@ public class NachlaufManifestDriftTests
         DatenFehler(ManifestText, d => "USE [master]\n" + SqlText(d)).Should().Contain(f => f.EndsWith(": USE"));
         var skript = File.ReadAllText(Path.Combine(Root, "scripts", "deploy", "Update-IdealAkeWms.ps1"));
         foreach (var w in new[] { UseWaechter, CommitWaechter, BeginTranWaechter }) skript.Should().Contain($"'{w}'", "Regel im Skript = Kopie hier");
+        // QA v1.99.93: nach serverseitigem COMMIT wirft Rollback() nicht (TS-213.4 gemessen) - @@TRANCOUNT 0 allein entscheidet "ggf. festgeschrieben"
+        skript.Should().Contain("$beendet = $tc -eq 0").And.Contain("if ($verletzt -and ($beendet -or -not $rbOk))");
     }
 
     /// <summary>v1.99.93 (UP-1, UP-3): deploy-info.txt erst nach dem Nachlauf (Neustart nach Abbruch bietet dieselben Eintraege an),
