@@ -17,6 +17,7 @@ Fünf Backlog-Notizen vom 2026-11-28 parallel über den spec-agent, alle Specs `
 | [[2026-11-28-fa-tabellen-zahnrad-lagerartikel-verwendungsart-teileart]] | [[2026-11-28-fa-tabellen-zahnrad-lagerartikel-verwendungsart-teileart-spec]] (epic) |
 
 ## Offen
-- [ ] Gerald sichtet die Rückfragen; danach EIN gesammelter Rückfragen-Kommentar in WMS-10 mit @Benjamin, Status RUECKFRAGE (auf Wunsch Gerald erst nach Sichtung).
+- [x] 2026-11-28: EIN gesammelter Rückfragen-Kommentar in WMS-10 (Kommentar-Id 10001, @Benjamin, Nummern wie in den Specs), Status RUECKFRAGE.
+- [ ] Fragen an Gerald (je Spec „Offene Rueckfragen“, ohne Fachbereich) offen; BDE-Bug Antworten 3+4 erledigt, Befund P-1..P-5 in der Spec.
 - [ ] Zahnrad-Spec: Prüfabfragen P-A bis P-D sind gegen Sage-**Prod** formuliert → auf Testmandant umstellen (Sage-Prod nie).
 - [ ] Nummernkollisionen: SQL/173 doppelt reserviert (buchungsrechte-je-lagerort-spec, sdata-geheimnisse-review-befunde-spec); Vorgänger-BF-Spec 2026-11-24 nennt belegte SQL/167 und TS-189.
