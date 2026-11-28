@@ -46,10 +46,14 @@ public class ServiceSettingsController : Controller
     private static bool IstGeheim(string? key) => key != null && ServiceSettingDefinitions.TryGet(key, out var d) && d.Type == SettingType.Geheim;
 
     /// <summary>v1.99.92 SD-3: Key weicht nur in der Gross-/Kleinschreibung von einem Katalog-Key ab. Bei CI-Kollation traefe er die echte Zeile
-    /// an den Waechtern vorbei (sdata:password, produktionsauftraghierarchisch). Der exakte Key laeuft weiter ueber die bestehenden Waechter.</summary>
+    /// an den Waechtern vorbei (sdata:password, produktionsauftraghierarchisch). Der exakte Key laeuft weiter ueber die bestehenden Waechter.
+    /// QA v1.99.92: wie die Spalten-Kollation Latin1_General_CI_AS auch Leerzeichen am Ende (SQL-Padding) und Vollbreite-Zeichen gleich
+    /// behandeln - beides auf DEV gemessen, "SData:Password " traefe per FindAsync die echte Zeile.</summary>
     private static string? KatalogKeyAndereSchreibweise(string? key) => key == null ? null
         : ServiceSettingDefinitions.All.Select(d => d.Key)
-            .FirstOrDefault(k => string.Equals(k, key, StringComparison.OrdinalIgnoreCase) && !string.Equals(k, key, StringComparison.Ordinal));
+            .FirstOrDefault(k => CultureInfo.InvariantCulture.CompareInfo.Compare(k, key.TrimEnd(),
+                    CompareOptions.IgnoreCase | CompareOptions.IgnoreWidth | CompareOptions.IgnoreKanaType) == 0
+                && !string.Equals(k, key, StringComparison.Ordinal));
 
     private IActionResult SchreibweiseAbgelehnt(string key, string katalogKey)
     {

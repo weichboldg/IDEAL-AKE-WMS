@@ -218,6 +218,8 @@ public class SageTestSdataTests
     [InlineData("SDATA:PASSWORD")]
     [InlineData("produktionsauftraghierarchisch")]
     [InlineData("sync:fazusatzinfoautoerledigtenabled")]
+    [InlineData("SData:Password ")]              // QA: SQL ignoriert Leerzeichen am Ende -> FindAsync traefe die echte Zeile
+    [InlineData("ＳData:Password")]          // QA: Vollbreite-S, Kollation _CI_AS ist breiten-unabhaengig (DEV gemessen)
     public async Task Freitext_AndereSchreibweiseKatalogKey_Abgelehnt(string key)
     {
         var (c, repo) = Svc(new List<ServiceSetting>());
