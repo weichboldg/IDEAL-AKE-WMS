@@ -292,6 +292,6 @@ Drift-Guard automatisch. Manual-UAT bleibt Pflicht: raw SQL des Upserts und SDat
   als seinen Auftrag. Antworte je Frage in **fett** hinter dem Pfeil.
 -->
 
-1. Neue Artikel nur aus SData – A anlegen / B nicht anlegen / C nur was die View liefert (Empfehlung C) →
-2. Blechteile-Felder-Nachlese bei aufgehobener Sperre mitlaufen lassen (Empfehlung ja) →
-3. Einschalten an IDEAL-Prod erst nach P-R1b bzw. Vergleichslauf; wer führt P-R1a/b aus? →
+1. Neue Artikel nur aus SData – A anlegen / B nicht anlegen / C nur was die View liefert (Empfehlung C) → **A – anlegen wie heute** (Gerald im Chat 2026-11-28: „1a“; Folge: die bereinigten 00er-Artikel kommen mit neuer Id zurück, siehe Rückfrage 1)
+2. Blechteile-Felder-Nachlese bei aufgehobener Sperre mitlaufen lassen (Empfehlung ja) → *(offen – Gerald fragt im Chat 2026-11-28, ob die Felder nicht über SData-Userfelder kommen; Antwort siehe Chat/Nachtrag)*
+3. Einschalten an IDEAL-Prod erst nach P-R1b bzw. Vergleichslauf; wer führt P-R1a/b aus? → **Vergleichslauf ok** (Gerald im Chat 2026-11-28) – Einschalten an IDEAL-Prod erst nach einem Vergleichslauf (Quelle „Vergleich“) mit erklärter Differenz; P-R1a/b entfällt als Vorbedingung.
