@@ -1,5 +1,7 @@
 ---
 typ: feature
+status: zurückgestellt
+zurueckgestellt_am: 2026-11-28
 ---
 # Leitstand: schreibgeschützte Stückliste auf Sub-FA-Zeilen (wie FA-Liste)
 

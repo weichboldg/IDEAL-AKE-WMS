@@ -1,5 +1,7 @@
 ---
 typ: bug
+status: zurückgestellt
+zurueckgestellt_am: 2026-11-28
 ---
 # Bündel IDEAL: Sammel-Fixlauf vor dem Merge (Kleinbefunde Suchsyntax, Fußzeile, Abnahme)
 

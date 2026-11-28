@@ -1,5 +1,7 @@
 ---
 typ: bug
+status: zurückgestellt
+zurueckgestellt_am: 2026-11-28
 ---
 # Werkbank-Katalog: veraltete Sage-Arbeitsplätze machen Kürzel mehrdeutig -> keine BDE-Arbeitsgänge
 

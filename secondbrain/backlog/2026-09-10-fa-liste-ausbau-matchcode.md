@@ -1,5 +1,7 @@
 ---
 typ: feature
+status: zurückgestellt
+zurueckgestellt_am: 2026-11-28
 ---
 # FA-Liste ausbauen: Zeilenwerte, HauptFA-Zeile, Freigabe-Kaskade, Matchcode
 

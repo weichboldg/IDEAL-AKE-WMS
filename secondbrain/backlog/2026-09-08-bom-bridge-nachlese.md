@@ -1,5 +1,7 @@
 ---
 typ: feature
+status: zurückgestellt
+zurueckgestellt_am: 2026-11-28
 ---
 # BOM-Bridge: Nachlese aus Task-Reviews + Final-Review (2026-09-08)
 

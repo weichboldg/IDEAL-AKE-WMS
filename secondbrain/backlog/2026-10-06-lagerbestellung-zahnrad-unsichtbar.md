@@ -1,5 +1,7 @@
 ---
 typ: bug
+status: zurückgestellt
+zurueckgestellt_am: 2026-11-28
 ---
 # Lagerbestellung-Details: Zahnrad (Spaltenauswahl) unsichtbar
 

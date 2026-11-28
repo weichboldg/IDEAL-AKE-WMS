@@ -1,5 +1,7 @@
 ---
 typ: feature
+status: zurückgestellt
+zurueckgestellt_am: 2026-11-28
 ---
 # Vormontage: Isolierfraesen-Export (Zwischenablage)
 

@@ -1,5 +1,7 @@
 ---
 typ: bug
+status: zurückgestellt
+zurueckgestellt_am: 2026-11-28
 ---
 # Gruppierte Listen: Gruppen-Kopfzeile verschwindet nach Umsortieren + Ausblenden der ersten Spalte
 

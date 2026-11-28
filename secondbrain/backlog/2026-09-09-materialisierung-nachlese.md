@@ -1,5 +1,7 @@
 ---
 typ: feature
+status: zurückgestellt
+zurueckgestellt_am: 2026-11-28
 ---
 # Materialisierung fachliche Felder: Nachlese aus den Task-Reviews (2026-09-09)
 

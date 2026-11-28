@@ -1,5 +1,7 @@
 ---
 typ: bug
+status: zurückgestellt
+zurueckgestellt_am: 2026-11-28
 ---
 # Fehlerprotokoll: Anzeige-Epic Etappen A+B, Testlauf 20.08.2026
 

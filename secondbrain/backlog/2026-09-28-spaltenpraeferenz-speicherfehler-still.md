@@ -1,5 +1,7 @@
 ---
 typ: bug
+status: zurückgestellt
+zurueckgestellt_am: 2026-11-28
 ---
 # Spaltenauswahl (Zahnrad): fehlgeschlagenes Speichern landet nur in der Konsole
 

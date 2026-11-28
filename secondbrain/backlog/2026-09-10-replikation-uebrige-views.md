@@ -1,5 +1,7 @@
 ---
 typ: feature
+status: zurückgestellt
+zurueckgestellt_am: 2026-11-28
 ---
 # IDEAL: Kopfdaten und Matchcode auf die uebrigen fuenf Ansichten replizieren
 

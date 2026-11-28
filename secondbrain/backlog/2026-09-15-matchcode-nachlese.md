@@ -1,5 +1,7 @@
 ---
 typ: feature
+status: zurückgestellt
+zurueckgestellt_am: 2026-11-28
 ---
 # Matchcode-Nachlese — Folge-Arbeiten aus v1.40.0
 

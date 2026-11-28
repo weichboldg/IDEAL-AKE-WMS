@@ -1,5 +1,7 @@
 ---
 typ: feature
+status: zurückgestellt
+zurueckgestellt_am: 2026-11-28
 ---
 # Kommissionierer-Warteschlange: Zwei-Ebenen-Gruppierung nach HauptFA wird überflüssig
 

@@ -1,5 +1,7 @@
 ---
 typ: bug
+status: zurückgestellt
+zurueckgestellt_am: 2026-11-28
 ---
 # FA-Baum: gedimmte Vorfahrenzeilen unter WCAG AA
 

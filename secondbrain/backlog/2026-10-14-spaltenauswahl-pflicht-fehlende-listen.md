@@ -1,5 +1,7 @@
 ---
 typ: feature
+status: zurückgestellt
+zurueckgestellt_am: 2026-11-28
 ---
 # Spaltenauswahl fehlt auf 18 Listen (ADR 0005 Pflicht)
 
