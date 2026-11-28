@@ -2,9 +2,9 @@
 type: spec
 title: Update-Skript je Zielsystem mit Nachlauf-Manifest (Bündel-Deploy ab v1.97.0)
 slug: 2026-11-09-update-skript-je-zielsystem-mit-nachlauf-spec
-status: Testbereit
+status: Gemerged
 created: 2026-11-09
-updated: 2026-11-11
+updated: 2026-11-28
 freigabe_von: "Gerald Weichbold (Chat Koordination, „passt“ auf Freigabe-Frage)"
 freigabe_am: 2026-11-11
 source_backlog: "[[2026-11-09-update-skript-je-zielsystem-mit-nachlauf]]"
@@ -1014,3 +1014,5 @@ Exit 0), `SQL\`, `deploy\`, `publish-info.txt` (ASCII): `Version: 1.98.1`, `Comm
     von Hand ginge es unter `/ServiceSettings` auf http://localhost:8081/.
 13. Hilfe > Changelog zeigt Karte v1.98.1 (auf DEV per HTTP belegt).
 14. Offene Kleinbefunde F4, F6, F8 und N1 entscheiden (Folge-Aufgabe oder verwerfen).
+
+> **Nachtrag 2026-11-11 16:44 (Gerald):** Antwort 1 ist überholt: Die Marker-Tabelle kommt jetzt, mit der Folge-Spec v1.99.0 „Update-Skript prüft und führt aus, mit Bestätigung“ (siehe [[2026-11-11-buendel-deploy-update-skript]]).

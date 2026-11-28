@@ -2,9 +2,9 @@
 type: spec
 title: "Lieferverzug-Mail: Nachbesserung nach Keyuser-Antworten (Kreditor-Schwelle, Altersgrenze, Feld „bestätigt“)"
 slug: 2026-11-13-lieferverzug-nachbesserung-keyuser-spec
-status: Testbereit
+status: Gemerged
 created: 2026-11-13
-updated: 2026-11-13
+updated: 2026-11-28
 source_backlog: "[[2026-11-13-lieferverzug-nachbesserung-keyuser]]"
 depends_on: "[[2026-11-12-offene-bestellungen-mahnmail-lieferverzug-spec]]"
 verwandt: "[[2026-11-11-wareneingang-teil-3-rahmenabrufe-spec]], [[2026-11-12-keyuser-fragen-einkauf]]"
@@ -603,3 +603,8 @@ Nach dem Merge nur dann aus `main` neu publizieren, wenn der Merge getestete Dat
 6. P-L1-Befund (KreditorenKlasse3 96–99 > `KreditorMaxJeLauf` 30): Limit-Entscheidung Gerald vor dem Echtbetrieb (laut Nachtrag 1 kein Blocker).
 7. Daten-Durchsicht „Zu klären“ mit dem Einkauf (Till), drei Positionen in Sage gegenprüfen; P-L2 bis P-L4 (Sage, nur lesend).
 8. Relay/Absender extern (P-M4) mit der IT vor dem Echtbetrieb; Adressen AKE/IDEAL laut Manifest setzen.
+
+## Betriebsvermerk 2026-11-13 18:07 (Gerald) – Limit erste Welle
+P-L1 (DEV): 99 Kreditoren > `KreditorMaxJeLauf` 30. Entscheidung: **für die erste Welle nach dem Abschalten des Testbetriebs `KreditorMaxJeLauf`
+einmalig auf 100**, danach wieder 30. Reine Einstellung, kein Code; Filter bleibt. Steht im Deploy-Fahrplan.
+

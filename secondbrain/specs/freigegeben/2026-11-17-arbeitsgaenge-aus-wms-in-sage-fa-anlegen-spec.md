@@ -2,9 +2,9 @@
 type: spec
 title: "Arbeitsgänge aus dem WMS in Sage-Fertigungsaufträgen anlegen (IDEAL) – Vorschau + Anlage"
 slug: 2026-11-17-arbeitsgaenge-aus-wms-in-sage-fa-anlegen-spec
-status: Testbereit
+status: Gemerged
 created: 2026-11-17
-updated: 2026-11-18
+updated: 2026-11-28
 source_backlog: "[[2026-10-30-fa-rueckmeldung-an-sage]]"
 task: "[[2026-11-17-goal-lauf-sage-ag-anlage]]"
 jira:
@@ -760,3 +760,12 @@ Nach dem Merge nur neu publishen, wenn der Merge getestete Dateien mit parallele
 6. 163.12 Sage-AG unklar im echten Ablauf; E1b (Schreibtest am IDEAL-Ziel) bleibt offen.
 7. Kürzel für alle BF-Besteller vor Go-live pflegen.
 8. Testsystem-Durchlauf TS-163 komplett mit dem Publish-Paket, danach Merge (Schranke 2).
+
+> [!note] Nachtrag Koordination 2026-11-20 07:42 (Gerald): Schreib-Ziel für E1b ist Dataset **`IDEAL_TEST_2026_05_OuS;1`** an `https://idealsage2.ideal.ideal-ake.at:5493` (so am :88 eingetragen; ersetzt `IDEAL_TEST_2026_03_05;1` aus Antwort 7). Stand 20.11. 07:40: Verbindungstest am :88 und am DEV 8082 → „Zielcomputer verweigerte die Verbindung“ (Port 5493 auf idealsage2 nimmt nichts an); `Sync:SageFaArbeitsgaengeBearbeiter` am :88 leer. E1b weiter blockiert.
+
+## Befund E1b (Koordination 2026-11-20 08:20–08:36, :88 v1.99.44, Freigabe Gerald 08:18 „passt“)
+- Ziel: Prod-Sage `https://idealsage100tes.ideal.ideal-ake.at:5493`, Dataset `IDEAL;1` (von Gerald selbst umgestellt; die 4 Haupt-FAs sind Test-FAs in Prod). Lesen (`Sage-Stand prüfen`) funktioniert: 1059463 61/82 anlegbar, 1060414 41/48, 1064052 38/49, 1065036 30/48.
+- Test: genau FA **1065144** (Unter-FA von 1059463, 50000356 G-KT-TW-Tasse-BT-660-SW-V02), Kürzel SM → Sage-AG **162**; Bearbeiter `WMS`; Schalter an 08:19, eingereiht 08:24 (Bestätigungsdialog durch Gerald). Dienst lief nicht (letzter SyncLog 19.11. 15:00) – Gerald hat ihn gestartet.
+- **Ergebnis: Sage lehnt den POST ab** – `HTTP 500 Internal Server Error: Exception: 'Sagede.Shared.SData.Serialization.SDataSerializationException: Ungültige Elementdefinition.` bei `DataContainerJsonReader.Read()` → `SDataRequest.GetContentAsDataContainer` → `DPSbsSDataServiceHandler.Execute()` (CommonWawiService 9010, Zeile 187). Der Fehler entsteht beim **Einlesen des JSON-Rumpfs**, also vor jeder Verarbeitung.
+- Nach dem Test: Schalter 08:36 wieder **aus**; `Sage-Stand prüfen` → „AG in Sage“ = **0** (nichts angelegt). Status der Zeile: Fehler (wird bei Schalter aus nicht wiederholt).
+- Folgerung: P-1/P-2 (Aufbau des Request-Rumpfs, `IDEALAKEWMSService/Services/SageFaArbeitsgangClient.cs:57-72` – Dictionary mit `ServiceOption`, `Handle`, Positionsliste, `RessourceTyp` als Zahl, QA-Hinweis H1) sind **nicht** SData-konform. Nächster Schritt: Rumpf gegen `$template`/`$schema` von `$service/FertigungsauftragService` am IDEAL-Ziel und gegen den funktionierenden Lagerbuchungs-Client (`SageLagerbuchungClient.cs`) ausrichten → Backlog [[2026-11-20-bugfix-sage-ag-anlage-json-rumpf]]. E1b bleibt offen bis zum erneuten Test.

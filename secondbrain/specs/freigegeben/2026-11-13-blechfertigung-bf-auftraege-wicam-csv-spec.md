@@ -2,9 +2,9 @@
 type: spec
 title: Blechfertigung – BF-Aufträge (Warenkorb, Schachtler-Freigabe, WiCAM-CSV, Fertigmeldung Stufe 1)
 slug: 2026-11-13-blechfertigung-bf-auftraege-wicam-csv-spec
-status: Testbereit
+status: Gemerged
 created: 2026-11-17
-updated: 2026-11-18
+updated: 2026-11-28
 source_backlog: "[[2026-11-13-blechfertigung-bf-auftraege-wicam-csv]]"
 task: "[[2026-11-17-goal-lauf-bf-auftraege]]"
 worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"
@@ -107,7 +107,7 @@ Das Feld „Sage-FA“ bleibt für Stufe 2 leer vorgesehen, damit Stufe 2 nichts
   ([[2026-11-13-bde-vereinfacht-teileliste-blechfertigung-spec]], Out-of-Scope).
 - Ablage im Ordner `…\Bestellungen-Auswertung` (Walter 17.11.: nicht mehr nötig).
 - WiCAM-Rückmeldung, Ressourcenlisten der BG.
-- CSV-Kopfwerte aus Sage (Gerät/Arbeitsschritte/Abteilung): PN füllt sie beim Import (Walter 17.11.), das WMS schreibt die Platzhalter.
+- CSV-Kopfwerte aus Sage (Gerät/Arbeitsschritte/Abteilung): PN füllt sie beim Import (Walter 17.11.), das WMS schreibt die Platzhalter. **Überholt für Arbeitsschritte:** seit v1.99.42 je Position aus dem Sage-Merkmal `USER_OSArbeitsschritte` in ORDER_REMARK_1; Walter 2026-11-19 bestätigt „Sage ist das führende System“.
 
 ## Fachliche Anforderungen
 
@@ -884,3 +884,14 @@ Nach dem Merge nur neu publishen, wenn der Merge getestete Dateien mit parallele
 6. 163.12 Sage-AG unklar im echten Ablauf; E1b (Schreibtest am IDEAL-Ziel) bleibt offen.
 7. Kürzel für alle BF-Besteller vor Go-live pflegen.
 8. Testsystem-Durchlauf TS-163 komplett mit dem Publish-Paket, danach Merge (Schranke 2).
+
+## Antworten Walter 2026-11-19 (über Gerald 06:52) auf die Mail vom 18.11.
+1. **Zielform:** BF00000001 und BF00000002 importieren in WiCAM gleich; die Leerzeilen/rechten Spalten entstehen nur durch Excel-Formeln
+   beim Speichern, der Import endet an der ersten leeren Zeile. **BF00000002 bevorzugt** → entspricht v1.99.42 (Byte-Test gegen die Vorlage).
+2. **Lagerplatz:** `;` gilt beim Importer als Trenner → **`;` durch `,` ersetzen** bestätigt → entspricht v1.99.42.
+3. **Arbeitsschritte:** **aus Sage befüllen**, Sage ist führend (seit 18.11. geändert) → entspricht v1.99.42 (Snapshot `USER_OSArbeitsschritte`
+   beim Hinzufügen der Position). Offen: Ändert sich das Merkmal nach dem Hinzufügen, bleibt der alte Wert im Warenkorb/Auftrag.
+4. **ORDER_RELEASE YES:** Walter dafür (Freigabe passiert im WMS über den Export), **Entscheidung bei Andi (Andi.Peric) offen**; Einstellung
+   `BfCsvOrderRelease` (Default YES) deckt beide Fälle ohne Code ab. Walters Frage „welche Datei hatte NO?“: `1068259-MC.CSV` aus dem A-Pool
+   (Stücklisten-Kommissionierung FA 1068259, Kunde MC), siehe Befund P-1 oben.
+

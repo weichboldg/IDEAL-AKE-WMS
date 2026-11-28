@@ -2,9 +2,9 @@
 type: spec
 title: Offene Bestellungen – tägliche Erinnerungs-Mail bei Lieferverzug (Einkauf-Sammelliste, Kreditor-Mail mit Testbetrieb)
 slug: 2026-11-12-offene-bestellungen-mahnmail-lieferverzug-spec
-status: Testbereit
+status: Gemerged
 created: 2026-11-12
-updated: 2026-11-12
+updated: 2026-11-28
 freigabe_von: "Gerald Weichbold (Chat Koordination, 2026-11-12 14:58)"
 freigabe_am: 2026-11-12
 source_backlog: "[[2026-11-12-offene-bestellungen-mahnmail-lieferverzug]]"
@@ -642,3 +642,20 @@ Standort als Choice, Mail-Adressen serverseitig geprüft, Anzeigename/Wirkung/Ve
 7. TS-128.11 DryRun auf dem Testsystem.
 8. P-M1 (Termin-Bedeutung in Sage) und P-M3 (erste Welle) **vor** dem Abschalten des Testbetriebs.
 9. IDEAL: Schalter bleibt aus bis zur SData-Schnittstelle für offene Bestellungen.
+
+## Keyuser-Antworten 2026-11-13 (Till Zöhrer, Einkauf) – Einordnung Koordination
+Quelle: [[2026-11-12-keyuser-fragen-einkauf]] (Mail-Fragen 9–15). Ändert den umgesetzten Stand v1.99.10 nicht; offene Folgen unten.
+- **Termin (R 1, P-M1):** Wunschtermin, bei abweichender AB in Sage angepasst → Cache-Termin passt „in der Regel“. Es gibt ein Feld für
+  „bestätigt“ – P-M1 soll es benennen; ob nur bestätigte Positionen erinnert werden, entscheidet Gerald (Folge-Spec, Abgleich erweitern).
+- **Tage:** `Lieferverzug:TageNachTermin` = **1** (statt Default 3). Reine Einstellung je Standort, kein Code. Till: Der Einkauf spricht nach der
+  Meldung zuerst mit dem Lager. **Offen (Gerald):** Soll die Kreditor-Mail trotzdem schon ab Tag 1 gehen, oder braucht es eine eigene
+  Schwelle für Kreditor-Mails (heute eine gemeinsame `TageNachTermin`)? Empfehlung Koordination: eigene Einstellung `KreditorTageNachTermin`
+  (Default 3) – kleine Folgeänderung.
+- **Adressen (R 7):** Absender/Antwort Kreditor-Mail AKE `Einkauf@ideal-ake.at`, IDEAL `einkauf_ideal@ideal-ake.at`
+  (`Lieferverzug:KreditorAbsender` + `AntwortAdresse` je Standort; Relay P-M4 für den Absender prüfen).
+- **Ausnahmen (R 5):** keine; Standard-Adresse aus Sage; Felder „keine Erinnerungsmails“/„Adresse für Erinnerungen“ bleiben als Möglichkeit.
+- **Rahmenabrufe (R 8):** sollen erinnert werden. Heute nicht im Cache. Der Lieferverzug-Code filtert **nicht** selbst auf EBB (kein
+  Treffer `EBZ|EBB|Belegkennzeichen` in `IDEALAKEWMSService/Services/LieferverzugPlaner.cs`, `LieferverzugMailService.cs`) → sobald
+  [[2026-11-11-wareneingang-teil-3-rahmenabrufe]] EBZ in den Cache bringt, sind Abrufe automatisch dabei. Achtung: Abruf-Rest kennt nur
+  WMS-Erfassungen; in Sage direkt gebuchte Abruf-Lieferungen würden falsch erinnert. Gehört in die Teil-3-Spec.
+- **Echtbetrieb:** nach Sichtung der Testmails durch den Einkauf (Till).

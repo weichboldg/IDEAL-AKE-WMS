@@ -2,9 +2,9 @@
 type: spec
 title: FA-Struktur mit Abgleich und Lebenslauf statt Full-Replace
 slug: 2026-11-17-fa-struktur-abgleich-statt-full-replace-spec
-status: Testbereit
+status: Gemerged
 created: 2026-11-17
-updated: 2026-11-17
+updated: 2026-11-28
 source_backlog: "[[2026-11-17-fa-struktur-abgleich-statt-full-replace]]"
 task: ""
 worktree: ".claude/worktrees/2026-08-07-ideal-teile-1-5"
@@ -539,6 +539,18 @@ Dev-Lauf 2026-11-17 (Goal Sammel-Abend), **teilweise, Rest offen für die Koordi
   0 Zeilen → keine Dubletten, aber **nicht aussagekräftig** (die 755 Knoten liegen auf dem IDEAL-Server). SQL/159 prüft vor dem Index
   selbst und bricht mit `Pruefung/FaStrukturSchluesselDoppelt` ab.
 - Nummern gegen den Worktree: SQL/159, TS-158, v1.99.37, ADR 0032, **Fallstrick 48** (47 ist durch die BF-Spec belegt).
+
+**Ergebnisse Koordination 2026-11-18 08:12 (Royal TS → SSMS `IDEALSQL2\SAGE100TEST`, Login `IDEAL\t1_adminweg`, nur SELECT):**
+- **P-AB4 (Sage `IDEAL`):** nur **Mandant 1** – IstBeendet 0/Aktiv 0: 1; 0/−1: 89.614; −1/0: 20; −1/−1: 932.082. → Ein Mandant; der fehlende Mandant-Filter
+  ist **heute kein Mengenfehler**. Da der PK aber `(BelID, Mandant)` ist (P-AB3), Empfehlung: Mandant trotzdem filtern (Rückfrage 4: bestehender
+  `Sync:ProductionWorkplaceSyncMandant` = 1). Blocker damit fachlich entschärft, Entscheidung Gerald.
+- **P-AB3:** Spalten `BelID:int, Mandant:smallint, StrukturID:int, Istendtermin:datetime(null), IstBeendet:KHKBoolean, Aktiv:KHKBoolean`; **PK `BelID, Mandant`**.
+- **P-AB5:** nur mit dem Admin-Login geprüft (`darf_lesen = 1`) – **Dienst-Login nicht geprüft** (offen).
+- **P-AB6:** `vw_IDEAL_AKE_WMS_FAListe` filtert **nur `h.Aktiv = -1` an den Wurzeln** (`h.BelID = h.StrukturID`), **nicht** auf `IstBeendet`; `Artikeltyp` kommt
+  aus **`h.USER_OSArtikeltyp` (KHKPpsFaBelege)**, nicht aus KHKArtikel; liefert `h.Mandant`. `vw_IDEAL_AKE_WMS_FAInfos`: keine Mandant-Spalte, kein
+  Aktiv/IstBeendet-Filter, aber **fest eingeschränkt: `WHERE … AND FA_Nr in (1065036, 1064052, 1059463, 1060414)`** → nur 4 Auftragsköpfe (Gerald 2026-11-18 08:17: für Tests gewollt).
+- **P-AB8:** FAListe enthält **3 beendete HauptFA** und **26 beendete SubFA** → Abgleich muss beendete selbst erkennen (wie gebaut).
+- **P-AB1/P-AB2 (`IDEAL_AKE_WMS_TEST`):** 0 Dubletten-Gruppen; 755 Knoten, 4 OrderInfos.
 
 ## Deploy
 
