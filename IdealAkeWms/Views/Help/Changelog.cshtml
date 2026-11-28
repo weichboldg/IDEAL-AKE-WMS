@@ -8,6 +8,57 @@
     <div class="col-lg-8">
         <div class="card mb-3">
             <div class="card-header text-white" style="background-color: var(--ake-primary);">
+                <strong>v1.99.93</strong> <span class="text-white-50 ms-2">28.11.2026</span>
+            </div>
+            <div class="card-body">
+                <h6>Update-Skript: Neustart nach Abbruch, Transaktionsschutz, Lokalzeit</h6>
+                <ul>
+                    <li>Neustart nach einem abgebrochenen Update bietet dieselben Nachlauf-Eintr&auml;ge wieder an (Versionsdatei erst am Laufende, kleinere Version gewinnt); offen gelassene Daten-Eintr&auml;ge kommen beim n&auml;chsten Lauf wieder.</li>
+                    <li>Daten-Skripte mit COMMIT ohne BEGIN TRANSACTION oder mit USE werden abgelehnt; endet die Transaktion trotzdem, meldet das Skript ehrlich &bdquo;ggf. festgeschrieben&ldquo; statt &bdquo;DB unver&auml;ndert&ldquo;.</li>
+                    <li>Ausf&uuml;hrungsmarker und Startkennwort schreiben die Lokalzeit des Rechners.</li>
+                    <li>Lieferverzug: keine Abweichungsmeldung mehr, wenn die Sammelliste nicht auf 1 Tag steht; AKE bekommt einmal einen Hinweis mit dem aktuellen Wert.</li>
+                </ul>
+            </div>
+        </div>
+        <div class="card mb-3">
+            <div class="card-header text-white" style="background-color: var(--ake-primary);">
+                <strong>v1.99.92</strong> <span class="text-white-50 ms-2">28.11.2026</span>
+            </div>
+            <div class="card-body">
+                <h6>Sage-Zugangsdaten besser geschützt</h6>
+                <ul>
+                    <li>Verbindungstest (Register Sage-Test): Bei leerem Kennwort werden die gespeicherten Zugangsdaten nur noch an die gespeicherte Sage-Adresse geschickt und nicht mit ausgeschalteter Zertifikatsprüfung. Für ein anderes System Benutzer und Kennwort eingeben.</li>
+                    <li>Große Antworten im Verbindungstest werden nach 50.000 Zeichen abgebrochen; Feldliste lehnt &amp;, ? und # in orderBy/include ab.</li>
+                    <li>Service-Einstellungen: Freitext-Einträge, die sich nur in der Groß-/Kleinschreibung von einer Katalog-Einstellung unterscheiden, werden abgelehnt.</li>
+                    <li>Dienst: Ein Fehler in der Sage-Lagerbuchung hält den Sage-Wareneingang nicht mehr an (und umgekehrt). Das Update-Skript meldet ein Klartext-Kennwort auch in der Web-Konfiguration.</li>
+                </ul>
+            </div>
+        </div>
+        <div class="card mb-3">
+            <div class="card-header text-white" style="background-color: var(--ake-primary);">
+                <strong>v1.99.91</strong> <span class="text-white-50 ms-2">28.11.2026</span>
+            </div>
+            <div class="card-body">
+                <h6>IDEAL-Kommissionierliste: Position zur AB-Nummer</h6>
+                <ul>
+                    <li>Die Liste zeigt im Gruppenkopf jetzt „AB &lt;Nummer&gt; / &lt;Position&gt;“; Druck und PDF haben dafür die Spalte „Pos“ nach „AB-Nr.“.</li>
+                    <li>Kombigeräte: alle Auftragsköpfe mit Montage-Abteilung wie bisher. Die summierte Ansicht bleibt unverändert.</li>
+                </ul>
+            </div>
+        </div>
+        <div class="card mb-3">
+            <div class="card-header text-white" style="background-color: var(--ake-primary);">
+                <strong>v1.99.90</strong> <span class="text-white-50 ms-2">28.11.2026</span>
+            </div>
+            <div class="card-body">
+                <h6>Kommissionierauftrag: Filter bleibt auf dem Auftrag</h6>
+                <ul>
+                    <li>Filtern und <strong>Zurücksetzen</strong> auf einem Kommissionierauftrag bleiben auf dem Auftrag – auch ohne Umschalter Stückliste/Liste (AKE). Vorher sprang die Seite auf die nur lesbare FA-Stückliste.</li>
+                </ul>
+            </div>
+        </div>
+        <div class="card mb-3">
+            <div class="card-header text-white" style="background-color: var(--ake-primary);">
                 <strong>v1.99.89</strong> <span class="text-white-50 ms-2">26.11.2026</span>
             </div>
             <div class="card-body">

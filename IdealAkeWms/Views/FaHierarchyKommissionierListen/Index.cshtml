@@ -128,7 +128,7 @@
                                         <span class="me-3">
                                             @(!string.IsNullOrWhiteSpace(info.MontageAbteilung) ? info.MontageAbteilung : "—")
                                             @if (!string.IsNullOrWhiteSpace(info.Kunde)) { <text> · @info.Kunde</text> }
-                                            @if (!string.IsNullOrWhiteSpace(info.ABNr)) { <text> · AB @info.ABNr</text> }
+                                            @if (!string.IsNullOrWhiteSpace(info.ABNr)) { <text> · AB @info.ABNr@(string.IsNullOrWhiteSpace(info.Pos) ? "" : " / " + info.Pos)</text> }
                                             @if (info.KO_Termin.HasValue) { <text> · KO @info.KO_Termin.Value.ToString("dd.MM.yyyy")</text> }
                                         </span>
                                     }

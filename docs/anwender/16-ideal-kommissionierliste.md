@@ -1,6 +1,6 @@
 # 16 IDEAL-Kommissionierliste (Kommissionierlisten nach Ziel)
 
-Stand: Version 1.99.44 · nur Standort IDEAL · Bilder aus dem IDEAL-Testsystem
+Stand: Version 1.99.91 (Position zur AB-Nummer, Foto 16-03), 1.99.44 · nur Standort IDEAL · Bilder aus dem IDEAL-Testsystem
 
 ## Zweck
 
@@ -65,6 +65,12 @@ Je Auftrag und Artikel eine Zeile mit diesen Spalten:
 
 Die Ansicht **Liste** zeigt dieselben Angaben je Position, dazu Haupt-Artnr., Sollmenge, Arbeitsbereich, Artikeltyp, Beschichtet und
 Material. Bei einem Kombigerät mit mehreren Abteilungen steht an der Gruppe „mehrdeutig (Kombigerät)“.
+
+**Seit Version 1.99.91 – Position zur AB-Nummer.** Im Gruppenkopf steht hinter der Auftragsbestätigung die Position, z. B.
+„AB 431521 / 20“. Ist zum Auftrag keine Position hinterlegt, steht nur „AB 431521“. Der Druck der Liste hat dafür die Spalte **Pos**
+neben **AB-Nr.**
+
+![Gruppenkopf mit AB-Nummer und Position](bilder/16-03-gruppenkopf-ab-position.jpg)
 
 ### 5. Drucken oder PDF
 

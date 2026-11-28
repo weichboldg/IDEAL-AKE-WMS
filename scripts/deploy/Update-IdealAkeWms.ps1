@@ -316,8 +316,8 @@ function Show-Zustand($e) {
         '^(Ermittlung|1|2)$' { 'Nichts gestoppt, nichts geaendert. Ursache beheben, Skript neu starten.' }
         '^(3|4|4a)$' { 'Web und/oder Dienst gestoppt. NICHT von Hand starten (der Web-Start spielte fehlende Migrationen per Migrate() ohne Vorbedingungen ein). Ursache beheben, Skript neu starten: es setzt bei fehlenden Schema-Skripten, Pruefungen und Haltepunkten fort.' }
         '^(5|5a|5b)$' { 'Dateien ggf. teilweise kopiert, Web und Dienst gestoppt. Skript neu starten (kopiert erneut, bietet offene Eintraege erneut an).' }
-        '^6$' { "App-Pool gestoppt bzw. Dienst nicht gestartet (siehe oben). Log $($e.Web)\logs bzw. $($e.Dienst)\logs pruefen, Skript neu starten." }
-        default { 'Web und Dienst laufen. Offene Nachlauf-Eintraege: Skript neu starten; die Marker verhindern Doppellaeufe.' }
+        '^6$' { "App-Pool gestoppt bzw. Dienst nicht gestartet (siehe oben). Log $($e.Web)\logs bzw. $($e.Dienst)\logs pruefen, Skript neu starten (Nachlauf-Eintraege ab v$script:InstalliertVorher)." }
+        default { "Web und Dienst laufen. Offene Nachlauf-Eintraege: Skript neu starten (Nachlauf-Eintraege ab v$script:InstalliertVorher); die Marker verhindern Doppellaeufe." }
     }
     Write-Host "    Weiter: $weg" -ForegroundColor Yellow
 }
@@ -333,7 +333,9 @@ function Get-Marker($e, $m) {
 }
 function Set-MarkerBefehl($cmd, $m, [string]$mode, $hits, $sha, $ausgabe, $notiz) {
     $cmd.CommandText = 'INSERT INTO dbo.DeployScriptRuns (ManifestId, FileName, FileSha256, Mode, Hits, Output, PackageVersion, PackageCommit, ExecutedAt, ExecutedBy, Note) ' +
-                       'VALUES (@Id, @Datei, @Sha, @Mode, @Hits, @Ausgabe, @Version, @Commit, SYSDATETIME(), LEFT(SUSER_SNAME(), 200), @Notiz)'
+                       'VALUES (@Id, @Datei, @Sha, @Mode, @Hits, @Ausgabe, @Version, @Commit, @Jetzt, LEFT(SUSER_SNAME(), 200), @Notiz)'
+    # v1.99.93 (UP-3, ADR 0025): Lokalzeit des Rechners mit dem Update-Skript, nicht die Uhr des SQL-Servers
+    $cmd.Parameters.Add('@Jetzt', [System.Data.SqlDbType]::DateTime2).Value = Get-Date
     $werte = [ordered]@{ '@Id' = $m.Id; '@Datei' = $m['Datei']; '@Sha' = $sha; '@Mode' = $mode; '@Hits' = $hits; '@Ausgabe' = $ausgabe
                          '@Version' = $PaketVersion; '@Commit' = $info['Commit']; '@Notiz' = $notiz }
     foreach ($k in $werte.Keys) { [void]$cmd.Parameters.AddWithValue($k, $(if ($null -eq $werte[$k]) { [DBNull]::Value } else { $werte[$k] })) }
@@ -352,6 +354,9 @@ function Write-Marker($e, $m, [string]$mode, $hits, $notiz) {
 function Test-SqlFuerTransaktion([string]$text) {
     if ($text -match '(?m)^\s*:' -or $text.Contains('$(')) { return 'sqlcmd-Direktive (Zeile mit : oder $( )' }
     if ($text -match '(?i)\bROLLBACK\b') { return 'ROLLBACK (beendete die aeussere Transaktion samt Marker)' }
+    # v1.99.93 (UP-2): gepaartes BEGIN TRAN ... COMMIT ist harmlos (@@TRANCOUNT 2 -> 1); Kommentare zaehlen mit (sichere Seite)
+    if ($text -match '(?im)^\s*USE\b') { return 'USE (wechselt die Datenbank, Marker landete woanders)' }
+    if (([regex]::Matches($text, '(?i)\bCOMMIT\b')).Count -gt ([regex]::Matches($text, '(?i)\bBEGIN\s+TRAN(SACTION)?\b')).Count) { return 'COMMIT ohne BEGIN TRANSACTION (beendete die aeussere Transaktion samt Marker)' }
     return $null
 }
 function Split-SqlBatches([string]$text) { return @([regex]::Split($text, '(?im)^\s*GO\s*$') | Where-Object { $_.Trim() }) }
@@ -367,7 +372,7 @@ function Invoke-SqlTransaktion($e, [string]$name, [string]$text, $marker, [strin
     $ausgabe = New-Object System.Collections.Generic.List[string]
     $cn = New-Object System.Data.SqlClient.SqlConnection $e.Db.Cs
     $cn.add_InfoMessage([System.Data.SqlClient.SqlInfoMessageEventHandler]({ param($s, $a) foreach ($er in $a.Errors) { $ausgabe.Add($er.Message); Write-Host "      $($er.Message)" } }.GetNewClosure()))
-    $tx = $null; $nr = 0; $uebernommen = $false
+    $tx = $null; $nr = 0; $uebernommen = $false; $verletzt = $false; $beendet = $false
     try {
         $cn.Open(); $tx = $cn.BeginTransaction(); $start = Get-Date
         Write-Host "  >   $name in EINER Transaktion ($($batches.Count) Batch(es)), $($e.Db.Server)/$($e.Db.Datenbank)"
@@ -383,6 +388,13 @@ function Invoke-SqlTransaktion($e, [string]$name, [string]$text, $marker, [strin
                     $tab -split "`r?`n" | Where-Object { $_.Trim() } | ForEach-Object { $ausgabe.Add($_); Write-Host "      $_" }
                 }
             } finally { $r.Dispose() }
+            # v1.99.93 (UP-2): Laufzeit-Pruefung - die Transaktion des Skripts muss die einzige bleiben, in der richtigen DB
+            # ponytail: ein COMMIT mitten im Batch mit nachfolgendem Fehler im selben Batch meldet der Fehler-Zweig; Upgrade: Pruefung vor dem Rollback im catch
+            $pruef = "Transaktion nach Batch $nr nicht mehr die des Update-Skripts"
+            $c = $cn.CreateCommand(); $c.Transaction = $tx; $c.CommandText = 'SELECT @@TRANCOUNT, DB_NAME()'
+            try { $p = $c.ExecuteReader(); try { [void]$p.Read(); $tc = $p.GetInt32(0); $db = $p.GetString(1) } finally { $p.Dispose() } }
+            catch { $tc = 0; $db = '?'; $pruef += " ($($_.Exception.GetBaseException().Message))" }
+            if ($tc -ne 1 -or $db -ne $e.Db.Datenbank) { $verletzt = $true; $beendet = $tc -eq 0; throw "$pruef (@@TRANCOUNT $tc, DB $db)" }
         }
         if ($marker) {
             $cmd = $cn.CreateCommand(); $cmd.Transaction = $tx
@@ -402,8 +414,13 @@ function Invoke-SqlTransaktion($e, [string]$name, [string]$text, $marker, [strin
         }
     } catch {
         $msg = $_.Exception.GetBaseException().Message
-        if ($tx -and -not $uebernommen) { try { $tx.Rollback() } catch { } }   # XACT_ABORT/Fehler: Server hat ggf. schon zurueckgerollt
-        Write-Warnung "${name}: Fehler in Batch $nr ($msg) -> zurueckgerollt, kein Marker, DB unveraendert."
+        $rbOk = $true
+        if ($tx -and -not $uebernommen) { try { $tx.Rollback() } catch { $rbOk = $false } }   # XACT_ABORT/Fehler: Server hat ggf. schon zurueckgerollt
+        # v1.99.93 (UP-2): @@TRANCOUNT 0 nach einem Batch = Server hat festgeschrieben; Rollback wirft dann NICHT (QA TS-213.4 gemessen,
+        # System.Data.SqlClient) - daher entscheidet $beendet, ein gescheiterter Rollback nur zusaetzlich (sonst XACT_ABORT = zurueckgerollt)
+        if ($verletzt -and ($beendet -or -not $rbOk)) { Write-Warnung "${name}: $msg -> Aenderungen bis Batch $nr ggf. festgeschrieben, kein Marker. Stand von Hand pruefen; Backup $(if ($script:BackupDatei) { $script:BackupDatei } else { 'keines aus diesem Lauf' })." }
+        elseif ($verletzt) { Write-Warnung "${name}: $msg -> zurueckgerollt, kein Marker, DB unveraendert." }
+        else { Write-Warnung "${name}: Fehler in Batch $nr ($msg) -> zurueckgerollt, kein Marker, DB unveraendert." }
         return [pscustomobject]@{ Uebernommen = $false; Text = ($ausgabe -join "`n"); Fehler = $msg }
     } finally { $cn.Dispose() }
     if ($uebernommen) { Write-Ok "${name}: uebernommen (Commit)$(if ($marker) { ", Marker $($marker.Mode)" })" } else { Write-Warnung "${name}: verworfen (Rollback), kein Marker." }
@@ -412,7 +429,12 @@ function Invoke-SqlTransaktion($e, [string]$name, [string]$text, $marker, [strin
 
 # ================================================================================================ v1.99.0: Pruefungen
 # v1.99.12: Pruefung auf eine Einstellung der Dienst-appsettings*.json (Appsettings='Abschnitt:Schluessel', ohne DB); 1 = gesetzt
-function Get-AppsettingsWert($e, $m) { $t = $m.Appsettings.Split(':', 2); return Get-Einstellung $e.Dienst $e.UmgebungDienst $t[0] $t[1] -MitDatei }
+# v1.99.92 SD-4: optional Ort='Web' liest die Web-appsettings*.json (sonst Dienst)
+function Get-AppsettingsWert($e, $m) {
+    $t = $m.Appsettings.Split(':', 2)
+    if ($m['Ort'] -eq 'Web') { return Get-Einstellung $e.Web $e.UmgebungWeb $t[0] $t[1] -MitDatei }
+    return Get-Einstellung $e.Dienst $e.UmgebungDienst $t[0] $t[1] -MitDatei
+}
 function Format-PruefText($e, $m) {
     $t = Format-Text $m.Text $e
     if ($m['Appsettings']) { $w = Get-AppsettingsWert $e $m; $t = $t.Replace('{Wert}', [string]$w.Wert).Replace('{Datei}', [string]$w.Datei) }
@@ -458,7 +480,7 @@ function Invoke-Pruefung($e, $m, $history) {
         finally { $cn.Dispose(); [System.Data.SqlClient.SqlConnection]::ClearAllPools() }
     } else {
         $r = Invoke-SqlTransaktion $e "Reparatur $($m.Id)" $m.Reparatur $null 'Commit'
-        if (-not $r.Uebernommen) { Stop-Mit "$($m.Id): Reparatur zurueckgerollt (Meldung siehe Warnung davor) -> Abbruch, Web und Dienst bleiben gestoppt." }
+        if (-not $r.Uebernommen) { Stop-Mit "$($m.Id): Reparatur nicht uebernommen (Meldung siehe Warnung davor) -> Abbruch, Web und Dienst bleiben gestoppt." }
     }
     $nach = Get-PruefStand $e $m $history
     if (-not ($nach -is [int] -and $nach -eq 0)) { Stop-Mit "$($m.Id): nach der Reparatur $(Format-Pruefstand $nach) -> Abbruch, Web und Dienst bleiben gestoppt." }
@@ -524,7 +546,8 @@ function Test-BackupFuerLauf($e, [string]$was) {
 
 # ================================================================================================ v1.99.0: Daten-/Einmal-Eintraege
 # v1.99.1: EINE Regel fuer Anzeige und Ausfuehrung - Einmalig immer (Marker verhindert Wiederholung), Daten u. a. nur bei Versionssprung
-function Test-Faellig($m, $installiert) { return ($m.Typ -eq 'Einmalig') -or (Test-Neuer $m $installiert) }
+# v1.99.93 (UP-1, Freigabe-Antwort 1): Daten wie Einmalig - ein mit "n = spaeter" offen gelassener Eintrag kommt wieder (TS-126.22 ueberholt durch TS-213)
+function Test-Faellig($m, $installiert) { return ($m.Typ -in 'Einmalig', 'Daten') -or (Test-Neuer $m $installiert) }
 function Get-OffeneEintraege($e, [string]$phase, $installiert) {
     return @($manifest | Where-Object { $_.Typ -in 'Daten', 'Einmalig' -and $_.Phase -eq $phase -and (Test-PasstFirma $_ $e) -and (Test-Faellig $_ $installiert) } |
              Where-Object { -not (Get-Marker $e $_) -and -not ((Get-SpurZahl $e $_) -gt 0) })
@@ -584,7 +607,7 @@ function Invoke-FlussA($e, $m, [bool]$halt) {
     # nur im Arbeitsspeicher: die Datei bleibt unveraendert (Hash vorher = nachher)
     $r = Invoke-SqlTransaktion $e "$($m.Id) SCHARF" $text.Replace('DECLARE @Trockenlauf BIT = 1;', 'DECLARE @Trockenlauf BIT = 0;') @{ M = $m; Mode = 'Scharf'; Hits = $t.Treffer; Sha = $hash } 'Commit'
     if ((Get-FileHash $datei -Algorithm SHA256).Hash -ne $hash) { Write-Warnung "$($m.Id): Datei-Hash nach dem Lauf veraendert." }
-    if (-not $r.Uebernommen) { & $nein 'Scharflauf fehlgeschlagen (zurueckgerollt).'; return }
+    if (-not $r.Uebernommen) { & $nein 'Scharflauf nicht uebernommen (Meldung siehe Warnung davor).'; return }
     $t2 = Invoke-Trockenlauf $e $m $datei
     # v1.99.16: fehlende Zeile TREFFER bzw. Exit <> 0 ehrlich melden (vorher "TREFFER:  (erwartet 0)" mit leerem Wert)
     # v1.99.45: Ergebnis und Exit-Code getrennt (Format-Ergebnis); Zeile da + Exit <> 0 hatte vorher denselben Text wie eine fehlende Zeile (H-1)
@@ -645,7 +668,7 @@ function Invoke-Robocopy([string]$von, [string]$nach) {
 # ================================================================================================ Ablauf je System
 function Invoke-System($e) {
     Reset-Warnungen
-    $script:BackupDatei = $null; $script:VorTrocken = @{}
+    $script:BackupDatei = $null; $script:VorTrocken = @{}; $script:InstalliertVorher = 'unbekannt'
     $tauschWeb = $Komponente -in 'Web', 'Beide'; $tauschDienst = $Komponente -in 'Dienst', 'Beide'
     $webGestoppt = $false; $dienstGestoppt = $false
 
@@ -683,14 +706,19 @@ function Invoke-System($e) {
         else { Write-Host "      Startseite $($e.Url): HTTP $($f.Status) ohne Fusszeile (keine Windows-Anmeldung?) - Schritt 6 fragt dann nach der Version im Browser." }
     }
     catch { Write-Warnung "Startseite $($e.Url) nicht lesbar: $($_.Exception.GetBaseException().Message). Schritt 6 bricht dann nach dem Kopieren ab (App-Pool gestoppt) - URL/Zertifikat pruefen, ggf. -SiteUrl." }
-    if (-not $installiert -and (Test-Path (Join-Path $e.Web 'deploy-info.txt'))) {
-        $v = (Read-Info (Join-Path $e.Web 'deploy-info.txt'))['Version']; if ($v) { $installiert = [version]$v; $quelleVersion = 'deploy-info.txt' }
+    # v1.99.93 (UP-1): deploy-info.txt schreibt erst das Ende eines vollstaendigen Laufs -> die kleinere Version gewinnt
+    # (nach Abbruch zwischen Web-Start und Ende steht die Fusszeile schon auf der neuen Version)
+    if (Test-Path (Join-Path $e.Web 'deploy-info.txt')) {
+        $v = (Read-Info (Join-Path $e.Web 'deploy-info.txt'))['Version']
+        if ($v -and -not $installiert) { $installiert = [version]$v; $quelleVersion = 'deploy-info.txt' }
+        elseif ($v -and [version]$v -lt $installiert) { $quelleVersion = "deploy-info.txt (letzter vollstaendiger Lauf; Fusszeile v$installiert)"; $installiert = [version]$v }
     }
     if (-not $installiert) {
         $v = (Read-Eingabe '  ?   Installierte Version (z. B. 1.95.0; leer = unbekannt)')
         if ($v) { $installiert = [version]$v; $quelleVersion = 'Eingabe' } else { $quelleVersion = 'unbekannt (alle Eintraege)' }
     }
     Write-Host "  Installiert: $(if ($installiert) { "v$installiert" } else { '?' })  (Quelle: $quelleVersion)"
+    $script:InstalliertVorher = if ($installiert) { "$installiert" } else { 'unbekannt' }
     try { $history = Get-History $e } catch { Stop-Mit "DB $($e.Db.Server)/$($e.Db.Datenbank) nicht lesbar: $($_.Exception.GetBaseException().Message)" }
     if ($history -notcontains $VorManifestMigration) { Stop-Mit "History ohne $VorManifestMigration (SQL/88): System aelter als das Manifest, Update von Hand laut README." }
     $schema = @($manifest | Where-Object { $_.Typ -eq 'Schema' })
@@ -709,7 +737,7 @@ function Invoke-System($e) {
     if (-not (Test-MarkerTabelle $e)) { Write-Host '  Marker-Tabelle fehlt (kommt mit SQL/142) - Daten-/Einmal-Eintraege ohne Marker-Stand.' }
     foreach ($m in $manifest | Where-Object { $_.Typ -in 'Daten', 'Einmalig' -and (Test-PasstFirma $_ $e) }) {
         $erl = Get-Marker $e $m
-        $stand = if ($erl) { $erl } elseif (-not (Test-Faellig $m $installiert)) { "nicht faellig (eingefuehrt mit v$($m.Version), installiert v$installiert)" } else { "offen, $(Get-Spur $e $m)" }
+        $stand = if ($erl) { $erl } else { "offen, $(Get-Spur $e $m)" }
         Write-Host "  $($m.Id): $stand"
     }
     Show-BackupPfad $e
@@ -841,8 +869,8 @@ function Invoke-System($e) {
         Write-Host '  --- Ziel'; Get-Content $wcZiel | ForEach-Object { Write-Host "    $_" }
     }
     $schutzVor = Get-Schutzstand $e
-    if ($tauschWeb) { Invoke-Robocopy $paketWeb $e.Web; Copy-Item $infoDatei (Join-Path $e.Web 'deploy-info.txt') -Force }
-    if ($tauschDienst) { Invoke-Robocopy $paketDienst $e.Dienst; Copy-Item $infoDatei (Join-Path $e.Dienst 'deploy-info.txt') -Force }
+    if ($tauschWeb) { Invoke-Robocopy $paketWeb $e.Web }
+    if ($tauschDienst) { Invoke-Robocopy $paketDienst $e.Dienst }
     if ((Get-Schutzstand $e) -ne $schutzVor) { Stop-Mit 'appsettings*.json, web.config, Branding, App_Data oder wwwroot\Fotos im Ziel veraendert. Web und Dienst bleiben gestoppt.' }
     Write-Ok "kopiert ($Komponente); appsettings*.json, web.config, Branding, App_Data, wwwroot\Fotos, logs unveraendert"
 
@@ -897,6 +925,9 @@ function Invoke-System($e) {
 
     # ---------------------------------------------------------------------------------------- 7 Nachlauf
     Show-Nachlauf $e $installiert $true
+    # v1.99.93 (UP-1): erst am Ende eines vollstaendigen Laufs - ein Neustart nach Abbruch bietet so dieselben Eintraege wieder an
+    if ($tauschWeb) { Copy-Item $infoDatei (Join-Path $e.Web 'deploy-info.txt') -Force }
+    if ($tauschDienst) { Copy-Item $infoDatei (Join-Path $e.Dienst 'deploy-info.txt') -Force }
     return 0
 }
 

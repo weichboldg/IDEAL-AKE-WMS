@@ -110,8 +110,9 @@ else if (Model.BackController == "Picking")
 
 <div class="card filter-card mb-3">
     <div class="card-body py-2">
-        @* v1.99.89 (K1/K10): mit Umschalter bleibt der Filter auf der Auftragsseite und in der gewaehlten Maske. *@
-        <form method="get" action="@(Model.KannListe ? Url.Action("Auftrag", new { id = Model.Auftrag!.Id }) : Url.Action("Bom", new { id = Model.ProductionOrderId }))" class="row g-2 align-items-end">
+        @* v1.99.89 (K1/K10): mit Umschalter bleibt der Filter in der gewaehlten Maske.
+           v1.99.90: im Auftragsmodus bleibt der Filter immer auf dem Auftrag, auch ohne Umschalter (AKE). *@
+        <form method="get" action="@(Model.Auftrag != null ? Url.Action("Auftrag", new { id = Model.Auftrag!.Id }) : Url.Action("Bom", new { id = Model.ProductionOrderId }))" class="row g-2 align-items-end">
             @if (Model.KannListe) { <input type="hidden" name="ansicht" value="@(Model.IstListe ? "liste" : "stueckliste")" /> }
             <div class="col-md-5">
                 <label class="form-label mb-0 small">Filter</label>
@@ -123,7 +124,7 @@ else if (Model.BackController == "Picking")
             @if (!string.IsNullOrEmpty(Model.FilterText))
             {
                 <div class="col-auto">
-                    <a href="@(Model.KannListe ? Url.Action("Auftrag", new { id = Model.Auftrag!.Id, ansicht = Model.IstListe ? "liste" : "stueckliste" }) : Url.Action("Bom", new { id = Model.ProductionOrderId }))" class="btn btn-sm btn-outline-secondary">Zurücksetzen</a>
+                    <a href="@(Model.Auftrag != null ? Url.Action("Auftrag", new { id = Model.Auftrag.Id, ansicht = Model.KannListe ? (Model.IstListe ? "liste" : "stueckliste") : null }) : Url.Action("Bom", new { id = Model.ProductionOrderId }))" class="btn btn-sm btn-outline-secondary">Zurücksetzen</a>
                 </div>
             }
             <div class="col-auto ms-auto d-flex gap-2 align-items-center">

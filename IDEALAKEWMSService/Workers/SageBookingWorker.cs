@@ -62,10 +62,25 @@ public class SageBookingWorker : BackgroundService
             if (intervalSeconds < 5) intervalSeconds = 5;   // Untergrenze gegen DB-Last
 
             var sageWeAn = false;   // v1.99.11: derselbe gelesene Wert gated die Wareneingang-CSV (Lesefehler = aus)
+            // v1.99.92 SD-6: Lagerbuchung und Sage-Wareneingang in getrennten try-Bloecken - ein Fehler im einen haelt den anderen
+            // (und die Wareneingang-CSV) im selben Takt nicht auf.
             try
             {
                 if (await ServiceSettings.GetBoolSafeAsync(_configuration, "SageLagerbuchungAktiv", false, stoppingToken))
                     await ProcessOnceAsync(stoppingToken);
+            }
+            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+            {
+                break;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Unerwarteter Fehler im Schritt Sage-Lagerbuchung.");
+                await NotifyErrorAsync("SageBookingWorker (Sage-Lagerbuchung)", ex, stoppingToken);
+            }
+
+            try
+            {
                 // v1.99.4 (Wareneingang Teil 2, E4): eigener Schritt, NUR durch SageWareneingangBelegAktiv geschaltet (unabhaengig von
                 // SageLagerbuchungAktiv); dieselbe EINE Instanz ist zustaendig (Idempotenz "Status vor dem Call").
                 // QA v1.99.7 F-2: NICHT die Safe-Variante - ein DB-Lesefehler darf nicht als „aus“ gelten und Q-2 (Offen/Fehler -> Klären)
@@ -82,8 +97,8 @@ public class SageBookingWorker : BackgroundService
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Unerwarteter Fehler im SageBookingWorker.");
-                await NotifyErrorAsync("SageBookingWorker (unerwartet)", ex, stoppingToken);
+                _logger.LogError(ex, "Unerwarteter Fehler im Schritt Sage-Wareneingang.");
+                await NotifyErrorAsync("SageBookingWorker (Sage-Wareneingang)", ex, stoppingToken);
             }
 
             // v1.99.31 (Spec 2026-11-16-offene-bestellungen-sofort-neu-lesen F1): nach einer Uebergabe die offenen Bestellungen neu lesen,

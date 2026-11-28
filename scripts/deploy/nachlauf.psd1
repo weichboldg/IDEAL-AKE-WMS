@@ -268,8 +268,12 @@ WHERE NOT EXISTS (SELECT 1 FROM dbo.Roles r WHERE r.[Key] = v.k);'
    Quelle='2026-11-12-v1-99-12-update-skript-pickup-pruefung' }
 @{ Id='Pruefung/SDataKennwortAppsettings'; Version='1.99.14'; Typ='Pruefung'; Firma='beide'; Phase='Nachher'; Ausfuehrung='anzeigen'
    Appsettings='SageLagerbuchung:Password'
-   Text='SData-Kennwort steht noch im Klartext in {Datei}. Erst in den Service-Einstellungen eintragen und den Lauf Sage-Lagerbuchung pruefen, dann aus der Datei entfernen (auch Web: appsettings.Production.json).'
+   Text='SData-Kennwort steht noch im Klartext in {Datei}. Erst in den Service-Einstellungen eintragen und den Lauf Sage-Lagerbuchung pruefen, dann aus der Datei entfernen.'
    Quelle='2026-11-13-v1-99-14-sdata-teil-2-userfelder-stueckliste' }
+@{ Id='Pruefung/SDataKennwortAppsettingsWeb'; Version='1.99.92'; Typ='Pruefung'; Firma='beide'; Phase='Nachher'; Ausfuehrung='anzeigen'
+   Appsettings='SageLagerbuchung:Password'; Ort='Web'
+   Text='SData-Kennwort steht noch im Klartext in {Datei} (Web). Erst in den Service-Einstellungen eintragen, Register Sage-Test pruefen, dann aus der Datei entfernen.'
+   Quelle='2026-11-28-v1-99-92-sdata-geheimnisse-review-befunde' }
 @{ Id='Pruefung/DoppeltePrio'; Version='1.99.17'; Typ='Pruefung'; Firma='beide'; Phase='Nachher'; Ausfuehrung='anzeigen'
    Pruefung='SELECT COUNT(*) FROM (SELECT ps.PickingPriority FROM dbo.ProductionOrderPickingStatus ps JOIN dbo.ProductionOrders po ON po.Id = ps.ProductionOrderId WHERE ps.PickingPriority IS NOT NULL AND po.IsDone = 0 AND po.IsCancelled = 0 AND (po.SubOrderNumber = N'''' OR po.SubOrderNumber = po.OrderNumber) GROUP BY ps.PickingPriority HAVING COUNT(*) > 1) d'
    Text='Offene FAs mit gleicher Kommissionier-Prio (Altbestand vor v1.99.17, freigegeben oder zurueckgenommen): im Leitstand per Prio-Eingabe korrigieren; Liste mit Pruefabfrage 1 der Spec 2026-11-13-doppelte-kommissionier-prio-nach-ruecknahme. Eine bewusst gleiche Prio (zwei FAs gleich dringend) ist erlaubt.'
@@ -530,11 +534,7 @@ WHERE NOT EXISTS (SELECT 1 FROM dbo.Roles r WHERE r.[Key] = v.k);'
    Text='Einkauf und Lager informieren: Rahmenabrufe (EBZ) stehen jetzt in Offene Bestellungen und Wareneingang. Offen = Abrufmenge minus im WMS erfasst; in Sage direkt gebuchte Abruf-Lieferungen zieht das WMS nicht ab. Abrufe sind auch in den Lieferverzug-Mails. Abrufe gehen als Lagerbuchung, Einkauf schliesst in Sage von Hand (kein Sage-Wareneingang, auch wenn SageWareneingangBelegAktiv an ist; Barcode/CSV fuer Abrufe gesperrt). Nach dem Deploy einen Abgleich Offene Bestellungen (Sage) laufen lassen.'
    Quelle='2026-11-13-v1-99-15-wareneingang-teil-3-rahmenabrufe' }
 @{ Id='v1.99.19-LieferverzugSchwellen'; Version='1.99.19'; Typ='Einstellung'; Firma='beide'; Phase='Nachher'; Ausfuehrung='anzeigen'
-   Text='/ServiceSettings > Lieferverzug-Mail: Sammelliste Tage nach Liefertermin = 1 (Einkauf, Till), Kreditor-Mail Tage nach Liefertermin = 3 (neu), Altersgrenze = 180 Tage (neu; aeltere Positionen nur unter Zu klaeren, nie an Lieferanten). Kreditor-Mail auch fuer Rahmenabrufe bleibt aus bis P-L4.'
-   Quelle='2026-11-13-v1-99-19-lieferverzug-nachbesserung-keyuser' }
-@{ Id='Pruefung/LieferverzugSammellisteTage'; Version='1.99.19'; Typ='Pruefung'; Firma='beide'; Phase='Nachher'; Ausfuehrung='anzeigen'
-   Pruefung='SELECT CASE WHEN EXISTS (SELECT 1 FROM dbo.ServiceSettings WHERE [Key] = N''Lieferverzug:TageNachTermin'' AND LTRIM(RTRIM([Value])) = N''1'') THEN 0 ELSE 1 END'
-   Text='Lieferverzug: Sammelliste steht nicht auf 1 Tag nach Liefertermin (Vorgabe Einkauf). /ServiceSettings > Lieferverzug-Mail pruefen.'
+   Text='/ServiceSettings > Lieferverzug-Mail: Sammelliste Tage nach Liefertermin AKE = 1 (Einkauf, Till), IDEAL Standard 3 lassen; Kreditor-Mail Tage nach Liefertermin = 3 (neu), Altersgrenze = 180 Tage (neu; aeltere Positionen nur unter Zu klaeren, nie an Lieferanten). Kreditor-Mail auch fuer Rahmenabrufe bleibt aus bis P-L4.'
    Quelle='2026-11-13-v1-99-19-lieferverzug-nachbesserung-keyuser' }
 @{ Id='Pruefung/LieferverzugAdressenAKE'; Version='1.99.19'; Typ='Pruefung'; Firma='AKE'; Phase='Nachher'; Ausfuehrung='anzeigen'
    Pruefung='SELECT CASE WHEN (SELECT COUNT(*) FROM dbo.ServiceSettings WHERE [Key] IN (N''Lieferverzug:KreditorAbsender'', N''Lieferverzug:AntwortAdresse'') AND LOWER(LTRIM(RTRIM([Value]))) = N''einkauf@ideal-ake.at'') = 2 THEN 0 ELSE 1 END'
@@ -725,5 +725,9 @@ WHERE NOT EXISTS (SELECT 1 FROM dbo.Roles r WHERE r.[Key] = v.k);'
 @{ Id='v1.99.89-KoAuftragListe'; Version='1.99.89'; Typ='Info'; Firma='IDEAL'; Phase='Nachher'; Ausfuehrung='anzeigen'
    Text='Kommissionierauftraege oeffnen bei aktiven Kommissionierlisten in der Maske Liste: je Artikel summiert, die Ist-Menge wird in Positionsreihenfolge auf die Positionen verteilt (bei zu wenig bleibt die letzte erreichte Position teilgeliefert). Auftrag drucken aus der Liste druckt summiert mit den eingeblendeten Spalten. Umschalten auf Stueckliste oben im Auftrag.'
    Quelle='2026-11-26-beschichtung-summe-leitstand-hauptfa-kommissionierauftrag-liste-teil-3-spec' }
+@{ Id='v1.99.93-LieferverzugSammellisteTage'; Version='1.99.93'; Typ='Einstellung'; Firma='AKE'; Phase='Nachher'; Ausfuehrung='anzeigen'
+   Pruefabfrage='SELECT ISNULL((SELECT TOP 1 LTRIM(RTRIM([Value])) FROM dbo.ServiceSettings WHERE [Key] = N''Lieferverzug:TageNachTermin''), N''kein Eintrag (Standard 3)'') AS TageNachTermin'
+   Text='AKE: Vorgabe Einkauf 1 Tag - aktuellen Wert pruefen (/ServiceSettings > Lieferverzug-Mail, Sammelliste Tage nach Liefertermin; Katalog-Standard bleibt 3).'
+   Quelle='2026-11-28-v1-99-93-update-skript-review-befunde' }
 )
 }

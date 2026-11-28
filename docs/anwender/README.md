@@ -56,6 +56,10 @@ Stand der Anleitungen: Version **1.99.89** (26.11.2026) für Kapitel 01 (IDEAL: 
 | 1.99.86 | Lager-/Glasbestellung: Hinweis „bereits als Fehlteil bestellt“ mit Liefertermin beim Erfassen | [03](03-lagerbestellung-glasbestellung.md) |
 | 1.99.88 | IDEAL-Leitstand: eine Zeile je HauptFA, Werte aus Sub-FAs zusammengefasst, Schalter „Sub-FAs anzeigen“; Beschichtungsauftrag: Summenzeile nur Teilesumme | [01](01-kommissionierung.md), [15](15-beschichtung-beschichtungsauftrag.md) |
 | 1.99.89 | IDEAL-Kommissionierauftrag: Maske „Liste“ summiert je Artikel mit Umbuchen (Verteilung auf Positionen), summierter Druck und PDF | [01](01-kommissionierung.md) |
+| 1.99.90 | Kommissionierauftrag: Filter und „Zurücksetzen“ bleiben im Auftrag | [01](01-kommissionierung.md) |
+| 1.99.91 | IDEAL-Kommissionierliste: Position zur AB-Nummer im Gruppenkopf, Spalte „Pos“ im Druck | [16](16-ideal-kommissionierliste.md) |
+| 1.99.92 | Register Sage-Test: Verbindungstest nutzt gespeicherte Zugangsdaten nur für die gespeicherte Adresse | [12](12-register-sage-test.md) |
+| 1.99.93 | keine Anwender-Änderung (Update-Skript) | – |
 | 1.99.26 | Sage-Test → Stückliste live: „Ressourcenliste (Vorlage)“, FA-Struktur auch für beendete Haupt-FAs | [12](12-register-sage-test.md) |
 | 1.99.27 | reserviert, nicht ausgeliefert | – |
 | 1.99.28 | Anmeldung nur mit Kennwort, Erstkennwort mit Pflichtwechsel | [13](13-anmeldung-und-benutzer.md) |

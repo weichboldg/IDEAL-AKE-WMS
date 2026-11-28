@@ -82,6 +82,7 @@
                                     <th>Montage-Abt.</th>
                                     <th>Kunde</th>
                                     <th>AB-Nr.</th>
+                                    <th>Pos</th>
                                     <th>KO-Termin</th>
                                     <th>FE-Termin</th>
                                 </tr>
@@ -93,6 +94,7 @@
                                         <td>@info.MontageAbteilung</td>
                                         <td>@info.Kunde</td>
                                         <td>@info.ABNr</td>
+                                        <td>@info.Pos</td>
                                         <td>@(info.KO_Termin?.ToString("dd.MM.yyyy") ?? "—")</td>
                                         <td>@(info.FE_Termin?.ToString("dd.MM.yyyy") ?? "—")</td>
                                     </tr>

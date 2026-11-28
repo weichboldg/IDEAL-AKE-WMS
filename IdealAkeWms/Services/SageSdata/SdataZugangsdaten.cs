@@ -1,4 +1,5 @@
 using IdealAkeWms.Data.Repositories;
+using System.Text;
 using Microsoft.AspNetCore.DataProtection;
 
 namespace IdealAkeWms.Services.SageSdata;
@@ -109,6 +110,39 @@ public static class SdataZugangsdaten
         return new SdataWebStand(baseUrl, string.IsNullOrEmpty(application) ? "ol" : application,
             string.IsNullOrEmpty(contract) ? "CommonWawiServices" : contract, dataset, pruefen, zugang,
             KennwortStatus(zugang, dbKennwort, provider), fehlt);
+    }
+
+    /// <summary>v1.99.92 (SD-1): Gespeicherte Zugangsdaten nur an die gespeicherte <c>SData:BaseUrl</c> (gleiches Schema, Host, Port) und nie
+    /// mit schwaecherer TLS-Pruefung. http nur, wenn die gespeicherte Adresse selbst http ist (Freigabe-Antwort 2: kein Standort verliert
+    /// den Test). <c>null</c> = erlaubt, sonst Meldung (nennt nie Benutzer oder Kennwort).</summary>
+    public static string? SperreGespeicherterZugang(string? zielUrl, bool fensterTlsPruefen, string? gespeicherteAdresse, bool gespeichertTlsPruefen)
+    {
+        const string Eingeben = " – für diesen Test Benutzer und Kennwort im Fenster eingeben.";
+        if (string.IsNullOrWhiteSpace(gespeicherteAdresse)
+            || !Uri.TryCreate(gespeicherteAdresse.Trim(), UriKind.Absolute, out var soll) || soll.UserInfo.Length > 0)
+            return "Gespeicherte Zugangsdaten nicht verwendet: SData:BaseUrl ist nicht gesetzt oder ungültig" + Eingeben;
+        if (!Uri.TryCreate(zielUrl, UriKind.Absolute, out var ziel) || (ziel.Scheme != Uri.UriSchemeHttps && ziel.Scheme != Uri.UriSchemeHttp))
+            return "Gespeicherte Zugangsdaten nicht verwendet: Adresse ist keine gültige http(s)-Adresse" + Eingeben;
+        if (ziel.UserInfo.Length > 0)
+            return "Gespeicherte Zugangsdaten nicht verwendet: Adresse enthält Zugangsdaten (@)" + Eingeben;
+        if (!string.Equals(ziel.Scheme, soll.Scheme, StringComparison.OrdinalIgnoreCase)
+            || !string.Equals(ziel.IdnHost, soll.IdnHost, StringComparison.OrdinalIgnoreCase) || ziel.Port != soll.Port)
+            return $"Gespeicherte Zugangsdaten nur für die gespeicherte Adresse {soll.Scheme}://{soll.Authority}"
+                + (ziel.Scheme == Uri.UriSchemeHttp && soll.Scheme != Uri.UriSchemeHttp ? " (nie über http://)" : "") + Eingeben;
+        if (gespeichertTlsPruefen && !fensterTlsPruefen)
+            return "Gespeicherte Zugangsdaten nicht mit ausgeschalteter Zertifikatsprüfung – Haken setzen oder Benutzer und Kennwort im Fenster eingeben.";
+        return null;
+    }
+
+    /// <summary>v1.99.92 (SD-2a): hoechstens <paramref name="max"/> Zeichen lesen (UTF-8, BOM-Erkennung); mehr = kuerzen + „… (gekuerzt)“.</summary>
+    public static async Task<string> LeseHoechstensAsync(Stream stream, int max, CancellationToken ct)
+    {
+        using var reader = new StreamReader(stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true);
+        var puffer = new char[max + 1];
+        var gelesen = 0;
+        int n;
+        while (gelesen < puffer.Length && (n = await reader.ReadBlockAsync(puffer.AsMemory(gelesen), ct)) > 0) gelesen += n;
+        return gelesen > max ? new string(puffer, 0, max) + "\n… (gekuerzt)" : new string(puffer, 0, gelesen);
     }
 
     // ===== Schluesselring (eine Stelle fuer Web und Dienst) =====
