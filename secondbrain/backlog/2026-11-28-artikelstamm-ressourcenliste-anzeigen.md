@@ -2,6 +2,7 @@
 type: backlog
 typ: feature
 status: offen
+jira: WMS-10
 created: 2026-11-28
 standort: IDEAL
 quelle: "Mail „WMS Anpassungen“ (Benjamin Andl-Braun, IDEAL) Punkt 2 (zweiter Satz) + Ergänzung Gerald im Chat 2026-11-28 („Ressourcenliste im Artikelstamm als eigene anzeigbare Liste“)"

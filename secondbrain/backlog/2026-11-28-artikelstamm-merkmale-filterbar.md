@@ -2,6 +2,7 @@
 type: backlog
 typ: feature
 status: offen
+jira: WMS-10
 created: 2026-11-28
 standort: beide
 quelle: "Mail „WMS Anpassungen“ (Benjamin Andl-Braun, IDEAL) Punkt 2 + Ergänzung Gerald im Chat 2026-11-28 („Sage-Info-Felder wie z. B. OS_-Felder sollen filterbar sein“)"
