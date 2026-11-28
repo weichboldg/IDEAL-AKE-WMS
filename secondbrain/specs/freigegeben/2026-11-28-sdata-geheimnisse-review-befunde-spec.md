@@ -401,3 +401,5 @@ Das Paket-Skript lief daraus fehlerfrei (212.10).
 5. Update-Skript auf Test/Prod: Zeile `Pruefung/SDataKennwortAppsettingsWeb` beachten (IDEAL-DEV hat das Kennwort in der Web-Datei; erst
    Service-Einstellungen pflegen, dann aus der Datei entfernen).
 6. Gesamtlauf TS-212 auf dem Testsystem (beide Standorte), danach Schranke 2 (Merge).
+
+> **Bestätigung Gerald 2026-11-28 (nach Testbereit):** Deutung Freigabe-Antwort 2 passt – gespeicherte Zugangsdaten über http nur, wenn die gespeicherte `SData:BaseUrl` selbst http ist (umgesetzt in `SdataZugangsdaten.SperreGespeicherterZugang`).
