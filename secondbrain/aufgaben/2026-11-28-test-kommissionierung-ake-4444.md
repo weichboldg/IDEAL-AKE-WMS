@@ -29,3 +29,14 @@ Anmeldung „Mit Windows anmelden“ als Gerald Weichbold (AD, ohne Kennwort). G
 - Lagerplatz **„NAN“** (Id 1) ist Quell-Lagerplatz aller Positionen – Testdaten-Artefakt am :4444? Prüfen, ob es den Platz in Sage gibt.
 - Wagen 1/2 sind mit Teilen alter FAs belegt (2602011, 2602108, 2618052, 2616156) – Testdaten, ggf. „Lagerplatz ausbuchen“.
 - Freigabe-Knopf: geklickt über die Element-Suche (nicht nach Bildschirmposition), angelegt wurde FA 2618092 statt der optisch ersten Zeile 2604043. Ursache unklar (Zuordnung der Element-Suche); bei Gerald mit Klick nachprüfen, bevor es ein Bug wird.
+
+## Artikelstamm WMS ↔ Sage (AKE-Test :4444, 2026-11-28 ~12:35)
+Auftrag Gerald: „prüfen ob im AKE-Artikelstamm alle Artikel vorhanden sind wie im Sage“. Weg: Oberfläche (sqlcmd gegen AKESQL20 vom Auto-Modus abgelehnt).
+- `/ServiceSettings`: „Quelle Artikel-Abgleich“ = **SData** (AKE ohne Sperre).
+- `/SyncLog` Artikel-Sync, Lauf 28.11. 12:30: **gelesen=100599, neu=0, aktualisiert=0**, hauptlagerplatz_fehlt=106 (GL-AKV, FTG …).
+  → Jeder Artikel, den der Abgleich aus Sage liest, ist im WMS vorhanden (fehlende würde der Lauf anlegen).
+- `/Articles`: **105 632** Artikel → **5 033 mehr** im WMS als Sage derzeit liefert (WMS löscht nicht; vermutlich Artikel, die nicht mehr in
+  Ressourcenlisten / nicht mehr aktive Bestellartikel sind). Nicht aufgeschlüsselt.
+- Einschränkung: „wie im Sage“ = die AKE-Abgleichsmenge (alle Ressourcenummern aus PPS-Ressourcenpositionen ∪ aktive Bestellartikel,
+  `SdataArtikelReader.cs:78-82`), **nicht** alle Sage-Artikel. Gesamtzahl KHKArtikel nicht geprüft (kein DB-Zugriff) – Prüfabfrage für Gerald:
+  `SELECT COUNT(*) FROM KHKArtikel WHERE Mandant = <AKE>` im Sage-Mandanten, an den :4444 angebunden ist (Test oder Prod klären).
